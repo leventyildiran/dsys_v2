@@ -5,11 +5,13 @@ import '../features/danismanlik/screens/danismanlik_dashboard_screen.dart';
 import '../features/danismanlik/screens/danismanlik_form_screen.dart';
 import '../features/yk_karar/screens/yk_karar_screen.dart';
 import '../features/danismanlik/screens/danismanlik_screen.dart';
+import '../features/danismanlik/screens/danismanlik_detay_screen.dart';
 import '../features/admin/screens/admin_dashboard_screen.dart';
 import '../features/fatura/screens/batch_verification_screen.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/providers/auth_provider.dart';
 import '../features/ayarlar/screens/sistem_ayarlari_screen.dart';
+import '../features/danismanlik/models/danismanlik_model.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -60,6 +62,15 @@ class AppRouter {
                 GoRoute(
                   path: '/danismanlik',
                   builder: (context, state) => const DanismanlikScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'detay',
+                      builder: (context, state) {
+                        final model = state.extra as DanismanlikModel;
+                        return DanismanlikDetayScreen(danismanlik: model);
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
