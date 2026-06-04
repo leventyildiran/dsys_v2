@@ -6,10 +6,12 @@ import '../../../core/turkce_format.dart';
 import '../../personel/models/personel_model.dart';
 import '../models/danismanlik_model.dart';
 import '../providers/danismanlik_provider.dart';
-import '../../yk_karar/services/belge_uretim_servisi.dart'; // TODO: Update BelgeUretimServisi for Danismanlik docx
+import '../../yk_karar/models/yk_karar_model.dart';
+import '../../yk_karar/services/belge_uretim_servisi.dart';
 
 class DanismanlikFormScreen extends StatefulWidget {
-  const DanismanlikFormScreen({super.key});
+  final YkKararModel? ykKarar;
+  const DanismanlikFormScreen({super.key, this.ykKarar});
 
   @override
   State<DanismanlikFormScreen> createState() => _DanismanlikFormScreenState();
@@ -22,19 +24,42 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DanismanlikProvider>().temizle();
-      // Test amaçlı bir personel ekleyelim
-      context.read<DanismanlikProvider>().personelEkle(
-        const PersonelModel(
-          id: '1',
-          adSoyad: 'Prof. Dr. Ahmet Yılmaz',
-          unvan: 'Prof. Dr.',
-          tcKimlikNo: '12345678901',
-          iban: 'TR12 3456 7890',
-          unvanKatsayisi: 1000,
-          birimId: 'merkez',
-        ),
-      );
+      final provider = context.read<DanismanlikProvider>();
+      provider.temizle();
+      
+      if (widget.ykKarar != null) {
+        // YK Kararından gelen verilerle formu doldur
+        provider.setFirmaUnvan(widget.ykKarar!.baslik.replaceAll(' Danışmanlık', ''));
+        if (widget.ykKarar!.tabloVerileri.isNotEmpty) {
+          // Tablodan ilk hocayı alıp test amaçlı ekleyelim
+          final row = widget.ykKarar!.tabloVerileri.first;
+          final adSoyad = row['Personel'] ?? row['adiSoyadi'] ?? 'Prof. Dr. Ahmet Yılmaz';
+          provider.personelEkle(
+            PersonelModel(
+              id: '1',
+              adSoyad: adSoyad.toString(),
+              unvan: 'Prof. Dr.',
+              tcKimlikNo: '12345678901',
+              iban: 'TR12 3456 7890',
+              unvanKatsayisi: 1000,
+              birimId: widget.ykKarar!.birimId,
+            ),
+          );
+        }
+      } else {
+        // Test amaçlı bir personel ekleyelim
+        provider.personelEkle(
+          const PersonelModel(
+            id: '1',
+            adSoyad: 'Prof. Dr. Ahmet Yılmaz',
+            unvan: 'Prof. Dr.',
+            tcKimlikNo: '12345678901',
+            iban: 'TR12 3456 7890',
+            unvanKatsayisi: 1000,
+            birimId: 'merkez',
+          ),
+        );
+      }
     });
   }
 

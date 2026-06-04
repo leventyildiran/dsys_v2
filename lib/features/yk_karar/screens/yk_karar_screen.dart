@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:printing/printing.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/toplanti_model.dart';
 import '../models/yk_karar_model.dart';
@@ -267,6 +268,23 @@ class _YkKararContent extends StatelessWidget {
                     ),
                     _buildField('Karar Başlığı', karar.baslik,
                         onChanged: (v) => provider.updateKararField('baslik', v)),
+                    if (karar.tur == YkKararTuru.danismanlik || karar.tur == YkKararTuru.danismanlikGorevlendirme) ...[
+                      const SizedBox(height: 16),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            context.go('/danismanlik/yeni', extra: karar);
+                          },
+                          icon: const Icon(Icons.rocket_launch, size: 18),
+                          label: const Text('Bu Karardan Danışmanlık Kaydı Başlat'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.indigo.shade600,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 16),

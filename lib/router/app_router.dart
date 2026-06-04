@@ -4,6 +4,7 @@ import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/danismanlik/screens/danismanlik_dashboard_screen.dart';
 import '../features/danismanlik/screens/danismanlik_form_screen.dart';
 import '../features/yk_karar/screens/yk_karar_screen.dart';
+import '../features/yk_karar/models/yk_karar_model.dart';
 import '../features/danismanlik/screens/danismanlik_screen.dart';
 import '../features/danismanlik/screens/danismanlik_detay_screen.dart';
 import '../features/admin/screens/admin_dashboard_screen.dart';
@@ -61,13 +62,20 @@ class AppRouter {
               routes: [
                 GoRoute(
                   path: '/danismanlik',
-                  builder: (context, state) => const DanismanlikScreen(),
+                  builder: (context, state) => const DanismanlikDashboardScreen(),
                   routes: [
                     GoRoute(
                       path: 'detay',
                       builder: (context, state) {
                         final model = state.extra as DanismanlikModel;
                         return DanismanlikDetayScreen(danismanlik: model);
+                      },
+                    ),
+                    GoRoute(
+                      path: 'yeni',
+                      builder: (context, state) {
+                        final ykKarar = state.extra as YkKararModel?;
+                        return DanismanlikFormScreen(ykKarar: ykKarar);
                       },
                     ),
                   ],
