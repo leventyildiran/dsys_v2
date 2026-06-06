@@ -1,0 +1,329 @@
+{
+  "firmalar": [
+    {
+      "firmaAdi": "Colombus Textilvertrieb GmbH",
+      "adres": "LUXTEX GmbH - Parkstr. 76 - 40764 Langenfeld",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "Colombus Textilvertrieb GmbH",
+      "adres": "LUXTEX GmbH - Parkstr. 76 - 40764 Langenfeld",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "TÜRK TELEKOMÜNİKASYON A.Ş.",
+      "adres": "TURGUT ÖZAL BULVARI AYDINLIKEVLER 06103 ANKARA",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "UŞAK İL ÖZEL İDARESİ",
+      "adres": "ÜNALAN MAH. ATATÜRK BULV. NO:102 MERKEZ/UŞAK",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "AĞAOĞLU TEKSTİL SANAYİ VE TİCARET A.Ş.",
+      "adres": "KARMA O.S.B. 3. CADDE NO:13 UŞAK",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "CEMSEL TEKSTİL SAN. VE TİC. A.Ş.",
+      "adres": "BAĞLAR MAH. 24. SOK. NO:43 GÜNEŞLİ-BAĞCILAR/İSTANBUL",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "YÖN PAMUKLU DOKUMA SAN VE TİC LTD ŞTİ",
+      "adres": "SÜMER MAH. 2482/2SOK. B BLOK NO:4/1-95 MERKEZEFENDİ/DENİZLİ",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "PULTECH KOMPOZİT YAPI TEKNOLOJİLERİ İMALAT SAN. VE TİC. A.Ş.",
+      "adres": "UŞAK DERİ(KARMA) ORGANİZE SAN. BÖL. 4. CADDE NO:36 MERKEZ/UŞAK",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "DİGİMODE BİLİŞİM SAN. VE TİC. LTD. ŞTİ.",
+      "adres": "BEYTEPE MAH. 5314 CAD. NO:4A İÇ KAPI NO:15 ÇANKAYA/ANKARA",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "AD-SOYAD",
+      "adres": "",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "Yonca YILDIRIM",
+      "adres": "UŞAK ÜNİVERSİTESİ",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "TÜPRAG METAL MADENCİLİK SAN. VE TİC. A.Ş.",
+      "adres": "KÖYÜN KENDİSİ MAH. GÜMÜŞKOL SOK. NO:204 ULUBEY/UŞAK",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "HER-İŞ SERAMİK VE TUR. SAN. A.Ş.",
+      "adres": "İNKÖY MAH.ESKİŞEHİR KARAYOLU BLV. NO:94/1 KÜTAHYA",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "DİLARA SEVİNDİK",
+      "adres": "AĞAOĞLU TEKSTİL KARMA OSB 103. CAD. NO:13 MERKEZ/UŞAK",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "POLSAR TEKSTİL SAN. TİC. A.Ş. ( SHERATON HOTEL)",
+      "adres": "DİKİLİTAŞ MAH. ATATÜRK BULVARI NO: 182 MERKEZ/UŞAK",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "BİM BİRLEŞİK MAĞAZALAR A.Ş.",
+      "adres": "ABDURRAHMAN GAZİ MAH. EBUBEKİR CAD. NO:73 34887 SANCAKTEPE/İSTANBUL",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "POLSAR TEKSTİL SAN. TİC. A.Ş. ( SHERATON HOTEL)",
+      "adres": "DİKİLİTAŞ MAH. ATATÜRK BULVARI NO: 182 MERKEZ/UŞAK",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    },
+    {
+      "firmaAdi": "HALİL İBRAHİM GİRGİN",
+      "adres": "FEVZİÇAKMAK MAH.GAZİ BUL. NO:8A UŞAK",
+      "vergiDairesi": "",
+      "vergiNo": ""
+    }
+  ],
+  "hizmetler": [
+    {
+      "birimAdi": "DTS",
+      "hizmetAdi": "Service fee for providing 'AI Photography Services' to Colombus Textilvertrieb GmbH and creating a catalog by generating AI images of existing products within the scope of this service\nColombus Textilvertrieb GmbH için Yapay Zeka Fotoğrafçılığı Hizmet Bedeli",
+      "fiyat": 20000
+    },
+    {
+      "birimAdi": "DTS",
+      "hizmetAdi": "DANIŞMANLIK HİZMETİ BEDELİ",
+      "fiyat": 8000
+    },
+    {
+      "birimAdi": "DTS",
+      "hizmetAdi": "\"Colombus Textilvertrieb GmbH firmasına 'Yapay Zeka Fotoğrafçılığı Hizmeti' sunulması ve bu hizmet kapsamında mevcut ürünlerin Yapay Zeka fotoğrafları oluşturularak katalog haline getirilmesi hizmet bedeli.\"\n\"Colombus Textilvertrieb GmbH için 'Yapay Zeka Fotoğrafçılığı Hizmeti' sunulması ve bu hizmet kapsamında mevcut üretilmiş ürünlerin Yapay Zeka Fotoğrafları oluşturularak katalog haline getirilmesi hizmet bedeli\"",
+      "fiyat": 448.9698
+    },
+    {
+      "birimAdi": "DTS",
+      "hizmetAdi": "TÜRK TELEKOM KURUMSAL KIYAFET- TASARIM HZMET BEDELİ",
+      "fiyat": 800000
+    },
+    {
+      "birimAdi": "DTS",
+      "hizmetAdi": "DENETİM DANIŞMANLIK HİZMETİ BEDELİ (Prof. Dr. Eren ÖNER ve Öğr.Gör.Dr. Esra SUNERLİ TOPAN)",
+      "fiyat": 50000
+    },
+    {
+      "birimAdi": "DTS",
+      "hizmetAdi": "YAPAY ZEKA FOTOĞRAFÇILIĞI HİZMETİ (Öğr.Gör. Fatih AYTEKİN)",
+      "fiyat": 16000
+    },
+    {
+      "birimAdi": "DTS",
+      "hizmetAdi": "YAPAY ZEKA FOTOĞRAFÇILIĞI ÜRÜN RENK VARYANTI HİZMETİ (Öğr.Gör. Fatih AYTEKİN)",
+      "fiyat": 23750
+    },
+    {
+      "birimAdi": "DTS",
+      "hizmetAdi": "YAPAY ZEKA FOTOĞRAFÇILIĞI HİZMETİ (Öğr.Gör. Fatih AYTEKİN)",
+      "fiyat": 20000
+    },
+    {
+      "birimAdi": "DTS",
+      "hizmetAdi": "DANIŞMANLIK HİZMETİ BEDELİ (Öğr.Gör. Esra SUNERLİ TOPAN)",
+      "fiyat": 7000
+    },
+    {
+      "birimAdi": "DÖSİM",
+      "hizmetAdi": "2547 SAYILI KANUNUN 58. MADDESİNİN (K) BENDİNE GÖRE DOÇ.DR. EMİNE KAYHAN'IN DANIŞMANLIK HİZMET BEDELİ",
+      "fiyat": 30000
+    },
+    {
+      "birimAdi": "DÖSİM",
+      "hizmetAdi": "2547 SAYILI KANUNUN 58. MADDESİNİN (K) BENDİNE GÖRE PROF. DR. OSMAN ASİ'NİN DANIŞMANLIK HİZMET BEDELİ",
+      "fiyat": 50000
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Kenan KANAT",
+      "fiyat": 1350
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Kerem MERTOĞLU",
+      "fiyat": 510
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Mehmet KUŞ",
+      "fiyat": 1440
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Mehmet Uğur YILDIRIM",
+      "fiyat": 540
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Mural ERDAL",
+      "fiyat": 90
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Mustafa GÖKÇENOĞLU",
+      "fiyat": 1710
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Nesibe Özge TOY",
+      "fiyat": 360
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Nuray ŞAHİNLER",
+      "fiyat": 120
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Ramazan ŞAHİN",
+      "fiyat": 990
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Rıfat KAYA",
+      "fiyat": 540
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Semra KASAP",
+      "fiyat": 180
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Sezai TAŞDEMİR",
+      "fiyat": 270
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Sibel ALAPALA",
+      "fiyat": 450
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Turgut ÇIKRIKCI",
+      "fiyat": 900
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Yavuzhan TARHAN",
+      "fiyat": 1530
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Yonca YILDIRIM",
+      "fiyat": 240
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Toplam",
+      "fiyat": 16770
+    },
+    {
+      "birimAdi": "TADAUM",
+      "hizmetAdi": "Yumurta Satış Bedeli",
+      "fiyat": 218.18181818181816
+    },
+    {
+      "birimAdi": "UBATAM",
+      "hizmetAdi": "Kimyasal Oksijen İhtiyacı *",
+      "fiyat": 2600
+    },
+    {
+      "birimAdi": "UBATAM",
+      "hizmetAdi": "Biyolojik Oksijen İhtiyacı*",
+      "fiyat": 2200
+    },
+    {
+      "birimAdi": "UBATAM",
+      "hizmetAdi": "Metal Ön İşlem*",
+      "fiyat": 1905
+    },
+    {
+      "birimAdi": "UBATAM",
+      "hizmetAdi": "FEKAL KOLİFORM*",
+      "fiyat": 1575
+    },
+    {
+      "birimAdi": "UBATAM",
+      "hizmetAdi": "Raporlama",
+      "fiyat": 1197.75
+    },
+    {
+      "birimAdi": "UBATAM",
+      "hizmetAdi": "Biyolojik Oksijen İhtiyacı*",
+      "fiyat": 2200
+    },
+    {
+      "birimAdi": "UBATAM",
+      "hizmetAdi": "Kimyasal Oksijen İhtiyacı *",
+      "fiyat": 2600
+    },
+    {
+      "birimAdi": "UBATAM",
+      "hizmetAdi": "Askıda Katı Madde*",
+      "fiyat": 1100
+    },
+    {
+      "birimAdi": "UBATAM",
+      "hizmetAdi": "Raporlama",
+      "fiyat": 576.25
+    },
+    {
+      "birimAdi": "UBATAM",
+      "hizmetAdi": "Ulaşım Bedeli",
+      "fiyat": 4212.63
+    },
+    {
+      "birimAdi": "USEM",
+      "hizmetAdi": "Kat Hizmetleri Elemanı Eğitimi Hizmet Bedeli",
+      "fiyat": 29090.91
+    },
+    {
+      "birimAdi": "USEM",
+      "hizmetAdi": "Pazarlama ve Perakende Satış Eğitimi",
+      "fiyat": 25000
+    },
+    {
+      "birimAdi": "USEM",
+      "hizmetAdi": "Kat Hizmetleri Elemanı Eğitimi Hizmet Bedeli",
+      "fiyat": 29090.91
+    },
+    {
+      "birimAdi": "USEM",
+      "hizmetAdi": "YDS/YÖKDİL İngilizce Hazırlık Kursu Hizmet Bedeli",
+      "fiyat": 9090.90909090909
+    }
+  ]
+}

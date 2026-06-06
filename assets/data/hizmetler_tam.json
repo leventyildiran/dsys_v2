@@ -1,0 +1,1022 @@
+[
+  {
+    "birimAdi": "DERİ TEKSTİL VE SERAMİK TASARIM UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "YAPAY ZEKA FOTOĞRAFÇILIĞI HİZMETİ (Öğr.Gör. Fatih AYTEKİN)",
+    "fiyat": 16
+  },
+  {
+    "birimAdi": "DERİ TEKSTİL VE SERAMİK TASARIM UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "YAPAY ZEKA FOTOĞRAFÇILIĞI ÜRÜN RENK VARYANTI HİZMETİ (Öğr.Gör. Fatih AYTEKİN)",
+    "fiyat": 95
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kimyasal Oksijen İhtiyacı (Yüksek Klorürlü)",
+    "fiyat": 1395
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Anlık Numune Alma",
+    "fiyat": 1305
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Biyolojik Oksijen İhtiyacı*",
+    "fiyat": 2200
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Bulanıklık",
+    "fiyat": 40
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Çözünmüş Oksijen",
+    "fiyat": 170
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "İletkenlik",
+    "fiyat": 170
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Sıcaklık",
+    "fiyat": 170
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Toplam Çözünmüş Madde",
+    "fiyat": 75
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Fenol / Fenol İndeksi",
+    "fiyat": 1395
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Florür",
+    "fiyat": 625
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Klorür",
+    "fiyat": 310
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Nitrit / Nitrit Azotu",
+    "fiyat": 310
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Nitrat / Nitrat Azotu",
+    "fiyat": 310
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Renk",
+    "fiyat": 1365
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Sülfat",
+    "fiyat": 1365
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Serbest siyanür",
+    "fiyat": 104
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Toplam Siyanür",
+    "fiyat": 2420
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Fosfat Fosforu",
+    "fiyat": 92
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Toplam Kjeldahl Azotu",
+    "fiyat": 1190
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Yağ ve Gres",
+    "fiyat": 1515
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Krom VI",
+    "fiyat": 620
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Bakır*",
+    "fiyat": 1400
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kobalt",
+    "fiyat": 104
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Alüminyum",
+    "fiyat": 205
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Arsenik",
+    "fiyat": 310
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kadmiyum*",
+    "fiyat": 1400
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kurşun*",
+    "fiyat": 1400
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Nikel",
+    "fiyat": 310
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Askıda Katı Madde*",
+    "fiyat": 1100
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Amonyum / Amonyum Azotu",
+    "fiyat": 1190
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Çinko*",
+    "fiyat": 1400
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Toplam Krom*",
+    "fiyat": 1400
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Amonyak / Amonyak Azotu",
+    "fiyat": 175
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Balık Biyodeneyi",
+    "fiyat": 2545
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Aktif Klor",
+    "fiyat": 620
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Sülfür",
+    "fiyat": 620
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Sülfit",
+    "fiyat": 620
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Toplam Fosfor",
+    "fiyat": 1475
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kompozit Numune Alımı (2 Saatlik)",
+    "fiyat": 1690
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kompozit Numune Alma (24 Saatlik)",
+    "fiyat": 770
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Civa*",
+    "fiyat": 1400
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Demir*",
+    "fiyat": 1400
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Ağır Metal Tayini ICP-MS (11-21 Element)",
+    "fiyat": 240
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "İyon Kromotografi (Anyon)",
+    "fiyat": 100
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "GC-MS Kalitatif",
+    "fiyat": 120
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "ICP-MS Analizi",
+    "fiyat": 104
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "N A K L İ Y E K Ü N",
+    "fiyat": 16445
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Tesis Taban Fiyatı",
+    "fiyat": 5545
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kimyasal Oksijen İhtiyacı *",
+    "fiyat": 2600
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Metal Ön İşlem*",
+    "fiyat": 1905
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Ulaşım Bedeli",
+    "fiyat": 1548.19
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "SA22137 Nolu Numune\n Fiyat  Güncellemesi",
+    "fiyat": 922
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Gümüş",
+    "fiyat": 205
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Antimon",
+    "fiyat": 310
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Toplam Azot",
+    "fiyat": 820
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Metal Analizleri  Ön İşlem",
+    "fiyat": 865
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kompozit Numune Alımı (Anlık)",
+    "fiyat": 825
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "FEKAL KOLİFORM*",
+    "fiyat": 1575
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "AKTİF/SERBEST/BAKİYE KLOR",
+    "fiyat": 620
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Anlık Numune Alma*",
+    "fiyat": 2875
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Elektrot İle Yapılan Analizler",
+    "fiyat": 800
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Ph (Çözünmüş Oksijen, İletkenlik, Tuzluluk, Sıcaklık)*",
+    "fiyat": 1900
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Raporlama",
+    "fiyat": 1197.75
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kimyasal Oksijen İhtiyacı (Yüksek Klorürlü)*",
+    "fiyat": 3150
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Fenol / Fenol İndeksi*",
+    "fiyat": 3070
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Florür*",
+    "fiyat": 1000
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Klorür*",
+    "fiyat": 990
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Nitrat / Nitrat Azotu*",
+    "fiyat": 990
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Renk*",
+    "fiyat": 1365
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Sülfat*",
+    "fiyat": 990
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Toplam Siyanür Tayini*",
+    "fiyat": 2420
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Toplam Kjeldahl Azotu*",
+    "fiyat": 1905
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Yağ Gres Tayini*",
+    "fiyat": 4800
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Krom VI*",
+    "fiyat": 990
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Alüminyum*",
+    "fiyat": 990
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Arsenik*",
+    "fiyat": 1400
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Nikel*",
+    "fiyat": 990
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Amonyum / Amonyum Azotu*",
+    "fiyat": 2620
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Balık Biyodeneyi*",
+    "fiyat": 2545
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Aktif Klor*",
+    "fiyat": 990
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Sülfür*",
+    "fiyat": 1365
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Sülfit*",
+    "fiyat": 1365
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Toplam Fosfor*",
+    "fiyat": 2360
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kompozit Numune Alma (2 Saatlik)*",
+    "fiyat": 3725
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kompozit Numune Alma (24 Saatlik)*",
+    "fiyat": 3665
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "İyon Kromotografi Analizi(Tek Anyon)*",
+    "fiyat": 590
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Toplam Azot*",
+    "fiyat": 2600
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Metal Analizleri  Ön İşlem*",
+    "fiyat": 1905
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "AKTİF/SERBEST/BAKİYE KLOR*",
+    "fiyat": 1365
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Ph(Çözünmüş Oksijen, İletkenlik, Tuzluluk, Sıcaklık)*",
+    "fiyat": 1900
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Çökebilir Katı Madde",
+    "fiyat": 240
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Aktif/Serbest/Bakiye Klor*",
+    "fiyat": 990
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Hidrokarbonlar",
+    "fiyat": 8445
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Yıkamada Boyut Değişimi",
+    "fiyat": 960
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kantitatif Lif Tayini (Üç Lif Numunesi)",
+    "fiyat": 1800
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kantitatif Lif Tayini (İlave Her Lif Numunesi)",
+    "fiyat": 250
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Tek Liflerde Uzunluk Tayini",
+    "fiyat": 1680
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Mikroskobik Görüntü Alma (Lif İnceliği)",
+    "fiyat": 1680
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "İplik Numarası",
+    "fiyat": 840
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Yağ Tayini/Eterle Ekstraksiyon",
+    "fiyat": 2000
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "ICP-MS Analizi (Tek Bileşen)ª",
+    "fiyat": 595
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "ICP-MS Analizi (İlave Element)ª",
+    "fiyat": 42.5
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "ICP-MS Analizi Ön İşlem(Metal Yaş Yakma) Her Numune",
+    "fiyat": 1200
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "UV-VİS (KALİTATİF LİF TAYİNİ)",
+    "fiyat": 52.5
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "KANTİTATİF LİF TAYİNİ (TEK LİF NUMUNESİ)",
+    "fiyat": 1200
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "KANTİTATİF LİF TAYİNİ (İKİ LİF NUMUNESİ)",
+    "fiyat": 1500
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "XRD STANDART PATERN İNCELEMESİ- NUMUNE BAŞI",
+    "fiyat": 550
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Yırtılma Dayanımı:Tek Yırtılma Metodu-Çözgü",
+    "fiyat": 1200
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Yırtılma Dayanımı:Tek Yırtılma Metodu-Atkı",
+    "fiyat": 1200
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Yıkama Haslığı",
+    "fiyat": 840
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Sürtme Haslığı",
+    "fiyat": 840
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Ter Haslığı (Asidik)",
+    "fiyat": 840
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Ter Haslığı (Bazik)",
+    "fiyat": 840
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Boncuklanma (5.000 Devir)",
+    "fiyat": 960
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Hava Geçirgenliği Testi",
+    "fiyat": 840
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Su Buharı Geçirgenliği Testi (Permetest)",
+    "fiyat": 2400
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kumaşlarda Doku Şekli Tayini",
+    "fiyat": 960
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Dokunmuş Kumaşlar-Birim Uzunluk ve Birim Alan (Gramaj) Kütlesinin tayini*",
+    "fiyat": 960
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kumaş Mukavemeti: Şerit Metodu-Çözgü",
+    "fiyat": 1200
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kumaş Mukavemeti: Şerit Metodu-Atkı",
+    "fiyat": 1200
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "İlave Her Yıkama",
+    "fiyat": 300
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Ütüleme Haslığı",
+    "fiyat": 840
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kuru Temizleme Haslığı",
+    "fiyat": 840
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Işık Haslığı Tayini 6. Mavi Yün Standardının 4'eşit Solduğunda",
+    "fiyat": 3000
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Boncuklanma (9.000 Devir)",
+    "fiyat": 1440
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Aşınma Dayanımı (20.000 Devir)",
+    "fiyat": 1200
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Patlama Mukavemeti-Pnömatik",
+    "fiyat": 1200
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "FTIR (KIZILÖTESİ SPEKTROFOTOMETRESİ)",
+    "fiyat": 130
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "TANE BOYUT ÖLÇÜMÜ",
+    "fiyat": 400
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "SU GEÇİRMEZLİK TESTİ (HİDROSTATİK)5000-ÜZERİ MM SU SÜTUNU",
+    "fiyat": 1000
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "MEMBRAN TAYİNİ",
+    "fiyat": 800
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "DELAMİNASYON",
+    "fiyat": 800
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "KALINLIK TAYİNİ (DERİ)",
+    "fiyat": 650
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "TER HASLIĞI TAYİNİ (DERİ)",
+    "fiyat": 490
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "PH TAYİNİ (DERİ)",
+    "fiyat": 490
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "DİKİŞ İPLİĞİ KOPMA MUKAVEMETİ",
+    "fiyat": 600
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "DERİ YÜZDEN YAĞ MİKTARI",
+    "fiyat": 1515
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "DERİ KOPMA MUKAVEMETİ",
+    "fiyat": 800
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "DERİ ÇATLAMA AÇISI",
+    "fiyat": 1100
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "UV-DRS ÖLÇÜM (REFLEKTANS-TRANSMİTANS)",
+    "fiyat": 300
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "İYON KROMATOĞRAFİ ANALİZİ (TEK ANYON)ª",
+    "fiyat": 336
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "MAMÜLÜN BÜTÜN HALDE AĞIRLIĞI",
+    "fiyat": 120
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "DOKUMA KUMAŞLARDA ÇÖZGÜ SIKLIĞI*",
+    "fiyat": 960
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "DOKUMA KUMAŞLARDA ATKI SIKLIĞI*",
+    "fiyat": 960
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "KUMAŞ ENİ",
+    "fiyat": 500
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "KUMAŞ BOYU",
+    "fiyat": 360
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Askıda Katı Madde",
+    "fiyat": 427.5
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kimyasal Oksijen İhtiyacı",
+    "fiyat": 1039.5
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Krom VI Tayini",
+    "fiyat": 310
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "pH Tayini",
+    "fiyat": 70
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Renk Tayini",
+    "fiyat": 310
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "İletkenlik Tayini",
+    "fiyat": 70
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "İYON KROMATOĞRAFİ ANALİZİ (İLAVE ANYON)ª",
+    "fiyat": 32
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Biyolojik Oksijen İhtiyacı",
+    "fiyat": 882
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "NUMUNE ALMA (2 SAATLİK)",
+    "fiyat": 1521
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "YAĞ-GRES ANALİZİ",
+    "fiyat": 1363.5
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "SICAKLIK",
+    "fiyat": 108
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "İPLİK BÜKÜM SAYISI",
+    "fiyat": 700
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "ISIL ÖZELLİKLERİN ÖLÇÜLMESİ (ALAMBETA)",
+    "fiyat": 2000
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "HAVA ŞARTLARINA KARŞI RENK HASLIĞI TAYİNİ 6. MAVİ YÜN STANDARDININ 4'E EŞİT SOLDUĞUNDA",
+    "fiyat": 2500
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "SU GEÇİRMEZLİK TESTİ (HİDROSTATİK) 1000-5000 MM SU SÜTUNU",
+    "fiyat": 1000
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Aşınma Dayanımı (30.000 Devir Sonrası)",
+    "fiyat": 1400
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Aşınma Dayanımı (10.000 Devir )",
+    "fiyat": 675
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "XRD STANDART PATERN İNCELEMESİ + FAZ ANALİZİ",
+    "fiyat": 1040
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "FLEKSİBİLİTE (10.000 DEVİR SONRASI)",
+    "fiyat": 600
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "PH TAYİNİ",
+    "fiyat": 170
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "GC-MS KALİTATİ",
+    "fiyat": 420
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "TARHANA ANALİZİ",
+    "fiyat": 3000
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "SEM ANALİZİ (1 Saat Ücreti, 6 Adet Numuneye Kadar)",
+    "fiyat": 1250
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "SEM İÇİN ALTIN KAPLAMA (1-12 NUMUNE)",
+    "fiyat": 1400
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Işık Haslığı Tayini 7. Mavi Yün Standardının 4'eşit Solduğunda",
+    "fiyat": 2350
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "UV-VIS (DRS) ÖLÇÜMÜ",
+    "fiyat": 120
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "HASSAS KALINLIK ÖLÇME TESTİ",
+    "fiyat": 600
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "SEM+EDX (POİNT TARAMASI) (1SAAT ÜCRETİ)",
+    "fiyat": 1880
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "FENOL TAYİNİ",
+    "fiyat": 1395
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "pH (Çözünmüş Oksijen, İletkenlik, Tuzluluk,Sıcaklık)",
+    "fiyat": 720
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Yırtılma Mukavemeti- Çözgü",
+    "fiyat": 1200
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Yırtılma Mukavemeti- Çözgü (Elmandorf)",
+    "fiyat": 800
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Floresans Spektrofotometresi Analizi*",
+    "fiyat": 52.5
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "SEM+EDX (POİNT VE ALAN TARAMASI) (6SAAT ÜCRETİ)",
+    "fiyat": 3900
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Aşınma Dayanımı ( 20.000 - 30.000 Devir )",
+    "fiyat": 1200
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "UV-VİS (KALİTATİF ANALİZ)",
+    "fiyat": 100
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Su İticilik (Spray Test)",
+    "fiyat": 600
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Dokumuş Kumaşlarda Çözgü Sıklığı",
+    "fiyat": 600
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Dokumuş Kumaşlarda Atkı Sıklığı",
+    "fiyat": 600
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Ph Tayini (Kumaş)",
+    "fiyat": 500
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "XRD Faz Analizi",
+    "fiyat": 200
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "SEM ANALİZİ",
+    "fiyat": 1000
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "ICP-MS Analizi Ön İşlem(Metal Yaş Yakma)-Her Numune",
+    "fiyat": 1200
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Metaller(Her Bir Parametre İçin)/Toplam Demir",
+    "fiyat": 620
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kopma Mukavemeti-Şerit Metodu-Çözgü",
+    "fiyat": 800
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Renk Tonu Farkı",
+    "fiyat": 500
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "SEM İÇİN ALTIN KAPLAMA",
+    "fiyat": 1400
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Serbest Yağ Asidi İçeriği ve Diklorometanda Çözünebilen Madde Tayini (Deri)",
+    "fiyat": 1166.2
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "XRD Standart Patern İncelemesi",
+    "fiyat": 550
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Dikey Su Emicilik",
+    "fiyat": 1500
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Işık Haslığı Tayini 4. Mavi Yün Standardının 4'eşit Solduğunda",
+    "fiyat": 2000
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kopma Mukavemeti (Atkı)",
+    "fiyat": 1000
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Kopma Mukavemeti (Çözgü)",
+    "fiyat": 1000
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Temas Açısı Tayini",
+    "fiyat": 1500
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "Yırtılma Mukavemeti- Atkı",
+    "fiyat": 1200
+  },
+  {
+    "birimAdi": "BİLİMSEL ANALİZ VE TEKNOLOJİK UYGULAMA VE ARAŞTIRMA MERKEZİ MÜDÜRLÜĞÜ",
+    "hizmetAdi": "UV-DRS  (REFLEKTANS)",
+    "fiyat": 300
+  }
+]

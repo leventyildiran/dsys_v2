@@ -91,6 +91,85 @@ class _DanismanlikDetayBody extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 24),
+          
+          // Karar ve Kurul Bilgileri Kartı
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.blueGrey.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Kurul ve Karar Bilgileri', style: TextStyle(color: Colors.blueGrey.shade800, fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _buildKararSutunu(
+                        baslik: 'Birim Yönetim Kurulu (BYK)',
+                        tarih: d.birimKararTarihi,
+                        no: d.birimKararNo,
+                        toplanti: d.birimToplantiSayisi,
+                        renk: Colors.orange,
+                        icon: Icons.account_balance,
+                      ),
+                    ),
+                    Container(width: 1, height: 80, color: Colors.blueGrey.shade100),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 24),
+                        child: _buildKararSutunu(
+                          baslik: 'Sözleşme Onayı (YKK)',
+                          tarih: d.ykKararTarihi,
+                          no: d.ykKararNo,
+                          toplanti: d.ykToplantiSayisi,
+                          renk: Colors.indigo,
+                          icon: Icons.gavel,
+                        ),
+                      ),
+                    ),
+                    Container(width: 1, height: 80, color: Colors.blueGrey.shade100),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 24),
+                        child: _buildKararSutunu(
+                          baslik: 'Dağıtım Onayı (YKK)',
+                          tarih: d.dagitimYkKararTarihi,
+                          no: d.dagitimYkKararNo,
+                          toplanti: d.dagitimYkToplantiSayisi,
+                          renk: Colors.green,
+                          icon: Icons.price_check,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          // EBYS Görünümlü Dağıtım Tablosu Butonu
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                context.push('/danismanlik/dagitim', extra: d);
+              },
+              icon: const Icon(Icons.table_view, size: 24),
+              label: const Text('EBYS Görünümlü Detaylı Dağıtım Paneli (Excel)', style: TextStyle(fontSize: 16)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
           const SizedBox(height: 32),
           
           // Taksitler ve Dağıtım Bölümü
@@ -284,6 +363,46 @@ class _DanismanlikDetayBody extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildKararSutunu({
+    required String baslik,
+    String? tarih,
+    String? no,
+    String? toplanti,
+    required Color renk,
+    required IconData icon,
+  }) {
+    final bool isEmpty = (tarih == null || tarih.isEmpty) && (no == null || no.isEmpty);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: renk),
+            const SizedBox(width: 6),
+            Text(baslik, style: TextStyle(color: Colors.blueGrey.shade600, fontWeight: FontWeight.bold, fontSize: 13)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (isEmpty)
+          Text('Henüz karar bilgisi girilmedi.', style: TextStyle(color: Colors.grey.shade400, fontStyle: FontStyle.italic, fontSize: 13))
+        else
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Tarih: ${tarih ?? "-"}', style: const TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Text('Karar No: ${no ?? "-"}', style: const TextStyle(fontWeight: FontWeight.w600)),
+              if (toplanti != null && toplanti.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text('Toplantı: $toplanti', style: TextStyle(color: Colors.blueGrey.shade700, fontSize: 13)),
+              ],
+            ],
+          ),
+      ],
     );
   }
 }

@@ -3,10 +3,13 @@ import 'package:go_router/go_router.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/danismanlik/screens/danismanlik_dashboard_screen.dart';
 import '../features/danismanlik/screens/danismanlik_form_screen.dart';
-import '../features/yk_karar/screens/yk_karar_screen.dart';
+import '../features/yk_karar/screens/yk_yeni_karar_ekle_screen.dart';
+import '../features/yk_karar/screens/yk_eski_kararlar_screen.dart';
 import '../features/yk_karar/models/yk_karar_model.dart';
+import '../features/yk_karar/screens/gundem_yonetim_screen.dart';
 import '../features/danismanlik/screens/danismanlik_screen.dart';
 import '../features/danismanlik/screens/danismanlik_detay_screen.dart';
+import '../features/danismanlik/screens/danismanlik_dagitim_screen.dart';
 import '../features/admin/screens/admin_dashboard_screen.dart';
 import '../features/fatura/screens/batch_verification_screen.dart';
 import '../features/auth/screens/login_screen.dart';
@@ -54,10 +57,17 @@ class AppRouter {
               routes: [
                 GoRoute(
                   path: '/yk-karar',
-                  builder: (context, state) => const YkKararScreen(),
+                  builder: (context, state) => const YkYeniKararEkleScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'eski',
+                      builder: (context, state) => const YkEskiKararlarScreen(),
+                    ),
+                  ],
                 ),
               ],
             ),
+
             StatefulShellBranch(
               routes: [
                 GoRoute(
@@ -69,6 +79,13 @@ class AppRouter {
                       builder: (context, state) {
                         final model = state.extra as DanismanlikModel;
                         return DanismanlikDetayScreen(danismanlik: model);
+                      },
+                    ),
+                    GoRoute(
+                      path: 'dagitim',
+                      builder: (context, state) {
+                        final model = state.extra as DanismanlikModel;
+                        return DanismanlikDagitimScreen(danismanlik: model);
                       },
                     ),
                     GoRoute(

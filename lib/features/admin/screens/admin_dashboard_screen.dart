@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:convert';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/models/firma_model.dart';
+import '../../../core/models/hizmet_model.dart';
+import '../../../core/services/firma_service.dart';
+import '../../../core/services/hizmet_service.dart';
 import '../providers/admin_provider.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
@@ -54,13 +59,24 @@ class _AdminDashboardContent extends StatelessWidget {
           ),
           const SizedBox(height: 32),
           // Tablo Başlığı
-          const Text(
-            'Kayıtlı Kurumlar (Tenants)',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryColor,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Kayıtlı Kurumlar (Tenants)',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.cloud_upload, color: Colors.white),
+                label: const Text('Excel Verilerini Yükle (Migration)', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+                onPressed: () => _uploadMigrationData(context),
+              )
+            ],
           ),
           const SizedBox(height: 16),
           // DataTable
@@ -186,5 +202,44 @@ class _AdminDashboardContent extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _uploadMigrationData(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      messenger.showSnackBar(const SnackBar(content: Text('Veri yüklemesi başlatıldı...')));
+      
+      final String firmalarString = await DefaultAssetBundle.of(context).loadString('assets/data/firmalar.json');
+      final String hizmetlerString = await DefaultAssetBundle.of(context).loadString('assets/data/hizmetler.json');
+      
+      final List<dynamic> firmalarJson = jsonDecode(firmalarString);
+      final List<dynamic> hizmetlerJson = jsonDecode(hizmetlerString);
+      
+      final firmaService = FirmaService();
+      final hizmetService = HizmetService();
+
+      for (var f in firmalarJson) {
+        await firmaService.addFirma(FirmaModel(
+          id: '',
+          firmaAdi: f['firmaAdi'] ?? '',
+          adres: f['adres'] ?? '',
+          vergiDairesi: f['vergiDairesi'] ?? '',
+          vergiNo: f['vergiNo'] ?? '',
+        ));
+      }
+
+      for (var h in hizmetlerJson) {
+        await hizmetService.addHizmet(HizmetModel(
+          id: '',
+          birimAdi: h['birimAdi'] ?? '',
+          hizmetAdi: h['hizmetAdi'] ?? '',
+          fiyat: (h['fiyat'] ?? 0.0).toDouble(),
+        ));
+      }
+
+      messenger.showSnackBar(const SnackBar(content: Text('Veri yüklemesi BAŞARIYLA tamamlandı!'), backgroundColor: Colors.green));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
+    }
   }
 }

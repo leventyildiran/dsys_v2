@@ -84,6 +84,12 @@ class DanismanlikModel {
     this.ykKararTarihi,
     this.ykKararNo,
     this.ykToplantiSayisi,
+    this.birimKararTarihi,
+    this.birimKararNo,
+    this.birimToplantiSayisi,
+    this.dagitimYkKararTarihi,
+    this.dagitimYkKararNo,
+    this.dagitimYkToplantiSayisi,
     this.hazinePayiOrani = 1,
     this.bapPayiOrani = 5,
     this.aracGerecPayiOrani = 45,
@@ -106,10 +112,20 @@ class DanismanlikModel {
   final DateTime? bitisTarihi;
   final DanismanlikDurum durum;
 
-  // Çatı karar bilgileri
+  // Çatı karar bilgileri (Sözleşme YKK)
   final String? ykKararTarihi;
   final String? ykKararNo;
   final String? ykToplantiSayisi;
+
+  // Birim Yönetim Kurulu Karar Bilgileri
+  final String? birimKararTarihi;
+  final String? birimKararNo;
+  final String? birimToplantiSayisi;
+
+  // Dağıtım Onayı YKK Bilgileri
+  final String? dagitimYkKararTarihi;
+  final String? dagitimYkKararNo;
+  final String? dagitimYkToplantiSayisi;
 
   // Kesinti oranları (standart tür için)
   final int hazinePayiOrani;
@@ -145,6 +161,12 @@ class DanismanlikModel {
       ykKararTarihi: map['ykKararTarihi'] as String?,
       ykKararNo: map['ykKararNo'] as String?,
       ykToplantiSayisi: map['ykToplantiSayisi'] as String?,
+      birimKararTarihi: map['birimKararTarihi'] as String?,
+      birimKararNo: map['birimKararNo'] as String?,
+      birimToplantiSayisi: map['birimToplantiSayisi'] as String?,
+      dagitimYkKararTarihi: map['dagitimYkKararTarihi'] as String?,
+      dagitimYkKararNo: map['dagitimYkKararNo'] as String?,
+      dagitimYkToplantiSayisi: map['dagitimYkToplantiSayisi'] as String?,
       hazinePayiOrani: (map['hazinePayiOrani'] as num?)?.toInt() ?? 1,
       bapPayiOrani: (map['bapPayiOrani'] as num?)?.toInt() ?? 5,
       aracGerecPayiOrani: (map['aracGerecPayiOrani'] as num?)?.toInt() ?? 45,
@@ -176,6 +198,12 @@ class DanismanlikModel {
       'ykKararTarihi': ykKararTarihi,
       'ykKararNo': ykKararNo,
       'ykToplantiSayisi': ykToplantiSayisi,
+      'birimKararTarihi': birimKararTarihi,
+      'birimKararNo': birimKararNo,
+      'birimToplantiSayisi': birimToplantiSayisi,
+      'dagitimYkKararTarihi': dagitimYkKararTarihi,
+      'dagitimYkKararNo': dagitimYkKararNo,
+      'dagitimYkToplantiSayisi': dagitimYkToplantiSayisi,
       'hazinePayiOrani': hazinePayiOrani,
       'bapPayiOrani': bapPayiOrani,
       'aracGerecPayiOrani': aracGerecPayiOrani,
@@ -202,6 +230,12 @@ class DanismanlikModel {
     String? ykKararTarihi,
     String? ykKararNo,
     String? ykToplantiSayisi,
+    String? birimKararTarihi,
+    String? birimKararNo,
+    String? birimToplantiSayisi,
+    String? dagitimYkKararTarihi,
+    String? dagitimYkKararNo,
+    String? dagitimYkToplantiSayisi,
     int? hazinePayiOrani,
     int? bapPayiOrani,
     int? aracGerecPayiOrani,
@@ -226,6 +260,12 @@ class DanismanlikModel {
       ykKararTarihi: ykKararTarihi ?? this.ykKararTarihi,
       ykKararNo: ykKararNo ?? this.ykKararNo,
       ykToplantiSayisi: ykToplantiSayisi ?? this.ykToplantiSayisi,
+      birimKararTarihi: birimKararTarihi ?? this.birimKararTarihi,
+      birimKararNo: birimKararNo ?? this.birimKararNo,
+      birimToplantiSayisi: birimToplantiSayisi ?? this.birimToplantiSayisi,
+      dagitimYkKararTarihi: dagitimYkKararTarihi ?? this.dagitimYkKararTarihi,
+      dagitimYkKararNo: dagitimYkKararNo ?? this.dagitimYkKararNo,
+      dagitimYkToplantiSayisi: dagitimYkToplantiSayisi ?? this.dagitimYkToplantiSayisi,
       hazinePayiOrani: hazinePayiOrani ?? this.hazinePayiOrani,
       bapPayiOrani: bapPayiOrani ?? this.bapPayiOrani,
       aracGerecPayiOrani: aracGerecPayiOrani ?? this.aracGerecPayiOrani,

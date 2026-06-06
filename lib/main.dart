@@ -8,6 +8,9 @@ import 'router/app_router.dart';
 import 'features/fatura/providers/batch_fatura_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/providers/user_provider.dart';
+import 'features/danismanlik/providers/danismanlik_provider.dart';
+import 'features/yk_karar/providers/yk_karar_provider.dart';
+import 'features/yk_karar/providers/gundem_provider.dart';
 
 late final GoRouter _router;
 
@@ -34,6 +37,9 @@ class DsysApp extends StatelessWidget {
           update: (_, auth, userProvider) => userProvider ?? UserProvider(authProvider: auth),
         ),
         ChangeNotifierProvider(create: (_) => BatchFaturaProvider()),
+        ChangeNotifierProvider(create: (_) => DanismanlikProvider()),
+        ChangeNotifierProvider(create: (_) => YkKararProvider()),
+        ChangeNotifierProvider(create: (_) => GundemProvider()),
       ],
       child: MaterialApp.router(
         title: 'DSYS v2',

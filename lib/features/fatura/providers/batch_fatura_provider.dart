@@ -7,47 +7,88 @@ import 'package:printing/printing.dart';
 import '../../../core/services/ai_extraction_service.dart';
 import '../../../core/services/sistem_ayarlari_service.dart';
 import '../../../core/models/sistem_ayarlari_model.dart';
+import '../../birim/models/birim_model.dart';
+import '../../birim/services/birim_service.dart';
+import '../services/fatura_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/excel_web_parser.dart';
 
 class FaturaModel {
   String id;
   String firmaAdi;
+  String adres;
   String vergiDairesi;
   String vergiNo;
+  String tarih;
+  String irsaliyeNo;
   String melbesNo;
   String numuneNo;
   String numuneAciklamasi;
+  List<Map<String, dynamic>> kalemler;
+  bool isKdvMuaf;
   double matrah;
+  double kdvOrani;
   double kdvTutari;
   double genelToplam;
-  bool isKdvMuaf;
   String parsedBy;
-  int kdvOrani;
-  List<Map<String, dynamic>> kalemler;
+  String? iban;
+  String? hesapAdi;
 
   FaturaModel({
     required this.id,
     required this.firmaAdi,
+    required this.adres,
     required this.vergiDairesi,
     required this.vergiNo,
+    required this.tarih,
+    required this.irsaliyeNo,
     required this.melbesNo,
     required this.numuneNo,
     required this.numuneAciklamasi,
+    required this.kalemler,
+    required this.isKdvMuaf,
     required this.matrah,
+    required this.kdvOrani,
     required this.kdvTutari,
     required this.genelToplam,
-    this.isKdvMuaf = false,
-    this.kdvOrani = 20,
-    required this.parsedBy,
-    required this.kalemler,
+    this.parsedBy = 'AI Parser',
+    this.iban,
+    this.hesapAdi,
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'firmaAdi': firmaAdi,
+      'adres': adres,
+      'vergiDairesi': vergiDairesi,
+      'vergiNo': vergiNo,
+      'tarih': tarih,
+      'irsaliyeNo': irsaliyeNo,
+      'melbesNo': melbesNo,
+      'numuneNo': numuneNo,
+      'numuneAciklamasi': numuneAciklamasi,
+      'kalemler': kalemler,
+      'isKdvMuaf': isKdvMuaf,
+      'matrah': matrah,
+      'kdvOrani': kdvOrani,
+      'kdvTutari': kdvTutari,
+      'genelToplam': genelToplam,
+      'parsedBy': parsedBy,
+      'iban': iban,
+      'hesapAdi': hesapAdi,
+    };
+  }
 
   factory FaturaModel.fromJson(Map<String, dynamic> json) {
     return FaturaModel(
       id: json['id'] ?? '',
       firmaAdi: json['firmaAdi'] ?? '',
+      adres: json['adres'] ?? '',
       vergiDairesi: json['vergiDairesi'] ?? '',
       vergiNo: json['vergiNo'] ?? '',
+      tarih: json['tarih'] ?? '',
+      irsaliyeNo: json['irsaliyeNo'] ?? '',
       melbesNo: json['melbesNo'] ?? '',
       numuneNo: json['numuneNo'] ?? '',
       numuneAciklamasi: json['numuneAciklamasi'] ?? '',
@@ -57,6 +98,8 @@ class FaturaModel {
       isKdvMuaf: json['isKdvMuaf'] ?? false,
       kdvOrani: json['kdvOrani'] ?? 20,
       parsedBy: json['parsedBy'] ?? 'Bilinmiyor',
+      iban: json['iban'],
+      hesapAdi: json['hesapAdi'],
       kalemler: List<Map<String, dynamic>>.from(json['kalemler'] ?? []),
     );
   }
@@ -65,11 +108,23 @@ class FaturaModel {
 class BatchFaturaProvider extends ChangeNotifier {
   List<FaturaModel> pendingInvoices = [];
   int currentIndex = 0;
+  bool isNakliYekunAktif = false;
+  int dialogUpdateCounter = 0;
+
+  final BirimService _birimService = BirimService();
+  Map<String, BirimModel> _birimlerCache = {};
+
+  void notifyDialogReturn() {
+    dialogUpdateCounter++;
+    notifyListeners();
+  }
+
   final AIExtractionService _aiService = AIExtractionService();
   SistemAyarlariModel? sistemAyarlari;
 
   Map<String, Offset> coordinates = {
     'firmaAdi': const Offset(45, 135),
+    'adres': const Offset(45, 155),
     'vergiDairesi': const Offset(145, 275),
     'vkn': const Offset(145, 295),
     'tarih': const Offset(470, 270),
@@ -88,9 +143,9 @@ class BatchFaturaProvider extends ChangeNotifier {
     'matrah': const Offset(470, 675),
     'kdv': const Offset(470, 705),
     'genelToplam': const Offset(470, 735),
-    'yaziylaTutar': const Offset(90, 765),
-    'hesapAdi': const Offset(90, 785),
-    'iban': const Offset(90, 805),
+    'yaziylaTutar': const Offset(90, 785),
+    'hesapAdi': const Offset(90, 805),
+    'iban': const Offset(90, 825),
   };
 
   void updateCoordinate(String key, Offset newOffset) {
@@ -118,15 +173,48 @@ class BatchFaturaProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> resetCoordinates() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final key in coordinates.keys) {
+      await prefs.remove('coord_${key}_dx');
+      await prefs.remove('coord_${key}_dy');
+    }
+    coordinates = {
+      'firmaAdi': const Offset(45, 135),
+      'vergiDairesi': const Offset(145, 275),
+      'vkn': const Offset(145, 295),
+      'tarih': const Offset(470, 270),
+      'irsaliyeNo': const Offset(470, 295),
+      'cinsi': const Offset(50, 360),
+      'miktar': const Offset(320, 360),
+      'fiyat': const Offset(380, 360),
+      'tutar': const Offset(510, 360),
+      'nakliYekunUstYazi': const Offset(270, 340),
+      'nakliYekunUstTutar': const Offset(510, 340),
+      'nakliYekunAltYazi': const Offset(270, 580),
+      'nakliYekunAltTutar': const Offset(510, 580),
+      'numuneAciklama': const Offset(50, 600),
+      'melbes': const Offset(50, 620),
+      'numuneNo': const Offset(50, 640),
+      'matrah': const Offset(470, 675),
+      'kdv': const Offset(470, 705),
+      'genelToplam': const Offset(470, 735),
+      'yaziylaTutar': const Offset(90, 785),
+      'hesapAdi': const Offset(90, 805),
+      'iban': const Offset(90, 825),
+    };
+    notifyListeners();
+  }
+
   Future<void> _loadSistemAyarlari() async {
     final service = SistemAyarlariService();
     sistemAyarlari = await service.getAyarlar();
     notifyListeners();
   }
 
-  void toggleKdvMuaf(bool value) {
-    if (pendingInvoices.isEmpty) return;
-    final currentInvoice = pendingInvoices[currentIndex];
+  void toggleKdvMuaf(int index, bool value) {
+    if (index < 0 || index >= pendingInvoices.length) return;
+    final currentInvoice = pendingInvoices[index];
     currentInvoice.isKdvMuaf = value;
     if (value) {
       currentInvoice.kdvTutari = 0.0;
@@ -138,25 +226,160 @@ class BatchFaturaProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void toggleNakliYekunGlobal(bool value) {
+    isNakliYekunAktif = value;
+    notifyListeners();
+  }
+
   BatchFaturaProvider() {
     _initializeEmpty();
-    _loadCoordinates();
+    _fetchBirimler();
     _loadSistemAyarlari();
+    _loadCoordinates();
   }
 
   void _initializeEmpty() {
     pendingInvoices = [
-      FaturaModel(id: '0', firmaAdi: '', vergiDairesi: '', vergiNo: '', melbesNo: '', numuneNo: '', numuneAciklamasi: '', matrah: 0.0, kdvTutari: 0.0, genelToplam: 0.0, isKdvMuaf: false, kdvOrani: 20, parsedBy: 'Yeni Fatura', kalemler: [])
+      FaturaModel(id: '0', firmaAdi: '', adres: '', vergiDairesi: '', vergiNo: '', tarih: '', irsaliyeNo: '', melbesNo: '', numuneNo: '', numuneAciklamasi: '', matrah: 0.0, kdvTutari: 0.0, genelToplam: 0.0, isKdvMuaf: false, kdvOrani: 20, parsedBy: 'Yeni Fatura', kalemler: [])
     ];
     currentIndex = 0;
   }
 
+  Map<String, BirimModel> get birimlerCache => _birimlerCache;
+
+  void applyBirimToInvoice(int invoiceIndex, String birimAdi) {
+    if (!_birimlerCache.containsKey(birimAdi)) return;
+    final birim = _birimlerCache[birimAdi]!;
+    final invoice = pendingInvoices[invoiceIndex];
+    invoice.iban = birim.iban;
+    invoice.hesapAdi = birim.hesapAdi;
+    notifyListeners();
+  }
+
+  Future<void> _fetchBirimler() async {
+    try {
+      final birimler = await _birimService.getAll(onlyActive: true);
+      _birimlerCache = {for (var b in birimler) b.ad: b};
+      notifyListeners();
+    } catch (e) {
+      print('Birimler çekilirken hata: $e');
+    }
+  }
+
+  void _updateIbanForInvoice(FaturaModel invoice) {
+    if (invoice.kalemler.isNotEmpty) {
+      final birimAdi = invoice.kalemler.first['birimAdi'] as String?;
+      if (birimAdi != null && _birimlerCache.containsKey(birimAdi)) {
+        final birim = _birimlerCache[birimAdi]!;
+        if (birim.iban != null && birim.iban!.isNotEmpty) {
+          invoice.iban = birim.iban;
+        }
+        if (birim.hesapAdi != null && birim.hesapAdi!.isNotEmpty) {
+          invoice.hesapAdi = birim.hesapAdi;
+        }
+      }
+    }
+  }
+
   Future<void> loadBatch(String text) async {
     final extractedData = await _aiService.extractBatchData(text);
-    pendingInvoices = extractedData.map((e) => FaturaModel.fromJson(e)).toList();
+    pendingInvoices = extractedData.map((e) {
+      final inv = FaturaModel.fromJson(e);
+      _updateIbanForInvoice(inv);
+      return inv;
+    }).toList();
     if (pendingInvoices.isEmpty) _initializeEmpty();
     currentIndex = 0;
     notifyListeners();
+  }
+
+  Future<void> loadExcelFile(Uint8List bytes, String fileName) async {
+    try {
+      // 1. Convert Excel to CSV using Web parser
+      final csvText = await ExcelWebParser.extractTextFromExcel(bytes);
+      if (csvText.isEmpty) throw Exception('Excel dosyası boş veya okunamadı.');
+
+      // 2. Take a preview (first 15 lines) for the AI
+      final lines = csvText.split('\n');
+      final previewLines = lines.take(15).join('\n');
+
+      // 3. Ask AI for mapping
+      final mappingResult = await _aiService.extractExcelMapping(previewLines);
+
+      if (mappingResult['isBatchList'] == true) {
+        // Toplu liste senaryosu (örn. 200 öğrenci)
+        final mapData = mappingResult['mapping'] as Map<String, dynamic>;
+        final startRow = (mappingResult['startRowIndex'] as int?) ?? 1;
+
+        final newInvoices = <FaturaModel>[];
+        
+        final firmaIdx = mapData['firmaAdi'] as int?;
+        final tcIdx = mapData['tcVkn'] as int?;
+        final matrahIdx = mapData['matrah'] as int?;
+
+        for (int i = startRow; i < lines.length; i++) {
+          final line = lines[i].trim();
+          if (line.isEmpty) continue;
+          
+          final cells = line.split(' | ');
+          String firma = '';
+          String tc = '';
+          double matrah = 0.0;
+
+          if (firmaIdx != null && firmaIdx >= 0 && firmaIdx < cells.length) {
+            firma = cells[firmaIdx].trim();
+          }
+          if (tcIdx != null && tcIdx >= 0 && tcIdx < cells.length) {
+            tc = cells[tcIdx].trim();
+          }
+          if (matrahIdx != null && matrahIdx >= 0 && matrahIdx < cells.length) {
+            matrah = double.tryParse(cells[matrahIdx].replaceAll(RegExp(r'[^0-9,\.]'), '').replaceAll(',', '.')) ?? 0.0;
+          }
+
+          if (firma.isNotEmpty && matrah > 0) {
+            final inv = FaturaModel(
+              id: DateTime.now().millisecondsSinceEpoch.toString() + i.toString(),
+              firmaAdi: firma,
+              adres: '',
+              vergiDairesi: '',
+              vergiNo: tc,
+              tarih: '',
+              irsaliyeNo: '',
+              melbesNo: '',
+              numuneNo: '',
+              numuneAciklamasi: '',
+              kalemler: [
+                {'cinsi': 'Hizmet Bedeli', 'miktar': 1, 'fiyat': matrah}
+              ],
+              matrah: matrah,
+              kdvOrani: 20.0, // varsayılan KDV %20
+              isKdvMuaf: false,
+              kdvTutari: 0.0,
+              genelToplam: 0.0,
+              parsedBy: 'Excel Toplu Aktarım',
+            );
+            _recalculateTotals(inv);
+            newInvoices.add(inv);
+          }
+        }
+
+        if (newInvoices.isNotEmpty) {
+          pendingInvoices = newInvoices;
+          currentIndex = 0;
+          notifyListeners();
+        } else {
+          throw Exception('Eşleşen satır bulunamadı veya veriler okunamadı.');
+        }
+
+      } else {
+        // Normal fatura (tekil form)
+        // Send full CSV text to AI's standard parser
+        await loadBatch(csvText);
+      }
+    } catch (e) {
+      debugPrint('[loadExcelFile] Hata: $e');
+      rethrow;
+    }
   }
 
   void _recalculateTotals(FaturaModel invoice) {
@@ -176,9 +399,9 @@ class BatchFaturaProvider extends ChangeNotifier {
     }
   }
 
-  void addKalem() {
-    if (pendingInvoices.isEmpty) return;
-    final currentInvoice = pendingInvoices[currentIndex];
+  void addKalem(int index) {
+    if (index < 0 || index >= pendingInvoices.length) return;
+    final currentInvoice = pendingInvoices[index];
     currentInvoice.kalemler.add({
       'cinsi': 'Yeni Kalem',
       'miktar': 1,
@@ -188,11 +411,14 @@ class BatchFaturaProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void updateKalem(int kalemIndex, String key, dynamic value) {
-    if (pendingInvoices.isEmpty) return;
-    final currentInvoice = pendingInvoices[currentIndex];
+  void updateKalem(int invoiceIndex, int kalemIndex, String key, dynamic value) {
+    if (invoiceIndex < 0 || invoiceIndex >= pendingInvoices.length) return;
+    final currentInvoice = pendingInvoices[invoiceIndex];
     if (kalemIndex >= 0 && kalemIndex < currentInvoice.kalemler.length) {
       currentInvoice.kalemler[kalemIndex][key] = value;
+      if (key == 'birimAdi') {
+        _updateIbanForInvoice(currentInvoice);
+      }
       if (key == 'miktar' || key == 'fiyat') {
         _recalculateTotals(currentInvoice);
       }
@@ -200,9 +426,9 @@ class BatchFaturaProvider extends ChangeNotifier {
     }
   }
 
-  void removeKalem(int kalemIndex) {
-    if (pendingInvoices.isEmpty) return;
-    final currentInvoice = pendingInvoices[currentIndex];
+  void removeKalem(int invoiceIndex, int kalemIndex) {
+    if (invoiceIndex < 0 || invoiceIndex >= pendingInvoices.length) return;
+    final currentInvoice = pendingInvoices[invoiceIndex];
     if (kalemIndex >= 0 && kalemIndex < currentInvoice.kalemler.length) {
       currentInvoice.kalemler.removeAt(kalemIndex);
       _recalculateTotals(currentInvoice);
@@ -210,32 +436,61 @@ class BatchFaturaProvider extends ChangeNotifier {
     }
   }
 
-  void approveCurrent() {
-    if (pendingInvoices.isNotEmpty && currentIndex < pendingInvoices.length) {
-      pendingInvoices.removeAt(currentIndex);
+  final FaturaService _faturaService = FaturaService();
+
+  Future<void> approveInvoice(int index) async {
+    if (index >= 0 && index < pendingInvoices.length) {
+      final invoice = pendingInvoices[index];
+      // Validation: ensure IBAN and Hesap Adı are provided
+      if (invoice.iban == null || invoice.iban!.trim().isEmpty ||
+          invoice.hesapAdi == null || invoice.hesapAdi!.trim().isEmpty) {
+        throw Exception('IBAN ve Hesap Adı boş olamaz');
+      }
+      try {
+        await _faturaService.saveFatura(invoice);
+        pendingInvoices.removeAt(index);
+        if (pendingInvoices.isEmpty) {
+          _initializeEmpty();
+        }
+        notifyListeners();
+      } catch (e) {
+        throw Exception('Kayıt başarısız: $e');
+      }
+    }
+  }
+
+  void removeInvoice(int index) {
+    if (index >= 0 && index < pendingInvoices.length) {
+      pendingInvoices.removeAt(index);
       if (pendingInvoices.isEmpty) {
         _initializeEmpty();
-      } else if (currentIndex >= pendingInvoices.length) {
-        currentIndex = pendingInvoices.length - 1;
       }
       notifyListeners();
     }
   }
 
-  void approveAll() {
+  Future<void> approveAll() async {
+    for (var fatura in pendingInvoices) {
+      if (fatura.kalemler.isNotEmpty) { // Boş olmayan faturaları kaydet
+        await _faturaService.saveFatura(fatura);
+      }
+    }
     pendingInvoices.clear();
     _initializeEmpty();
     notifyListeners();
   }
 
-  void updateField(String field, dynamic value) {
-    if (pendingInvoices.isEmpty) return;
+  void updateField(int index, String field, dynamic value) {
+    if (index < 0 || index >= pendingInvoices.length) return;
     
-    final currentInvoice = pendingInvoices[currentIndex];
+    final currentInvoice = pendingInvoices[index];
     switch (field) {
       case 'firmaAdi': currentInvoice.firmaAdi = value; break;
+      case 'adres': currentInvoice.adres = value; break;
       case 'vergiDairesi': currentInvoice.vergiDairesi = value; break;
       case 'vergiNo': currentInvoice.vergiNo = value; break;
+      case 'tarih': currentInvoice.tarih = value; break;
+      case 'irsaliyeNo': currentInvoice.irsaliyeNo = value; break;
       case 'melbesNo': currentInvoice.melbesNo = value; break;
       case 'numuneNo': currentInvoice.numuneNo = value; break;
       case 'numuneAciklamasi': currentInvoice.numuneAciklamasi = value; break;
@@ -250,7 +505,7 @@ class BatchFaturaProvider extends ChangeNotifier {
         }
         break;
       case 'kdvOrani':
-        currentInvoice.kdvOrani = int.tryParse(value.toString()) ?? currentInvoice.kdvOrani;
+        currentInvoice.kdvOrani = double.tryParse(value.toString()) ?? currentInvoice.kdvOrani;
         _recalculateTotals(currentInvoice);
         break;
       case 'kdvTutari': 
@@ -259,6 +514,12 @@ class BatchFaturaProvider extends ChangeNotifier {
         }
         break;
       case 'genelToplam': currentInvoice.genelToplam = double.tryParse(value.toString()) ?? currentInvoice.genelToplam; break;
+      case 'iban':
+        currentInvoice.iban = value?.toString();
+        break;
+      case 'hesapAdi':
+        currentInvoice.hesapAdi = value?.toString();
+        break;
     }
     notifyListeners();
   }
@@ -270,7 +531,7 @@ class BatchFaturaProvider extends ChangeNotifier {
 
       final double kalemSatirAraligi = 18.0;
       const double standartFontSize = 10.0;
-      const int satirLimit = 15;
+      const int satirLimit = 10; // Nakli yekün'ün daha erken devreye girmesi için limit düşürüldü
 
       final bgImage = await rootBundle.load('assets/images/fatura_sablon.jpeg');
 
@@ -298,6 +559,7 @@ class BatchFaturaProvider extends ChangeNotifier {
         });
         final araToplam = devreden + sayfaToplami;
         final sonSayfa = sayfaIndex == toplamSayfa - 1;
+        final ilkSayfa = sayfaIndex == 0;
 
         pdf.addPage(
           pw.Page(
@@ -309,7 +571,7 @@ class BatchFaturaProvider extends ChangeNotifier {
                   ignoreMargins: true,
                   child: pw.Image(
                     pw.MemoryImage(bgImage.buffer.asUint8List()),
-                    fit: pw.BoxFit.cover,
+                    fit: pw.BoxFit.fill,
                   ),
                 );
               },
@@ -317,27 +579,43 @@ class BatchFaturaProvider extends ChangeNotifier {
             build: (context) {
               return pw.Stack(
                 children: [
-                  pw.Positioned(
-                    top: coordinates['firmaAdi']!.dy, left: coordinates['firmaAdi']!.dx,
-                    child: pw.Text(invoice.firmaAdi, style: const pw.TextStyle(fontSize: standartFontSize)),
-                  ),
-                  pw.Positioned(
-                    top: coordinates['vergiDairesi']!.dy, left: coordinates['vergiDairesi']!.dx,
-                    child: pw.Text(invoice.vergiDairesi, style: const pw.TextStyle(fontSize: standartFontSize)),
-                  ),
-                  pw.Positioned(
-                    top: coordinates['vkn']!.dy, left: coordinates['vkn']!.dx,
-                    child: pw.Text(invoice.vergiNo, style: const pw.TextStyle(fontSize: standartFontSize)),
-                  ),
+                  if (ilkSayfa) ...[
+                    pw.Positioned(
+                      top: coordinates['firmaAdi']!.dy, left: coordinates['firmaAdi']!.dx,
+                      child: pw.SizedBox(
+                        width: 270,
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            if (invoice.firmaAdi.isNotEmpty)
+                              pw.Text(invoice.firmaAdi, style: pw.TextStyle(fontSize: standartFontSize, fontWeight: pw.FontWeight.bold)),
+                            pw.SizedBox(height: 4),
+                            if (invoice.adres.isNotEmpty)
+                              pw.Text(invoice.adres, style: const pw.TextStyle(fontSize: standartFontSize)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (invoice.vergiDairesi.isNotEmpty)
+                      pw.Positioned(
+                        top: coordinates['vergiDairesi']!.dy, left: coordinates['vergiDairesi']!.dx,
+                        child: pw.Text(invoice.vergiDairesi, style: const pw.TextStyle(fontSize: standartFontSize)),
+                      ),
+                    if (invoice.vergiNo.isNotEmpty)
+                      pw.Positioned(
+                        top: coordinates['vkn']!.dy, left: coordinates['vkn']!.dx,
+                        child: pw.Text(invoice.vergiNo, style: const pw.TextStyle(fontSize: standartFontSize)),
+                      ),
+                  ],
                   pw.Positioned(
                     top: coordinates['tarih']!.dy, left: coordinates['tarih']!.dx,
-                    child: pw.Text('03.06.2026', style: const pw.TextStyle(fontSize: standartFontSize)),
+                    child: pw.Text(invoice.tarih.isEmpty ? '03.06.2026' : invoice.tarih, style: const pw.TextStyle(fontSize: standartFontSize)),
                   ),
                   pw.Positioned(
                     top: coordinates['irsaliyeNo']!.dy, left: coordinates['irsaliyeNo']!.dx,
-                    child: pw.Text('-', style: const pw.TextStyle(fontSize: standartFontSize)),
+                    child: pw.Text(invoice.irsaliyeNo.isEmpty ? '-' : invoice.irsaliyeNo, style: const pw.TextStyle(fontSize: standartFontSize)),
                   ),
-                  if (devreden > 0) ...[
+                  if (isNakliYekunAktif && devreden > 0) ...[
                     pw.Positioned(
                       top: coordinates['nakliYekunUstYazi']!.dy, left: coordinates['nakliYekunUstYazi']!.dx,
                       child: pw.Text('Nakli Yekün (Önceki Sayfa)', style: pw.TextStyle(fontSize: standartFontSize, fontWeight: pw.FontWeight.bold)),
@@ -360,7 +638,7 @@ class BatchFaturaProvider extends ChangeNotifier {
                       pw.Positioned(top: currentTop, left: coordinates['tutar']!.dx, child: pw.Text((fiyat * miktar).toStringAsFixed(2), style: const pw.TextStyle(fontSize: standartFontSize))),
                     ];
                   }).toList(),
-                  if (!sonSayfa) ...[
+                  if (isNakliYekunAktif && !sonSayfa) ...[
                     pw.Positioned(
                       top: coordinates['nakliYekunAltYazi']!.dy, left: coordinates['nakliYekunAltYazi']!.dx,
                       child: pw.Text('Nakli Yekün (Devreden)', style: pw.TextStyle(fontSize: standartFontSize, fontWeight: pw.FontWeight.bold)),
@@ -400,18 +678,27 @@ class BatchFaturaProvider extends ChangeNotifier {
                       top: coordinates['yaziylaTutar']!.dy, left: coordinates['yaziylaTutar']!.dx,
                       child: pw.Text(_sayiyiYaziyaCevir(invoice.genelToplam), style: const pw.TextStyle(fontSize: standartFontSize)),
                     ),
-                    if (sistemAyarlari != null) ...[
-                      if (sistemAyarlari!.hesapAdi.isNotEmpty)
-                        pw.Positioned(
-                          top: coordinates['hesapAdi']!.dy, left: coordinates['hesapAdi']!.dx,
-                          child: pw.Text(sistemAyarlari!.hesapAdi, style: const pw.TextStyle(fontSize: standartFontSize)),
-                        ),
-                      if (sistemAyarlari!.iban.isNotEmpty)
-                        pw.Positioned(
-                          top: coordinates['iban']!.dy, left: coordinates['iban']!.dx,
-                          child: pw.Text(sistemAyarlari!.iban, style: const pw.TextStyle(fontSize: standartFontSize)),
-                        ),
-                    ],
+                    if (invoice.hesapAdi != null && invoice.hesapAdi!.isNotEmpty)
+                      pw.Positioned(
+                        top: coordinates['hesapAdi']!.dy, left: coordinates['hesapAdi']!.dx,
+                        child: pw.Text(invoice.hesapAdi!, style: const pw.TextStyle(fontSize: standartFontSize)),
+                      )
+                    else if (sistemAyarlari != null && sistemAyarlari!.hesapAdi.isNotEmpty)
+                      pw.Positioned(
+                        top: coordinates['hesapAdi']!.dy, left: coordinates['hesapAdi']!.dx,
+                        child: pw.Text(sistemAyarlari!.hesapAdi, style: const pw.TextStyle(fontSize: standartFontSize)),
+                      ),
+                    
+                    if (invoice.iban != null && invoice.iban!.isNotEmpty)
+                      pw.Positioned(
+                        top: coordinates['iban']!.dy, left: coordinates['iban']!.dx,
+                        child: pw.Text(invoice.iban!, style: const pw.TextStyle(fontSize: standartFontSize)),
+                      )
+                    else if (sistemAyarlari != null && sistemAyarlari!.iban.isNotEmpty)
+                      pw.Positioned(
+                        top: coordinates['iban']!.dy, left: coordinates['iban']!.dx,
+                        child: pw.Text(sistemAyarlari!.iban, style: const pw.TextStyle(fontSize: standartFontSize)),
+                      ),
                   ],
                   if (toplamSayfa > 1)
                     pw.Positioned(

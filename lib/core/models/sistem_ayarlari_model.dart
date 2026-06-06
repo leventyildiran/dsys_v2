@@ -1,3 +1,24 @@
+class YkUyeModel {
+  final String gorev;
+  final String adSoyad;
+
+  YkUyeModel({required this.gorev, required this.adSoyad});
+
+  factory YkUyeModel.fromJson(Map<String, dynamic> json) {
+    return YkUyeModel(
+      gorev: json['gorev'] ?? '',
+      adSoyad: json['adSoyad'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'gorev': gorev,
+      'adSoyad': adSoyad,
+    };
+  }
+}
+
 class SistemAyarlariModel {
   final String hesapAdi;
   final String iban;
@@ -5,6 +26,7 @@ class SistemAyarlariModel {
   final String deepseekApiUrl;
   final String deepseekApiKey;
   final String deepseekModel;
+  final List<YkUyeModel> kurulUyeleri;
 
   SistemAyarlariModel({
     required this.hesapAdi,
@@ -13,6 +35,7 @@ class SistemAyarlariModel {
     required this.deepseekApiUrl,
     required this.deepseekApiKey,
     required this.deepseekModel,
+    this.kurulUyeleri = const [],
   });
 
   factory SistemAyarlariModel.fromJson(Map<String, dynamic> json) {
@@ -23,6 +46,10 @@ class SistemAyarlariModel {
       deepseekApiUrl: json['deepseekApiUrl'] ?? '',
       deepseekApiKey: json['deepseekApiKey'] ?? '',
       deepseekModel: json['deepseekModel'] ?? '',
+      kurulUyeleri: (json['kurulUyeleri'] as List<dynamic>?)
+              ?.map((e) => YkUyeModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 
@@ -34,6 +61,7 @@ class SistemAyarlariModel {
       'deepseekApiUrl': deepseekApiUrl,
       'deepseekApiKey': deepseekApiKey,
       'deepseekModel': deepseekModel,
+      'kurulUyeleri': kurulUyeleri.map((e) => e.toJson()).toList(),
     };
   }
 
@@ -45,6 +73,7 @@ class SistemAyarlariModel {
       deepseekApiUrl: '',
       deepseekApiKey: '',
       deepseekModel: '',
+      kurulUyeleri: [],
     );
   }
 }

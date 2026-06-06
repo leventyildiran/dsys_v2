@@ -3,6 +3,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/models/sistem_ayarlari_model.dart';
 import '../../../core/services/sistem_ayarlari_service.dart';
 import '../../admin/screens/admin_dashboard_screen.dart';
+import '../../birim/screens/birim_yonetim_screen.dart';
+import 'sablon_yonetim_screen.dart';
 
 class SistemAyarlariScreen extends StatefulWidget {
   const SistemAyarlariScreen({super.key});
@@ -16,7 +18,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
   final _service = SistemAyarlariService();
   bool _isLoading = true;
   bool _isSaving = false;
-  int _selectedIndex = 0;
+  int _selectedIndex = 1;
 
   late TextEditingController _hesapAdiController;
   late TextEditingController _ibanController;
@@ -24,6 +26,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
   late TextEditingController _deepseekUrlController;
   late TextEditingController _deepseekKeyController;
   late TextEditingController _deepseekModelController;
+  List<YkUyeModel> _kurulUyeleri = [];
 
   @override
   void initState() {
@@ -46,6 +49,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
       _deepseekUrlController.text = ayarlar.deepseekApiUrl;
       _deepseekKeyController.text = ayarlar.deepseekApiKey;
       _deepseekModelController.text = ayarlar.deepseekModel;
+      _kurulUyeleri = List.from(ayarlar.kurulUyeleri);
       _isLoading = false;
     });
   }
@@ -62,6 +66,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
         deepseekApiUrl: _deepseekUrlController.text,
         deepseekApiKey: _deepseekKeyController.text,
         deepseekModel: _deepseekModelController.text,
+        kurulUyeleri: _kurulUyeleri,
       );
       await _service.saveAyarlar(ayarlar);
       if (mounted) {
@@ -119,16 +124,22 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
                   ),
                 ),
-                _buildMenuItem(0, Icons.account_balance, 'Firma & Banka'),
                 _buildMenuItem(1, Icons.api, 'Yapay Zeka & API'),
                 _buildMenuItem(2, Icons.admin_panel_settings, 'Sistem Yönetimi'),
+                _buildMenuItem(3, Icons.people, 'Yürütme Kurulu'),
+                _buildMenuItem(4, Icons.business, 'Döner Sermaye Birimleri'),
+                _buildMenuItem(5, Icons.folder_copy, 'Şablon ve Form Havuzu'),
               ],
             ),
           ),
 
           // SAĞ İÇERİK
           Expanded(
-            child: SingleChildScrollView(
+            child: _selectedIndex == 4 
+              ? const BirimYonetimScreen()
+              : _selectedIndex == 5
+                ? const SablonYonetimScreen()
+                : SingleChildScrollView(
               padding: const EdgeInsets.all(32.0),
               child: Form(
                 key: _formKey,
@@ -147,7 +158,6 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (_selectedIndex == 0) ..._buildBankaAyarlari(),
                             if (_selectedIndex == 1) ...[
                               ..._buildGeminiAyarlari(),
                               const Padding(
@@ -157,11 +167,12 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
                               ..._buildDeepseekAyarlari(),
                             ],
                             if (_selectedIndex == 2) const AdminDashboardScreen(),
+                            if (_selectedIndex == 3) ..._buildYkUyeleriAyarlari(),
                           ],
                         ),
                       ),
                     ),
-                    if (_selectedIndex != 2) ...[
+                    if (_selectedIndex != 2 && _selectedIndex != 4 && _selectedIndex != 5) ...[
                       const SizedBox(height: 24),
                       // KAYDET BUTONU
                       Align(
@@ -223,14 +234,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
     );
   }
 
-  List<Widget> _buildBankaAyarlari() {
-    return [
-      _buildSectionHeader(Icons.account_balance, 'Fatura Banka Bilgileri', 'Faturanın alt kısmına eklenecek resmi hesap bilgilerini buradan ayarlayabilirsiniz.'),
-      const SizedBox(height: 32),
-      _buildTextField('Banka ve Hesap Adı', _hesapAdiController, icon: Icons.business),
-      _buildTextField('IBAN', _ibanController, icon: Icons.credit_card),
-    ];
-  }
+
 
   List<Widget> _buildGeminiAyarlari() {
     return [
@@ -248,6 +252,142 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
       _buildTextField('API Key', _deepseekKeyController, icon: Icons.key),
       _buildTextField('Model Adı', _deepseekModelController, icon: Icons.memory, hint: 'deepseek-chat'),
     ];
+  }
+
+  List<Widget> _buildYkUyeleriAyarlari() {
+    return [
+      _buildSectionHeader(Icons.people, 'Yürütme Kurulu Üyeleri', 'Karar defterindeki (PDF) imza tablosunda yer alacak kurul üyelerini sırasıyla ekleyin.'),
+      const SizedBox(height: 24),
+      ReorderableListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _kurulUyeleri.length,
+        onReorder: (oldIndex, newIndex) {
+          setState(() {
+            if (oldIndex < newIndex) {
+              newIndex -= 1;
+            }
+            final item = _kurulUyeleri.removeAt(oldIndex);
+            _kurulUyeleri.insert(newIndex, item);
+          });
+        },
+        itemBuilder: (context, index) {
+          final uye = _kurulUyeleri[index];
+          return Container(
+            key: ValueKey('${uye.adSoyad}_$index'),
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.white,
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.drag_handle, color: Colors.grey),
+                const SizedBox(width: 16),
+                CircleAvatar(backgroundColor: AppTheme.primaryColor.withOpacity(0.1), child: Text('${index + 1}')),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(uye.adSoyad, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(uye.gorev, style: TextStyle(color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  onPressed: () => _duzenleUyeDialog(index),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () {
+                    setState(() {
+                      _kurulUyeleri.removeAt(index);
+                    });
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+      const SizedBox(height: 16),
+      ElevatedButton.icon(
+        onPressed: _yeniUyeDialog,
+        icon: const Icon(Icons.add),
+        label: const Text('Yeni Üye Ekle'),
+      ),
+    ];
+  }
+
+  void _yeniUyeDialog() {
+    final adCtrl = TextEditingController();
+    final gorevCtrl = TextEditingController(text: 'Üye');
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Yeni Kurul Üyesi Ekle'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: adCtrl, decoration: const InputDecoration(labelText: 'Üyenin Adı Soyadı')),
+            const SizedBox(height: 16),
+            TextField(controller: gorevCtrl, decoration: const InputDecoration(labelText: 'Görevi (Başkan, Üye vb.)')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('İptal')),
+          ElevatedButton(
+            onPressed: () {
+              if (adCtrl.text.isNotEmpty) {
+                setState(() {
+                  _kurulUyeleri.add(YkUyeModel(gorev: gorevCtrl.text, adSoyad: adCtrl.text));
+                });
+                Navigator.pop(c);
+              }
+            },
+            child: const Text('Ekle'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _duzenleUyeDialog(int index) {
+    final uye = _kurulUyeleri[index];
+    final adCtrl = TextEditingController(text: uye.adSoyad);
+    final gorevCtrl = TextEditingController(text: uye.gorev);
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Kurul Üyesi Düzenle'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: adCtrl, decoration: const InputDecoration(labelText: 'Üyenin Adı Soyadı')),
+            const SizedBox(height: 16),
+            TextField(controller: gorevCtrl, decoration: const InputDecoration(labelText: 'Görevi (Başkan, Üye vb.)')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('İptal')),
+          ElevatedButton(
+            onPressed: () {
+              if (adCtrl.text.isNotEmpty) {
+                setState(() {
+                  _kurulUyeleri[index] = YkUyeModel(gorev: gorevCtrl.text, adSoyad: adCtrl.text);
+                });
+                Navigator.pop(c);
+              }
+            },
+            child: const Text('Güncelle'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSectionHeader(IconData icon, String title, String subtitle) {

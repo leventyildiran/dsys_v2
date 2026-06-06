@@ -299,8 +299,10 @@ class YkKararProvider extends ChangeNotifier {
     try {
       final document = PdfDocument(inputBytes: pdfBytes);
       final extractor = PdfTextExtractor(document);
-      final text = extractor.extractText();
+      final rawText = extractor.extractText();
       document.dispose();
+      
+      final text = _sanitizeExtractedText(rawText);
       
       if (text.trim().isEmpty) {
         throw Exception('PDF\'ten metin çıkarılamadı veya dosya boş.');
@@ -312,6 +314,7 @@ class YkKararProvider extends ChangeNotifier {
       _errorMessage = 'PDF okuma hatası: $e';
       _isParsing = false;
       notifyListeners();
+      throw Exception(_errorMessage);
     }
   }
 
@@ -320,7 +323,7 @@ class YkKararProvider extends ChangeNotifier {
     if (_aktifToplanti == null) {
       _errorMessage = 'Lütfen önce bir toplantı seçin.';
       notifyListeners();
-      return;
+      throw Exception(_errorMessage);
     }
 
     _isParsing = true;
@@ -351,13 +354,12 @@ class YkKararProvider extends ChangeNotifier {
       }
 
       // 2. DEEPSEEK YEDEK
-      if (parsedKararlar.isEmpty &&
-          ayarlar.deepseekApiKey.isNotEmpty &&
-          ayarlar.deepseekApiUrl.isNotEmpty) {
+      if (parsedKararlar.isEmpty && ayarlar.deepseekApiKey.isNotEmpty) {
         try {
-          final url = ayarlar.deepseekApiUrl.endsWith('/')
-              ? '${ayarlar.deepseekApiUrl}chat/completions'
-              : '${ayarlar.deepseekApiUrl}/chat/completions';
+          final apiUrl = ayarlar.deepseekApiUrl.isEmpty ? 'https://api.deepseek.com/' : ayarlar.deepseekApiUrl;
+          final url = apiUrl.endsWith('/')
+              ? '${apiUrl}chat/completions'
+              : '${apiUrl}/chat/completions';
           final modelName = ayarlar.deepseekModel.isEmpty
               ? 'deepseek-chat'
               : ayarlar.deepseekModel;
@@ -435,6 +437,7 @@ class YkKararProvider extends ChangeNotifier {
       _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString();
+      throw Exception(_errorMessage);
     } finally {
       _isParsing = false;
       notifyListeners();
@@ -449,10 +452,11 @@ Aşağıdaki metin bir üniversite biriminden gelen üst yazı / karar belgesidi
 Bu metni analiz et ve içindeki tüm kararları tek tek JSON nesneleri olarak çıkar.
 
 ÇOK ÖNEMLİ KURALLAR:
-1. SADECE JSON ÇIKTISI VER. Yorum yapma, açıklama ekleme, markdown (\`\`\`json) ekleme!
+1. SADECE JSON ÇIKTISI VER. Yorum yapma, açıklama ekleme, markdown (```json) ekleme!
 2. ASLA Markdown tablo (pipe | ile tablo) OLUŞTURMA!
-3. Tablolardaki verileri (kişi listesi, bütçe kalemleri vb.) "tabloVerileri" alanına JSON dizisi olarak koy.
+3. DİKKAT: Metin içinde kişilerin, tutarların, puanların veya bütçe kalemlerinin olduğu alt alta listelenmiş veriler veya bir 'Faaliyet Cetveli', 'Dağıtım Tablosu' varsa, bunları KESİNLİKLE "tabloVerileri" alanına JSON dizisi olarak koy. Tabloyu atlama!
 4. Matematiksel hesaplamaları YAPMA, sadece metindeki sayıları aynen aktar.
+5. "kararMetni" alanına tablodaki verileri KOYMA, sadece düz kararı yaz. Tablo verileri SADECE "tabloVerileri" içinde olmalı.
 
 Her karar için şu yapıyı kullan:
 [
@@ -517,6 +521,26 @@ $rawText
       debugPrint('JSON Parse hatası: $e');
     }
     return [];
+  }
+
+  /// PDF'ten çıkarılan bozuk karakterleri temizler
+  String _sanitizeExtractedText(String text) {
+    final lines = text.split('\n');
+    final cleanLines = <String>[];
+    for (var line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      
+      final replacementCount = trimmed.codeUnits.where((char) => char == 0xFFFD || char == 65533).length;
+      final totalLength = trimmed.length;
+      if (totalLength > 0 && (replacementCount / totalLength) > 0.3) continue;
+      
+      var cleanLine = trimmed.replaceAll('\uFFFD', '').trim();
+      if (cleanLine.isEmpty || RegExp(r'^[-_+|=*#\s]+$').hasMatch(cleanLine)) continue;
+      
+      cleanLines.add(cleanLine);
+    }
+    return cleanLines.join('\n').trim();
   }
 
   /// Manuel yeni karar ekler (boş şablon).
