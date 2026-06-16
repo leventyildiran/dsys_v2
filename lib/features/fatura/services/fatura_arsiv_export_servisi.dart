@@ -135,7 +135,7 @@ class FaturaArsivExportServisi {
       k['donem'],
       k['aciklama'],
       k['ytbOgrencisi'] == true ? 'Evet' : 'Hayır',
-      k['isVergiIstisnasi'] == true ? 'Evet' : 'Hayır',
+      k['isKdvMuaf'] == true ? 'Evet' : 'Hayır',
       k['kayitYili']?.toString() ?? '',
       _tarihStr(k['sistemeKayitTarihi']),
     ].map(_csvHucre).join(';');

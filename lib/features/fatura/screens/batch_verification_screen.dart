@@ -786,7 +786,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
           cardIndex: index,
         ),
         const SizedBox(height: 8),
-        _buildKalemler(context, provider, invoice, index),
+        _buildKalemler(context, provider, invoice, index, provider.getBirimKategori(provider.seciliBirimFor(index))),
         const SizedBox(height: 8),
         _buildTotals(provider, invoice, index),
       ],
@@ -839,7 +839,13 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
     BatchFaturaProvider provider,
     FaturaModel invoice,
     int index,
+    String kategori,
   ) {
+    String cinsiLabel = 'Hizmet';
+    if (kategori == 'tarimsal') cinsiLabel = 'Ürün Adı';
+    if (kategori == 'satin_alma') cinsiLabel = 'Malzeme / Ürün';
+    if (kategori == 'analiz') cinsiLabel = 'Analiz Türü';
+
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
@@ -891,10 +897,10 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                         // Sabit key: sadece fatura index + kalem index. Değer key'e dahil edilmez.
                         key: ValueKey('kalem_${index}_${ki}_cinsi'),
                         initialValue: k['cinsi']?.toString() ?? '',
-                        decoration: const InputDecoration(
-                          labelText: 'Hizmet',
+                        decoration: InputDecoration(
+                          labelText: cinsiLabel,
                           isDense: true,
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                         ),
                         onChanged: (v) =>
                             provider.updateKalem(index, ki, 'cinsi', v),
@@ -1461,9 +1467,10 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
     BatchFaturaProvider provider,
     int index,
   ) async {
+    final seciliBirim = provider.seciliBirimFor(index);
     final hizmet = await showDialog<HizmetModel>(
       context: context,
-      builder: (_) => const HizmetSeciciDialog(),
+      builder: (_) => HizmetSeciciDialog(initialBirimAd: seciliBirim?.ad),
     );
     if (hizmet == null) return;
     final invoice = provider.pendingInvoices[index];
@@ -1757,8 +1764,8 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
         if (kategori == 'analiz') ...[
           CheckboxListTile(
             title: const Text('KDV\'den Muaftır (İstisna)', style: TextStyle(fontSize: 13)),
-            value: invoice.isVergiIstisnasi,
-            onChanged: (v) => provider.updateField(index, 'isVergiIstisnasi', v),
+            value: invoice.isKdvMuaf,
+            onChanged: (v) => provider.updateField(index, 'isKdvMuaf', v),
             controlAffinity: ListTileControlAffinity.leading,
             contentPadding: EdgeInsets.zero,
             dense: true,

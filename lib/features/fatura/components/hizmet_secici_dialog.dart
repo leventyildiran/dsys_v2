@@ -6,7 +6,8 @@ import '../../../core/models/firma_model.dart';
 import '../../../core/services/firma_service.dart';
 
 class HizmetSeciciDialog extends StatefulWidget {
-  const HizmetSeciciDialog({super.key});
+  final String? initialBirimAd;
+  const HizmetSeciciDialog({super.key, this.initialBirimAd});
 
   @override
   State<HizmetSeciciDialog> createState() => _HizmetSeciciDialogState();
@@ -39,6 +40,9 @@ class _HizmetSeciciDialogState extends State<HizmetSeciciDialog> {
         setState(() {
           _birimler = birimler;
           _isLoading = false;
+          if (widget.initialBirimAd != null && _birimler.contains(widget.initialBirimAd)) {
+            _loadHizmetler(widget.initialBirimAd!);
+          }
         });
       }
     } catch (e) {

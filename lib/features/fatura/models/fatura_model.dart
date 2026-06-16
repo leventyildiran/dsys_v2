@@ -50,11 +50,11 @@ class FaturaModel {
   int? kurNo;
   String? odemeTipi;
   bool ytbOgrencisi;
-  bool isVergiIstisnasi;
   String? urunTuru;
   String? tedarikYontemi;
   String? donem;
   String? aciklama;
+  String? tahminiBirim;
 
   FaturaModel({
     required this.id,
@@ -81,11 +81,11 @@ class FaturaModel {
     this.kurNo,
     this.odemeTipi,
     this.ytbOgrencisi = false,
-    this.isVergiIstisnasi = false,
     this.urunTuru,
     this.tedarikYontemi,
     this.donem,
     this.aciklama,
+    this.tahminiBirim,
   });
 
   bool get kaydaHazir =>
@@ -134,7 +134,6 @@ class FaturaModel {
       'kurNo': kurNo,
       'odemeTipi': odemeTipi,
       'ytbOgrencisi': ytbOgrencisi,
-      'isVergiIstisnasi': isVergiIstisnasi,
       'urunTuru': urunTuru,
       'tedarikYontemi': tedarikYontemi,
       'donem': donem,
@@ -167,11 +166,11 @@ class FaturaModel {
       kurNo: json['kurNo'] != null ? int.tryParse(json['kurNo'].toString()) : null,
       odemeTipi: json['odemeTipi']?.toString(),
       ytbOgrencisi: json['ytbOgrencisi'] == true,
-      isVergiIstisnasi: json['isVergiIstisnasi'] == true,
       urunTuru: json['urunTuru']?.toString(),
       tedarikYontemi: json['tedarikYontemi']?.toString(),
       donem: json['donem']?.toString(),
       aciklama: json['aciklama']?.toString(),
+      tahminiBirim: json['tahminiBirim']?.toString(),
       kalemler: List<Map<String, dynamic>>.from(json['kalemler'] ?? []),
     );
   }
@@ -196,7 +195,6 @@ class FaturaModel {
       parsedBy: 'Yeni Fatura',
       kalemler: [],
       ytbOgrencisi: false,
-      isVergiIstisnasi: false,
     );
   }
 }

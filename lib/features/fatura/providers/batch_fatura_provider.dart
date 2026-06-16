@@ -563,12 +563,18 @@ class BatchFaturaProvider extends ChangeNotifier {
       );
     }
 
+    seciliBirimByFaturaId.clear();
     for (final inv in sonuc) {
       _updateIbanForInvoice(inv);
+      if (inv.tahminiBirim != null && inv.tahminiBirim!.trim().isNotEmpty) {
+        final predicted = findBirim(inv.tahminiBirim);
+        if (predicted != null) {
+          seciliBirimByFaturaId[inv.id] = predicted.id;
+        }
+      }
     }
     pendingInvoices = sonuc;
     currentIndex = 0;
-    seciliBirimByFaturaId.clear();
     _queueChanged();
   }
 
@@ -867,8 +873,9 @@ class BatchFaturaProvider extends ChangeNotifier {
         currentInvoice.odemeTipi = value?.toString();
       case 'ytbOgrencisi':
         currentInvoice.ytbOgrencisi = value == true;
-      case 'isVergiIstisnasi':
-        currentInvoice.isVergiIstisnasi = value == true;
+      case 'isKdvMuaf':
+        currentInvoice.isKdvMuaf = value == true;
+        _recalculateTotals(currentInvoice);
       case 'urunTuru':
         currentInvoice.urunTuru = value?.toString();
       case 'tedarikYontemi':
@@ -1139,7 +1146,7 @@ class BatchFaturaProvider extends ChangeNotifier {
                 final ustAciklamalar = [
                   if (invoice.numuneAciklamasi.trim().isNotEmpty) invoice.numuneAciklamasi,
                   if (invoice.aciklama != null && invoice.aciklama!.trim().isNotEmpty) invoice.aciklama!,
-                  if (invoice.isVergiIstisnasi) 'KDV\'den Muaftır (İstisna)'
+                  if (invoice.isKdvMuaf) 'KDV\'den Muaftır (İstisna)'
                 ].join(' | ');
 
                 if (ustAciklamalar.isNotEmpty) {
