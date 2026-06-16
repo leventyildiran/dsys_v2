@@ -1,3 +1,28 @@
+// Hizmet Tipi seçenekleri
+const fHizmetTipleri = [
+  'EĞİTİM',
+  'DANIŞMANLIK',
+  'SATIŞ',
+  'ANALİZ',
+  'TEKSTİL_TASARIM',
+  'DİĞER'
+];
+
+// Ödeme Tipi (TÖMER/USEM vb.)
+const fOdemeTipleri = [
+  'KUR_FATURA',
+  'STS_FATURA',
+  'KATKI_PAYI',
+  'AVANS',
+  'DİĞER'
+];
+
+// Ürün Türü (Tarımsal)
+const fUrunTurleri = ['YUMURTA', 'BAL', 'TAVUK', 'DİĞER'];
+
+// Tedarik Yöntemi (Satın Alma)
+const fTedarikYontemleri = ['TEK_KAYNAK', 'İHALE', 'PAZARLIK', 'DİĞER'];
+
 class FaturaModel {
   String id;
   String firmaAdi;
@@ -19,6 +44,18 @@ class FaturaModel {
   String? iban;
   String? hesapAdi;
 
+  // Yeni Dinamik Alanlar
+  String? hizmetTipi;
+  String? kursAdi;
+  int? kurNo;
+  String? odemeTipi;
+  bool ytbOgrencisi;
+  bool isVergiIstisnasi;
+  String? urunTuru;
+  String? tedarikYontemi;
+  String? donem;
+  String? aciklama;
+
   FaturaModel({
     required this.id,
     required this.firmaAdi,
@@ -39,6 +76,16 @@ class FaturaModel {
     this.parsedBy = 'AI Parser',
     this.iban,
     this.hesapAdi,
+    this.hizmetTipi,
+    this.kursAdi,
+    this.kurNo,
+    this.odemeTipi,
+    this.ytbOgrencisi = false,
+    this.isVergiIstisnasi = false,
+    this.urunTuru,
+    this.tedarikYontemi,
+    this.donem,
+    this.aciklama,
   });
 
   bool get kaydaHazir =>
@@ -82,6 +129,16 @@ class FaturaModel {
       'parsedBy': parsedBy,
       'iban': iban,
       'hesapAdi': hesapAdi,
+      'hizmetTipi': hizmetTipi,
+      'kursAdi': kursAdi,
+      'kurNo': kurNo,
+      'odemeTipi': odemeTipi,
+      'ytbOgrencisi': ytbOgrencisi,
+      'isVergiIstisnasi': isVergiIstisnasi,
+      'urunTuru': urunTuru,
+      'tedarikYontemi': tedarikYontemi,
+      'donem': donem,
+      'aciklama': aciklama,
     };
   }
 
@@ -105,6 +162,16 @@ class FaturaModel {
       parsedBy: json['parsedBy']?.toString() ?? 'Bilinmiyor',
       iban: json['iban']?.toString(),
       hesapAdi: json['hesapAdi']?.toString(),
+      hizmetTipi: json['hizmetTipi']?.toString(),
+      kursAdi: json['kursAdi']?.toString(),
+      kurNo: json['kurNo'] != null ? int.tryParse(json['kurNo'].toString()) : null,
+      odemeTipi: json['odemeTipi']?.toString(),
+      ytbOgrencisi: json['ytbOgrencisi'] == true,
+      isVergiIstisnasi: json['isVergiIstisnasi'] == true,
+      urunTuru: json['urunTuru']?.toString(),
+      tedarikYontemi: json['tedarikYontemi']?.toString(),
+      donem: json['donem']?.toString(),
+      aciklama: json['aciklama']?.toString(),
       kalemler: List<Map<String, dynamic>>.from(json['kalemler'] ?? []),
     );
   }
@@ -128,6 +195,8 @@ class FaturaModel {
       kdvOrani: 20,
       parsedBy: 'Yeni Fatura',
       kalemler: [],
+      ytbOgrencisi: false,
+      isVergiIstisnasi: false,
     );
   }
 }

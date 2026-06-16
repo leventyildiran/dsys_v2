@@ -663,6 +663,11 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
           ],
         ),
         const SizedBox(height: 12),
+        
+        // --- DİNAMİK ALANLAR ---
+        _buildDinamikAlanlar(context, provider, invoice, index, provider.getBirimKategori(provider.seciliBirimFor(index))),
+        const SizedBox(height: 8),
+
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -770,6 +775,13 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
           'Numune Açıklaması',
           invoice.numuneAciklamasi,
           (v) => provider.updateField(index, 'numuneAciklamasi', v),
+          maxLines: 2,
+          cardIndex: index,
+        ),
+        _field(
+          'Genel Açıklama',
+          invoice.aciklama ?? '',
+          (v) => provider.updateField(index, 'aciklama', v),
           maxLines: 2,
           cardIndex: index,
         ),
@@ -1618,6 +1630,151 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
         );
       }
     }
+  }
+
+  Widget _buildDinamikAlanlar(
+    BuildContext context,
+    BatchFaturaProvider provider,
+    FaturaModel invoice,
+    int index,
+    String kategori,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Hizmet Tipi Her Zaman Gösterilsin
+        DropdownButtonFormField<String>(
+          key: ValueKey('hizmetTipi_$index'),
+          decoration: const InputDecoration(
+            labelText: 'Hizmet Tipi',
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+          value: invoice.hizmetTipi,
+          items: fHizmetTipleri.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          onChanged: (v) => provider.updateField(index, 'hizmetTipi', v),
+        ),
+        const SizedBox(height: 8),
+        
+        if (kategori == 'kurs') ...[
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: _field(
+                  'Kurs / Program Adı',
+                  invoice.kursAdi ?? '',
+                  (v) => provider.updateField(index, 'kursAdi', v),
+                  cardIndex: index,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 1,
+                child: _field(
+                  'Kur No',
+                  invoice.kurNo?.toString() ?? '',
+                  (v) => provider.updateField(index, 'kurNo', v),
+                  cardIndex: index,
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  key: ValueKey('odemeTipi_$index'),
+                  decoration: const InputDecoration(
+                    labelText: 'Ödeme Tipi',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  value: invoice.odemeTipi,
+                  items: fOdemeTipleri.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                  onChanged: (v) => provider.updateField(index, 'odemeTipi', v),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: CheckboxListTile(
+                  title: const Text('YTB Öğrencisi', style: TextStyle(fontSize: 13)),
+                  value: invoice.ytbOgrencisi,
+                  onChanged: (v) => provider.updateField(index, 'ytbOgrencisi', v),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+            ],
+          ),
+        ],
+
+        if (kategori == 'tarimsal') ...[
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  key: ValueKey('urunTuru_$index'),
+                  decoration: const InputDecoration(
+                    labelText: 'Ürün Türü',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  value: invoice.urunTuru,
+                  items: fUrunTurleri.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                  onChanged: (v) => provider.updateField(index, 'urunTuru', v),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _field(
+                  'Dönem (Ör: Ocak 2025)',
+                  invoice.donem ?? '',
+                  (v) => provider.updateField(index, 'donem', v),
+                  cardIndex: index,
+                ),
+              ),
+            ],
+          ),
+        ],
+
+        if (kategori == 'satin_alma') ...[
+          DropdownButtonFormField<String>(
+            key: ValueKey('tedarikYontemi_$index'),
+            decoration: const InputDecoration(
+              labelText: 'Tedarik Yöntemi',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            value: invoice.tedarikYontemi,
+            items: fTedarikYontemleri.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            onChanged: (v) => provider.updateField(index, 'tedarikYontemi', v),
+          ),
+          const SizedBox(height: 8),
+        ],
+
+        if (kategori == 'analiz') ...[
+          CheckboxListTile(
+            title: const Text('KDV\'den Muaftır (İstisna)', style: TextStyle(fontSize: 13)),
+            value: invoice.isVergiIstisnasi,
+            onChanged: (v) => provider.updateField(index, 'isVergiIstisnasi', v),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+          ),
+        ],
+
+        if (kategori == 'hizmet') ...[
+          _field(
+            'Dönem (Ör: Ocak 2025)',
+            invoice.donem ?? '',
+            (v) => provider.updateField(index, 'donem', v),
+            cardIndex: index,
+          ),
+        ],
+      ],
+    );
   }
 
   Future<String> _extractTextFromFile(List<int> bytes, String extension) async {

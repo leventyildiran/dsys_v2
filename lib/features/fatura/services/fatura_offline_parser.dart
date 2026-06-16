@@ -27,6 +27,19 @@ class FaturaOfflineParser {
     r'\b(\d{1,2})[./](\d{1,2})[./](\d{2,4})\b',
   );
   static final RegExp _yaziylaRegex = RegExp(r'#\s*(.+?)\s*#');
+  
+  static final RegExp _kursAdiRegex = RegExp(
+    r'kurs\s*(?:ad[ıi])?\s*[:.\-]?\s*(.+)',
+    caseSensitive: false,
+  );
+  static final RegExp _kurNoRegex = RegExp(
+    r'(\d+)[.\s]*kur\b',
+    caseSensitive: false,
+  );
+  static final RegExp _donemRegex = RegExp(
+    r'\b(ocak|şubat|mart|nisan|mayıs|haziran|temmuz|ağustos|eylül|ekim|kasım|aralık)\s*\d{4}\b',
+    caseSensitive: false,
+  );
 
   /// Ham metinden bir veya daha fazla fatura çıkarır.
   static List<FaturaModel> parse(String rawText) {
@@ -341,6 +354,10 @@ class FaturaOfflineParser {
     final yaziyla = _yaziylaRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
     final aciklama = _numuneAciklama(fullText);
 
+    final kursAdi = _kursAdiRegex.firstMatch(fullText)?.group(1)?.trim();
+    final kurNoStr = _kurNoRegex.firstMatch(fullText)?.group(1)?.trim();
+    final donem = _donemRegex.firstMatch(fullText)?.group(0)?.trim();
+
     return FaturaModel(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       firmaAdi: firmaAdi.trim(),
@@ -363,6 +380,9 @@ class FaturaOfflineParser {
           ? FaturaMatbuConfig.formatHesapAdiMatbu(hesapAdi)
           : null,
       parsedBy: kaynakEtiketi,
+      kursAdi: kursAdi,
+      kurNo: kurNoStr != null ? int.tryParse(kurNoStr) : null,
+      donem: donem,
     );
   }
 

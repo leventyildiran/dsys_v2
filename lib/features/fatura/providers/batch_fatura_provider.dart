@@ -419,6 +419,20 @@ class BatchFaturaProvider extends ChangeNotifier {
   Map<String, BirimModel> get birimlerCache => _birimlerCache;
   List<BirimModel> get birimler => _birimlerList;
 
+  String getBirimKategori(String? birimIdOrAd) {
+    final birim = findBirim(birimIdOrAd);
+    if (birim == null) return 'genel';
+    
+    final ad = birim.kisaAd.toLowerCase();
+    if (ad.contains('tömer') || ad.contains('usem')) return 'kurs';
+    if (ad.contains('tarım') || ad.contains('tadaum')) return 'tarimsal';
+    if (ad.contains('ubatam') || ad.contains('analiz')) return 'analiz';
+    if (ad.contains('dösim') || ad.contains('dts') || ad.contains('deri')) return 'hizmet';
+    if (ad.contains('satın alma')) return 'satin_alma';
+    
+    return 'genel';
+  }
+
   BirimModel? findBirim(String? key) {
     if (key == null || key.isEmpty) return null;
     if (_birimlerById.containsKey(key)) return _birimlerById[key];
@@ -843,6 +857,26 @@ class BatchFaturaProvider extends ChangeNotifier {
         currentInvoice.iban = value?.toString();
       case 'hesapAdi':
         currentInvoice.hesapAdi = value?.toString();
+      case 'hizmetTipi':
+        currentInvoice.hizmetTipi = value?.toString();
+      case 'kursAdi':
+        currentInvoice.kursAdi = value?.toString();
+      case 'kurNo':
+        currentInvoice.kurNo = value != null ? int.tryParse(value.toString()) : null;
+      case 'odemeTipi':
+        currentInvoice.odemeTipi = value?.toString();
+      case 'ytbOgrencisi':
+        currentInvoice.ytbOgrencisi = value == true;
+      case 'isVergiIstisnasi':
+        currentInvoice.isVergiIstisnasi = value == true;
+      case 'urunTuru':
+        currentInvoice.urunTuru = value?.toString();
+      case 'tedarikYontemi':
+        currentInvoice.tedarikYontemi = value?.toString();
+      case 'donem':
+        currentInvoice.donem = value?.toString();
+      case 'aciklama':
+        currentInvoice.aciklama = value?.toString();
     }
     _queueChanged();
   }
@@ -1102,12 +1136,18 @@ class BatchFaturaProvider extends ChangeNotifier {
               }
 
               if (sonSayfa) {
-                if (invoice.numuneAciklamasi.trim().isNotEmpty) {
+                final ustAciklamalar = [
+                  if (invoice.numuneAciklamasi.trim().isNotEmpty) invoice.numuneAciklamasi,
+                  if (invoice.aciklama != null && invoice.aciklama!.trim().isNotEmpty) invoice.aciklama!,
+                  if (invoice.isVergiIstisnasi) 'KDV\'den Muaftır (İstisna)'
+                ].join(' | ');
+
+                if (ustAciklamalar.isNotEmpty) {
                   children.add(
                     pw.Positioned(
                       top: _konum('numuneAciklama').dy,
                       left: _konum('numuneAciklama').dx,
-                      child: pw.Text(invoice.numuneAciklamasi, style: metin()),
+                      child: pw.Text(ustAciklamalar, style: metin()),
                     ),
                   );
                 }
