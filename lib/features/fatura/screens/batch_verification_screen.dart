@@ -1467,7 +1467,8 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
     BatchFaturaProvider provider,
     int index,
   ) async {
-    final seciliBirim = provider.seciliBirimFor(index);
+    final seciliBirimId = provider.seciliBirimFor(index);
+    final seciliBirim = provider.findBirim(seciliBirimId);
     final hizmet = await showDialog<HizmetModel>(
       context: context,
       builder: (_) => HizmetSeciciDialog(initialBirimAd: seciliBirim?.ad),
