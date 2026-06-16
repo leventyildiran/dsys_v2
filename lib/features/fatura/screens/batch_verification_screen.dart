@@ -1615,7 +1615,12 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
         await provider.loadExcelFile(bytes, file.name);
       } else {
         final text = await _extractTextFromFile(bytes, extension);
-        await provider.loadBatch(text);
+        // Eğer text boşsa ve PDF ise (Görsel/Taranmış PDF), byte'ları Gemini Vision'a yolla
+        if (text.isEmpty && extension == 'pdf') {
+          await provider.loadBatch(text, pdfBytes: bytes);
+        } else {
+          await provider.loadBatch(text, pdfBytes: extension == 'pdf' ? bytes : null);
+        }
       }
 
       if (!context.mounted) return;
@@ -1790,12 +1795,9 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       final document = PdfDocument(inputBytes: bytes);
       try {
         final text = PdfTextExtractor(document).extractText().trim();
-        if (text.isEmpty) {
-          throw Exception(
-            'PDF metin içermiyor olabilir. Taranmış görsel PDF ise metni kopyalayıp yapıştırın.',
-          );
-        }
-        return text;
+        return text; // Boş olsa bile dön, taranmışsa boş çıkar ve Vision API devreye girer.
+      } catch (e) {
+        return ''; // Hata olursa yine boş dön
       } finally {
         document.dispose();
       }

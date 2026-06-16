@@ -219,7 +219,7 @@ class BatchFaturaProvider extends ChangeNotifier {
   }
 
   void refreshBirimler() {
-    _loadBirimler();
+    _fetchBirimler();
     _hizmetService.getAllHizmetler(forceRefresh: true).then((val) {
       _tumHizmetler = val;
       notifyListeners();
@@ -572,7 +572,7 @@ class BatchFaturaProvider extends ChangeNotifier {
   /// [cevrimdisi] true ise doğrudan kural tabanlı parser kullanılır.
   /// false ise önce AI denenir, başarısız olursa otomatik olarak
   /// çevrimdışı parser'a düşülür (internet/AI yoksa iş durmaz).
-  Future<void> loadBatch(String text, {bool cevrimdisi = false}) async {
+  Future<void> loadBatch(String text, {bool cevrimdisi = false, List<int>? pdfBytes}) async {
     List<FaturaModel> sonuc = [];
 
     if (!cevrimdisi) {
@@ -592,7 +592,7 @@ class BatchFaturaProvider extends ChangeNotifier {
       // Tier 2 - AI (Yapay Zeka)
       if (sonuc.isEmpty) {
         try {
-          final extractedData = await _aiService.extractBatchData(text);
+          final extractedData = await _aiService.extractBatchData(text, pdfBytes: pdfBytes);
           sonuc = extractedData.map(FaturaModel.fromJson).toList();
           sonAyristirmaBilgisi = sonuc.isEmpty ? null : 'Yapay zeka ile okundu';
         } catch (e) {

@@ -8,34 +8,63 @@ class AIExtractionService {
   final SistemAyarlariService _ayarlarService = SistemAyarlariService();
 
   Future<List<Map<String, dynamic>>> extractBatchData(
-    String rawBatchText,
-  ) async {
+    String rawBatchText, {
+    List<int>? pdfBytes,
+  }) async {
     final ayarlar = await _ayarlarService.getAyarlar();
 
     // Prompt hazırlığı
     final prompt = _buildPrompt(rawBatchText);
 
-    // 1. GEMINI DENEMESİ
+    // 1. GEMINI DENEMESİ (Farklı Modellerle Auto-Healing)
     if (ayarlar.geminiApiKey.isNotEmpty) {
-      try {
-        print('Gemini API ile ayrıştırma deneniyor...');
-        final model = GenerativeModel(
-          model: 'gemini-1.5-flash',
-          apiKey: ayarlar.geminiApiKey,
-        );
-        final response = await model.generateContent([Content.text(prompt)]);
-        final text = response.text?.trim() ?? '';
-
-        final parsed = _parseJson(text);
-        if (parsed.isNotEmpty) {
-          for (var p in parsed) {
-            p['parsedBy'] = 'Tier 1 - Gemini (Başarılı)';
+      // Uzun süre desteklenecek (LTS) güncel ve stabil modeller
+      final denemeModelleri = [
+        'gemini-1.5-flash',     // En hızlı ve maliyetsiz, varsayılan (Multimodal)
+        'gemini-1.5-pro',       // Daha yavaş ama çok daha zeki (Multimodal)
+        'gemini-1.5-flash-8b'   // Çok hafif ve hızlı alternatif
+      ];
+      
+      int deneme = 0;
+      
+      while (deneme < denemeModelleri.length) {
+        final seciliModel = denemeModelleri[deneme];
+        try {
+          print('Gemini API ($seciliModel) ile ayrıştırma deneniyor... (Deneme: ${deneme + 1})');
+          final model = GenerativeModel(
+            model: seciliModel,
+            apiKey: ayarlar.geminiApiKey,
+          );
+          
+          final contentParts = <Part>[];
+          if (pdfBytes != null && pdfBytes.isNotEmpty) {
+            contentParts.add(DataPart('application/pdf', pdfBytes));
           }
-          return parsed;
+          contentParts.add(TextPart(prompt));
+
+          final response = await model.generateContent([Content.multi(contentParts)]);
+          final text = response.text?.trim() ?? '';
+
+          final parsed = _parseJson(text);
+          if (parsed.isNotEmpty) {
+            for (var p in parsed) {
+              p['parsedBy'] = 'Tier 1 - $seciliModel (Başarılı)';
+            }
+            return parsed;
+          } else if (text.isNotEmpty) {
+            print('$seciliModel JSON formatı boş döndürdü, diğer modele geçiliyor...');
+          }
+        } catch (e) {
+          print('$seciliModel hatası: $e');
         }
-      } catch (e) {
-        print('Gemini hatası: $e');
+        
+        deneme++;
+        if (deneme < denemeModelleri.length) {
+          // Çok kısa bir nefes alma payı
+          await Future.delayed(const Duration(seconds: 2));
+        }
       }
+      print('Tüm Gemini modelleri (Flash ve Pro) başarısız oldu. DeepSeek/Offline yedeğe geçiliyor.');
     }
 
     // 2. DEEPSEEK DENEMESİ (Fallback)
