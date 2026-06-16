@@ -1,27 +1,32 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/sistem_ayarlari_model.dart';
+import 'firestore_service.dart';
 
 class SistemAyarlariService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  SistemAyarlariService({FirestoreService? firestoreService})
+    : _service = firestoreService ?? FirestoreService();
+
+  final FirestoreService _service;
+  static const _collection = 'sistemAyarlari';
   final String _docId = 'sistem_genel';
 
   Future<SistemAyarlariModel> getAyarlar() async {
     try {
-      final doc = await _firestore.collection('ayarlar').doc(_docId).get();
+      final doc = await _service.get(_collection, _docId);
       if (doc.exists && doc.data() != null) {
         return SistemAyarlariModel.fromJson(doc.data()!);
       }
     } catch (e) {
-      print('Ayarlar okunamadı: $e');
+      debugPrint('Ayarlar okunamadı: $e');
     }
     return SistemAyarlariModel.empty();
   }
 
   Future<void> saveAyarlar(SistemAyarlariModel ayarlar) async {
     try {
-      await _firestore.collection('ayarlar').doc(_docId).set(ayarlar.toJson());
+      await _service.set(_collection, _docId, ayarlar.toJson(), merge: false);
     } catch (e) {
-      print('Ayarlar kaydedilemedi: $e');
+      debugPrint('Ayarlar kaydedilemedi: $e');
       rethrow;
     }
   }

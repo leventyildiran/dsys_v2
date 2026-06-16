@@ -124,87 +124,172 @@ class _HizmetSeciciDialogState extends State<HizmetSeciciDialog> {
     }
   }
 
-  Future<void> _migrateHizmetlerFromJson() async {
-    try {
-      final String response = await DefaultAssetBundle.of(context).loadString('assets/data/hizmetler.json');
-      final List<dynamic> data = json.decode(response);
-      int count = 0;
-      for (var item in data) {
-        final hizmet = HizmetModel(
-          id: '',
-          birimAdi: item['birimAdi'] ?? '',
-          hizmetAdi: item['hizmetAdi'] ?? '',
-          fiyat: (item['fiyat'] as num?)?.toDouble() ?? 0.0,
+  Future<void> _showFiyatGuncelleDialog(HizmetModel hizmet) async {
+    final formKey = GlobalKey<FormState>();
+    final fiyatController = TextEditingController(
+      text: hizmet.fiyat.toStringAsFixed(2).replaceAll('.', ','),
+    );
+
+    final kaydedildi = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Fiyat Güncelle'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                hizmet.hizmetAdi,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                hizmet.birimAdi,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: fiyatController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Yeni Birim Fiyatı (₺)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Zorunlu';
+                  final parsed = double.tryParse(v.replaceAll(',', '.'));
+                  if (parsed == null || parsed < 0) return 'Geçerli bir fiyat girin';
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('İptal')),
+          FilledButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              final yeniFiyat =
+                  double.tryParse(fiyatController.text.replaceAll(',', '.')) ?? 0.0;
+              final guncel = HizmetModel(
+                id: hizmet.id,
+                birimAdi: hizmet.birimAdi,
+                hizmetAdi: hizmet.hizmetAdi,
+                fiyat: yeniFiyat,
+              );
+              await _hizmetService.updateHizmet(guncel);
+              if (ctx.mounted) Navigator.pop(ctx, true);
+            },
+            child: const Text('Güncelle'),
+          ),
+        ],
+      ),
+    );
+
+    fiyatController.dispose();
+    if (kaydedildi == true && mounted && _selectedBirim != null) {
+      await _loadHizmetler(_selectedBirim!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Fiyat güncellendi.'),
+            backgroundColor: Colors.green,
+          ),
         );
-        await _hizmetService.addHizmet(hizmet);
-        count++;
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$count adet fiyat başarıyla aktarıldı!')));
-        if (_selectedBirim != null) {
-          _loadHizmetler(_selectedBirim!);
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Aktarım Hatası: $e')));
       }
     }
   }
 
   Future<void> _showYeniHizmetEkleDialog() async {
+    if (_selectedBirim == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Önce soldan bir birim seçin.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     final formKey = GlobalKey<FormState>();
-    final birimController = TextEditingController(text: _selectedBirim ?? '');
     final hizmetAdiController = TextEditingController();
     final fiyatController = TextEditingController();
+    final seciliBirim = _selectedBirim!;
 
     await showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Yeni Hizmet / Kalem Ekle'),
+          title: const Text('Birime Özel Kalem Ekle'),
           content: Form(
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextFormField(
-                  controller: birimController,
-                  decoration: const InputDecoration(labelText: 'Birim Adı (Örn: DÖSİM, UBATAM)'),
-                  validator: (v) => v!.isEmpty ? 'Zorunlu' : null,
+                  initialValue: seciliBirim,
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Birim',
+                    border: OutlineInputBorder(),
+                    filled: true,
+                  ),
                 ),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: hizmetAdiController,
-                  decoration: const InputDecoration(labelText: 'Hizmet / Kalem Adı'),
-                  validator: (v) => v!.isEmpty ? 'Zorunlu' : null,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Hizmet / Kalem Adı',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) => v!.trim().isEmpty ? 'Zorunlu' : null,
                 ),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: fiyatController,
-                  decoration: const InputDecoration(labelText: 'Birim Fiyatı (₺)'),
-                  keyboardType: TextInputType.number,
-                  validator: (v) => v!.isEmpty ? 'Zorunlu' : null,
+                  decoration: const InputDecoration(
+                    labelText: 'Birim Fiyatı (₺)',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Zorunlu';
+                    final parsed = double.tryParse(v.replaceAll(',', '.'));
+                    if (parsed == null || parsed < 0) return 'Geçerli bir fiyat girin';
+                    return null;
+                  },
                 ),
               ],
             ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
-            ElevatedButton(
+            FilledButton(
               onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  final yeni = HizmetModel(
-                    id: '',
-                    birimAdi: birimController.text.trim(),
-                    hizmetAdi: hizmetAdiController.text.trim(),
-                    fiyat: double.tryParse(fiyatController.text.replaceAll(',', '.')) ?? 0.0,
-                  );
-                  await _hizmetService.addHizmet(yeni);
+                if (!formKey.currentState!.validate()) return;
+                final yeni = HizmetModel(
+                  id: '',
+                  birimAdi: seciliBirim,
+                  hizmetAdi: hizmetAdiController.text.trim(),
+                  fiyat: double.tryParse(fiyatController.text.replaceAll(',', '.')) ?? 0.0,
+                );
+                await _hizmetService.addHizmet(yeni);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  await _loadBirimler();
+                  await _loadHizmetler(seciliBirim);
                   if (mounted) {
-                    Navigator.pop(context);
-                    await _loadBirimler();
-                    if (_selectedBirim == yeni.birimAdi) {
-                      await _loadHizmetler(yeni.birimAdi);
-                    }
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Kalem eklendi.'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
                   }
                 }
               },
@@ -214,13 +299,16 @@ class _HizmetSeciciDialogState extends State<HizmetSeciciDialog> {
         );
       },
     );
+
+    hizmetAdiController.dispose();
+    fiyatController.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
+      child: SizedBox(
         width: 800,
         height: 600,
         child: Column(
@@ -283,20 +371,61 @@ class _HizmetSeciciDialogState extends State<HizmetSeciciDialog> {
                         ? const Center(child: CircularProgressIndicator())
                         : _filteredHizmetler.isEmpty
                           ? const Center(child: Text('Hizmet bulunamadı.'))
-                          : ListView.separated(
+                          : ListView.builder(
                               itemCount: _filteredHizmetler.length,
-                              separatorBuilder: (context, index) => const Divider(height: 1),
                               itemBuilder: (context, index) {
                                 final hizmet = _filteredHizmetler[index];
-                                return ListTile(
-                                  title: Text(hizmet.hizmetAdi),
-                                  trailing: Text(
-                                    '${hizmet.fiyat.toStringAsFixed(2)} ₺',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal),
+                                return Card(
+                                  margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        InkWell(
+                                          borderRadius: BorderRadius.circular(8),
+                                          onTap: () => Navigator.pop(context, hizmet),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 2),
+                                            child: Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    hizmet.hizmetAdi,
+                                                    style: const TextStyle(
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  '${hizmet.fiyat.toStringAsFixed(2)} ₺',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.teal,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Align(
+                                          alignment: Alignment.bottomRight,
+                                          child: FilledButton.tonalIcon(
+                                            onPressed: () =>
+                                                _showFiyatGuncelleDialog(hizmet),
+                                            icon: const Icon(Icons.edit, size: 16),
+                                            label: const Text('Düzenle'),
+                                            style: FilledButton.styleFrom(
+                                              visualDensity: VisualDensity.compact,
+                                              foregroundColor: Colors.indigo,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  onTap: () {
-                                    Navigator.pop(context, hizmet);
-                                  },
                                 );
                               },
                             ),
@@ -308,14 +437,33 @@ class _HizmetSeciciDialogState extends State<HizmetSeciciDialog> {
               padding: const EdgeInsets.all(16),
               color: Colors.grey.shade50,
               width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _showYeniHizmetEkleDialog,
-                icon: const Icon(Icons.add),
-                label: const Text('Yeni Birim / Hizmet Ekle'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo,
-                  foregroundColor: Colors.white,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_selectedBirim != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        'Seçili birim: $_selectedBirim',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  FilledButton.icon(
+                    onPressed: _selectedBirim == null ? null : _showYeniHizmetEkleDialog,
+                    icon: const Icon(Icons.add),
+                    label: Text(
+                      _selectedBirim == null
+                          ? 'Önce birim seçin'
+                          : 'Bu Birime Yeni Kalem Ekle',
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.indigo,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

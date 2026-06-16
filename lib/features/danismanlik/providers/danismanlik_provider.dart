@@ -3,6 +3,7 @@ import '../../../core/hesaplama_motoru.dart';
 import '../../../core/karar_metni_servisi.dart';
 import '../../../core/turkce_format.dart';
 import '../models/danismanlik_model.dart';
+import '../services/danismanlik_excel_hesaplama.dart';
 import '../../personel/models/personel_model.dart';
 import '../services/danismanlik_service.dart';
 
@@ -50,7 +51,7 @@ class PersonelDagitimSonucu {
 
 class DanismanlikProvider extends ChangeNotifier {
   DanismanlikProvider({DanismanlikService? danismanlikService})
-      : _danismanlikService = danismanlikService ?? DanismanlikService();
+    : _danismanlikService = danismanlikService ?? DanismanlikService();
 
   final DanismanlikService _danismanlikService;
 
@@ -85,6 +86,15 @@ class DanismanlikProvider extends ChangeNotifier {
   String _isinKonusu = '';
   String get isinKonusu => _isinKonusu;
 
+  String _birimId = '';
+  String get birimId => _birimId;
+
+  String _firmaId = '';
+  String get firmaId => _firmaId;
+
+  String _kaynakYkKararId = '';
+  String get kaynakYkKararId => _kaynakYkKararId;
+
   String _birimAd = '';
   String get birimAd => _birimAd;
 
@@ -94,6 +104,7 @@ class DanismanlikProvider extends ChangeNotifier {
   String _birimKurulTarihi = '';
   String _birimToplantiSayisi = '';
   String _birimKararNo = '';
+  String _ykToplantiSayisi = '';
   String _ykKararTarihi = '';
   String _ykKararNo = '';
 
@@ -102,6 +113,7 @@ class DanismanlikProvider extends ChangeNotifier {
   String get birimKurulTarihi => _birimKurulTarihi;
   String get birimToplantiSayisi => _birimToplantiSayisi;
   String get birimKararNo => _birimKararNo;
+  String get ykToplantiSayisi => _ykToplantiSayisi;
   String get ykKararTarihi => _ykKararTarihi;
   String get ykKararNo => _ykKararNo;
 
@@ -163,6 +175,21 @@ class DanismanlikProvider extends ChangeNotifier {
     _hesapla();
   }
 
+  void setFirmaId(String value) {
+    _firmaId = value;
+    notifyListeners();
+  }
+
+  void setBirimId(String value) {
+    _birimId = value;
+    _hesapla();
+  }
+
+  void setKaynakYkKararId(String value) {
+    _kaynakYkKararId = value;
+    notifyListeners();
+  }
+
   void setIsinKonusu(String value) {
     _isinKonusu = value;
     _hesapla();
@@ -198,6 +225,11 @@ class DanismanlikProvider extends ChangeNotifier {
     _hesapla();
   }
 
+  void setYkToplantiSayisi(String value) {
+    _ykToplantiSayisi = value;
+    _hesapla();
+  }
+
   void setYkKararTarihi(String value) {
     _ykKararTarihi = value;
     _hesapla();
@@ -226,6 +258,11 @@ class DanismanlikProvider extends ChangeNotifier {
     _hesapla();
   }
 
+  void personelDersSaatiGuncelle(int index, double saat) {
+    _personeller[index].dersSaati = saat;
+    _hesapla();
+  }
+
   void personelPayGuncelle(int index, int pay) {
     _personeller[index].payOrani = pay;
     _hesapla();
@@ -240,13 +277,17 @@ class DanismanlikProvider extends ChangeNotifier {
     _aracGerecPayiOrani = 45;
     _suresi = 1;
     _firmaUnvan = '';
+    _firmaId = '';
     _isinKonusu = '';
+    _birimId = '';
+    _kaynakYkKararId = '';
     _birimAd = '';
     _birimEvrakTarihi = '';
     _birimEvrakSayisi = '';
     _birimKurulTarihi = '';
     _birimToplantiSayisi = '';
     _birimKararNo = '';
+    _ykToplantiSayisi = '';
     _ykKararTarihi = '';
     _ykKararNo = '';
     _personeller = [];
@@ -255,13 +296,14 @@ class DanismanlikProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> kaydet() async {
+  Future<bool> kaydet({String? fallbackBirimId}) async {
     if (_isSaving) return false;
 
     final firma = _firmaUnvan.trim();
     final konu = _isinKonusu.trim();
     if (_brutTaksitTutari <= 0 || firma.isEmpty || konu.isEmpty) {
-      _saveError = 'Firma ünvanı, iş konusu ve brüt tutar alanlarını doldurmalısınız.';
+      _saveError =
+          'Firma ünvanı, iş konusu ve brüt tutar alanlarını doldurmalısınız.';
       notifyListeners();
       return false;
     }
@@ -271,10 +313,16 @@ class DanismanlikProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final kayitBirimId = _birimId.trim().isNotEmpty
+          ? _birimId.trim()
+          : (fallbackBirimId?.trim().isNotEmpty == true
+                ? fallbackBirimId!.trim()
+                : 'merkez');
+
       final model = DanismanlikModel(
         id: '', // Firestore oluştururken atayacak
-        birimId: 'merkez', // TODO: Aktif kullanıcının birimini ekle
-        firmaId: '',
+        birimId: kayitBirimId,
+        firmaId: _firmaId.trim(),
         firmaUnvan: firma,
         birimKisaAd: _birimAd.trim(),
         danismanlikTuru: _tur,
@@ -283,9 +331,21 @@ class DanismanlikProvider extends ChangeNotifier {
         kdvOrani: _kdvOrani,
         suresi: _suresi,
         durum: DanismanlikDurum.bekliyor,
+        ykKararId: _kaynakYkKararId.trim().isEmpty
+            ? null
+            : _kaynakYkKararId.trim(),
         ykKararTarihi: _ykKararTarihi.trim().isEmpty ? null : _ykKararTarihi,
         ykKararNo: _ykKararNo.trim().isEmpty ? null : _ykKararNo,
-        ykToplantiSayisi: _birimToplantiSayisi.trim().isEmpty ? null : _birimToplantiSayisi,
+        ykToplantiSayisi: _ykToplantiSayisi.trim().isEmpty
+            ? null
+            : _ykToplantiSayisi,
+        birimKararTarihi: _birimKurulTarihi.trim().isEmpty
+            ? null
+            : _birimKurulTarihi,
+        birimKararNo: _birimKararNo.trim().isEmpty ? null : _birimKararNo,
+        birimToplantiSayisi: _birimToplantiSayisi.trim().isEmpty
+            ? null
+            : _birimToplantiSayisi,
         hazinePayiOrani: _hazinePayiOrani,
         bapPayiOrani: _bapPayiOrani,
         aracGerecPayiOrani: _aracGerecPayiOrani,
@@ -324,6 +384,85 @@ class DanismanlikProvider extends ChangeNotifier {
       return;
     }
 
+    if (_tur == DanismanlikTuru.standart &&
+        _personeller.any((p) => p.faaliyetPuani > 0)) {
+      final gecici = DanismanlikModel(
+        id: '',
+        birimId: _birimId.trim().isEmpty ? 'merkez' : _birimId.trim(),
+        firmaId: _firmaId.trim(),
+        firmaUnvan: _firmaUnvan,
+        birimKisaAd: _birimAd,
+        danismanlikTuru: _tur,
+        konusu: _isinKonusu,
+        toplamTutar: _brutTaksitTutari,
+        kdvOrani: _kdvOrani,
+        suresi: _suresi,
+        durum: DanismanlikDurum.bekliyor,
+        hazinePayiOrani: _hazinePayiOrani,
+        bapPayiOrani: _bapPayiOrani,
+        aracGerecPayiOrani: _aracGerecPayiOrani,
+        ykKararId: _kaynakYkKararId.trim().isEmpty
+            ? null
+            : _kaynakYkKararId.trim(),
+        ykKararTarihi: _ykKararTarihi.trim().isEmpty ? null : _ykKararTarihi,
+        ykKararNo: _ykKararNo.trim().isEmpty ? null : _ykKararNo,
+        ykToplantiSayisi: _ykToplantiSayisi.trim().isEmpty
+            ? null
+            : _ykToplantiSayisi,
+        birimKararTarihi: _birimKurulTarihi.trim().isEmpty
+            ? null
+            : _birimKurulTarihi,
+        birimKararNo: _birimKararNo.trim().isEmpty ? null : _birimKararNo,
+        birimToplantiSayisi: _birimToplantiSayisi.trim().isEmpty
+            ? null
+            : _birimToplantiSayisi,
+        personeller: List.from(_personeller),
+        createdAt: DateTime.now(),
+      );
+      final excel = DanismanlikExcelHesaplama.hesaplaDanismanlik(
+        danismanlik: gecici,
+        brutTaksitTutari: _brutTaksitTutari,
+      );
+      final k = excel.kesinti;
+      final kesinti = KesintiBilgisi(
+        kdvHaricMatrah: k.kdvHaricGelir,
+        hazinePayi: k.hazinePayi,
+        bapPayi: k.bapPayi,
+        aracGerecPayi: k.aracGerecPayi,
+        dagitilabilirTutar: k.katkiPayi,
+      );
+      final dagitimlar = excel.personelSatirlari.map((s) {
+        return PersonelDagitimSonucu(
+          personelId: s.girdi.personelId,
+          adSoyad: s.girdi.adSoyad,
+          unvan: s.girdi.unvan,
+          unvanKatsayisi: s.girdi.unvanKatsayisi,
+          faaliyetPuani: s.girdi.puan,
+          bireyselPuan: s.bireyselNetKatkiPuani,
+          brutHakedis: s.brutHakedis,
+          tavanAsimi: s.havuzTutari > 0,
+        );
+      }).toList();
+
+      final veriler = _kararMetniVerileriHazirla(excel.donemKatsayi);
+      _onizleme = OnizlemeSonucu(
+        kesinti: kesinti,
+        katsayi: excel.donemKatsayi,
+        artikBakiye: excel.artikBakiye,
+        personelDagitimlari: dagitimlar,
+        kararMetni: KararMetniServisi.metinUret(
+          isStandart: true,
+          veriler: veriler,
+        ),
+        sablonDogrulama: KararMetniServisi.dogrula(
+          isStandart: true,
+          veriler: veriler,
+        ),
+      );
+      notifyListeners();
+      return;
+    }
+
     final KesintiBilgisi kesinti;
     if (_tur == DanismanlikTuru.standart) {
       kesinti = HesaplamaMotoru.standartKesintiler(
@@ -342,11 +481,13 @@ class DanismanlikProvider extends ChangeNotifier {
 
     final personelPuanlar = _personeller
         .where((p) => p.faaliyetPuani > 0)
-        .map((p) => PersonelPuanModel(
-              personelId: p.personel.id,
-              faaliyetPuani: p.faaliyetPuani,
-              unvanKatsayisi: p.personel.unvanKatsayisi,
-            ))
+        .map(
+          (p) => PersonelPuanModel(
+            personelId: p.personel.id,
+            faaliyetPuani: p.faaliyetPuani,
+            unvanKatsayisi: p.personel.unvanKatsayisi,
+          ),
+        )
         .toList();
 
     double toplamPuan = 0;
@@ -383,7 +524,7 @@ class DanismanlikProvider extends ChangeNotifier {
         faaliyetPuani: p.faaliyetPuani,
         bireyselPuan: bireyselPuan,
         brutHakedis: brutHakedis,
-        tavanAsimi: false, 
+        tavanAsimi: false,
       );
     }).toList();
 
@@ -412,19 +553,34 @@ class DanismanlikProvider extends ChangeNotifier {
   Map<String, String?> _kararMetniVerileriHazirla(double katsayi) {
     final isStandart = _tur == DanismanlikTuru.standart;
 
-    final hocaUnvan = _personeller.isNotEmpty ? _personeller.first.personel.unvan : '';
-    final hocaAdSoyad = _personeller.isNotEmpty ? _personeller.first.personel.adSoyad : '';
+    final hocaUnvan = _personeller.isNotEmpty
+        ? _personeller.first.personel.unvan
+        : '';
+    final hocaAdSoyad = _personeller.isNotEmpty
+        ? _personeller.first.personel.adSoyad
+        : '';
 
     if (isStandart) {
       return {
         'BIRIM_AD': _birimAd.isNotEmpty ? _birimAd : null,
-        'BIRIM_EVRAK_TARIHI': _birimEvrakTarihi.isNotEmpty ? _birimEvrakTarihi : null,
-        'BIRIM_EVRAK_SAYISI': _birimEvrakSayisi.isNotEmpty ? _birimEvrakSayisi : null,
-        'BIRIM_KURUL_TARIHI': _birimKurulTarihi.isNotEmpty ? _birimKurulTarihi : null,
-        'BIRIM_TOPLANTI_SAYI': _birimToplantiSayisi.isNotEmpty ? _birimToplantiSayisi : null,
+        'BIRIM_EVRAK_TARIHI': _birimEvrakTarihi.isNotEmpty
+            ? _birimEvrakTarihi
+            : null,
+        'BIRIM_EVRAK_SAYISI': _birimEvrakSayisi.isNotEmpty
+            ? _birimEvrakSayisi
+            : null,
+        'BIRIM_KURUL_TARIHI': _birimKurulTarihi.isNotEmpty
+            ? _birimKurulTarihi
+            : null,
+        'BIRIM_TOPLANTI_SAYI': _birimToplantiSayisi.isNotEmpty
+            ? _birimToplantiSayisi
+            : null,
         'BIRIM_KARAR_NO': _birimKararNo.isNotEmpty ? _birimKararNo : null,
         'YK_KARAR_TARIHI': _ykKararTarihi.isNotEmpty ? _ykKararTarihi : null,
         'YK_KARAR_NO': _ykKararNo.isNotEmpty ? _ykKararNo : null,
+        'YK_TOPLANTI_SAYI': _ykToplantiSayisi.isNotEmpty
+            ? _ykToplantiSayisi
+            : null,
         'FIRMA_UNVAN': _firmaUnvan.isNotEmpty ? _firmaUnvan : null,
         'ISIN_KONUSU': _isinKonusu.isNotEmpty ? _isinKonusu : null,
         'DANISMANLIK_SURESI': _suresi > 0 ? _suresi.toString() : null,
@@ -435,7 +591,9 @@ class DanismanlikProvider extends ChangeNotifier {
     } else {
       return {
         'UYK_KARAR_TARIHI': _ykKararTarihi.isNotEmpty ? _ykKararTarihi : null,
-        'UYK_TOPLANTI_SAYI': _birimToplantiSayisi.isNotEmpty ? _birimToplantiSayisi : null,
+        'UYK_TOPLANTI_SAYI': _ykToplantiSayisi.isNotEmpty
+            ? _ykToplantiSayisi
+            : null,
         'UYK_KARAR_NO': _ykKararNo.isNotEmpty ? _ykKararNo : null,
         'FIRMA_UNVAN': _firmaUnvan.isNotEmpty ? _firmaUnvan : null,
         'HOCA_UNVAN': hocaUnvan.isNotEmpty ? hocaUnvan : null,
@@ -446,8 +604,11 @@ class DanismanlikProvider extends ChangeNotifier {
         'GELIR_TUTARI': _brutTaksitTutari > 0
             ? TurkceFormat.para(_brutTaksitTutari).replaceAll(' TL', '')
             : null,
-        'KATKI_PAYI_TUTARI': _onizleme != null && _onizleme!.kesinti.dagitilabilirTutar > 0
-            ? TurkceFormat.para(_onizleme!.kesinti.dagitilabilirTutar).replaceAll(' TL', '')
+        'KATKI_PAYI_TUTARI':
+            _onizleme != null && _onizleme!.kesinti.dagitilabilirTutar > 0
+            ? TurkceFormat.para(
+                _onizleme!.kesinti.dagitilabilirTutar,
+              ).replaceAll(' TL', '')
             : null,
       };
     }

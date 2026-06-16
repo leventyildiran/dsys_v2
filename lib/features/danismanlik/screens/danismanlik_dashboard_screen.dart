@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/app_theme.dart';
+import '../widgets/danismanlik_layout.dart';
 import '../../../core/turkce_format.dart';
 import '../models/danismanlik_model.dart';
 import '../services/danismanlik_service.dart';
@@ -23,70 +23,32 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildHeader(context),
-          Expanded(
-            child: _buildBody(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.blueGrey.shade100)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            offset: const Offset(0, 4),
-            blurRadius: 12,
-          )
-        ]
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Danışmanlık Takibi',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.blueGrey.shade900,
-                  letterSpacing: -0.5,
+          DanismanlikLayout.kompaktBaslik(
+            baslik: 'Danışmanlık Takibi',
+            altBaslik: 'Sözleşme, taksit ve gelir dağıtımı',
+            aksiyon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => context.go('/danismanlik/takip'),
+                  icon: const Icon(Icons.timeline, size: 16),
+                  label: const Text('Ödeme Takibi'),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Döner Sermaye kapsamında yürütülen hizmetlerin zengin veri görünümü.',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.blueGrey.shade500,
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: () => context.go('/danismanlik/yeni'),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Yeni'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              context.go('/danismanlik/yeni');
-            },
-            icon: const Icon(Icons.add, size: 20),
-            label: const Text('Yeni Danışmanlık Ekle', style: TextStyle(fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1), // Indigo 500
-              foregroundColor: Colors.white,
-              elevation: 2,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              ],
             ),
           ),
+          Expanded(child: _buildBody()),
         ],
       ),
     );
@@ -127,20 +89,20 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
         filteredItems = filteredItems.reversed.toList();
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(DanismanlikLayout.sayfaPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // KPI CARDS
               Row(
                 children: [
-                  Expanded(child: _buildKpiCard('Toplam Danışmanlık', '${items.length}', TurkceFormat.para(totalTutar), Icons.business_center, Colors.indigo)),
-                  const SizedBox(width: 20),
-                  Expanded(child: _buildKpiCard('Bekleyen', '$countBekliyor', 'İşlem bekleyen sözleşmeler', Icons.pending_actions, Colors.amber.shade700)),
-                  const SizedBox(width: 20),
-                  Expanded(child: _buildKpiCard('Aktif (Sözleşmeli)', '$countAktif', 'Devam eden hizmetler', Icons.autorenew, Colors.blue.shade600)),
-                  const SizedBox(width: 20),
-                  Expanded(child: _buildKpiCard('Tamamlandı', '$countTamamlandi', 'Başarıyla bitenler', Icons.task_alt, Colors.green.shade600)),
+                  Expanded(child: _buildKpiCard('Toplam', '${items.length}', TurkceFormat.para(totalTutar), Icons.business_center, Colors.indigo)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildKpiCard('Bekleyen', '$countBekliyor', 'Onay bekliyor', Icons.pending_actions, Colors.amber.shade700)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildKpiCard('Aktif', '$countAktif', 'Devam ediyor', Icons.autorenew, Colors.blue.shade600)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildKpiCard('Tamamlandı', '$countTamamlandi', 'Kapandı', Icons.task_alt, Colors.green.shade600)),
                 ],
               ),
               
@@ -285,39 +247,26 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
 
   Widget _buildKpiCard(String title, String value, String subtitle, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blueGrey.shade50),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          )
-        ],
-      ),
+      padding: const EdgeInsets.all(14),
+      decoration: DanismanlikLayout.kart(),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 28),
+            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 20),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade500)),
-                const SizedBox(height: 4),
-                Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.blueGrey.shade900)),
-                const SizedBox(height: 4),
-                Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.blueGrey.shade400)),
+                Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade500)),
+                Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.blueGrey.shade900)),
+                Text(subtitle, style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade400), maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
@@ -330,9 +279,7 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
-          context.go('/danismanlik/detay/${model.id}');
-        },
+        onTap: () => context.push('/danismanlik/detay/${model.id}'),
         hoverColor: Colors.blueGrey.shade50.withOpacity(0.5),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -458,14 +405,15 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                       icon: const Icon(Icons.table_view, color: Colors.green),
                       tooltip: 'Excel Görünümü',
                       onPressed: () {
-                        context.push('/danismanlik/dagitim', extra: model);
+                        context.push(
+                          '/danismanlik/dagitim',
+                          extra: DanismanlikRouteExtra(model: model),
+                        );
                       },
                     ),
                     IconButton(
                       icon: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-                      onPressed: () {
-                        context.go('/danismanlik/detay/${model.id}');
-                      },
+                      onPressed: () => context.push('/danismanlik/detay/${model.id}'),
                     ),
                   ],
                 ),

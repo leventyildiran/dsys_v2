@@ -5,6 +5,10 @@ import '../../../core/turkce_format.dart';
 import '../models/danismanlik_model.dart';
 import '../models/taksit_model.dart';
 import '../providers/danismanlik_detay_provider.dart';
+import '../services/danismanlik_service.dart';
+import '../widgets/danismanlik_layout.dart';
+import '../widgets/taksit_pipeline.dart';
+import '../services/taksit_onay_akisi.dart';
 
 class DanismanlikDetayScreen extends StatelessWidget {
   const DanismanlikDetayScreen({super.key, required this.danismanlik});
@@ -16,23 +20,62 @@ class DanismanlikDetayScreen extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => DanismanlikDetayProvider(danismanlik),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
-        appBar: AppBar(
-          title: Text('${danismanlik.firmaUnvan ?? 'Firma'} - Detay'),
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.blueGrey.shade800,
-          elevation: 0,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Container(color: Colors.blueGrey.shade200, height: 1),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop(),
-          ),
+        backgroundColor: const Color(0xFFF5F7FA),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DanismanlikLayout.kompaktBaslik(
+              baslik: danismanlik.firmaUnvan ?? 'Danışmanlık Detay',
+              altBaslik: danismanlik.konusu,
+              aksiyon: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.pop(),
+                tooltip: 'Geri',
+              ),
+            ),
+            const Expanded(child: _DanismanlikDetayBody()),
+          ],
         ),
-        body: const _DanismanlikDetayBody(),
       ),
+    );
+  }
+}
+
+/// Firestore'dan id ile danışmanlık yükler.
+class DanismanlikDetayLoader extends StatelessWidget {
+  const DanismanlikDetayLoader({super.key, required this.id});
+
+  final String id;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DanismanlikModel?>(
+      future: DanismanlikService().getById(id),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snap.data == null) {
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Danışmanlık kaydı bulunamadı.'),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () => context.go('/danismanlik'),
+                    child: const Text('Listeye dön'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        return DanismanlikDetayScreen(danismanlik: snap.data!);
+      },
     );
   }
 }
@@ -45,182 +88,146 @@ class _DanismanlikDetayBody extends StatelessWidget {
     final provider = context.watch<DanismanlikDetayProvider>();
     final d = provider.danismanlik;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Üst Özet Kartı
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.blueGrey.shade200),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Sözleşme Bilgileri', style: TextStyle(color: Colors.blueGrey.shade500, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 16),
-                      Text(d.konusu, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
-                      Text('Tür: ${d.danismanlikTuru.displayName}', style: TextStyle(color: Colors.blueGrey.shade700)),
-                    ],
-                  ),
-                ),
-                Container(width: 1, height: 80, color: Colors.blueGrey.shade200),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Mali Özet', style: TextStyle(color: Colors.blueGrey.shade500, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 16),
-                        Text(TurkceFormat.para(d.toplamTutar), style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.indigo.shade600)),
-                        const SizedBox(height: 4),
-                        Text('KDV: %${d.kdvOrani} | Süre: ${d.suresi} Ay', style: TextStyle(color: Colors.blueGrey.shade700)),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          
-          // Karar ve Kurul Bilgileri Kartı
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.blueGrey.shade200),
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return DanismanlikLayout.ikiKolon(
+          genislik: constraints.maxWidth,
+          ana: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Kurul ve Karar Bilgileri', style: TextStyle(color: Colors.blueGrey.shade800, fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _buildKararSutunu(
-                        baslik: 'Birim Yönetim Kurulu (BYK)',
-                        tarih: d.birimKararTarihi,
-                        no: d.birimKararNo,
-                        toplanti: d.birimToplantiSayisi,
-                        renk: Colors.orange,
-                        icon: Icons.account_balance,
-                      ),
-                    ),
-                    Container(width: 1, height: 80, color: Colors.blueGrey.shade100),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 24),
-                        child: _buildKararSutunu(
-                          baslik: 'Sözleşme Onayı (YKK)',
-                          tarih: d.ykKararTarihi,
-                          no: d.ykKararNo,
-                          toplanti: d.ykToplantiSayisi,
-                          renk: Colors.indigo,
-                          icon: Icons.gavel,
-                        ),
-                      ),
-                    ),
-                    Container(width: 1, height: 80, color: Colors.blueGrey.shade100),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 24),
-                        child: _buildKararSutunu(
-                          baslik: 'Dağıtım Onayı (YKK)',
-                          tarih: d.dagitimYkKararTarihi,
-                          no: d.dagitimYkKararNo,
-                          toplanti: d.dagitimYkToplantiSayisi,
-                          renk: Colors.green,
-                          icon: Icons.price_check,
-                        ),
-                      ),
-                    ),
-                  ],
+                _buildKararKarti(context, d),
+                const SizedBox(height: DanismanlikLayout.sectionGap),
+                _buildTaksitler(context, provider),
+              ],
+            ),
+          ),
+          yan: _buildOzetPanel(d, provider),
+        );
+      },
+    );
+  }
+
+  Widget _buildKararKarti(BuildContext context, DanismanlikModel d) {
+    return Container(
+      padding: const EdgeInsets.all(DanismanlikLayout.kartPadding),
+      decoration: DanismanlikLayout.kart(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DanismanlikLayout.kartBaslik('Kurul Onayları', icon: Icons.gavel),
+          const SizedBox(height: 12),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _buildKararSutunu(
+                    baslik: 'Birim YK (BYK)',
+                    tarih: d.birimKararTarihi,
+                    no: d.birimKararNo,
+                    toplanti: d.birimToplantiSayisi,
+                    renk: Colors.orange,
+                    icon: Icons.account_balance,
+                  ),
+                ),
+                VerticalDivider(color: Colors.blueGrey.shade100),
+                Expanded(
+                  child: _buildKararSutunu(
+                    baslik: 'Sözleşme (YKK)',
+                    tarih: d.ykKararTarihi,
+                    no: d.ykKararNo,
+                    toplanti: d.ykToplantiSayisi,
+                    renk: Colors.indigo,
+                    icon: Icons.description,
+                  ),
+                ),
+                VerticalDivider(color: Colors.blueGrey.shade100),
+                Expanded(
+                  child: _buildKararSutunu(
+                    baslik: 'Dağıtım (YKK)',
+                    tarih: d.dagitimYkKararTarihi,
+                    no: d.dagitimYkKararNo,
+                    toplanti: d.dagitimYkToplantiSayisi,
+                    renk: Colors.green,
+                    icon: Icons.price_check,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          // EBYS Görünümlü Dağıtım Tablosu Butonu
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOzetPanel(DanismanlikModel d, DanismanlikDetayProvider provider) {
+    return Container(
+      padding: const EdgeInsets.all(DanismanlikLayout.kartPadding),
+      decoration: DanismanlikLayout.kart(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DanismanlikLayout.kartBaslik('Sözleşme Özeti', icon: Icons.summarize),
+          const SizedBox(height: 12),
+          Text(d.konusu, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Text('Tür: ${d.danismanlikTuru.displayName}', style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade600)),
+          const Divider(height: 20),
+          Text(TurkceFormat.para(d.toplamTutar), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.indigo.shade700)),
+          Text('KDV %${d.kdvOrani} · ${d.suresi} ay', style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade500)),
+          const Spacer(),
+          if (provider.taksitler.isNotEmpty)
+            OutlinedButton.icon(
               onPressed: () {
-                context.push('/danismanlik/dagitim', extra: d);
+                // handled in taksit card
               },
-              icon: const Icon(Icons.table_view, size: 24),
-              label: const Text('EBYS Görünümlü Detaylı Dağıtım Paneli (Excel)', style: TextStyle(fontSize: 16)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green.shade700,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
-          
-          // Taksitler ve Dağıtım Bölümü
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Taksitler & Dağıtım Panosu',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blueGrey.shade800),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  _yeniTaksitDialog(context, provider);
-                },
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Yeni Taksit Ekle'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          
-          if (provider.taksitler.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(32),
-              alignment: Alignment.center,
-              child: const Text('Henüz taksit eklenmedi.', style: TextStyle(color: Colors.grey)),
-            )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: provider.taksitler.length,
-              separatorBuilder: (c, i) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                final taksit = provider.taksitler[index];
-                return _buildTaksitCard(context, taksit, provider);
-              },
+              icon: const Icon(Icons.table_view, size: 16),
+              label: Text('${provider.taksitler.length} taksit'),
             ),
         ],
       ),
     );
   }
 
+  Widget _buildTaksitler(BuildContext context, DanismanlikDetayProvider provider) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            DanismanlikLayout.kartBaslik('Taksitler & Dağıtım', icon: Icons.payments),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: () => _yeniTaksitDialog(context, provider),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Taksit Ekle'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (provider.taksitler.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: DanismanlikLayout.kart(),
+            child: const Center(child: Text('Henüz taksit eklenmedi.', style: TextStyle(color: Colors.grey))),
+          )
+        else
+          ...provider.taksitler.map((t) => Padding(
+                padding: const EdgeInsets.only(bottom: DanismanlikLayout.sectionGap),
+                child: _buildTaksitCard(context, t, provider),
+              )),
+      ],
+    );
+  }
+
   Widget _buildTaksitCard(BuildContext context, TaksitModel taksit, DanismanlikDetayProvider provider) {
+    final d = provider.danismanlik;
+    final islemAyi = DanismanlikDetayProvider.guncelIslemAyi();
+
     return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blueGrey.shade200),
-      ),
+      padding: const EdgeInsets.all(DanismanlikLayout.kartPadding),
+      decoration: DanismanlikLayout.kart(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -257,6 +264,8 @@ class _DanismanlikDetayBody extends StatelessWidget {
             ],
           ),
           const Divider(height: 32),
+          TaksitPipeline(durum: taksit.durum, compact: true),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -291,33 +300,59 @@ class _DanismanlikDetayBody extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              OutlinedButton.icon(
+              if (TaksitOnayAkisi.oncekiDurum(taksit.durum) != null)
+                TextButton.icon(
+                  onPressed: provider.isLoading ? null : () => provider.durumGeriAl(taksit),
+                  icon: const Icon(Icons.arrow_back, size: 14),
+                  label: const Text('Geri Al'),
+                ),
+              TextButton.icon(
                 onPressed: () {
-                  provider.dagitimiHesaplaVeKaydet(taksit, '2026-06', false); // Dummy islemAyi
-                },
-                icon: const Icon(Icons.calculate_outlined, size: 18),
-                label: const Text('Sadece Hesapla (Taslak)'),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: taksit.durum == TaksitDurum.onaylandi ? null : () {
-                  // YK Arşivine Gönder
-                  provider.dagitimiHesaplaVeKaydet(taksit, '2026-06', true);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Taksit hesaplandı ve YK Karar Merkezine arşive gönderildi!')),
+                  context.push(
+                    '/danismanlik/dagitim',
+                    extra: DanismanlikRouteExtra(model: d, taksit: taksit),
                   );
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo.shade600,
-                  foregroundColor: Colors.white,
-                ),
-                icon: const Icon(Icons.archive_outlined, size: 18),
-                label: const Text('Hesapla & Kararı YK Arşivine Gönder'),
+                icon: const Icon(Icons.table_view, size: 16),
+                label: const Text('Dağıtım Paneli'),
               ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: provider.isLoading
+                    ? null
+                    : () => provider.dagitimiHesaplaVeKaydet(taksit, islemAyi, false),
+                icon: const Icon(Icons.calculate_outlined, size: 16),
+                label: const Text('Hesapla'),
+              ),
+              const SizedBox(width: 8),
+              if (TaksitOnayAkisi.sonrakiDurum(taksit.durum) != null)
+                ElevatedButton.icon(
+                  onPressed: provider.isLoading
+                      ? null
+                      : () async {
+                          await provider.durumIlerlet(taksit);
+                          if (context.mounted && provider.error != null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(provider.error!), backgroundColor: Colors.red),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo.shade600,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: Icon(
+                    TaksitOnayAkisi.sonrakiDurum(taksit.durum) == TaksitDurum.onaylandi
+                        ? Icons.check
+                        : Icons.arrow_forward,
+                    size: 16,
+                  ),
+                  label: Text(TaksitOnayAkisi.ilerletEtiketi(taksit.durum)),
+                ),
             ],
           ),
         ],

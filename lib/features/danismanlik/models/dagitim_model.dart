@@ -1,3 +1,6 @@
+import '../../../core/hesaplama_motoru.dart';
+import '../services/danismanlik_excel_hesaplama.dart';
+
 /// Personel bazlı taksit dağıtım modeli.
 ///
 /// Firestore yolu: `danismanliklar/{danismanlikId}/taksitler/{taksitId}/dagitim/{personelId}`
@@ -79,4 +82,23 @@ class DagitimModel {
       'fazlalikHavuzTutari': fazlalikHavuzTutari,
     };
   }
+}
+
+/// Taksit dağıtım hesabının önizleme/kayıt sonucu.
+class DagitimHesapSonuc {
+  const DagitimHesapSonuc({
+    required this.kesinti,
+    required this.katsayi,
+    required this.dagitimlar,
+    required this.kararMetni,
+    required this.artikBakiye,
+    this.excelSonuc,
+  });
+
+  final KesintiBilgisi kesinti;
+  final double katsayi;
+  final List<DagitimModel> dagitimlar;
+  final String kararMetni;
+  final double artikBakiye;
+  final DanismanlikExcelSonuc? excelSonuc;
 }

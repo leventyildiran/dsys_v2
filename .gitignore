@@ -46,3 +46,26 @@ app.*.map.json
 
 # User testing data
 ornek/
+
+# Firebase service account keys (GİZLİ — asla commit'lenmesin)
+*firebase-adminsdk*.json
+*.serviceAccountKey.json
+
+# Node modules
+node_modules/
+
+# Backup files
+backups/
+
+# Temp extraction folders
+temp_docx/
+temp_node/
+temp_excel_reader/
+
+# Analysis/debug txt files
+fatura_belgeler_analiz.txt
+fatura_birim_analiz.txt
+fatura_dump.txt
+iban_context.txt
+iban_raporu.txt
+simulate_output.xml

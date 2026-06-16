@@ -23,9 +23,11 @@ class _FirmaSeciciDialogState extends State<FirmaSeciciDialog> {
     _loadFirmalar();
   }
 
-  Future<void> _loadFirmalar() async {
+  Future<void> _loadFirmalar({bool forceRefresh = false}) async {
     try {
-      final firmalar = await _firmaService.getAllFirmalar();
+      final firmalar = await _firmaService.getAllFirmalar(
+        forceRefresh: forceRefresh,
+      );
       if (mounted) {
         setState(() {
           _firmalar = firmalar;
@@ -79,40 +81,55 @@ class _FirmaSeciciDialogState extends State<FirmaSeciciDialog> {
   }
 
   void _showYeniFirmaEkleDialog() {
-    final _formKey = GlobalKey<FormState>();
-    final _adController = TextEditingController(text: _searchQuery);
-    final _adresController = TextEditingController();
-    final _vdController = TextEditingController();
-    final _vknController = TextEditingController();
+    _showFirmaFormDialog();
+  }
+
+  void _showFirmaDuzenleDialog(FirmaModel firma) {
+    _showFirmaFormDialog(firma: firma);
+  }
+
+  void _showFirmaFormDialog({FirmaModel? firma}) {
+    final duzenleme = firma != null;
+    final formKey = GlobalKey<FormState>();
+    final adController = TextEditingController(
+      text: firma?.firmaAdi ?? _searchQuery,
+    );
+    final adresController = TextEditingController(text: firma?.adres ?? '');
+    final vdController = TextEditingController(text: firma?.vergiDairesi ?? '');
+    final vknController = TextEditingController(text: firma?.vergiNo ?? '');
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogCtx) {
         return AlertDialog(
-          title: const Text('Yeni Firma Kaydet'),
+          title: Text(duzenleme ? 'Firmayı Düzenle' : 'Yeni Firma Kaydet'),
           content: Form(
-            key: _formKey,
+            key: formKey,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextFormField(
-                    controller: _adController,
+                    controller: adController,
                     decoration: const InputDecoration(labelText: 'Firma Adı'),
-                    validator: (v) => v!.isEmpty ? 'Boş bırakılamaz' : null,
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Boş bırakılamaz' : null,
                   ),
                   TextFormField(
-                    controller: _adresController,
+                    controller: adresController,
                     decoration: const InputDecoration(labelText: 'Adres'),
                     maxLines: 2,
-                    validator: (v) => v!.isEmpty ? 'Boş bırakılamaz' : null,
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Boş bırakılamaz' : null,
                   ),
                   TextFormField(
-                    controller: _vdController,
-                    decoration: const InputDecoration(labelText: 'Vergi Dairesi'),
+                    controller: vdController,
+                    decoration: const InputDecoration(
+                      labelText: 'Vergi Dairesi',
+                    ),
                   ),
                   TextFormField(
-                    controller: _vknController,
+                    controller: vknController,
                     decoration: const InputDecoration(labelText: 'VKN / TCKN'),
                   ),
                 ],
@@ -120,27 +137,48 @@ class _FirmaSeciciDialogState extends State<FirmaSeciciDialog> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('İptal'),
+            ),
             ElevatedButton(
               onPressed: () async {
-                if (_formKey.currentState!.validate()) {
-                  final yeniFirma = FirmaModel(
-                    id: '',
-                    firmaAdi: _adController.text,
-                    adres: _adresController.text,
-                    vergiDairesi: _vdController.text,
-                    vergiNo: _vknController.text,
-                  );
-                  await _firmaService.addFirma(yeniFirma);
-                  Navigator.pop(context);
-                  _loadFirmalar(); // Reload list
+                if (!formKey.currentState!.validate()) return;
+
+                final kayit = FirmaModel(
+                  id: firma?.id ?? '',
+                  firmaAdi: adController.text.trim(),
+                  adres: adresController.text.trim(),
+                  vergiDairesi: vdController.text.trim(),
+                  vergiNo: vknController.text.trim(),
+                );
+
+                if (duzenleme) {
+                  await _firmaService.updateFirma(kayit);
+                } else {
+                  await _firmaService.addFirma(kayit);
                 }
+
+                if (!dialogCtx.mounted) return;
+                Navigator.pop(dialogCtx);
+                if (!mounted) return;
+                _loadFirmalar(forceRefresh: true);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      duzenleme
+                          ? 'Firma bilgileri güncellendi.'
+                          : 'Yeni firma kaydedildi.',
+                    ),
+                    backgroundColor: Colors.green,
+                  ),
+                );
               },
-              child: const Text('Kaydet'),
-            )
+              child: Text(duzenleme ? 'Güncelle' : 'Kaydet'),
+            ),
           ],
         );
-      }
+      },
     );
   }
 
@@ -178,14 +216,81 @@ class _FirmaSeciciDialogState extends State<FirmaSeciciDialog> {
                     itemCount: _filteredFirmalar.length,
                     itemBuilder: (context, index) {
                       final firma = _filteredFirmalar[index];
-                      return ListTile(
-                        leading: const Icon(Icons.business, color: Colors.indigo),
-                        title: Text(firma.firmaAdi, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('${firma.adres}\nVD: ${firma.vergiDairesi} - VKN: ${firma.vergiNo}'),
-                        isThreeLine: true,
-                        onTap: () {
-                          Navigator.pop(context, firma);
-                        },
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 8, 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              InkWell(
+                                borderRadius: BorderRadius.circular(10),
+                                onTap: () => Navigator.pop(context, firma),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 2,
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
+                                        Icons.business,
+                                        color: Colors.indigo,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              firma.firmaAdi,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              firma.adres,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.grey.shade700,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'VD: ${firma.vergiDairesi} - VKN: ${firma.vergiNo}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Align(
+                                alignment: Alignment.bottomRight,
+                                child: FilledButton.tonalIcon(
+                                  icon: const Icon(Icons.edit, size: 16),
+                                  label: const Text('Düzenle'),
+                                  style: FilledButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    foregroundColor: Colors.indigo,
+                                  ),
+                                  onPressed: () =>
+                                      _showFirmaDuzenleDialog(firma),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       );
                     },
                   ),

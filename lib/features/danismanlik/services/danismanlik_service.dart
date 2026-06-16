@@ -1,14 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/services/firestore_service.dart';
 import '../models/danismanlik_model.dart';
 
 class DanismanlikService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  DanismanlikService({FirestoreService? firestoreService})
+    : _service = firestoreService ?? FirestoreService();
 
-  CollectionReference get _collection => _firestore.collection('danismanliklar');
+  final FirestoreService _service;
+  static const _collection = 'danismanliklar';
+
+  CollectionReference<Map<String, dynamic>> get _collectionRef =>
+      _service.collection(_collection);
 
   Future<void> create(DanismanlikModel model) async {
     try {
-      await _collection.add(model.toMap());
+      await _collectionRef.add(model.toMap());
     } catch (e) {
       throw Exception('Danışmanlık oluşturulurken hata: $e');
     }
@@ -16,7 +22,7 @@ class DanismanlikService {
 
   Future<void> update(String id, DanismanlikModel model) async {
     try {
-      await _collection.doc(id).update(model.toMap());
+      await _collectionRef.doc(id).update(model.toMap());
     } catch (e) {
       throw Exception('Danışmanlık güncellenirken hata: $e');
     }
@@ -24,7 +30,7 @@ class DanismanlikService {
 
   Future<void> delete(String id) async {
     try {
-      await _collection.doc(id).delete();
+      await _collectionRef.doc(id).delete();
     } catch (e) {
       throw Exception('Danışmanlık silinirken hata: $e');
     }
@@ -32,30 +38,42 @@ class DanismanlikService {
 
   Future<void> updateDurum(String id, DanismanlikDurum durum) async {
     try {
-      await _collection.doc(id).update({'durum': durum.value});
+      await _collectionRef.doc(id).update({'durum': durum.value});
     } catch (e) {
       throw Exception('Durum güncellenirken hata: $e');
     }
   }
 
+  Future<DanismanlikModel?> getById(String id) async {
+    try {
+      final doc = await _collectionRef.doc(id).get();
+      if (!doc.exists || doc.data() == null) return null;
+      return DanismanlikModel.fromMap(doc.id, doc.data()!);
+    } catch (e) {
+      throw Exception('Danışmanlık okunurken hata: $e');
+    }
+  }
+
   Stream<List<DanismanlikModel>> streamByBirim(String birimId) {
-    return _collection
+    return _collectionRef
         .where('birimId', isEqualTo: birimId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) =>
-                DanismanlikModel.fromMap(doc.id, doc.data() as Map<String, dynamic>))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => DanismanlikModel.fromMap(doc.id, doc.data()))
+              .toList(),
+        );
   }
 
   Stream<List<DanismanlikModel>> streamAll() {
-    return _collection
+    return _collectionRef
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) =>
-                DanismanlikModel.fromMap(doc.id, doc.data() as Map<String, dynamic>))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => DanismanlikModel.fromMap(doc.id, doc.data()))
+              .toList(),
+        );
   }
 }

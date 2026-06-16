@@ -42,25 +42,40 @@ class PersonelGorevAtama {
     required this.personel,
     this.payOrani = 100,
     this.faaliyetPuani = 0,
+    this.dersSaati = 1,
+    this.mesaiIci = true,
+    this.faaliyetTuru,
   });
 
   final PersonelModel personel;
   int payOrani;
   double faaliyetPuani;
+  double dersSaati;
+  bool mesaiIci;
+  String? faaliyetTuru;
 
   Map<String, dynamic> toMap() {
     return {
       'personel': personel.toMap(),
       'payOrani': payOrani,
       'faaliyetPuani': faaliyetPuani,
+      'dersSaati': dersSaati,
+      'mesaiIci': mesaiIci,
+      'faaliyetTuru': faaliyetTuru,
     };
   }
 
   factory PersonelGorevAtama.fromMap(Map<String, dynamic> map) {
     return PersonelGorevAtama(
-      personel: PersonelModel.fromMap(map['personel']['id'] ?? '', map['personel']),
+      personel: PersonelModel.fromMap(
+        map['personel']['id'] ?? '',
+        map['personel'],
+      ),
       payOrani: (map['payOrani'] as num?)?.toInt() ?? 100,
       faaliyetPuani: (map['faaliyetPuani'] as num?)?.toDouble() ?? 0,
+      dersSaati: (map['dersSaati'] as num?)?.toDouble() ?? 1,
+      mesaiIci: map['mesaiIci'] as bool? ?? true,
+      faaliyetTuru: map['faaliyetTuru'] as String?,
     );
   }
 }
@@ -81,6 +96,7 @@ class DanismanlikModel {
     this.baslangicTarihi,
     this.bitisTarihi,
     this.durum = DanismanlikDurum.bekliyor,
+    this.ykKararId,
     this.ykKararTarihi,
     this.ykKararNo,
     this.ykToplantiSayisi,
@@ -111,6 +127,7 @@ class DanismanlikModel {
   final DateTime? baslangicTarihi;
   final DateTime? bitisTarihi;
   final DanismanlikDurum durum;
+  final String? ykKararId;
 
   // Çatı karar bilgileri (Sözleşme YKK)
   final String? ykKararTarihi;
@@ -132,9 +149,9 @@ class DanismanlikModel {
   final int bapPayiOrani;
   final int aracGerecPayiOrani;
   final int dagitilabilirOran;
-  
+
   final List<PersonelGorevAtama> personeller;
-  
+
   final DateTime? createdAt;
 
   DanismanlikTuru get tur => danismanlikTuru;
@@ -146,7 +163,9 @@ class DanismanlikModel {
       firmaId: map['firmaId'] as String? ?? '',
       firmaUnvan: map['firmaUnvan'] as String?,
       birimKisaAd: map['birimKisaAd'] as String?,
-      danismanlikTuru: DanismanlikTuru.fromString(map['danismanlikTuru'] as String? ?? ''),
+      danismanlikTuru: DanismanlikTuru.fromString(
+        map['danismanlikTuru'] as String? ?? '',
+      ),
       konusu: map['konusu'] as String? ?? '',
       toplamTutar: (map['toplamTutar'] as num?)?.toDouble() ?? 0.0,
       kdvOrani: (map['kdvOrani'] as num?)?.toInt() ?? 20,
@@ -158,6 +177,7 @@ class DanismanlikModel {
           ? DateTime.tryParse(map['bitisTarihi'] as String)
           : null,
       durum: DanismanlikDurum.fromString(map['durum'] as String? ?? ''),
+      ykKararId: map['ykKararId'] as String?,
       ykKararTarihi: map['ykKararTarihi'] as String?,
       ykKararNo: map['ykKararNo'] as String?,
       ykToplantiSayisi: map['ykToplantiSayisi'] as String?,
@@ -171,8 +191,11 @@ class DanismanlikModel {
       bapPayiOrani: (map['bapPayiOrani'] as num?)?.toInt() ?? 5,
       aracGerecPayiOrani: (map['aracGerecPayiOrani'] as num?)?.toInt() ?? 45,
       dagitilabilirOran: (map['dagitilabilirOran'] as num?)?.toInt() ?? 49,
-      personeller: (map['personeller'] as List<dynamic>?)
-              ?.map((e) => PersonelGorevAtama.fromMap(e as Map<String, dynamic>))
+      personeller:
+          (map['personeller'] as List<dynamic>?)
+              ?.map(
+                (e) => PersonelGorevAtama.fromMap(e as Map<String, dynamic>),
+              )
               .toList() ??
           [],
       createdAt: map['createdAt'] != null
@@ -195,6 +218,7 @@ class DanismanlikModel {
       'baslangicTarihi': baslangicTarihi?.toIso8601String(),
       'bitisTarihi': bitisTarihi?.toIso8601String(),
       'durum': durum.value,
+      'ykKararId': ykKararId,
       'ykKararTarihi': ykKararTarihi,
       'ykKararNo': ykKararNo,
       'ykToplantiSayisi': ykToplantiSayisi,
@@ -227,6 +251,7 @@ class DanismanlikModel {
     DateTime? baslangicTarihi,
     DateTime? bitisTarihi,
     DanismanlikDurum? durum,
+    String? ykKararId,
     String? ykKararTarihi,
     String? ykKararNo,
     String? ykToplantiSayisi,
@@ -257,6 +282,7 @@ class DanismanlikModel {
       baslangicTarihi: baslangicTarihi ?? this.baslangicTarihi,
       bitisTarihi: bitisTarihi ?? this.bitisTarihi,
       durum: durum ?? this.durum,
+      ykKararId: ykKararId ?? this.ykKararId,
       ykKararTarihi: ykKararTarihi ?? this.ykKararTarihi,
       ykKararNo: ykKararNo ?? this.ykKararNo,
       ykToplantiSayisi: ykToplantiSayisi ?? this.ykToplantiSayisi,
@@ -265,7 +291,8 @@ class DanismanlikModel {
       birimToplantiSayisi: birimToplantiSayisi ?? this.birimToplantiSayisi,
       dagitimYkKararTarihi: dagitimYkKararTarihi ?? this.dagitimYkKararTarihi,
       dagitimYkKararNo: dagitimYkKararNo ?? this.dagitimYkKararNo,
-      dagitimYkToplantiSayisi: dagitimYkToplantiSayisi ?? this.dagitimYkToplantiSayisi,
+      dagitimYkToplantiSayisi:
+          dagitimYkToplantiSayisi ?? this.dagitimYkToplantiSayisi,
       hazinePayiOrani: hazinePayiOrani ?? this.hazinePayiOrani,
       bapPayiOrani: bapPayiOrani ?? this.bapPayiOrani,
       aracGerecPayiOrani: aracGerecPayiOrani ?? this.aracGerecPayiOrani,

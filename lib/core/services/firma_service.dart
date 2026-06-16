@@ -1,8 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/firma_model.dart';
+import 'firestore_service.dart';
 
 class FirmaService {
-  final CollectionReference _firmalarRef = FirebaseFirestore.instance.collection('firmalar');
+  FirmaService({FirestoreService? firestoreService})
+    : _service = firestoreService ?? FirestoreService();
+
+  final FirestoreService _service;
+  static const _collection = 'firmalar';
+
+  CollectionReference<Map<String, dynamic>> get _firmalarRef =>
+      _service.collection(_collection);
 
   static List<FirmaModel>? _cachedFirmalar;
   static DateTime? _lastFetchTime;
@@ -15,9 +23,11 @@ class FirmaService {
     }
 
     final querySnapshot = await _firmalarRef.get();
-    final list = querySnapshot.docs.map((doc) => FirmaModel.fromJson(doc.data() as Map<String, dynamic>, doc.id)).toList();
+    final list = querySnapshot.docs
+        .map((doc) => FirmaModel.fromJson(doc.data(), doc.id))
+        .toList();
     list.sort((a, b) => a.firmaAdi.compareTo(b.firmaAdi));
-    
+
     _cachedFirmalar = list;
     _lastFetchTime = DateTime.now();
     return list;

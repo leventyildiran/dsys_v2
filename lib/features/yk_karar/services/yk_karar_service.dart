@@ -141,6 +141,54 @@ class YkKararService {
     }
   }
 
+  /// Birime ait geçmiş YK kararlarını getirir (id öncelikli, ad yedek eşleşme).
+  Future<List<YkKararModel>> kararGetByBirim({
+    required String birimId,
+    String? birimAd,
+    int limit = 10,
+  }) async {
+    try {
+      final tumKararlar = await kararGetAll();
+      final filtered = tumKararlar.where((k) {
+        if (birimId.isNotEmpty && k.birimId == birimId) return true;
+        if (birimAd != null && birimAd.isNotEmpty && k.birimAd.isNotEmpty) {
+          final a = k.birimAd.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+          final b = birimAd.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+          return a.contains(b) || b.contains(a);
+        }
+        return false;
+      }).toList();
+
+      filtered.sort((a, b) {
+        final aDate = a.olusturmaTarihi ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.olusturmaTarihi ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
+
+      return filtered.take(limit).toList();
+    } catch (e) {
+      debugPrint('[YkKararService.kararGetByBirim] Hata: $e');
+      return [];
+    }
+  }
+
+  /// Tüm kararları (kendi ürettiklerimiz ve dış kaynaklılar) getirir.
+  Future<List<YkKararModel>> kararGetAll() async {
+    try {
+      final snapshot = await _service.getAll(
+        _kararCollection,
+        queryBuilder: (ref) => ref.orderBy('olusturmaTarihi', descending: true),
+      );
+      final list = snapshot.docs
+          .map((doc) => YkKararModel.fromMap(doc.id, doc.data()))
+          .toList();
+      return list;
+    } catch (e) {
+      debugPrint('[YkKararService.kararGetAll] Hata: $e');
+      return [];
+    }
+  }
+
   /// Sıradaki karar numarasını üretir.
   Future<String> sonrakiKararNoUret(String toplantiNo) async {
     try {

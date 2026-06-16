@@ -99,7 +99,7 @@ class DanismanlikHesaplamaServisi {
     // 3. Dönem Ek Ödeme Katsayısı (Para / Puan)
     // Excel kuralı: Sağlama yaparken sonuç maks payı aşarsa aşağı yuvarlanır.
     double donemKatsayisi = maksPay / genelToplamPuan;
-    
+
     // Sağlama kontrolü
     if ((donemKatsayisi * genelToplamPuan) > maksPay) {
       // Küsüratları tıraşla
@@ -110,7 +110,9 @@ class DanismanlikHesaplamaServisi {
     List<DagitimModel> sonListe = [];
     for (var p in guncelPersoneller) {
       double brutHakedis = p.bireyselPuan * donemKatsayisi;
-      double saatlikBrutUcret = p.faaliyetAdeti > 0 ? (brutHakedis / p.faaliyetAdeti) : 0.0;
+      double saatlikBrutUcret = p.faaliyetAdeti > 0
+          ? (brutHakedis / p.faaliyetAdeti)
+          : 0.0;
 
       // Tavan Limit Kontrolü
       double tavanSaatlik = hesaplaSaatlikTavanUcret(p.ekGosterge, p.mesaiIci);

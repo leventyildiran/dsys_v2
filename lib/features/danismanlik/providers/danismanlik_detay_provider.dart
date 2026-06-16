@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import '../../../core/hesaplama_motoru.dart';
 import '../../../core/karar_metni_servisi.dart';
@@ -9,6 +11,8 @@ import '../models/dagitim_model.dart';
 import '../models/danismanlik_model.dart';
 import '../models/taksit_model.dart';
 import '../services/dagitim_service.dart';
+import '../services/danismanlik_excel_hesaplama.dart';
+import '../services/taksit_onay_akisi.dart';
 import '../services/taksit_service.dart';
 
 class DanismanlikDetayProvider extends ChangeNotifier {
@@ -41,10 +45,19 @@ class DanismanlikDetayProvider extends ChangeNotifier {
   String? get error => _error;
 
   void _initTaksitlerStream() {
-    _taksitService.streamTaksitler(danismanlik.id).listen((data) {
+    _taksitSub?.cancel();
+    _taksitSub = _taksitService.streamTaksitler(danismanlik.id).listen((data) {
       _taksitler = data;
       notifyListeners();
     });
+  }
+
+  StreamSubscription<List<TaksitModel>>? _taksitSub;
+
+  @override
+  void dispose() {
+    _taksitSub?.cancel();
+    super.dispose();
   }
 
   /// Yeni taksit oluşturur (Sadece taslak olarak).
@@ -65,159 +78,301 @@ class DanismanlikDetayProvider extends ChangeNotifier {
     }
   }
 
-  /// Taksit dağıtımını hesaplar ve eğer istenirse sisteme/arşive kaydeder.
-  Future<void> dagitimiHesaplaVeKaydet(
+  /// Taksit dağıtımını hesaplar (kaydetmeden önizleme).
+  Future<DagitimHesapSonuc?> dagitimHesapla(
     TaksitModel taksit,
-    String islemAyi, // "2026-06"
+    String islemAyi,
+  ) async {
+    try {
+      return await _hesaplaDagitim(taksit, islemAyi);
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return null;
+    }
+  }
+
+  static String guncelIslemAyi() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}';
+  }
+
+  /// Excel personel girdileri ve isteğe bağlı manuel katsayı ile hesaplar.
+  DagitimHesapSonuc? hesaplaExcelFromGirdiler({
+    required TaksitModel taksit,
+    required List<ExcelPersonelGirdi> personeller,
+    double? manualDonemKatsayi,
+  }) {
+    if (danismanlik.tur != DanismanlikTuru.standart) return null;
+
+    final excel = DanismanlikExcelHesaplama.hesapla(
+      kesinti: DanismanlikExcelHesaplama.kesintilerBrutten(
+        brutTutar: taksit.brutTutar,
+        kdvOrani: danismanlik.kdvOrani,
+        hazineOrani: danismanlik.hazinePayiOrani,
+        bapOrani: danismanlik.bapPayiOrani,
+        aracGerecOrani: danismanlik.aracGerecPayiOrani / 100,
+      ),
+      personeller: personeller,
+      manualDonemKatsayi: manualDonemKatsayi,
+      profil: DanismanlikExcelHesaplama.profilFromDanismanlik(danismanlik),
+    );
+
+    final k = excel.kesinti;
+    final kesinti = KesintiBilgisi(
+      kdvHaricMatrah: k.kdvHaricGelir,
+      hazinePayi: k.hazinePayi,
+      bapPayi: k.bapPayi,
+      aracGerecPayi: k.aracGerecPayi,
+      dagitilabilirTutar: k.katkiPayi,
+    );
+
+    final veriler = _kararMetniVerileriHazirla(
+      excel.donemKatsayi,
+      k.katkiPayi,
+    );
+    final kararMetni = KararMetniServisi.metinUret(
+      isStandart: true,
+      veriler: veriler,
+    );
+
+    return DagitimHesapSonuc(
+      kesinti: kesinti,
+      katsayi: excel.donemKatsayi,
+      dagitimlar: excel.dagitimlar,
+      kararMetni: kararMetni,
+      artikBakiye: excel.artikBakiye,
+      excelSonuc: excel,
+    );
+  }
+
+  /// Önceden hesaplanmış sonucu kaydeder (Excel ekranındaki manuel düzenlemeler).
+  Future<void> dagitimiKaydetSonuc(
+    TaksitModel taksit,
+    String islemAyi,
+    DagitimHesapSonuc sonuc,
     bool arshiveGonder,
   ) async {
     _setLoading(true);
     try {
-      // 1. Kesinti Hesaplaması
-      final KesintiBilgisi kesinti;
-      if (danismanlik.tur == DanismanlikTuru.standart) {
-        kesinti = HesaplamaMotoru.standartKesintiler(
-          brutTutar: taksit.brutTutar,
-          kdvOrani: danismanlik.kdvOrani,
-          hazinePayiOrani: danismanlik.hazinePayiOrani,
-          bapPayiOrani: danismanlik.bapPayiOrani,
-          aracGerecPayiOrani: danismanlik.aracGerecPayiOrani,
-        );
-      } else {
-        kesinti = HesaplamaMotoru.sanayiIsbirligiKesintiler(
-          brutTutar: taksit.brutTutar,
-          kdvOrani: danismanlik.kdvOrani,
-        );
-      }
-
-      // 2. Personel Puanları
-      final personelPuanlar = danismanlik.personeller
-          .where((p) => p.faaliyetPuani > 0)
-          .map((p) => PersonelPuanModel(
-                personelId: p.personel.id,
-                faaliyetPuani: p.faaliyetPuani,
-                unvanKatsayisi: p.personel.unvanKatsayisi,
-              ))
-          .toList();
-
-      double toplamPuan = 0;
-      for (final p in personelPuanlar) {
-        toplamPuan += p.bireyselPuan;
-      }
-
-      double katsayi = 0;
-      if (toplamPuan > 0 && kesinti.dagitilabilirTutar > 0) {
-        katsayi = HesaplamaMotoru.katsayiSimulasyonu(
-          kesinti.dagitilabilirTutar,
-          toplamPuan,
-          personelPuanlar,
-        );
-      }
-
-      // 3. Dağıtım Modellerini Oluşturma ve Tavan Kontrolü
-      final dagitimlar = <DagitimModel>[];
-      for (final p in danismanlik.personeller) {
-        if (p.faaliyetPuani <= 0) continue;
-
-        final bireyselPuan = p.faaliyetPuani * p.personel.unvanKatsayisi;
-        final brutHakedis = double.parse((bireyselPuan * katsayi).toStringAsFixed(2));
-
-        // Tavan Kontrolü (Aylık toplam mevcut gelir + EYDMA tavanı)
-        // Dummy veri: memur maaş katsayısı ve göstergeler normalde sistem ayarlarından gelir.
-        final eydma = HesaplamaMotoru.eydmaHesapla(
-          gostergeEk: 4000,
-          gostergeMakamTemsil: 6000,
-          memurMaasKatsayisi: 0.907796,
-        );
-        final unvanTavani = HesaplamaMotoru.unvanTavaniHesapla(eydma, 1200);
-
-        final aylikMevcutGelir =
-            await _hakedisService.toplamAylikGelir(p.personel.id, islemAyi);
-
-        final tavanSonucu = HesaplamaMotoru.tavanKontrol(
-          unvanTavani: unvanTavani,
-          toplamAylikMevcutGelir: aylikMevcutGelir,
-          yeniHesaplananHakedis: brutHakedis,
-        );
-
-        dagitimlar.add(DagitimModel(
-          personelId: p.personel.id,
-          adSoyad: p.personel.adSoyad,
-          unvan: p.personel.unvan,
-          unvanKatsayisi: p.personel.unvanKatsayisi,
-          ekGosterge: 160,
-          faaliyetTuru: 'Genel',
-          faaliyetAdeti: 1,
-          faaliyetTabanPuani: p.faaliyetPuani,
-          toplamPuan: toplamPuan,
-          bireyselPuan: bireyselPuan,
-          brutHakedis: brutHakedis,
-          tavanKontrol: tavanSonucu.fazlalikHavuzTutari > 0,
-          odenebilirHakedis: tavanSonucu.odenebilirHakedis,
-          fazlalikHavuzTutari: tavanSonucu.fazlalikHavuzTutari,
-        ));
-      }
-
-      // Taksit güncellemeleri
-      final guncelTaksit = taksit.copyWith(
-        hazinePayi: kesinti.hazinePayi,
-        bapPayi: kesinti.bapPayi,
-        aracGerecPayi: kesinti.aracGerecPayi,
-        dagitilabilirTutar: kesinti.dagitilabilirTutar,
-        toplamPuan: toplamPuan,
-        ekOdemeKatsayisi: katsayi,
-        durum: arshiveGonder ? TaksitDurum.onaylandi : TaksitDurum.taslak,
-      );
-
-      // Kaydetme işlemi
-      await _taksitService.update(danismanlik.id, taksit.id, guncelTaksit);
-      await _dagitimService.topluKaydet(danismanlik.id, taksit.id, dagitimlar);
-
-      if (arshiveGonder) {
-        // Aylık hakedişleri güncelle (DonerSermayeEkle)
-        for (final d in dagitimlar) {
-          if (d.odenebilirHakedis != null && d.odenebilirHakedis! > 0) {
-            await _hakedisService.donerSermayeEkle(
-                d.personelId, islemAyi, d.odenebilirHakedis!);
-          }
-        }
-
-        // Karar Metnini Üret
-        final veriler = _kararMetniVerileriHazirla(katsayi, kesinti.dagitilabilirTutar);
-        final kararMetni = KararMetniServisi.metinUret(
-          isStandart: danismanlik.tur == DanismanlikTuru.standart,
-          veriler: veriler,
-        );
-
-        final ykKarar = YkKararModel(
-          id: '',
-          kararNo: 'DSYS-${DateTime.now().year}-${taksit.id.substring(0, 4).toUpperCase()}',
-          toplantiId: '',
-          toplantiNo: '',
-          birimId: danismanlik.birimId,
-          birimAd: danismanlik.birimKisaAd ?? 'Birim',
-          tur: YkKararTuru.danismanlik,
-          baslik: '${danismanlik.firmaUnvan} Danışmanlık Dağılımı',
-          kararMetni: kararMetni,
-          kararTarihi: DateTime.now().toIso8601String().split('T').first,
-          olusturmaTarihi: DateTime.now(),
-          tabloVerileri: dagitimlar.map((d) {
-            return {
-              'Personel': '${d.unvan} ${d.adSoyad}',
-              'Brüt Hakediş': TurkceFormat.para(d.brutHakedis),
-              'Kesinti/Taşan': TurkceFormat.para(d.fazlalikHavuzTutari ?? 0.0),
-              'Net Ödenen': TurkceFormat.para(d.odenebilirHakedis ?? 0.0),
-            };
-          }).toList(),
-        );
-
-        await _ykKararService.kararCreate(ykKarar); // Toplanti bağımsız veya güncel toplantıya eklenebilir.
-      }
+      await _dagitimiKaydet(taksit, islemAyi, sonuc, arshiveGonder);
     } catch (e) {
       _error = e.toString();
     } finally {
       _setLoading(false);
     }
+  }
+
+  /// Taksit dağıtımını hesaplar ve eğer istenirse sisteme/arşive kaydeder.
+  Future<void> dagitimiHesaplaVeKaydet(
+    TaksitModel taksit,
+    String islemAyi,
+    bool arshiveGonder,
+  ) async {
+    _setLoading(true);
+    try {
+      final sonuc = await _hesaplaDagitim(taksit, islemAyi);
+      if (sonuc == null) return;
+      await _dagitimiKaydet(taksit, islemAyi, sonuc, arshiveGonder);
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> _dagitimiKaydet(
+    TaksitModel taksit,
+    String islemAyi,
+    DagitimHesapSonuc sonuc,
+    bool arshiveGonder,
+  ) async {
+    final kesinti = sonuc.kesinti;
+    final katsayi = sonuc.katsayi;
+    final dagitimlar = sonuc.dagitimlar;
+
+    final guncelTaksit = taksit.copyWith(
+      hazinePayi: kesinti.hazinePayi,
+      bapPayi: kesinti.bapPayi,
+      aracGerecPayi: kesinti.aracGerecPayi,
+      dagitilabilirTutar: kesinti.dagitilabilirTutar,
+      toplamPuan: sonuc.dagitimlar.isNotEmpty
+          ? sonuc.dagitimlar.first.toplamPuan
+          : 0,
+      ekOdemeKatsayisi: katsayi,
+      durum: arshiveGonder ? TaksitDurum.onaylandi : TaksitDurum.taslak,
+    );
+
+    await _taksitService.update(danismanlik.id, taksit.id, guncelTaksit);
+    await _dagitimService.topluKaydet(danismanlik.id, taksit.id, dagitimlar);
+
+    if (arshiveGonder) {
+      for (final d in dagitimlar) {
+        if (d.odenebilirHakedis != null && d.odenebilirHakedis! > 0) {
+          await _hakedisService.donerSermayeEkle(
+            d.personelId,
+            islemAyi,
+            d.odenebilirHakedis!,
+          );
+        }
+      }
+
+      final ykKarar = YkKararModel(
+        id: '',
+        kararNo:
+            'DSYS-${DateTime.now().year}-${taksit.id.substring(0, taksit.id.length.clamp(0, 4)).toUpperCase()}',
+        toplantiId: '',
+        toplantiNo: '',
+        birimId: danismanlik.birimId,
+        birimAd: danismanlik.birimKisaAd ?? 'Birim',
+        tur: YkKararTuru.danismanlik,
+        baslik: '${danismanlik.firmaUnvan} Danışmanlık Dağılımı',
+        kararMetni: sonuc.kararMetni,
+        kararTarihi: DateTime.now().toIso8601String().split('T').first,
+        olusturmaTarihi: DateTime.now(),
+        tabloVerileri: dagitimlar.map((d) {
+          return {
+            'Personel': '${d.unvan} ${d.adSoyad}',
+            'Brüt Hakediş': TurkceFormat.para(d.brutHakedis),
+            'Kesinti/Taşan': TurkceFormat.para(d.fazlalikHavuzTutari ?? 0.0),
+            'Net Ödenen': TurkceFormat.para(d.odenebilirHakedis ?? 0.0),
+          };
+        }).toList(),
+      );
+
+      await _ykKararService.kararCreate(ykKarar);
+    }
+  }
+
+  Future<DagitimHesapSonuc?> _hesaplaDagitim(
+    TaksitModel taksit,
+    String islemAyi,
+  ) async {
+    if (danismanlik.tur == DanismanlikTuru.standart) {
+      final excel = DanismanlikExcelHesaplama.hesaplaDanismanlik(
+        danismanlik: danismanlik,
+        brutTaksitTutari: taksit.brutTutar,
+      );
+
+      final k = excel.kesinti;
+      final kesinti = KesintiBilgisi(
+        kdvHaricMatrah: k.kdvHaricGelir,
+        hazinePayi: k.hazinePayi,
+        bapPayi: k.bapPayi,
+        aracGerecPayi: k.aracGerecPayi,
+        dagitilabilirTutar: k.katkiPayi,
+      );
+
+      final veriler = _kararMetniVerileriHazirla(
+        excel.donemKatsayi,
+        k.katkiPayi,
+      );
+      final kararMetni = KararMetniServisi.metinUret(
+        isStandart: true,
+        veriler: veriler,
+      );
+
+      return DagitimHesapSonuc(
+        kesinti: kesinti,
+        katsayi: excel.donemKatsayi,
+        dagitimlar: excel.dagitimlar,
+        kararMetni: kararMetni,
+        artikBakiye: excel.artikBakiye,
+        excelSonuc: excel,
+      );
+    }
+
+    // Sanayi 58/k — mevcut motor
+    final kesinti = HesaplamaMotoru.sanayiIsbirligiKesintiler(
+      brutTutar: taksit.brutTutar,
+      kdvOrani: danismanlik.kdvOrani,
+    );
+
+    final personelPuanlar = danismanlik.personeller
+        .where((p) => p.faaliyetPuani > 0)
+        .map((p) => PersonelPuanModel(
+              personelId: p.personel.id,
+              faaliyetPuani: p.faaliyetPuani,
+              unvanKatsayisi: p.personel.unvanKatsayisi,
+            ))
+        .toList();
+
+    double toplamPuan = 0;
+    for (final p in personelPuanlar) {
+      toplamPuan += p.bireyselPuan;
+    }
+
+    double katsayi = 0;
+    if (toplamPuan > 0 && kesinti.dagitilabilirTutar > 0) {
+      katsayi = HesaplamaMotoru.katsayiSimulasyonu(
+        kesinti.dagitilabilirTutar,
+        toplamPuan,
+        personelPuanlar,
+      );
+    }
+
+    final dagitimlar = <DagitimModel>[];
+    for (final p in danismanlik.personeller) {
+      if (p.faaliyetPuani <= 0) continue;
+
+      final bireyselPuan = p.faaliyetPuani * p.personel.unvanKatsayisi;
+      final brutHakedis =
+          double.parse((bireyselPuan * katsayi).toStringAsFixed(2));
+
+      final eydma = HesaplamaMotoru.eydmaHesapla(
+        gostergeEk: 4000,
+        gostergeMakamTemsil: 6000,
+        memurMaasKatsayisi: 0.907796,
+      );
+      final unvanTavani = HesaplamaMotoru.unvanTavaniHesapla(eydma, 1200);
+
+      final aylikMevcutGelir =
+          await _hakedisService.toplamAylikGelir(p.personel.id, islemAyi);
+
+      final tavanSonucu = HesaplamaMotoru.tavanKontrol(
+        unvanTavani: unvanTavani,
+        toplamAylikMevcutGelir: aylikMevcutGelir,
+        yeniHesaplananHakedis: brutHakedis,
+      );
+
+      dagitimlar.add(DagitimModel(
+        personelId: p.personel.id,
+        adSoyad: p.personel.adSoyad,
+        unvan: p.personel.unvan,
+        unvanKatsayisi: p.personel.unvanKatsayisi,
+        ekGosterge: 160,
+        faaliyetTuru: 'Genel',
+        faaliyetAdeti: 1,
+        faaliyetTabanPuani: p.faaliyetPuani,
+        toplamPuan: toplamPuan,
+        bireyselPuan: bireyselPuan,
+        brutHakedis: brutHakedis,
+        tavanKontrol: tavanSonucu.fazlalikHavuzTutari > 0,
+        odenebilirHakedis: tavanSonucu.odenebilirHakedis,
+        fazlalikHavuzTutari: tavanSonucu.fazlalikHavuzTutari,
+      ));
+    }
+
+    double artikBakiye = kesinti.dagitilabilirTutar;
+    for (final d in dagitimlar) {
+      artikBakiye -= d.brutHakedis;
+    }
+    artikBakiye = double.parse(artikBakiye.toStringAsFixed(2));
+
+    final veriler =
+        _kararMetniVerileriHazirla(katsayi, kesinti.dagitilabilirTutar);
+    final kararMetni = KararMetniServisi.metinUret(
+      isStandart: false,
+      veriler: veriler,
+    );
+
+    return DagitimHesapSonuc(
+      kesinti: kesinti,
+      katsayi: katsayi,
+      dagitimlar: dagitimlar,
+      kararMetni: kararMetni,
+      artikBakiye: artikBakiye,
+    );
   }
 
   Future<void> taksitSil(String taksitId) async {
@@ -228,6 +383,42 @@ class DanismanlikDetayProvider extends ChangeNotifier {
       _error = e.toString();
     } finally {
       _setLoading(false);
+    }
+  }
+
+  /// Onay hattında bir adım ilerletir. YK onayında dağıtım hesaplar.
+  Future<bool> durumIlerlet(TaksitModel taksit) async {
+    final hedef = TaksitOnayAkisi.sonrakiDurum(taksit.durum);
+    if (hedef == null) return false;
+
+    if (hedef == TaksitDurum.onaylandi) {
+      await dagitimiHesaplaVeKaydet(taksit, guncelIslemAyi(), true);
+      return _error == null;
+    }
+    if (hedef == TaksitDurum.odendi) {
+      await _taksitService.updateDurum(danismanlik.id, taksit.id, hedef);
+      return true;
+    }
+    try {
+      await _taksitService.updateDurum(danismanlik.id, taksit.id, hedef);
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> durumGeriAl(TaksitModel taksit) async {
+    final hedef = TaksitOnayAkisi.oncekiDurum(taksit.durum);
+    if (hedef == null) return false;
+    try {
+      await _taksitService.updateDurum(danismanlik.id, taksit.id, hedef);
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
     }
   }
 

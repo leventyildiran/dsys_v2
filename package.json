@@ -1,5 +1,12 @@
 {
+  "scripts": {
+    "migrate:tenant:dry": "node migrate_to_multitenant.js --dry-run --uni=usak",
+    "migrate:tenant": "node migrate_to_multitenant.js --uni=usak",
+    "migrate:tenant:with-temp": "node migrate_to_multitenant.js --uni=usak --include-temp"
+  },
   "dependencies": {
+    "adm-zip": "^0.5.17",
+    "fast-xml-parser": "^5.8.0",
     "firebase-admin": "^13.10.0",
     "mammoth": "^1.12.0",
     "xlsx": "^0.18.5"

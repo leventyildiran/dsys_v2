@@ -1,0 +1,38 @@
+---
+description: Kullanıcı açık onay vermeden kod/değişiklik yapma — önce anla, özetle, bekle.
+alwaysApply: true
+---
+
+# Onay Olmadan Kod Yazma Yasağı
+
+Bu proje için **zorunlu** çalışma protokolü.
+
+## Yasak
+
+- Kullanıcı **açıkça onay vermeden** dosya oluşturma, düzenleme veya silme.
+- İhtiyacı tam anlamadan “düzeltiyorum” diye koda geçme.
+- Varsayımla UX/iş akışı değiştirme.
+- Onay beklenirken arka planda implementasyon veya deploy.
+
+## Zorunlu sıra
+
+1. **Anla** — Kullanıcının ne istediğini kendi cümlelerinle özetle; belirsizse sor.
+2. **Öner** — Kısa plan: ne değişecek, ne değişmeyecek, riskler (madde madde).
+3. **Bekle** — Kullanıcı “evet”, “yap”, “onaylıyorum” veya eşdeğeri demeden **kod yazma**.
+4. **Uygula** — Yalnızca onaylanan kapsamda, minimal diff ile uygula.
+
+## Onay sayılmaz
+
+- Sadece soru sormak veya ekran göndermek.
+- Önceki konuşmadaki genel hedefler (her yeni talep için yeniden onay gerekir).
+- Agent’ın “şöyle yapalım mı?” sorusuna kullanıcı cevap vermeden devam etmek.
+
+## Özellikle dikkat (DSYS)
+
+- YK Karar Merkezi, danışmanlık, fatura gibi modüllerde **iş akışını** kullanıcıyla netleştir; birim/toplantı/karar kavramlarını karıştırma.
+- Büyük refactor veya çok dosyalı değişiklikte planı yazılı sun; tek cümlelik onay isteme.
+
+## İstisna
+
+- Kullanıcı doğrudan “yaz”, “uygula”, “düzelt”, “commit at” derse onay sayılır.
+- Salt okuma: dosya okuma, arama, analiz, açıklama — onay gerektirmez.

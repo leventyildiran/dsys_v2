@@ -24,6 +24,14 @@ class YkKararModel {
     this.birimToplantiSayi = '',
     this.birimKararNo = '',
     this.sablonTuru,
+    this.isExternal = false,
+    this.pdfUrl,
+    this.aiPdfUrl,
+    this.wordUrl,
+    this.docxBodyXml,
+    this.eslesmeSkoru,
+    this.analizKaynagi,
+    this.analizUyarilari = const [],
   });
 
   final String id;
@@ -38,6 +46,22 @@ class YkKararModel {
   final String kararMetni;
   final String iliskiliKayitId;
   final DateTime? olusturmaTarihi;
+  final String? pdfUrl;
+  final String? aiPdfUrl;
+  final String? wordUrl;
+
+  /// Eşleştirmeden gelen OOXML gövde parçası — tablolar birebir korunur.
+  final String? docxBodyXml;
+
+  /// Word arşiv eşleşme skoru (audit).
+  final int? eslesmeSkoru;
+
+  /// yapay_zeka | otomatik_eslestirme
+  final String? analizKaynagi;
+
+  /// PDF kalite / tablo doldurma uyarıları.
+  final List<String> analizUyarilari;
+
   final YkKararDurum durum;
 
   /// V2 YENİLİK: Tablolar artık yapısal veri olarak tutulur.
@@ -54,6 +78,9 @@ class YkKararModel {
 
   /// Hangi şablon kullanıldığını belirler (1-9 arası).
   final int? sablonTuru;
+
+  /// Dış kaynaktan gelen kararları (geçmiş kararlar) ayırmak için.
+  final bool isExternal;
 
   factory YkKararModel.fromMap(String id, Map<String, dynamic> map) {
     final tabloData = map['tabloVerileri'] as List<dynamic>? ?? [];
@@ -82,6 +109,14 @@ class YkKararModel {
       birimToplantiSayi: map['birimToplantiSayi'] ?? '',
       birimKararNo: map['birimKararNo'] ?? '',
       sablonTuru: map['sablonTuru'] as int?,
+      isExternal: map['isExternal'] ?? false,
+      pdfUrl: map['pdfUrl'],
+      aiPdfUrl: map['aiPdfUrl'],
+      wordUrl: map['wordUrl'],
+      docxBodyXml: map['docxBodyXml'],
+      eslesmeSkoru: map['eslesmeSkoru'] as int?,
+      analizKaynagi: map['analizKaynagi'] as String?,
+      analizUyarilari: List<String>.from(map['analizUyarilari'] ?? []),
     );
   }
 
@@ -106,6 +141,14 @@ class YkKararModel {
       'birimToplantiSayi': birimToplantiSayi,
       'birimKararNo': birimKararNo,
       'sablonTuru': sablonTuru,
+      'isExternal': isExternal,
+      'pdfUrl': pdfUrl,
+      'aiPdfUrl': aiPdfUrl,
+      'wordUrl': wordUrl,
+      'docxBodyXml': docxBodyXml,
+      'eslesmeSkoru': eslesmeSkoru,
+      'analizKaynagi': analizKaynagi,
+      'analizUyarilari': analizUyarilari,
     };
   }
 
@@ -129,6 +172,11 @@ class YkKararModel {
     String? birimToplantiSayi,
     String? birimKararNo,
     int? sablonTuru,
+    bool? isExternal,
+    String? docxBodyXml,
+    int? eslesmeSkoru,
+    String? analizKaynagi,
+    List<String>? analizUyarilari,
   }) {
     return YkKararModel(
       id: id,
@@ -151,6 +199,14 @@ class YkKararModel {
       birimToplantiSayi: birimToplantiSayi ?? this.birimToplantiSayi,
       birimKararNo: birimKararNo ?? this.birimKararNo,
       sablonTuru: sablonTuru ?? this.sablonTuru,
+      isExternal: isExternal ?? this.isExternal,
+      pdfUrl: pdfUrl,
+      aiPdfUrl: aiPdfUrl,
+      wordUrl: wordUrl,
+      docxBodyXml: docxBodyXml ?? this.docxBodyXml,
+      eslesmeSkoru: eslesmeSkoru ?? this.eslesmeSkoru,
+      analizKaynagi: analizKaynagi ?? this.analizKaynagi,
+      analizUyarilari: analizUyarilari ?? this.analizUyarilari,
     );
   }
 

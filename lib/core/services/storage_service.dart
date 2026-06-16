@@ -9,13 +9,17 @@ class StorageService {
   /// [pdfBytes]: Yüklenecek dosya verisi
   /// [birimId]: Hangi birime ait olduğu
   /// [fileName]: Dosya adı (örnek: karar_123.pdf)
-  Future<String> uploadYkKararPdf(Uint8List pdfBytes, String birimId, String fileName) async {
+  Future<String> uploadYkKararPdf(
+    Uint8List pdfBytes,
+    String birimId,
+    String fileName,
+  ) async {
     try {
       final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final String path = 'yk_karar_arsiv/$birimId/${timestamp}_$fileName';
-      
+
       final Reference ref = _storage.ref().child(path);
-      
+
       final SettableMetadata metadata = SettableMetadata(
         contentType: 'application/pdf',
         customMetadata: {
@@ -26,7 +30,7 @@ class StorageService {
 
       final UploadTask uploadTask = ref.putData(pdfBytes, metadata);
       final TaskSnapshot snapshot = await uploadTask;
-      
+
       final String downloadUrl = await snapshot.ref.getDownloadURL();
       return downloadUrl;
     } catch (e) {

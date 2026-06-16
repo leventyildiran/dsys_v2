@@ -14,27 +14,41 @@ class FirestorePageResult {
 
 class FirestoreService {
   FirestoreService({FirebaseFirestore? firestore, String? universiteId})
-      : _firestore = firestore ?? FirebaseFirestore.instance,
-        _universiteId = universiteId ?? _defaultUniversiteId;
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _universiteId = universiteId ?? activeUniversiteId;
 
   final FirebaseFirestore _firestore;
   final String _universiteId;
 
   static const String _defaultUniversiteId = 'usak';
 
-  static String _activeUniversiteId = _defaultUniversiteId;
-  static String get activeUniversiteId => _activeUniversiteId;
-  static set activeUniversiteId(String value) {
-    _activeUniversiteId = value;
-  }
+  static String activeUniversiteId = _defaultUniversiteId;
 
   DocumentReference get universiteRef =>
       _firestore.collection('universiteler').doc(_universiteId);
 
+  FirebaseFirestore get firestore => _firestore;
+
+  String get universiteId => _universiteId;
+
   CollectionReference<Map<String, dynamic>> collection(String path) =>
       universiteRef.collection(path);
 
-  Future<String> create(String collectionPath, Map<String, dynamic> data) async {
+  DocumentReference<Map<String, dynamic>> docRef(
+    String collectionPath,
+    String docId,
+  ) => collection(collectionPath).doc(docId);
+
+  CollectionReference<Map<String, dynamic>> nestedCollection(
+    String collectionPath,
+    String docId,
+    String subCollectionPath,
+  ) => docRef(collectionPath, docId).collection(subCollectionPath);
+
+  Future<String> create(
+    String collectionPath,
+    Map<String, dynamic> data,
+  ) async {
     final docRef = await collection(collectionPath).add(data);
     return docRef.id;
   }
@@ -45,7 +59,9 @@ class FirestoreService {
     Map<String, dynamic> data, {
     bool merge = true,
   }) async {
-    await collection(collectionPath).doc(docId).set(data, SetOptions(merge: merge));
+    await collection(
+      collectionPath,
+    ).doc(docId).set(data, SetOptions(merge: merge));
   }
 
   Future<void> update(
@@ -65,26 +81,31 @@ class FirestoreService {
 
   Future<QuerySnapshot<Map<String, dynamic>>> getAll(
     String collectionPath, {
-    Query<Map<String, dynamic>> Function(CollectionReference<Map<String, dynamic>>)?
-        queryBuilder,
+    Query<Map<String, dynamic>> Function(
+      CollectionReference<Map<String, dynamic>>,
+    )?
+    queryBuilder,
   }) async {
     final ref = collection(collectionPath);
     if (queryBuilder != null) {
-      return queryBuilder(ref).get() as Future<QuerySnapshot<Map<String, dynamic>>>;
+      return queryBuilder(ref).get();
     }
     return ref.get();
   }
 
   Future<FirestorePageResult> getPage(
     String collectionPath, {
-    Query<Map<String, dynamic>> Function(CollectionReference<Map<String, dynamic>>)?
-        queryBuilder,
+    Query<Map<String, dynamic>> Function(
+      CollectionReference<Map<String, dynamic>>,
+    )?
+    queryBuilder,
     int limit = 20,
     QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
   }) async {
     final ref = collection(collectionPath);
-    Query<Map<String, dynamic>> query =
-        queryBuilder != null ? queryBuilder(ref) : ref;
+    Query<Map<String, dynamic>> query = queryBuilder != null
+        ? queryBuilder(ref)
+        : ref;
 
     if (startAfterDocument != null) {
       query = query.startAfterDocument(startAfterDocument);
@@ -101,13 +122,14 @@ class FirestoreService {
 
   Stream<QuerySnapshot<Map<String, dynamic>>> stream(
     String collectionPath, {
-    Query<Map<String, dynamic>> Function(CollectionReference<Map<String, dynamic>>)?
-        queryBuilder,
+    Query<Map<String, dynamic>> Function(
+      CollectionReference<Map<String, dynamic>>,
+    )?
+    queryBuilder,
   }) {
     final ref = collection(collectionPath);
     if (queryBuilder != null) {
-      return queryBuilder(ref).snapshots()
-          as Stream<QuerySnapshot<Map<String, dynamic>>>;
+      return queryBuilder(ref).snapshots();
     }
     return ref.snapshots();
   }
@@ -128,9 +150,7 @@ class FirestoreService {
     required String field,
     required dynamic isEqualTo,
   }) async {
-    return collection(collectionPath)
-        .where(field, isEqualTo: isEqualTo)
-        .get();
+    return collection(collectionPath).where(field, isEqualTo: isEqualTo).get();
   }
 
   WriteBatch batch() => _firestore.batch();

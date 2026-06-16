@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/gundem_model.dart';
 import '../services/gundem_service.dart';
@@ -10,6 +11,8 @@ class GundemProvider extends ChangeNotifier {
       : _service = service ?? GundemService();
 
   final GundemService _service;
+
+  static const _aktifToplantiKey = 'yk_aktif_toplanti_id';
 
   List<ToplantiModel> _toplantilar = [];
   List<ToplantiModel> get toplantilar => _toplantilar;
@@ -73,15 +76,39 @@ class GundemProvider extends ChangeNotifier {
     }
   }
 
-  /// ToplantÄ± detayÄ±nÄ± yÃ¼kler.
-  Future<void> toplantiYukle(String id) async {
+  /// Son seçilen aktif toplantıyı yerel depodan geri yükler.
+  Future<void> aktifToplantiyiYukle() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final id = prefs.getString(_aktifToplantiKey);
+      if (id != null && id.isNotEmpty) {
+        await toplantiYukle(id, kaliciKaydet: false);
+      }
+    } catch (e) {
+      debugPrint('[GundemProvider.aktifToplantiyiYukle] $e');
+    }
+  }
+
+  /// Aktif toplantıyı seçer ve oturumlar arası hatırlar.
+  Future<void> aktifToplantiSec(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_aktifToplantiKey, id);
+    await toplantiYukle(id, kaliciKaydet: false);
+  }
+
+  /// Toplantı detayını yükler.
+  Future<void> toplantiYukle(String id, {bool kaliciKaydet = true}) async {
     _isLoading = true;
     notifyListeners();
 
     try {
       _seciliToplanti = await _service.getById(id);
+      if (kaliciKaydet && _seciliToplanti != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_aktifToplantiKey, id);
+      }
     } catch (e) {
-      _hataMesaji = 'ToplantÄ± yÃ¼klenemedi: $e';
+      _hataMesaji = 'Toplantı yüklenemedi: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -93,6 +120,7 @@ class GundemProvider extends ChangeNotifier {
       final id = await _service.create(model);
       _basariMesaji = 'Toplantı başarıyla oluşturuldu.';
       await toplantilariYukle();
+      await aktifToplantiSec(id);
       return id;
     } catch (e) {
       _hataMesaji = 'Toplantı oluşturulamadı: $e';

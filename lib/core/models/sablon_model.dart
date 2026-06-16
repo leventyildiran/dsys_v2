@@ -7,6 +7,8 @@ class SablonModel {
   String dosyaUrl;
   String tur; // 'fatura', 'yk_karar', 'gundem', 'diger'
   DateTime eklenmeTarihi;
+  String? birimId;
+  String? birimAd;
 
   SablonModel({
     required this.id,
@@ -15,6 +17,8 @@ class SablonModel {
     required this.dosyaUrl,
     required this.tur,
     required this.eklenmeTarihi,
+    this.birimId,
+    this.birimAd,
   });
 
   factory SablonModel.fromJson(Map<String, dynamic> json, String documentId) {
@@ -27,6 +31,8 @@ class SablonModel {
       eklenmeTarihi: json['eklenmeTarihi'] != null 
           ? (json['eklenmeTarihi'] as Timestamp).toDate() 
           : DateTime.now(),
+      birimId: json['birimId'],
+      birimAd: json['birimAd'],
     );
   }
 
@@ -37,6 +43,8 @@ class SablonModel {
       'dosyaUrl': dosyaUrl,
       'tur': tur,
       'eklenmeTarihi': Timestamp.fromDate(eklenmeTarihi),
+      'birimId': birimId,
+      'birimAd': birimAd,
     };
   }
 }

@@ -7,9 +7,11 @@ import 'sistem_ayarlari_service.dart';
 class AIExtractionService {
   final SistemAyarlariService _ayarlarService = SistemAyarlariService();
 
-  Future<List<Map<String, dynamic>>> extractBatchData(String rawBatchText) async {
+  Future<List<Map<String, dynamic>>> extractBatchData(
+    String rawBatchText,
+  ) async {
     final ayarlar = await _ayarlarService.getAyarlar();
-    
+
     // Prompt hazırlığı
     final prompt = _buildPrompt(rawBatchText);
 
@@ -23,7 +25,7 @@ class AIExtractionService {
         );
         final response = await model.generateContent([Content.text(prompt)]);
         final text = response.text?.trim() ?? '';
-        
+
         final parsed = _parseJson(text);
         if (parsed.isNotEmpty) {
           for (var p in parsed) {
@@ -37,23 +39,32 @@ class AIExtractionService {
     }
 
     // 2. DEEPSEEK DENEMESİ (Fallback)
-    if (ayarlar.deepseekApiKey.isNotEmpty && ayarlar.deepseekApiUrl.isNotEmpty) {
+    if (ayarlar.deepseekApiKey.isNotEmpty &&
+        ayarlar.deepseekApiUrl.isNotEmpty) {
       try {
         print('DeepSeek API ile ayrıştırma deneniyor...');
-        final url = ayarlar.deepseekApiUrl.endsWith('/') ? '\${ayarlar.deepseekApiUrl}chat/completions' : '\${ayarlar.deepseekApiUrl}/chat/completions';
-        final modelName = ayarlar.deepseekModel.isEmpty ? 'deepseek-chat' : ayarlar.deepseekModel;
-        
+        final url = ayarlar.deepseekApiUrl.endsWith('/')
+            ? '${ayarlar.deepseekApiUrl}chat/completions'
+            : '${ayarlar.deepseekApiUrl}/chat/completions';
+        final modelName = ayarlar.deepseekModel.isEmpty
+            ? 'deepseek-chat'
+            : ayarlar.deepseekModel;
+
         final response = await http.post(
           Uri.parse(url),
           headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': 'Bearer \${ayarlar.deepseekApiKey}',
+            'Authorization': 'Bearer ${ayarlar.deepseekApiKey}',
           },
           body: jsonEncode({
             'model': modelName,
             'messages': [
-              {'role': 'system', 'content': 'You are a precise invoice parsing AI that outputs strictly in JSON.'},
-              {'role': 'user', 'content': prompt}
+              {
+                'role': 'system',
+                'content':
+                    'You are a precise invoice parsing AI that outputs strictly in JSON.',
+              },
+              {'role': 'user', 'content': prompt},
             ],
             'temperature': 0.1,
           }),
@@ -62,7 +73,7 @@ class AIExtractionService {
         if (response.statusCode >= 200 && response.statusCode < 300) {
           final decoded = jsonDecode(utf8.decode(response.bodyBytes));
           final content = decoded['choices']?[0]?['message']?['content'] ?? '';
-          
+
           final parsed = _parseJson(content);
           if (parsed.isNotEmpty) {
             for (var p in parsed) {
@@ -71,7 +82,9 @@ class AIExtractionService {
             return parsed;
           }
         } else {
-          print('DeepSeek API Hatası: \${response.statusCode} - \${response.body}');
+          print(
+            'DeepSeek API Hatası: ${response.statusCode} - ${response.body}',
+          );
         }
       } catch (e) {
         print('DeepSeek hatası: $e');
@@ -79,7 +92,9 @@ class AIExtractionService {
     }
 
     // Tüm AI denemeleri başarısızsa boş dön
-    throw Exception('Yapay zeka faturayı okuyamadı. Lütfen API anahtarlarını kontrol edin.');
+    throw Exception(
+      'Yapay zeka faturayı okuyamadı. Lütfen API anahtarlarını kontrol edin.',
+    );
   }
 
   String _buildPrompt(String rawText) {
@@ -126,10 +141,13 @@ $rawText
   }
 
   /// Uzun Excel listeleri (örn: 200 kişilik kursiyer listesi) için sadece başlık haritası çıkarır
-  Future<Map<String, dynamic>> extractExcelMapping(String excelCsvPreview) async {
+  Future<Map<String, dynamic>> extractExcelMapping(
+    String excelCsvPreview,
+  ) async {
     final ayarlar = await _ayarlarService.getAyarlar();
-    
-    final prompt = '''
+
+    final prompt =
+        '''
 Aşağıda bir Excel dosyasının ilk 15 satırının CSV dökümü bulunuyor.
 Bu dosya bir müşteri/kursiyer listesi olabilir. Lütfen satırlara bakarak, hangi sütunun hangi faturasal veriye denk geldiğini bul.
 Sütun endeksleri 0'dan başlar (Yani ilk sütun 0'dır).
@@ -153,7 +171,10 @@ $excelCsvPreview
 
     if (ayarlar.geminiApiKey.isNotEmpty) {
       try {
-        final model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: ayarlar.geminiApiKey);
+        final model = GenerativeModel(
+          model: 'gemini-1.5-flash',
+          apiKey: ayarlar.geminiApiKey,
+        );
         final response = await model.generateContent([Content.text(prompt)]);
         final text = response.text?.trim() ?? '';
         final parsed = _parseJsonStrict(text);
@@ -162,16 +183,19 @@ $excelCsvPreview
         print('Mapping hatası: $e');
       }
     }
-    
+
     // Fallback or not found
     return {"isBatchList": false};
   }
 
   dynamic _parseJsonStrict(String text) {
     String cleanText = text.trim();
-    if (cleanText.startsWith('```json')) cleanText = cleanText.substring(7);
-    else if (cleanText.startsWith('```')) cleanText = cleanText.substring(3);
-    if (cleanText.endsWith('```')) cleanText = cleanText.substring(0, cleanText.length - 3);
+    if (cleanText.startsWith('```json'))
+      cleanText = cleanText.substring(7);
+    else if (cleanText.startsWith('```'))
+      cleanText = cleanText.substring(3);
+    if (cleanText.endsWith('```'))
+      cleanText = cleanText.substring(0, cleanText.length - 3);
     cleanText = cleanText.trim();
     try {
       return jsonDecode(cleanText);
@@ -183,23 +207,23 @@ $excelCsvPreview
   List<Map<String, dynamic>> _parseJson(String text) {
     try {
       String cleanText = text.trim();
-      
+
       // Bazen LLM ```json ... ``` etiketleri ekler, onları temizle.
       if (cleanText.startsWith('```json')) {
         cleanText = cleanText.substring(7);
       } else if (cleanText.startsWith('```')) {
         cleanText = cleanText.substring(3);
       }
-      
+
       if (cleanText.endsWith('```')) {
         cleanText = cleanText.substring(0, cleanText.length - 3);
       }
-      
+
       cleanText = cleanText.trim();
-      
+
       int startIndex = cleanText.indexOf('[');
       int endIndex = cleanText.lastIndexOf(']');
-      
+
       if (startIndex != -1 && endIndex != -1 && endIndex >= startIndex) {
         cleanText = cleanText.substring(startIndex, endIndex + 1);
         final List<dynamic> decodedList = jsonDecode(cleanText);
@@ -212,9 +236,11 @@ $excelCsvPreview
   }
 
   /// Yürütme Kurulu Kararı (YKK) metninden akademik personel ve faaliyet verilerini çeker
-  Future<List<Map<String, dynamic>>> extractDanismanlikData(String rawKararText) async {
+  Future<List<Map<String, dynamic>>> extractDanismanlikData(
+    String rawKararText,
+  ) async {
     final ayarlar = await _ayarlarService.getAyarlar();
-    
+
     // Prompt hazırlığı
     final prompt = _buildDanismanlikPrompt(rawKararText);
 
@@ -227,7 +253,7 @@ $excelCsvPreview
         );
         final response = await model.generateContent([Content.text(prompt)]);
         final text = response.text?.trim() ?? '';
-        
+
         final parsed = _parseJson(text);
         if (parsed.isNotEmpty) {
           return parsed;
@@ -238,11 +264,16 @@ $excelCsvPreview
     }
 
     // DEEPSEEK DENEMESİ
-    if (ayarlar.deepseekApiKey.isNotEmpty && ayarlar.deepseekApiUrl.isNotEmpty) {
+    if (ayarlar.deepseekApiKey.isNotEmpty &&
+        ayarlar.deepseekApiUrl.isNotEmpty) {
       try {
-        final url = ayarlar.deepseekApiUrl.endsWith('/') ? '${ayarlar.deepseekApiUrl}chat/completions' : '${ayarlar.deepseekApiUrl}/chat/completions';
-        final modelName = ayarlar.deepseekModel.isEmpty ? 'deepseek-chat' : ayarlar.deepseekModel;
-        
+        final url = ayarlar.deepseekApiUrl.endsWith('/')
+            ? '${ayarlar.deepseekApiUrl}chat/completions'
+            : '${ayarlar.deepseekApiUrl}/chat/completions';
+        final modelName = ayarlar.deepseekModel.isEmpty
+            ? 'deepseek-chat'
+            : ayarlar.deepseekModel;
+
         final response = await http.post(
           Uri.parse(url),
           headers: {
@@ -252,8 +283,12 @@ $excelCsvPreview
           body: jsonEncode({
             'model': modelName,
             'messages': [
-              {'role': 'system', 'content': 'You are a precise data extraction AI that outputs strictly in JSON.'},
-              {'role': 'user', 'content': prompt}
+              {
+                'role': 'system',
+                'content':
+                    'You are a precise data extraction AI that outputs strictly in JSON.',
+              },
+              {'role': 'user', 'content': prompt},
             ],
             'temperature': 0.1,
           }),
@@ -262,7 +297,7 @@ $excelCsvPreview
         if (response.statusCode >= 200 && response.statusCode < 300) {
           final decoded = jsonDecode(utf8.decode(response.bodyBytes));
           final content = decoded['choices']?[0]?['message']?['content'] ?? '';
-          
+
           final parsed = _parseJson(content);
           if (parsed.isNotEmpty) {
             return parsed;
@@ -273,7 +308,9 @@ $excelCsvPreview
       }
     }
 
-    throw Exception('Yapay zeka kararı okuyamadı. Lütfen API anahtarlarını veya kararın metnini kontrol edin.');
+    throw Exception(
+      'Yapay zeka kararı okuyamadı. Lütfen API anahtarlarını veya kararın metnini kontrol edin.',
+    );
   }
 
   String _buildDanismanlikPrompt(String rawText) {

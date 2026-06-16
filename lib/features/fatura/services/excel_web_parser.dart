@@ -34,13 +34,13 @@ class ExcelWebParser {
       final options = {'type': 'array'}.jsify();
 
       final jsWorkbook = _readXlsx(jsData, options as JSAny) as WorkBook;
-      
+
       final sheetNames = jsWorkbook.SheetNames.dartify() as List;
       if (sheetNames.isEmpty) return '';
 
       final sheetsMap = jsWorkbook.Sheets.dartify() as Map?;
       if (sheetsMap == null) return '';
-      
+
       final buffer = StringBuffer();
       final jsonOptions = {'header': 1}.jsify();
 
@@ -52,9 +52,9 @@ class ExcelWebParser {
         final rowArray = _sheetToJson(sheet as JSAny, jsonOptions as JSAny);
         final rowsList = rowArray.dartify() as List?;
         if (rowsList == null) continue;
-        
+
         buffer.writeln('--- SHEET: $sheetName ---');
-        
+
         for (final row in rowsList) {
           if (row == null) continue;
           final cellList = row as List;
@@ -68,11 +68,13 @@ class ExcelWebParser {
         }
         buffer.writeln();
       }
-      
+
       return buffer.toString();
     } catch (e) {
       debugPrint('ExcelWebParser Hatası: $e');
-      throw Exception('Excel okuma hatası. Lütfen SheetJS yüklü olduğundan emin olun.');
+      throw Exception(
+        'Excel okuma hatası. Lütfen SheetJS yüklü olduğundan emin olun.',
+      );
     }
   }
 }
