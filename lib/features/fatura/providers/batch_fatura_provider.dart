@@ -12,11 +12,14 @@ import '../../../core/models/sistem_ayarlari_model.dart';
 import '../../../core/turkce_format.dart';
 import '../../birim/models/birim_model.dart';
 import '../../birim/services/birim_service.dart';
+import '../../../core/models/hizmet_model.dart';
+import '../../../core/services/hizmet_service.dart';
 import '../models/fatura_matbu_config.dart';
 import '../models/fatura_arsiv_util.dart';
 import '../models/fatura_model.dart';
 import '../services/fatura_service.dart';
 import '../services/fatura_offline_parser.dart';
+import '../services/fatura_eslestirme_servisi.dart';
 import '../services/fatura_arsiv_export_servisi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/excel_web_parser.dart';
@@ -58,6 +61,9 @@ class BatchFaturaProvider extends ChangeNotifier {
   List<BirimModel> _birimlerList = [];
   Map<String, BirimModel> _birimlerById = {};
   Map<String, BirimModel> _birimlerCache = {};
+
+  final HizmetService _hizmetService = HizmetService();
+  List<HizmetModel> _tumHizmetler = [];
   final AIExtractionService _aiService = AIExtractionService();
   final FaturaService _faturaService = FaturaService();
   SistemAyarlariModel? sistemAyarlari;
@@ -212,6 +218,28 @@ class BatchFaturaProvider extends ChangeNotifier {
     _queueChanged();
   }
 
+  void refreshBirimler() {
+    _loadBirimler();
+    _hizmetService.getAllHizmetler(forceRefresh: true).then((val) {
+      _tumHizmetler = val;
+      notifyListeners();
+    });
+  }
+
+  /// Verilen hizmetin sistemdeki fiyatıyla eşleşip eşleşmediğini kontrol eder
+  String? getFiyatUyarisi(String? birimAdi, String cinsi, double fiyat) {
+    if (birimAdi == null || cinsi.trim().isEmpty) return null;
+    final sistemHizmeti = _tumHizmetler.where((h) => 
+      h.birimAdi.toLowerCase() == birimAdi.toLowerCase() && 
+      h.hizmetAdi.toLowerCase() == cinsi.trim().toLowerCase()
+    ).firstOrNull;
+
+    if (sistemHizmeti != null && sistemHizmeti.fiyat != fiyat) {
+      return 'Sistemdeki Liste Fiyatı: ${sistemHizmeti.fiyat.toStringAsFixed(2)} TL';
+    }
+    return null;
+  }
+
   BatchFaturaProvider() {
     _initializeEmpty();
     _fetchBirimler();
@@ -256,8 +284,16 @@ class BatchFaturaProvider extends ChangeNotifier {
           invoices.where((f) => !yerTutucuMu(f)).length;
       notifyListeners();
     } catch (e) {
-      debugPrint('Fatura kuyruk geri yüklenemedi: $e');
+      debugPrint('Sistem ayarları yüklenemedi: $e');
     }
+
+    try {
+      _tumHizmetler = await _hizmetService.getAllHizmetler();
+    } catch (e) {
+      debugPrint('Hizmetler yüklenemedi: $e');
+    }
+
+    notifyListeners();
   }
 
   void _scheduleKuyrukKaydet() {
@@ -540,12 +576,28 @@ class BatchFaturaProvider extends ChangeNotifier {
     List<FaturaModel> sonuc = [];
 
     if (!cevrimdisi) {
+      // Tier 1 - Akıllı Eşleştirme (Skor Bazlı Klonlama)
       try {
-        final extractedData = await _aiService.extractBatchData(text);
-        sonuc = extractedData.map(FaturaModel.fromJson).toList();
-        sonAyristirmaBilgisi = sonuc.isEmpty ? null : 'Yapay zeka ile okundu';
+        final arsivKayitlar = await _faturaService.araFaturalar(FaturaArsivAramaFiltre(metin: ''));
+        final gecmis = arsivKayitlar.map((e) => e.fatura).toList();
+        final eslesme = FaturaEslestirmeServisi.eslestir(rawText: text, gecmisFaturalar: gecmis);
+        if (eslesme != null) {
+          sonuc = [eslesme];
+          sonAyristirmaBilgisi = 'Akıllı Eşleştirme Sistemi (Şablon)';
+        }
       } catch (e) {
-        debugPrint('AI ayrıştırma başarısız, çevrimdışı parser deneniyor: $e');
+        debugPrint('Eşleştirme servisi hatası: $e');
+      }
+
+      // Tier 2 - AI (Yapay Zeka)
+      if (sonuc.isEmpty) {
+        try {
+          final extractedData = await _aiService.extractBatchData(text);
+          sonuc = extractedData.map(FaturaModel.fromJson).toList();
+          sonAyristirmaBilgisi = sonuc.isEmpty ? null : 'Yapay zeka ile okundu';
+        } catch (e) {
+          debugPrint('AI ayrıştırma başarısız, çevrimdışı parser deneniyor: $e');
+        }
       }
     }
 
