@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../models/sistem_ayarlari_model.dart';
@@ -38,7 +39,7 @@ class AIExtractionService {
           
           final contentParts = <Part>[];
           if (pdfBytes != null && pdfBytes.isNotEmpty) {
-            contentParts.add(DataPart('application/pdf', pdfBytes));
+            contentParts.add(DataPart('application/pdf', Uint8List.fromList(pdfBytes)));
           }
           contentParts.add(TextPart(prompt));
 
