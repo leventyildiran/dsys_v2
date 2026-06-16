@@ -10,7 +10,7 @@ class AIExtractionService {
 
   Future<List<Map<String, dynamic>>> extractBatchData(
     String rawBatchText, {
-    List<int>? pdfBytes,
+    Uint8List? pdfBytes,
   }) async {
     final ayarlar = await _ayarlarService.getAyarlar();
 
@@ -39,7 +39,7 @@ class AIExtractionService {
           
           final contentParts = <Part>[];
           if (pdfBytes != null && pdfBytes.isNotEmpty) {
-            contentParts.add(DataPart('application/pdf', Uint8List.fromList(pdfBytes)));
+            contentParts.add(DataPart('application/pdf', pdfBytes));
           }
           contentParts.add(TextPart(prompt));
 

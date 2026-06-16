@@ -572,7 +572,7 @@ class BatchFaturaProvider extends ChangeNotifier {
   /// [cevrimdisi] true ise doğrudan kural tabanlı parser kullanılır.
   /// false ise önce AI denenir, başarısız olursa otomatik olarak
   /// çevrimdışı parser'a düşülür (internet/AI yoksa iş durmaz).
-  Future<void> loadBatch(String text, {bool cevrimdisi = false, List<int>? pdfBytes}) async {
+  Future<void> loadBatch(String text, {bool cevrimdisi = false, Uint8List? pdfBytes}) async {
     List<FaturaModel> sonuc = [];
 
     if (!cevrimdisi) {
