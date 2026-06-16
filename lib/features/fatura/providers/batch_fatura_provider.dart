@@ -643,6 +643,9 @@ class BatchFaturaProvider extends ChangeNotifier {
     final bos = FaturaModel.bos(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
     )..parsedBy = 'Manuel Giriş';
+    
+    // Kullanıcı manuel ekle dediğinde UI'da (yerTutucuMu) görünmez olmaması için 1 boş kalem ekliyoruz.
+    bos.kalemler.add({'cinsi': '', 'miktar': 1, 'fiyat': 0.0});
 
     // Yer tutucu (boş) faturalar varsa temizle; içeriği olan faturalara dokunma.
     final hepsiBos = pendingInvoices.every(yerTutucuMu);
