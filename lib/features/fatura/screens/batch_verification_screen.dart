@@ -1619,7 +1619,8 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
         if (text.isEmpty && extension == 'pdf') {
           await provider.loadBatch(text, pdfBytes: bytes);
         } else {
-          await provider.loadBatch(text, pdfBytes: extension == 'pdf' ? bytes : null);
+          // Metin varsa (veya PDF değilse) byte yollama, text yeterli!
+          await provider.loadBatch(text, pdfBytes: null);
         }
       }
 
@@ -1792,14 +1793,13 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
 
   Future<String> _extractTextFromFile(List<int> bytes, String extension) async {
     if (extension == 'pdf') {
-      final document = PdfDocument(inputBytes: bytes);
       try {
+        final document = PdfDocument(inputBytes: bytes);
         final text = PdfTextExtractor(document).extractText().trim();
+        document.dispose();
         return text; // Boş olsa bile dön, taranmışsa boş çıkar ve Vision API devreye girer.
       } catch (e) {
         return ''; // Hata olursa yine boş dön
-      } finally {
-        document.dispose();
       }
     }
 

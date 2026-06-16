@@ -27,6 +27,7 @@ class AIExtractionService {
       ];
       
       int deneme = 0;
+      Object? sonHata;
       
       while (deneme < denemeModelleri.length) {
         final seciliModel = denemeModelleri[deneme];
@@ -54,9 +55,11 @@ class AIExtractionService {
             return parsed;
           } else if (text.isNotEmpty) {
             print('$seciliModel JSON formatı boş döndürdü, diğer modele geçiliyor...');
+            sonHata = 'Yapay zeka (Gemini) faturayı anlayamadı, JSON formatı hatalı.';
           }
         } catch (e) {
           print('$seciliModel hatası: $e');
+          sonHata = e;
         }
         
         deneme++;
@@ -65,7 +68,13 @@ class AIExtractionService {
           await Future.delayed(const Duration(seconds: 2));
         }
       }
+      
       print('Tüm Gemini modelleri (Flash ve Pro) başarısız oldu. DeepSeek/Offline yedeğe geçiliyor.');
+      if (sonHata != null && pdfBytes != null && pdfBytes.isNotEmpty) {
+        // Eğer görsel PDF ise (text boş, byte var), offline parser ÇALIŞAMAZ. 
+        // O yüzden hatayı direkt ekrana fırlat ki kullanıcı bilsin.
+        throw Exception('Gemini Vision Hatası: $sonHata');
+      }
     }
 
     // 2. DEEPSEEK DENEMESİ (Fallback)
