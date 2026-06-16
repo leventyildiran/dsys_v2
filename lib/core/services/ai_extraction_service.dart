@@ -21,9 +21,11 @@ class AIExtractionService {
     if (ayarlar.geminiApiKey.isNotEmpty) {
       // Uzun süre desteklenecek (LTS) güncel ve stabil modeller
       final denemeModelleri = [
-        'gemini-1.5-flash',     // En hızlı ve maliyetsiz, varsayılan (Multimodal)
-        'gemini-1.5-pro',       // Daha yavaş ama çok daha zeki (Multimodal)
-        'gemini-1.5-flash-8b'   // Çok hafif ve hızlı alternatif
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-pro',
+        'gemini-1.5-pro-latest',
+        'gemini-1.0-pro'
       ];
       
       int deneme = 0;
@@ -73,7 +75,15 @@ class AIExtractionService {
       if (sonHata != null && pdfBytes != null && pdfBytes.isNotEmpty) {
         // Eğer görsel PDF ise (text boş, byte var), offline parser ÇALIŞAMAZ. 
         // O yüzden hatayı direkt ekrana fırlat ki kullanıcı bilsin.
-        throw Exception('Gemini Vision Hatası: $sonHata');
+        String hataMesaji = sonHata.toString();
+        if (hataMesaji.contains('not found') || hataMesaji.contains('404')) {
+          throw Exception(
+            'Google AI Studio API anahtarınız bu modele (Gemini 1.5) erişim sağlayamıyor. '
+            'Lütfen https://aistudio.google.com adresine gidip yeni kullanıcı şartlarını kabul edin '
+            'veya yeni bir API anahtarı (API Key) oluşturup ayarlara girin.'
+          );
+        }
+        throw Exception('Gemini Vision Hatası: $hataMesaji');
       }
     }
 
