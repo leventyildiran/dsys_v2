@@ -21,11 +21,12 @@ class AIExtractionService {
     if (ayarlar.geminiApiKey.isNotEmpty) {
       // Uzun süre desteklenecek (LTS) güncel ve stabil modeller
       final denemeModelleri = [
+        'gemini-3.5-flash',
+        'gemini-3.0-flash',
+        'gemini-2.5-flash',
         'gemini-1.5-flash',
-        'gemini-1.5-flash-latest',
+        'gemini-3.1-pro',
         'gemini-1.5-pro',
-        'gemini-1.5-pro-latest',
-        'gemini-1.0-pro'
       ];
       
       int deneme = 0;
