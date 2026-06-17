@@ -618,7 +618,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
             Expanded(
               child: DropdownButtonFormField<String>(
                 key: ValueKey(
-                  'birim_${index}_${provider.seciliBirimFor(index)}',
+                  'birim_${index}_${provider.gecerliSeciliBirimFor(index)}',
                 ),
                 isExpanded: true,
                 decoration: InputDecoration(
@@ -637,7 +637,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                         )
                       : null,
                 ),
-                initialValue: provider.seciliBirimFor(index),
+                initialValue: provider.gecerliSeciliBirimFor(index),
                 items: provider.birimler
                     .map(
                       (b) => DropdownMenuItem(
@@ -994,8 +994,10 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
           const SizedBox(width: 8),
           if (!invoice.isKdvMuaf)
             DropdownButton<double>(
-              value: invoice.kdvOrani,
-              items: const [0.0, 1.0, 10.0, 20.0]
+              value: fKdvOranlari.contains(invoice.kdvOrani)
+                  ? invoice.kdvOrani
+                  : 20.0,
+              items: fKdvOranlari
                   .map(
                     (v) => DropdownMenuItem(
                       value: v,

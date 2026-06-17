@@ -1,3 +1,6 @@
+// KDV oranı dropdown seçenekleri
+const fKdvOranlari = [0.0, 1.0, 10.0, 20.0];
+
 // Hizmet Tipi seçenekleri
 const fHizmetTipleri = [
   'EĞİTİM',
@@ -156,6 +159,15 @@ class FaturaModel {
     return null;
   }
 
+  static double _normalizeKdvOrani(dynamic raw) {
+    final v = (raw as num?)?.toDouble() ?? 20.0;
+    if (fKdvOranlari.contains(v)) return v;
+    if (v <= 0) return 0;
+    if (v <= 5) return 1;
+    if (v <= 15) return 10;
+    return 20;
+  }
+
   factory FaturaModel.fromJson(Map<String, dynamic> json) {
     return FaturaModel(
       id: json['id']?.toString() ?? '',
@@ -172,7 +184,7 @@ class FaturaModel {
       kdvTutari: (json['kdvTutari'] as num?)?.toDouble() ?? 0.0,
       genelToplam: (json['genelToplam'] as num?)?.toDouble() ?? 0.0,
       isKdvMuaf: json['isKdvMuaf'] == true,
-      kdvOrani: (json['kdvOrani'] as num?)?.toDouble() ?? 20,
+      kdvOrani: _normalizeKdvOrani(json['kdvOrani']),
       parsedBy: json['parsedBy']?.toString() ?? 'Bilinmiyor',
       iban: json['iban']?.toString(),
       hesapAdi: json['hesapAdi']?.toString(),

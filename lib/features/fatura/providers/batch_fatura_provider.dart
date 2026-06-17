@@ -357,6 +357,13 @@ class BatchFaturaProvider extends ChangeNotifier {
     return seciliBirimByFaturaId[pendingInvoices[index].id];
   }
 
+  /// Dropdown çökmesini önler: yalnızca aktif birim listesinde olan ID döner.
+  String? gecerliSeciliBirimFor(int index) {
+    final id = seciliBirimFor(index);
+    if (id == null) return null;
+    return _birimlerById.containsKey(id) ? id : null;
+  }
+
   void setSeciliBirim(int index, String birimId) {
     if (index < 0 || index >= pendingInvoices.length) return;
     seciliBirimByFaturaId[pendingInvoices[index].id] = birimId;
