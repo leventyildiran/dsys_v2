@@ -32,6 +32,30 @@ class TurkceFormat {
     return formatted;
   }
 
+  /// Kalem fiyat girişi (TL soneki ayrı gösterilir): `5.557,25`
+  static String paraKalem(double tutar) {
+    return para(tutar).replaceAll(' TL', '').trim();
+  }
+
+  /// Türkçe para metnini sayıya çevirir (`5.557,25` veya `5557.25`).
+  static double parseSayi(dynamic value, {double fallback = 0.0}) {
+    if (value == null) return fallback;
+    if (value is num) return value.toDouble();
+
+    var text = value.toString().trim();
+    if (text.isEmpty) return fallback;
+    text = text.replaceAll(' ', '');
+
+    if (text.contains(',') && text.contains('.')) {
+      text = text.replaceAll('.', '').replaceAll(',', '.');
+    } else if (text.contains(',')) {
+      text = text.replaceAll(',', '.');
+    }
+
+    text = text.replaceAll(RegExp(r'[^0-9\.\-]'), '');
+    return double.tryParse(text) ?? fallback;
+  }
+
   /// Tarih biçimlendirme: `dd.MM.yyyy`
   static String tarih(DateTime date) {
     final day = date.day.toString().padLeft(2, '0');

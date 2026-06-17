@@ -329,21 +329,7 @@ class BatchFaturaProvider extends ChangeNotifier {
   }
 
   double parseTurkceSayi(dynamic value, {double fallback = 0.0}) {
-    if (value == null) return fallback;
-    if (value is num) return value.toDouble();
-
-    var text = value.toString().trim();
-    if (text.isEmpty) return fallback;
-    text = text.replaceAll(' ', '');
-
-    if (text.contains(',') && text.contains('.')) {
-      text = text.replaceAll('.', '').replaceAll(',', '.');
-    } else if (text.contains(',')) {
-      text = text.replaceAll(',', '.');
-    }
-
-    text = text.replaceAll(RegExp(r'[^0-9\.\-]'), '');
-    return double.tryParse(text) ?? fallback;
+    return TurkceFormat.parseSayi(value, fallback: fallback);
   }
 
   int? consumeGeriYuklemeBildirimi() {
@@ -815,7 +801,7 @@ class BatchFaturaProvider extends ChangeNotifier {
   void addKalem(int index) {
     if (index < 0 || index >= pendingInvoices.length) return;
     pendingInvoices[index].kalemler.add({
-      'cinsi': 'Yeni Kalem',
+      'cinsi': '',
       'miktar': 1,
       'fiyat': 0.0,
     });

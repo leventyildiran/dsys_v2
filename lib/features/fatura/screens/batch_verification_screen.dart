@@ -902,11 +902,11 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                     Expanded(
                       flex: 4,
                       child: TextFormField(
-                        // Sabit key: sadece fatura index + kalem index. Değer key'e dahil edilmez.
                         key: ValueKey('kalem_${index}_${ki}_cinsi'),
                         initialValue: k['cinsi']?.toString() ?? '',
                         decoration: InputDecoration(
                           labelText: cinsiLabel,
+                          hintText: '$cinsiLabel girin',
                           isDense: true,
                           border: const OutlineInputBorder(),
                         ),
@@ -935,20 +935,15 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                     ),
                     const SizedBox(width: 6),
                     SizedBox(
-                      width: 90,
-                      child: TextFormField(
-                        key: ValueKey('kalem_${index}_${ki}_fiyat'),
-                        initialValue: k['fiyat']?.toString() ?? '0',
-                        decoration: const InputDecoration(
-                          labelText: 'Fiyat',
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                        ),
+                      width: 120,
+                      child: _KalemFiyatAlani(
+                        fieldKey: ValueKey('kalem_${index}_${ki}_fiyat'),
+                        value: provider.parseTurkceSayi(k['fiyat'], fallback: 0),
                         onChanged: (v) => provider.updateKalem(
                           index,
                           ki,
                           'fiyat',
-                          provider.parseTurkceSayi(v, fallback: 0),
+                          v,
                         ),
                       ),
                     ),
@@ -1830,5 +1825,98 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
     }
 
     throw Exception('Desteklenmeyen dosya türü: .$extension');
+  }
+}
+
+/// Kalem fiyat alanı: Türkçe para biçimi + TL soneki; odak kaybı ve "0" takılması olmaz.
+class _KalemFiyatAlani extends StatefulWidget {
+  const _KalemFiyatAlani({
+    required this.fieldKey,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final Key fieldKey;
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  @override
+  State<_KalemFiyatAlani> createState() => _KalemFiyatAlaniState();
+}
+
+class _KalemFiyatAlaniState extends State<_KalemFiyatAlani> {
+  late final TextEditingController _controller;
+  final _focusNode = FocusNode();
+  bool _odakta = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _metin(widget.value));
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus && _odakta) {
+        _odakta = false;
+        _formatBlur();
+      }
+      if (_focusNode.hasFocus) _odakta = true;
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _KalemFiyatAlani oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_odakta && oldWidget.value != widget.value) {
+      _controller.text = _metin(widget.value);
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String _metin(double v) => v == 0 ? '' : TurkceFormat.paraKalem(v);
+
+  void _formatBlur() {
+    final parsed = TurkceFormat.parseSayi(_controller.text);
+    final formatted = _metin(parsed);
+    if (_controller.text != formatted) {
+      _controller.text = formatted;
+      _controller.selection = TextSelection.collapsed(offset: formatted.length);
+    }
+    widget.onChanged(parsed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      key: widget.fieldKey,
+      controller: _controller,
+      focusNode: _focusNode,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+      decoration: const InputDecoration(
+        labelText: 'Fiyat',
+        hintText: '0,00',
+        isDense: true,
+        border: OutlineInputBorder(),
+        suffixText: 'TL',
+        suffixStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Colors.black54,
+        ),
+      ),
+      onChanged: (v) {
+        if (v.trim().isEmpty) {
+          widget.onChanged(0);
+        } else {
+          widget.onChanged(TurkceFormat.parseSayi(v));
+        }
+      },
+      onEditingComplete: _formatBlur,
+    );
   }
 }
