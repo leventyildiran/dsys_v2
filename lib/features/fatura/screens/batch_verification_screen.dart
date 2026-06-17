@@ -1674,7 +1674,9 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
             border: OutlineInputBorder(),
             isDense: true,
           ),
-          value: invoice.hizmetTipi,
+          value: fHizmetTipleri.contains(invoice.hizmetTipi)
+              ? invoice.hizmetTipi
+              : null,
           items: fHizmetTipleri.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
           onChanged: (v) => provider.updateField(index, 'hizmetTipi', v),
         ),
@@ -1714,7 +1716,9 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
-                  value: invoice.odemeTipi,
+                  value: fOdemeTipleri.contains(invoice.odemeTipi)
+                      ? invoice.odemeTipi
+                      : null,
                   items: fOdemeTipleri.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                   onChanged: (v) => provider.updateField(index, 'odemeTipi', v),
                 ),
@@ -1745,7 +1749,9 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
-                  value: invoice.urunTuru,
+                  value: fUrunTurleri.contains(invoice.urunTuru)
+                      ? invoice.urunTuru
+                      : null,
                   items: fUrunTurleri.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                   onChanged: (v) => provider.updateField(index, 'urunTuru', v),
                 ),
@@ -1771,7 +1777,9 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
               border: OutlineInputBorder(),
               isDense: true,
             ),
-            value: invoice.tedarikYontemi,
+            value: fTedarikYontemleri.contains(invoice.tedarikYontemi)
+                ? invoice.tedarikYontemi
+                : null,
             items: fTedarikYontemleri.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
             onChanged: (v) => provider.updateField(index, 'tedarikYontemi', v),
           ),

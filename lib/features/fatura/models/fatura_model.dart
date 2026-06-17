@@ -141,6 +141,21 @@ class FaturaModel {
     };
   }
 
+  /// AI/parser çıktısını izinli seçenek listesine eşler.
+  /// Tam eşleşme yoksa büyük/küçük harf duyarsız dener; bulamazsa null döner
+  /// (Dropdown'un geçersiz değerle çökmesini engeller).
+  static String? _normalizeSecenek(dynamic raw, List<String> izinli) {
+    if (raw == null) return null;
+    final deger = raw.toString().trim();
+    if (deger.isEmpty) return null;
+    if (izinli.contains(deger)) return deger;
+    final lower = deger.toLowerCase();
+    for (final e in izinli) {
+      if (e.toLowerCase() == lower) return e;
+    }
+    return null;
+  }
+
   factory FaturaModel.fromJson(Map<String, dynamic> json) {
     return FaturaModel(
       id: json['id']?.toString() ?? '',
@@ -161,13 +176,13 @@ class FaturaModel {
       parsedBy: json['parsedBy']?.toString() ?? 'Bilinmiyor',
       iban: json['iban']?.toString(),
       hesapAdi: json['hesapAdi']?.toString(),
-      hizmetTipi: json['hizmetTipi']?.toString(),
+      hizmetTipi: _normalizeSecenek(json['hizmetTipi'], fHizmetTipleri),
       kursAdi: json['kursAdi']?.toString(),
       kurNo: json['kurNo'] != null ? int.tryParse(json['kurNo'].toString()) : null,
-      odemeTipi: json['odemeTipi']?.toString(),
+      odemeTipi: _normalizeSecenek(json['odemeTipi'], fOdemeTipleri),
       ytbOgrencisi: json['ytbOgrencisi'] == true,
-      urunTuru: json['urunTuru']?.toString(),
-      tedarikYontemi: json['tedarikYontemi']?.toString(),
+      urunTuru: _normalizeSecenek(json['urunTuru'], fUrunTurleri),
+      tedarikYontemi: _normalizeSecenek(json['tedarikYontemi'], fTedarikYontemleri),
       donem: json['donem']?.toString(),
       aciklama: json['aciklama']?.toString(),
       tahminiBirim: json['tahminiBirim']?.toString(),

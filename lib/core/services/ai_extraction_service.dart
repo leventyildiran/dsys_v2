@@ -8,8 +8,8 @@ class AIExtractionService {
   final SistemAyarlariService _ayarlarService = SistemAyarlariService();
   static const List<String> _geminiModelFallbacks = [
     'gemini-2.5-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
+    'gemini-2.5-flash-lite',
+    'gemini-flash-latest',
   ];
 
   Future<String?> _runGeminiWithFallback({
