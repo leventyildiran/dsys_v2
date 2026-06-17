@@ -1239,23 +1239,52 @@ class BatchFaturaProvider extends ChangeNotifier {
                     ),
                   );
                 }
-                if (invoice.melbesNo.trim().isNotEmpty) {
-                  children.add(
-                    pw.Positioned(
-                      top: _konum('melbes').dy,
-                      left: _konum('melbes').dx,
-                      child: pw.Text(invoice.melbesNo, style: metin()),
-                    ),
-                  );
-                }
-                if (invoice.numuneNo.trim().isNotEmpty) {
-                  children.add(
-                    pw.Positioned(
-                      top: _konum('numuneNo').dy,
-                      left: _konum('numuneNo').dx,
-                      child: pw.Text(invoice.numuneNo, style: metin()),
-                    ),
-                  );
+                final melbes = invoice.melbesNo.trim();
+                final numune = invoice.numuneNo.trim();
+                if (melbes.isNotEmpty || numune.isNotEmpty) {
+                  if (melbes.isNotEmpty && numune.isNotEmpty) {
+                    children.add(
+                      pw.Positioned(
+                        top: _konum('melbes').dy,
+                        left: _konum('melbes').dx,
+                        child: pw.SizedBox(
+                          width: 500,
+                          child: pw.Text(
+                            FaturaMatbuConfig.formatMelbesNumuneSatir(
+                              melbes: melbes,
+                              numune: numune,
+                            ),
+                            style: metin(),
+                          ),
+                        ),
+                      ),
+                    );
+                  } else {
+                    if (melbes.isNotEmpty) {
+                      children.add(
+                        pw.Positioned(
+                          top: _konum('melbes').dy,
+                          left: _konum('melbes').dx,
+                          child: pw.Text(
+                            FaturaMatbuConfig.formatMelbesMatbu(melbes),
+                            style: metin(),
+                          ),
+                        ),
+                      );
+                    }
+                    if (numune.isNotEmpty) {
+                      children.add(
+                        pw.Positioned(
+                          top: _konum('numuneNo').dy,
+                          left: _konum('numuneNo').dx,
+                          child: pw.Text(
+                            FaturaMatbuConfig.formatNumuneNoMatbu(numune),
+                            style: metin(),
+                          ),
+                        ),
+                      );
+                    }
+                  }
                 }
                 children.addAll([
                   pw.Positioned(

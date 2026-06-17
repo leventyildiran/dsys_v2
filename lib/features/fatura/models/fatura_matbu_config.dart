@@ -51,8 +51,8 @@ class FaturaMatbuConfig {
     'nakliYekunAltYazi': 'Nakli Yekün (Devreden)',
     'nakliYekunAltTutar': '750,00',
     'numuneAciklama': 'Su numunesi — klor analizi',
-    'melbes': 'MEL-2026-0042',
-    'numuneNo': 'N-1087',
+    'melbes': 'Çevre Şehircilik ve İklim Değişikliği Bakanlığı Melbes Başvuru No: MEL-2026-0042 Numune No: N-1087',
+    'numuneNo': 'Numune No: N-1087',
     'matrah': '1.500,00',
     'kdv': '300,00',
     'genelToplam': '1.800,00',
@@ -136,6 +136,51 @@ class FaturaMatbuConfig {
       return '(VKN:$digits)';
     }
     return null;
+  }
+
+  static const String _melbesBakanlikOnEki =
+      'Çevre Şehircilik ve İklim Değişikliği Bakanlığı';
+
+  /// Matbu faturada MELBES alanı — yalnızca numara girilmişse etiket eklenir.
+  static String formatMelbesMatbu(String raw) {
+    final t = raw.trim();
+    if (t.isEmpty) return '';
+    if (RegExp(r'melbes', caseSensitive: false).hasMatch(t)) return t;
+    return 'Melbes Başvuru No: $t';
+  }
+
+  /// Matbu faturada Numune No alanı — yalnızca numara girilmişse etiket eklenir.
+  static String formatNumuneNoMatbu(String raw) {
+    final t = raw.trim();
+    if (t.isEmpty) return '';
+    if (RegExp(r'numune', caseSensitive: false).hasMatch(t)) return t;
+    return 'Numune No: $t';
+  }
+
+  /// UBATAM matbu: tek satırda bakanlık + MELBES + Numune No (fotoğraftaki biçim).
+  static String formatMelbesNumuneSatir({
+    required String melbes,
+    required String numune,
+  }) {
+    final m = melbes.trim();
+    final n = numune.trim();
+    if (m.isEmpty && n.isEmpty) return '';
+
+    if (m.isNotEmpty && n.isNotEmpty) {
+      if (m.toLowerCase().contains('melbes') && n.toLowerCase().contains('numune')) {
+        return '$m $n';
+      }
+      final melbesKisim = m.toLowerCase().contains('melbes')
+          ? m
+          : '$_melbesBakanlikOnEki Melbes Başvuru No: $m';
+      final numuneKisim =
+          n.toLowerCase().contains('numune') ? n : 'Numune No: $n';
+      if (melbesKisim.toLowerCase().contains('numune')) return melbesKisim;
+      return '$melbesKisim $numuneKisim';
+    }
+
+    if (m.isNotEmpty) return formatMelbesMatbu(m);
+    return formatNumuneNoMatbu(n);
   }
 
   static Map<String, Offset> varsayilanKoordinatlar() => {
