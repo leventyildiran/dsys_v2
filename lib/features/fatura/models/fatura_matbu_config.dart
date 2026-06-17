@@ -61,8 +61,12 @@ class FaturaMatbuConfig {
     'iban': 'TR00 0000 0000 0000 0000 0000 00',
   };
 
-  /// Matbu faturada işletme hesabı: birim adı üst satır, birim VKN alt satır.
-  static String formatHesapAdiMatbu(String raw) {
+  /// Uşak Üniversitesi Döner Sermaye işletme VKN (birim hesap adında yoksa kullanılır).
+  static const String varsayilanIsletmeVkn = '2931062663';
+
+  /// Matbu faturada işletme hesabı: birim adı üst satır, işletme VKN alt satır.
+  /// [fallbackVkn] verilir ve metinde VKN yoksa alt satır otomatik eklenir.
+  static String formatHesapAdiMatbu(String raw, {String? fallbackVkn}) {
     final trimmed = raw.replaceAll('\r\n', '\n').trim();
     if (trimmed.isEmpty) return trimmed;
 
@@ -72,25 +76,54 @@ class FaturaMatbuConfig {
         .where((l) => l.isNotEmpty)
         .toList();
 
+    String result;
+
     if (lines.length >= 2) {
       final vknSatir = _normalizeVknSatir(lines.sublist(1).join(' '));
       if (vknSatir != null) {
-        return '${lines.first}\n$vknSatir';
+        result = '${lines.first}\n$vknSatir';
+      } else {
+        result = trimmed;
       }
-      return trimmed;
+    } else {
+      final vknBlok = RegExp(
+        r'\s*\(VKN\s*:.*\)\s*$',
+        caseSensitive: false,
+      ).firstMatch(trimmed);
+      if (vknBlok != null) {
+        final ad = trimmed.substring(0, vknBlok.start).trim();
+        final vknSatir = vknBlok.group(0)!.trim();
+        result = ad.isNotEmpty ? '$ad\n$vknSatir' : trimmed;
+      } else {
+        result = trimmed;
+      }
     }
 
+    if (!_metindeVknVar(result)) {
+      final vkn = (fallbackVkn ?? varsayilanIsletmeVkn).trim();
+      if (vkn.isNotEmpty) {
+        final ad = _hesapAdiSadeceAd(result);
+        if (ad.isNotEmpty) return '$ad\n(VKN:$vkn)';
+      }
+    }
+
+    return result;
+  }
+
+  static bool _metindeVknVar(String text) {
+    return RegExp(r'\(VKN\s*:', caseSensitive: false).hasMatch(text) ||
+        RegExp(r'(?<!\()VKN\s*:', caseSensitive: false).hasMatch(text);
+  }
+
+  static String _hesapAdiSadeceAd(String text) {
     final vknBlok = RegExp(
       r'\s*\(VKN\s*:.*\)\s*$',
       caseSensitive: false,
-    ).firstMatch(trimmed);
+    ).firstMatch(text);
     if (vknBlok != null) {
-      final ad = trimmed.substring(0, vknBlok.start).trim();
-      final vknSatir = vknBlok.group(0)!.trim();
-      if (ad.isNotEmpty) return '$ad\n$vknSatir';
+      return text.substring(0, vknBlok.start).trim();
     }
-
-    return trimmed;
+    return text.split('\n').first.trim();
   }
 
   static String? _normalizeVknSatir(String line) {
@@ -98,6 +131,10 @@ class FaturaMatbuConfig {
     if (t.isEmpty) return null;
     if (RegExp(r'^\(VKN\s*:', caseSensitive: false).hasMatch(t)) return t;
     if (RegExp(r'^VKN\s*:', caseSensitive: false).hasMatch(t)) return '($t)';
+    final digits = t.replaceAll(RegExp(r'\D'), '');
+    if (digits.length == 10 || digits.length == 11) {
+      return '(VKN:$digits)';
+    }
     return null;
   }
 

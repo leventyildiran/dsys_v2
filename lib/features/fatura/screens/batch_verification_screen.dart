@@ -680,12 +680,14 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                     invoice.firmaAdi,
                     (v) => provider.updateField(index, 'firmaAdi', v),
                     cardIndex: index,
+                    rebuildKey: ValueKey('firma_${index}_ad_$dialogCounter'),
                   ),
                   _field(
                     'Adres',
                     invoice.adres,
                     (v) => provider.updateField(index, 'adres', v),
                     cardIndex: index,
+                    rebuildKey: ValueKey('firma_${index}_adr_$dialogCounter'),
                   ),
                   Row(
                     children: [
@@ -695,6 +697,9 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                           invoice.vergiDairesi,
                           (v) => provider.updateField(index, 'vergiDairesi', v),
                           cardIndex: index,
+                          rebuildKey: ValueKey(
+                            'firma_${index}_vd_$dialogCounter',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -704,6 +709,9 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                           invoice.vergiNo,
                           (v) => provider.updateField(index, 'vergiNo', v),
                           cardIndex: index,
+                          rebuildKey: ValueKey(
+                            'firma_${index}_vkn_$dialogCounter',
+                          ),
                         ),
                       ),
                     ],
@@ -765,7 +773,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
           rebuildKey: ValueKey('iban_${index}_$dialogCounter'),
         ),
         _field(
-          'Hesap Adı *',
+          'Hesap Adı (İşletme) *',
           invoice.hesapAdi ?? '',
           (v) => provider.updateField(index, 'hesapAdi', v),
           maxLines: 2,
@@ -940,7 +948,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                           index,
                           ki,
                           'fiyat',
-                          double.tryParse(v) ?? 0,
+                          provider.parseTurkceSayi(v, fallback: 0),
                         ),
                       ),
                     ),
@@ -981,6 +989,8 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
           const Text('KDV muaf', style: TextStyle(fontSize: 12)),
           const Spacer(),
           _totalChip('Matrah', TurkceFormat.para(invoice.matrah)),
+          const SizedBox(width: 8),
+          _totalChip('KDV', TurkceFormat.para(invoice.kdvTutari)),
           const SizedBox(width: 8),
           if (!invoice.isKdvMuaf)
             DropdownButton<double>(

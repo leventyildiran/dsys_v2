@@ -2,11 +2,39 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:google_generative_ai/google_generative_ai.dart';
-import '../models/sistem_ayarlari_model.dart';
 import 'sistem_ayarlari_service.dart';
 
 class AIExtractionService {
   final SistemAyarlariService _ayarlarService = SistemAyarlariService();
+  static const List<String> _geminiModelFallbacks = [
+    'gemini-2.5-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+  ];
+
+  Future<String?> _runGeminiWithFallback({
+    required String apiKey,
+    required List<Part> parts,
+  }) async {
+    Object? sonHata;
+    for (final modelName in _geminiModelFallbacks) {
+      try {
+        print('Gemini API ($modelName) ile ayrıştırma deneniyor...');
+        final model = GenerativeModel(model: modelName, apiKey: apiKey);
+        final response = await model.generateContent([Content.multi(parts)]);
+        final text = response.text?.trim() ?? '';
+        if (text.isNotEmpty) return text;
+      } catch (e) {
+        sonHata = e;
+        print('$modelName hatası: $e');
+      }
+      await Future.delayed(const Duration(milliseconds: 800));
+    }
+    if (sonHata != null) {
+      throw Exception(sonHata.toString());
+    }
+    return null;
+  }
 
   Future<List<Map<String, dynamic>>> extractBatchData(
     String rawBatchText, {
@@ -19,67 +47,38 @@ class AIExtractionService {
 
     // 1. GEMINI DENEMESİ (Farklı Modellerle Auto-Healing)
     if (ayarlar.geminiApiKey.isNotEmpty) {
-      // Uzun süre desteklenecek (LTS) güncel ve stabil modeller
-      final denemeModelleri = [
-        'gemini-3.5-flash',
-        'gemini-3.0-flash',
-        'gemini-2.5-flash',
-        'gemini-1.5-flash',
-        'gemini-3.1-pro',
-        'gemini-1.5-pro',
-      ];
-      
-      int deneme = 0;
       Object? sonHata;
-      
-      while (deneme < denemeModelleri.length) {
-        final seciliModel = denemeModelleri[deneme];
-        try {
-          print('Gemini API ($seciliModel) ile ayrıştırma deneniyor... (Deneme: ${deneme + 1})');
-          final model = GenerativeModel(
-            model: seciliModel,
-            apiKey: ayarlar.geminiApiKey,
-          );
-          
-          final contentParts = <Part>[];
-          if (pdfBytes != null && pdfBytes.isNotEmpty) {
-            contentParts.add(DataPart('application/pdf', pdfBytes));
-          }
-          contentParts.add(TextPart(prompt));
 
-          final response = await model.generateContent([Content.multi(contentParts)]);
-          final text = response.text?.trim() ?? '';
-
-          final parsed = _parseJson(text);
-          if (parsed.isNotEmpty) {
-            for (var p in parsed) {
-              p['parsedBy'] = 'Tier 1 - $seciliModel (Başarılı)';
-            }
-            return parsed;
-          } else if (text.isNotEmpty) {
-            print('$seciliModel JSON formatı boş döndürdü, diğer modele geçiliyor...');
-            sonHata = 'Yapay zeka (Gemini) faturayı anlayamadı, JSON formatı hatalı.';
+      try {
+        final contentParts = <Part>[];
+        if (pdfBytes != null && pdfBytes.isNotEmpty) {
+          contentParts.add(DataPart('application/pdf', pdfBytes));
+        }
+        contentParts.add(TextPart(prompt));
+        final text = await _runGeminiWithFallback(
+          apiKey: ayarlar.geminiApiKey,
+          parts: contentParts,
+        );
+        final parsed = _parseJson(text ?? '');
+        if (parsed.isNotEmpty) {
+          for (var p in parsed) {
+            p['parsedBy'] = 'Tier 1 - Gemini Fallback (Başarılı)';
           }
-        } catch (e) {
-          print('$seciliModel hatası: $e');
-          sonHata = e;
+          return parsed;
         }
-        
-        deneme++;
-        if (deneme < denemeModelleri.length) {
-          // Çok kısa bir nefes alma payı
-          await Future.delayed(const Duration(seconds: 2));
-        }
+        sonHata = 'Yapay zeka (Gemini) faturayı anlayamadı, JSON formatı hatalı.';
+      } catch (e) {
+        sonHata = e;
       }
-      
-      print('Tüm Gemini modelleri (Flash ve Pro) başarısız oldu. DeepSeek/Offline yedeğe geçiliyor.');
-      if (sonHata != null && pdfBytes != null && pdfBytes.isNotEmpty) {
-        // Eğer görsel PDF ise (text boş, byte var), offline parser ÇALIŞAMAZ. 
+
+      print('Tüm Gemini modelleri başarısız oldu. DeepSeek/Offline yedeğe geçiliyor.');
+      if (pdfBytes != null && pdfBytes.isNotEmpty) {
+        // Eğer görsel PDF ise (text boş, byte var), offline parser ÇALIŞAMAZ.
         // O yüzden hatayı direkt ekrana fırlat ki kullanıcı bilsin.
         String hataMesaji = sonHata.toString();
         if (hataMesaji.contains('not found') || hataMesaji.contains('404')) {
           throw Exception(
-            'Google AI Studio API anahtarınız bu modele (Gemini 1.5) erişim sağlayamıyor. '
+            'Google AI Studio API anahtarınız bu modellerden hiçbirine erişemiyor. '
             'Lütfen https://aistudio.google.com adresine gidip yeni kullanıcı şartlarını kabul edin '
             'veya yeni bir API anahtarı (API Key) oluşturup ayarlara girin.'
           );
@@ -231,13 +230,11 @@ $excelCsvPreview
 
     if (ayarlar.geminiApiKey.isNotEmpty) {
       try {
-        final model = GenerativeModel(
-          model: 'gemini-1.5-flash',
+        final text = await _runGeminiWithFallback(
           apiKey: ayarlar.geminiApiKey,
+          parts: [TextPart(prompt)],
         );
-        final response = await model.generateContent([Content.text(prompt)]);
-        final text = response.text?.trim() ?? '';
-        final parsed = _parseJsonStrict(text);
+        final parsed = _parseJsonStrict(text ?? '');
         if (parsed is Map<String, dynamic>) return parsed;
       } catch (e) {
         print('Mapping hatası: $e');
@@ -250,12 +247,14 @@ $excelCsvPreview
 
   dynamic _parseJsonStrict(String text) {
     String cleanText = text.trim();
-    if (cleanText.startsWith('```json'))
+    if (cleanText.startsWith('```json')) {
       cleanText = cleanText.substring(7);
-    else if (cleanText.startsWith('```'))
+    } else if (cleanText.startsWith('```')) {
       cleanText = cleanText.substring(3);
-    if (cleanText.endsWith('```'))
+    }
+    if (cleanText.endsWith('```')) {
       cleanText = cleanText.substring(0, cleanText.length - 3);
+    }
     cleanText = cleanText.trim();
     try {
       return jsonDecode(cleanText);
@@ -307,14 +306,11 @@ $excelCsvPreview
     // GEMINI DENEMESİ
     if (ayarlar.geminiApiKey.isNotEmpty) {
       try {
-        final model = GenerativeModel(
-          model: 'gemini-1.5-flash',
+        final text = await _runGeminiWithFallback(
           apiKey: ayarlar.geminiApiKey,
+          parts: [TextPart(prompt)],
         );
-        final response = await model.generateContent([Content.text(prompt)]);
-        final text = response.text?.trim() ?? '';
-
-        final parsed = _parseJson(text);
+        final parsed = _parseJson(text ?? '');
         if (parsed.isNotEmpty) {
           return parsed;
         }

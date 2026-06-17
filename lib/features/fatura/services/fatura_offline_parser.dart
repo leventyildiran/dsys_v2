@@ -377,7 +377,10 @@ class FaturaOfflineParser {
       genelToplam: matrah + kdvTutari,
       iban: iban,
       hesapAdi: hesapAdi != null
-          ? FaturaMatbuConfig.formatHesapAdiMatbu(hesapAdi)
+          ? FaturaMatbuConfig.formatHesapAdiMatbu(
+              hesapAdi,
+              fallbackVkn: FaturaMatbuConfig.varsayilanIsletmeVkn,
+            )
           : null,
       parsedBy: kaynakEtiketi,
       kursAdi: kursAdi,

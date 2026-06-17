@@ -328,6 +328,24 @@ class BatchFaturaProvider extends ChangeNotifier {
     _scheduleKuyrukKaydet();
   }
 
+  double parseTurkceSayi(dynamic value, {double fallback = 0.0}) {
+    if (value == null) return fallback;
+    if (value is num) return value.toDouble();
+
+    var text = value.toString().trim();
+    if (text.isEmpty) return fallback;
+    text = text.replaceAll(' ', '');
+
+    if (text.contains(',') && text.contains('.')) {
+      text = text.replaceAll('.', '').replaceAll(',', '.');
+    } else if (text.contains(',')) {
+      text = text.replaceAll(',', '.');
+    }
+
+    text = text.replaceAll(RegExp(r'[^0-9\.\-]'), '');
+    return double.tryParse(text) ?? fallback;
+  }
+
   int? consumeGeriYuklemeBildirimi() {
     final n = geriYuklenenKuyrukSayisi;
     geriYuklenenKuyrukSayisi = null;
@@ -343,6 +361,7 @@ class BatchFaturaProvider extends ChangeNotifier {
     if (index < 0 || index >= pendingInvoices.length) return;
     seciliBirimByFaturaId[pendingInvoices[index].id] = birimId;
     applyBirimToInvoice(index, birimId);
+    notifyDialogReturn();
   }
 
   Future<void> kuyruguTemizle() async {
@@ -483,14 +502,25 @@ class BatchFaturaProvider extends ChangeNotifier {
     return null;
   }
 
+  String _isletmeVknFallback() {
+    final vkn = sistemAyarlari?.isletmeVkn.trim() ?? '';
+    return vkn.isNotEmpty ? vkn : FaturaMatbuConfig.varsayilanIsletmeVkn;
+  }
+
+  String? _formatHesapAdi(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    return FaturaMatbuConfig.formatHesapAdiMatbu(
+      raw,
+      fallbackVkn: _isletmeVknFallback(),
+    );
+  }
+
   void applyBirimToInvoice(int invoiceIndex, String birimIdOrAd) {
     final birim = findBirim(birimIdOrAd);
     if (birim == null) return;
     final invoice = pendingInvoices[invoiceIndex];
     invoice.iban = birim.iban;
-    invoice.hesapAdi = birim.hesapAdi != null
-        ? FaturaMatbuConfig.formatHesapAdiMatbu(birim.hesapAdi!)
-        : null;
+    invoice.hesapAdi = _formatHesapAdi(birim.hesapAdi);
     final birimEtiket = birim.kisaAd.isNotEmpty ? birim.kisaAd : birim.ad;
     for (var i = 0; i < invoice.kalemler.length; i++) {
       invoice.kalemler[i] = {...invoice.kalemler[i], 'birimAdi': birimEtiket};
@@ -523,7 +553,7 @@ class BatchFaturaProvider extends ChangeNotifier {
       invoice.iban = birim.iban;
     }
     if (birim.hesapAdi != null && birim.hesapAdi!.isNotEmpty) {
-      invoice.hesapAdi = FaturaMatbuConfig.formatHesapAdiMatbu(birim.hesapAdi!);
+      invoice.hesapAdi = _formatHesapAdi(birim.hesapAdi);
     }
   }
 
@@ -716,12 +746,7 @@ class BatchFaturaProvider extends ChangeNotifier {
           tc = cells[tcIdx].trim();
         }
         if (matrahIdx != null && matrahIdx >= 0 && matrahIdx < cells.length) {
-          matrah = double.tryParse(
-                cells[matrahIdx]
-                    .replaceAll(RegExp(r'[^0-9,\.]'), '')
-                    .replaceAll(',', '.'),
-              ) ??
-              0.0;
+          matrah = parseTurkceSayi(cells[matrahIdx], fallback: 0.0);
         }
 
         if (firma.isNotEmpty && matrah > 0) {
@@ -766,8 +791,8 @@ class BatchFaturaProvider extends ChangeNotifier {
   void _recalculateTotals(FaturaModel invoice) {
     double matrah = 0;
     for (var kalem in invoice.kalemler) {
-      final miktar = double.tryParse(kalem['miktar'].toString()) ?? 0.0;
-      final fiyat = double.tryParse(kalem['fiyat'].toString()) ?? 0.0;
+      final miktar = parseTurkceSayi(kalem['miktar'], fallback: 0.0);
+      final fiyat = parseTurkceSayi(kalem['fiyat'], fallback: 0.0);
       matrah += miktar * fiyat;
     }
     invoice.matrah = matrah;
@@ -891,8 +916,10 @@ class BatchFaturaProvider extends ChangeNotifier {
       case 'numuneAciklamasi':
         currentInvoice.numuneAciklamasi = value.toString();
       case 'matrah':
-        currentInvoice.matrah =
-            double.tryParse(value.toString()) ?? currentInvoice.matrah;
+        currentInvoice.matrah = parseTurkceSayi(
+          value,
+          fallback: currentInvoice.matrah,
+        );
         if (!currentInvoice.isKdvMuaf) {
           currentInvoice.kdvTutari =
               currentInvoice.matrah * (currentInvoice.kdvOrani / 100.0);
@@ -903,17 +930,23 @@ class BatchFaturaProvider extends ChangeNotifier {
           currentInvoice.genelToplam = currentInvoice.matrah;
         }
       case 'kdvOrani':
-        currentInvoice.kdvOrani =
-            double.tryParse(value.toString()) ?? currentInvoice.kdvOrani;
+        currentInvoice.kdvOrani = parseTurkceSayi(
+          value,
+          fallback: currentInvoice.kdvOrani,
+        );
         _recalculateTotals(currentInvoice);
       case 'kdvTutari':
         if (!currentInvoice.isKdvMuaf) {
-          currentInvoice.kdvTutari =
-              double.tryParse(value.toString()) ?? currentInvoice.kdvTutari;
+          currentInvoice.kdvTutari = parseTurkceSayi(
+            value,
+            fallback: currentInvoice.kdvTutari,
+          );
         }
       case 'genelToplam':
-        currentInvoice.genelToplam =
-            double.tryParse(value.toString()) ?? currentInvoice.genelToplam;
+        currentInvoice.genelToplam = parseTurkceSayi(
+          value,
+          fallback: currentInvoice.genelToplam,
+        );
       case 'iban':
         currentInvoice.iban = value?.toString();
       case 'hesapAdi':
@@ -1269,8 +1302,10 @@ class BatchFaturaProvider extends ChangeNotifier {
                 final hesapAdiHam = (invoice.hesapAdi?.trim().isNotEmpty == true)
                     ? invoice.hesapAdi!
                     : (sistemAyarlari?.hesapAdi ?? '');
-                final hesapAdi =
-                    FaturaMatbuConfig.formatHesapAdiMatbu(hesapAdiHam);
+                final hesapAdi = FaturaMatbuConfig.formatHesapAdiMatbu(
+                  hesapAdiHam,
+                  fallbackVkn: _isletmeVknFallback(),
+                );
                 if (hesapAdi.isNotEmpty) {
                   children.add(
                     pw.Positioned(

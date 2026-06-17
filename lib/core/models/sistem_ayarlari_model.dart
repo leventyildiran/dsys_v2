@@ -22,6 +22,8 @@ class YkUyeModel {
 class SistemAyarlariModel {
   final String hesapAdi;
   final String iban;
+  /// Döner sermaye işletme VKN — fatura hesap adı alt satırı için.
+  final String isletmeVkn;
   final String geminiApiKey;
   final String deepseekApiUrl;
   final String deepseekApiKey;
@@ -31,6 +33,7 @@ class SistemAyarlariModel {
   SistemAyarlariModel({
     required this.hesapAdi,
     required this.iban,
+    this.isletmeVkn = '',
     required this.geminiApiKey,
     required this.deepseekApiUrl,
     required this.deepseekApiKey,
@@ -42,6 +45,7 @@ class SistemAyarlariModel {
     return SistemAyarlariModel(
       hesapAdi: json['hesapAdi'] ?? '',
       iban: json['iban'] ?? '',
+      isletmeVkn: json['isletmeVkn']?.toString() ?? '',
       geminiApiKey: json['geminiApiKey'] ?? '',
       deepseekApiUrl: json['deepseekApiUrl'] ?? '',
       deepseekApiKey: json['deepseekApiKey'] ?? '',
@@ -57,6 +61,7 @@ class SistemAyarlariModel {
     return {
       'hesapAdi': hesapAdi,
       'iban': iban,
+      'isletmeVkn': isletmeVkn,
       'geminiApiKey': geminiApiKey,
       'deepseekApiUrl': deepseekApiUrl,
       'deepseekApiKey': deepseekApiKey,
@@ -69,6 +74,7 @@ class SistemAyarlariModel {
     return SistemAyarlariModel(
       hesapAdi: '',
       iban: '',
+      isletmeVkn: '',
       geminiApiKey: '',
       deepseekApiUrl: '',
       deepseekApiKey: '',
