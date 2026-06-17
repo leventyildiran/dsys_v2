@@ -36,6 +36,8 @@ class FaturaModel {
   String irsaliyeNo;
   String melbesNo;
   String numuneNo;
+  /// Matbu MELBES satırı ön eki (ör. bakanlık/kurum adı). Manuel düzenlenebilir.
+  String melbesKurumOnEki;
   String numuneAciklamasi;
   List<Map<String, dynamic>> kalemler;
   bool isKdvMuaf;
@@ -69,6 +71,7 @@ class FaturaModel {
     required this.irsaliyeNo,
     required this.melbesNo,
     required this.numuneNo,
+    this.melbesKurumOnEki = '',
     required this.numuneAciklamasi,
     required this.kalemler,
     required this.isKdvMuaf,
@@ -122,6 +125,7 @@ class FaturaModel {
       'irsaliyeNo': irsaliyeNo,
       'melbesNo': melbesNo,
       'numuneNo': numuneNo,
+      'melbesKurumOnEki': melbesKurumOnEki,
       'numuneAciklamasi': numuneAciklamasi,
       'kalemler': kalemler,
       'isKdvMuaf': isKdvMuaf,
@@ -179,6 +183,7 @@ class FaturaModel {
       irsaliyeNo: json['irsaliyeNo']?.toString() ?? '',
       melbesNo: json['melbesNo']?.toString() ?? '',
       numuneNo: json['numuneNo']?.toString() ?? '',
+      melbesKurumOnEki: json['melbesKurumOnEki']?.toString() ?? '',
       numuneAciklamasi: json['numuneAciklamasi']?.toString() ?? '',
       matrah: (json['matrah'] as num?)?.toDouble() ?? 0.0,
       kdvTutari: (json['kdvTutari'] as num?)?.toDouble() ?? 0.0,
@@ -213,6 +218,7 @@ class FaturaModel {
       irsaliyeNo: '',
       melbesNo: '',
       numuneNo: '',
+      melbesKurumOnEki: '',
       numuneAciklamasi: '',
       matrah: 0,
       kdvTutari: 0,

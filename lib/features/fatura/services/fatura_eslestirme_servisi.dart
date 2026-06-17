@@ -130,6 +130,7 @@ class FaturaEslestirmeServisi {
       tarih: parsedFatura?.tarih ?? sablon.tarih, // Yeni tarih
       irsaliyeNo: parsedFatura?.irsaliyeNo ?? '', // Yeni metinden
       melbesNo: parsedFatura?.melbesNo ?? '', // Yeni metinden
+      melbesKurumOnEki: parsedFatura?.melbesKurumOnEki ?? '',
       numuneNo: parsedFatura?.numuneNo ?? '', // Yeni metinden
       numuneAciklamasi: parsedFatura?.numuneAciklamasi ?? '',
       iban: sablon.iban,

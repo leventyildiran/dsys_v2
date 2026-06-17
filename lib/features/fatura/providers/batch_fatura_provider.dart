@@ -514,6 +514,12 @@ class BatchFaturaProvider extends ChangeNotifier {
     final invoice = pendingInvoices[invoiceIndex];
     invoice.iban = birim.iban;
     invoice.hesapAdi = _formatHesapAdi(birim.hesapAdi);
+    final ad = birim.ad.toLowerCase();
+    final kisaAd = birim.kisaAd.toLowerCase();
+    if ((ad.contains('ubatam') || kisaAd == 'ubatam') &&
+        invoice.melbesKurumOnEki.trim().isEmpty) {
+      invoice.melbesKurumOnEki = FaturaMatbuConfig.varsayilanMelbesKurumOnEki;
+    }
     final birimEtiket = birim.kisaAd.isNotEmpty ? birim.kisaAd : birim.ad;
     for (var i = 0; i < invoice.kalemler.length; i++) {
       invoice.kalemler[i] = {...invoice.kalemler[i], 'birimAdi': birimEtiket};
@@ -904,6 +910,8 @@ class BatchFaturaProvider extends ChangeNotifier {
         currentInvoice.irsaliyeNo = value.toString();
       case 'melbesNo':
         currentInvoice.melbesNo = value.toString();
+      case 'melbesKurumOnEki':
+        currentInvoice.melbesKurumOnEki = value.toString();
       case 'numuneNo':
         currentInvoice.numuneNo = value.toString();
       case 'numuneAciklamasi':
@@ -978,8 +986,9 @@ class BatchFaturaProvider extends ChangeNotifier {
       vergiNo: FaturaMatbuConfig.ornekMetinler['vkn']!,
       tarih: FaturaMatbuConfig.ornekMetinler['tarih']!,
       irsaliyeNo: FaturaMatbuConfig.ornekMetinler['irsaliyeNo']!,
-      melbesNo: FaturaMatbuConfig.ornekMetinler['melbes']!,
-      numuneNo: FaturaMatbuConfig.ornekMetinler['numuneNo']!,
+      melbesNo: 'MEL-2026-0042',
+      melbesKurumOnEki: FaturaMatbuConfig.varsayilanMelbesKurumOnEki,
+      numuneNo: 'N-1087',
       numuneAciklamasi: FaturaMatbuConfig.ornekMetinler['numuneAciklama']!,
       kalemler: [
         {
@@ -1241,6 +1250,7 @@ class BatchFaturaProvider extends ChangeNotifier {
                 }
                 final melbes = invoice.melbesNo.trim();
                 final numune = invoice.numuneNo.trim();
+                final kurumOnEki = invoice.melbesKurumOnEki.trim();
                 if (melbes.isNotEmpty || numune.isNotEmpty) {
                   if (melbes.isNotEmpty && numune.isNotEmpty) {
                     children.add(
@@ -1253,6 +1263,9 @@ class BatchFaturaProvider extends ChangeNotifier {
                             FaturaMatbuConfig.formatMelbesNumuneSatir(
                               melbes: melbes,
                               numune: numune,
+                              kurumOnEki: kurumOnEki.isNotEmpty
+                                  ? kurumOnEki
+                                  : null,
                             ),
                             style: metin(),
                           ),
@@ -1266,7 +1279,11 @@ class BatchFaturaProvider extends ChangeNotifier {
                           top: _konum('melbes').dy,
                           left: _konum('melbes').dx,
                           child: pw.Text(
-                            FaturaMatbuConfig.formatMelbesMatbu(melbes),
+                            FaturaMatbuConfig.formatMelbesMatbu(
+                              melbes,
+                              kurumOnEki:
+                                  kurumOnEki.isNotEmpty ? kurumOnEki : null,
+                            ),
                             style: metin(),
                           ),
                         ),

@@ -138,14 +138,18 @@ class FaturaMatbuConfig {
     return null;
   }
 
-  static const String _melbesBakanlikOnEki =
+  static const String varsayilanMelbesKurumOnEki =
       'Çevre Şehircilik ve İklim Değişikliği Bakanlığı';
 
   /// Matbu faturada MELBES alanı — yalnızca numara girilmişse etiket eklenir.
-  static String formatMelbesMatbu(String raw) {
+  static String formatMelbesMatbu(String raw, {String? kurumOnEki}) {
     final t = raw.trim();
     if (t.isEmpty) return '';
     if (RegExp(r'melbes', caseSensitive: false).hasMatch(t)) return t;
+    final kurum = kurumOnEki?.trim() ?? '';
+    if (kurum.isNotEmpty) {
+      return '$kurum Melbes Başvuru No: $t';
+    }
     return 'Melbes Başvuru No: $t';
   }
 
@@ -157,14 +161,17 @@ class FaturaMatbuConfig {
     return 'Numune No: $t';
   }
 
-  /// UBATAM matbu: tek satırda bakanlık + MELBES + Numune No (fotoğraftaki biçim).
+  /// Matbu: tek satırda kurum + MELBES + Numune No.
   static String formatMelbesNumuneSatir({
     required String melbes,
     required String numune,
+    String? kurumOnEki,
   }) {
     final m = melbes.trim();
     final n = numune.trim();
     if (m.isEmpty && n.isEmpty) return '';
+
+    final kurum = kurumOnEki?.trim() ?? '';
 
     if (m.isNotEmpty && n.isNotEmpty) {
       if (m.toLowerCase().contains('melbes') && n.toLowerCase().contains('numune')) {
@@ -172,14 +179,14 @@ class FaturaMatbuConfig {
       }
       final melbesKisim = m.toLowerCase().contains('melbes')
           ? m
-          : '$_melbesBakanlikOnEki Melbes Başvuru No: $m';
+          : formatMelbesMatbu(m, kurumOnEki: kurum);
       final numuneKisim =
           n.toLowerCase().contains('numune') ? n : 'Numune No: $n';
       if (melbesKisim.toLowerCase().contains('numune')) return melbesKisim;
       return '$melbesKisim $numuneKisim';
     }
 
-    if (m.isNotEmpty) return formatMelbesMatbu(m);
+    if (m.isNotEmpty) return formatMelbesMatbu(m, kurumOnEki: kurum);
     return formatNumuneNoMatbu(n);
   }
 

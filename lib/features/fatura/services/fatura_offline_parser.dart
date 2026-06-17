@@ -351,6 +351,7 @@ class FaturaOfflineParser {
 
     final melbes = _melbesRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
     final numune = _numuneRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
+    final melbesKurumOnEki = _melbesKurumOnEkiFromText(fullText);
     final yaziyla = _yaziylaRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
     final aciklama = _numuneAciklama(fullText);
 
@@ -368,6 +369,7 @@ class FaturaOfflineParser {
       irsaliyeNo: '',
       melbesNo: melbes,
       numuneNo: numune,
+      melbesKurumOnEki: melbesKurumOnEki,
       numuneAciklamasi: aciklama.isNotEmpty ? aciklama : yaziyla,
       kalemler: kalemler,
       isKdvMuaf: muaf,
@@ -387,6 +389,30 @@ class FaturaOfflineParser {
       kurNo: kurNoStr != null ? int.tryParse(kurNoStr) : null,
       donem: donem,
     );
+  }
+
+  /// MELBES satırında "Melbes Başvuru" öncesindeki kurum/bakanlık adını ayıklar.
+  static String _melbesKurumOnEkiFromText(String fullText) {
+    for (final line in fullText.split('\n')) {
+      final l = line.trim();
+      if (!RegExp(r'melbes', caseSensitive: false).hasMatch(l)) continue;
+
+      final basvuruMatch = RegExp(
+        r'^(.*?)\s*melbes\s*ba[şs]vuru',
+        caseSensitive: false,
+      ).firstMatch(l);
+      if (basvuruMatch != null) {
+        final kurum = basvuruMatch.group(1)!.trim();
+        if (kurum.isNotEmpty) return kurum;
+      }
+
+      final melbesMatch = RegExp(r'melbes', caseSensitive: false).firstMatch(l);
+      if (melbesMatch != null && melbesMatch.start > 0) {
+        final kurum = l.substring(0, melbesMatch.start).trim();
+        if (kurum.isNotEmpty) return kurum;
+      }
+    }
+    return '';
   }
 
   static (String?, String?) _extractIbanHesap(

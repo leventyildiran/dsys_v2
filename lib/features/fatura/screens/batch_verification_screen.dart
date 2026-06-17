@@ -742,6 +742,13 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
           ],
         ),
         const SizedBox(height: 8),
+        _field(
+          'Kurum / Bakanlık (MELBES satırı)',
+          invoice.melbesKurumOnEki,
+          (v) => provider.updateField(index, 'melbesKurumOnEki', v),
+          cardIndex: index,
+          hintText: 'Örn: Çevre Şehircilik ve İklim Değişikliği Bakanlığı',
+        ),
         Row(
           children: [
             Expanded(
@@ -808,6 +815,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
     int maxLines = 1,
     Key? rebuildKey,
     int cardIndex = 0,
+    String? hintText,
   }) {
     final empty = value.trim().isEmpty;
     final required = label.contains('*');
@@ -825,6 +833,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
         decoration: InputDecoration(
           labelText: label.replaceAll(' *', ''),
+          hintText: hintText,
           isDense: true,
           filled: true,
           fillColor: warn
