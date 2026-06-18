@@ -68,7 +68,7 @@ class FaturaArsivExportServisi {
       );
     }
 
-    final zipBytes = ZipEncoder().encode(archive)!;
+    final zipBytes = ZipEncoder().encode(archive);
     await _kaydet(
       'fatura_arsiv_yedek_${DateTime.now().year}.zip',
       Uint8List.fromList(zipBytes),

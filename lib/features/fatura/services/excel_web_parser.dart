@@ -2,8 +2,6 @@
 library excel_web_parser;
 
 import 'dart:js_interop';
-import 'dart:typed_data';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 @JS('XLSX.read')
@@ -11,9 +9,6 @@ external JSAny _readXlsx(JSAny data, JSAny options);
 
 @JS('XLSX.utils.sheet_to_json')
 external JSArray _sheetToJson(JSAny worksheet, JSAny options);
-
-@JS('Object.keys')
-external JSArray _objectKeys(JSAny obj);
 
 extension type WorkBook._(JSObject _) implements JSObject {
   external JSArray get SheetNames;

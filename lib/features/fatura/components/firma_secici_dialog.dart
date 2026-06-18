@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../core/models/firma_model.dart';
 import '../../../core/services/firma_service.dart';
@@ -39,33 +38,6 @@ class _FirmaSeciciDialogState extends State<FirmaSeciciDialog> {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
-      }
-    }
-  }
-
-  Future<void> _migrateFirmalarFromJson() async {
-    try {
-      final String response = await DefaultAssetBundle.of(context).loadString('assets/data/firmalar.json');
-      final List<dynamic> data = json.decode(response);
-      int count = 0;
-      for (var item in data) {
-        final firma = FirmaModel(
-          id: '',
-          firmaAdi: item['firmaAdi'] ?? '',
-          adres: item['adres'] ?? '',
-          vergiDairesi: item['vergiDairesi'] ?? '',
-          vergiNo: item['vergiNo'] ?? '',
-        );
-        await _firmaService.addFirma(firma);
-        count++;
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$count adet firma başarıyla aktarıldı!')));
-        _loadFirmalar();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Aktarım Hatası: $e')));
       }
     }
   }
