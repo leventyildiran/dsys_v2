@@ -1,0 +1,119 @@
+import 'package:flutter/material.dart';
+import 'fatura_matbu_config.dart';
+
+/// Matbu A4 kalibrasyon ayarları — Firestore + yerel yedek.
+class FaturaMatbuKalibrasyon {
+  FaturaMatbuKalibrasyon({
+    required this.surum,
+    required this.koordinatlar,
+    required this.kalemSatirAraligi,
+    required this.fontBoyutu,
+    required this.globalOffsetDx,
+    required this.globalOffsetDy,
+    required this.matbuBaskiModu,
+  });
+
+  /// Şema değişince artırılır; eski kayıtlar varsayılanlarla birleştirilir.
+  static const int guncelSurum = 4;
+
+  /// PDF'te basılmayan; kalibrasyon listesinde gösterilmez.
+  static const gizliAlanlar = {'numuneNo'};
+
+  final int surum;
+  final Map<String, Offset> koordinatlar;
+  final double kalemSatirAraligi;
+  final double fontBoyutu;
+  final double globalOffsetDx;
+  final double globalOffsetDy;
+  final bool matbuBaskiModu;
+
+  factory FaturaMatbuKalibrasyon.varsayilan() {
+    return FaturaMatbuKalibrasyon(
+      surum: guncelSurum,
+      koordinatlar: FaturaMatbuConfig.varsayilanKoordinatlar(),
+      kalemSatirAraligi: FaturaMatbuConfig.varsayilanKalemSatirAraligi,
+      fontBoyutu: FaturaMatbuConfig.varsayilanFontBoyutu,
+      globalOffsetDx: 0,
+      globalOffsetDy: 0,
+      matbuBaskiModu: true,
+    );
+  }
+
+  factory FaturaMatbuKalibrasyon.fromMap(Map<String, dynamic> map) {
+    final varsayilan = FaturaMatbuKalibrasyon.varsayilan();
+    final hamKoord = map['koordinatlar'] as Map<String, dynamic>? ?? {};
+    final koordinatlar = Map<String, Offset>.from(varsayilan.koordinatlar);
+
+    for (final entry in hamKoord.entries) {
+      final v = entry.value;
+      if (v is Map) {
+        final dx = (v['dx'] as num?)?.toDouble();
+        final dy = (v['dy'] as num?)?.toDouble();
+        if (dx != null && dy != null) {
+          koordinatlar[entry.key] = Offset(dx, dy);
+        }
+      }
+    }
+
+    return FaturaMatbuKalibrasyon(
+      surum: (map['surum'] as num?)?.toInt() ?? 0,
+      koordinatlar: koordinatlar,
+      kalemSatirAraligi:
+          (map['kalemSatirAraligi'] as num?)?.toDouble() ??
+          varsayilan.kalemSatirAraligi,
+      fontBoyutu:
+          (map['fontBoyutu'] as num?)?.toDouble() ?? varsayilan.fontBoyutu,
+      globalOffsetDx:
+          (map['globalOffsetDx'] as num?)?.toDouble() ?? 0,
+      globalOffsetDy:
+          (map['globalOffsetDy'] as num?)?.toDouble() ?? 0,
+      matbuBaskiModu: map['matbuBaskiModu'] as bool? ?? true,
+    );
+  }
+
+  /// Eski şema kayıtlarını güncel varsayılanlarla birleştirir.
+  FaturaMatbuKalibrasyon normalize() {
+    final varsayilan = FaturaMatbuKalibrasyon.varsayilan();
+    final birlesik = Map<String, Offset>.from(varsayilan.koordinatlar);
+
+    for (final entry in koordinatlar.entries) {
+      if (gizliAlanlar.contains(entry.key)) continue;
+      birlesik[entry.key] = entry.value;
+    }
+
+    if (surum < guncelSurum) {
+      // Yeni eklenen veya yeniden konumlanan üst-sağ alanlar varsayılanla güncellenir.
+      for (final key in ['tarih', 'irsaliyeTarihi', 'irsaliyeNo']) {
+        birlesik[key] = varsayilan.koordinatlar[key]!;
+      }
+    }
+
+    return FaturaMatbuKalibrasyon(
+      surum: guncelSurum,
+      koordinatlar: birlesik,
+      kalemSatirAraligi: kalemSatirAraligi,
+      fontBoyutu: fontBoyutu,
+      globalOffsetDx: globalOffsetDx,
+      globalOffsetDy: globalOffsetDy,
+      matbuBaskiModu: matbuBaskiModu,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'surum': guncelSurum,
+      'kalemSatirAraligi': kalemSatirAraligi,
+      'fontBoyutu': fontBoyutu,
+      'globalOffsetDx': globalOffsetDx,
+      'globalOffsetDy': globalOffsetDy,
+      'matbuBaskiModu': matbuBaskiModu,
+      'koordinatlar': {
+        for (final e in koordinatlar.entries)
+          if (!gizliAlanlar.contains(e.key))
+            e.key: {'dx': e.value.dx, 'dy': e.value.dy},
+      },
+    };
+  }
+
+  bool kalibrasyondaGoster(String alan) => !gizliAlanlar.contains(alan);
+}

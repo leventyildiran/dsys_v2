@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/turkce_format.dart';
 
 /// Matbu A4 fatura alan etiketleri ve varsayılan koordinatları.
 class FaturaMatbuConfig {
@@ -62,6 +63,48 @@ class FaturaMatbuConfig {
     'hesapAdi': 'Ankara Üniversitesi UBATAM\n(VKN:1234567890)',
     'iban': 'TR00 0000 0000 0000 0000 0000 00',
   };
+
+  /// Kalibrasyon önizlemesi ile PDF baskısında aynı metin biçimi.
+  static Map<String, String> ornekBaskiMetinleri({String? isletmeVkn}) {
+    const matrah = 1500.0;
+    const kdv = 300.0;
+    const genel = 1800.0;
+    final melbesSatir = formatMelbesNumuneSatir(
+      melbes: 'MEL-2026-0042',
+      numune: 'N-1087',
+      kurumOnEki: varsayilanMelbesKurumOnEki,
+    );
+    final hesap = formatHesapAdiMatbu(
+      ornekMetinler['hesapAdi']!,
+      fallbackVkn: isletmeVkn ?? varsayilanIsletmeVkn,
+    );
+
+    return {
+      'firmaAdi': ornekMetinler['firmaAdi']!,
+      'adres': ornekMetinler['adres']!,
+      'vergiDairesi': ornekMetinler['vergiDairesi']!,
+      'vkn': ornekMetinler['vkn']!,
+      'tarih': ornekMetinler['tarih']!,
+      'irsaliyeTarihi': ornekMetinler['irsaliyeTarihi']!,
+      'irsaliyeNo': ornekMetinler['irsaliyeNo']!,
+      'cinsi': ornekMetinler['cinsi']!,
+      'miktar': ornekMetinler['miktar']!,
+      'fiyat': TurkceFormat.para(1500),
+      'tutar': TurkceFormat.para(1500),
+      'nakliYekunUstYazi': ornekMetinler['nakliYekunUstYazi']!,
+      'nakliYekunUstTutar': TurkceFormat.para(750),
+      'nakliYekunAltYazi': ornekMetinler['nakliYekunAltYazi']!,
+      'nakliYekunAltTutar': TurkceFormat.para(750),
+      'numuneAciklama': ornekMetinler['numuneAciklama']!,
+      'melbes': melbesSatir,
+      'matrah': TurkceFormat.para(matrah),
+      'kdv': TurkceFormat.para(kdv),
+      'genelToplam': TurkceFormat.para(genel),
+      'yaziylaTutar': ornekMetinler['yaziylaTutar']!,
+      'hesapAdi': hesap,
+      'iban': ornekMetinler['iban']!,
+    };
+  }
 
   /// Uşak Üniversitesi Döner Sermaye işletme VKN (birim hesap adında yoksa kullanılır).
   static const String varsayilanIsletmeVkn = '2931062663';

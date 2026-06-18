@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/fatura_matbu_config.dart';
+import '../models/fatura_matbu_kalibrasyon.dart';
 import '../providers/batch_fatura_provider.dart';
 
 class FaturaCalibrationDialog extends StatefulWidget {
@@ -17,6 +18,7 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
 
   Iterable<MapEntry<String, Offset>> _gorunurAlanlar(BatchFaturaProvider p) {
     return p.coordinates.entries.where((e) {
+      if (FaturaMatbuKalibrasyon.gizliAlanlar.contains(e.key)) return false;
       if (!p.isNakliYekunAktif && e.key.startsWith('nakliYekun')) return false;
       return true;
     });
@@ -324,6 +326,7 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
 
   Widget _buildCanvas() {
     final provider = context.read<BatchFaturaProvider>();
+    final ornekMetinler = provider.ornekBaskiMetinleri();
     final data = _CanvasData(
       coordinates: Map.from(provider.coordinates),
       globalDx: provider.globalOffsetDx,
@@ -368,6 +371,9 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
                     ),
                   ),
                   ...data.coordinates.entries.where((entry) {
+                    if (FaturaMatbuKalibrasyon.gizliAlanlar.contains(entry.key)) {
+                      return false;
+                    }
                     if (!data.nakliAktif && entry.key.startsWith('nakliYekun')) {
                       return false;
                     }
@@ -380,7 +386,7 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
                     final etiket =
                         FaturaMatbuConfig.alanEtiketleri[entry.key] ?? entry.key;
                     final metin = _ornekMetinGoster
-                        ? (FaturaMatbuConfig.ornekMetinler[entry.key] ?? etiket)
+                        ? (ornekMetinler[entry.key] ?? etiket)
                         : etiket;
                     final secili = _seciliAlan == entry.key;
 
@@ -397,7 +403,7 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
                           });
                         },
                         onPanUpdate: (details) {
-                          provider.updateCoordinateDelta(
+                          provider.calibrationDragDelta(
                             entry.key,
                             details.delta,
                             notify: false,

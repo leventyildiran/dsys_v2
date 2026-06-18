@@ -15,6 +15,8 @@ import '../../birim/services/birim_service.dart';
 import '../../../core/models/hizmet_model.dart';
 import '../../../core/services/hizmet_service.dart';
 import '../models/fatura_matbu_config.dart';
+import '../models/fatura_matbu_kalibrasyon.dart';
+import '../services/fatura_matbu_kalibrasyon_servisi.dart';
 import '../models/fatura_arsiv_util.dart';
 import '../models/fatura_model.dart';
 import '../models/fatura_parse_kaynaklari.dart';
@@ -67,6 +69,8 @@ class BatchFaturaProvider extends ChangeNotifier {
   List<HizmetModel> _tumHizmetler = [];
   final AIExtractionService _aiService = AIExtractionService();
   final FaturaService _faturaService = FaturaService();
+  final FaturaMatbuKalibrasyonServisi _matbuKalibrasyonServisi =
+      FaturaMatbuKalibrasyonServisi();
   SistemAyarlariModel? sistemAyarlari;
 
   /// Geçici Firestore arşiv durumu.
@@ -121,20 +125,59 @@ class BatchFaturaProvider extends ChangeNotifier {
   }
 
   void nudgeCoordinate(String key, double dx, double dy) {
+    _kalemSenkronDelta(key, Offset(dx, dy));
+  }
+
+  /// Kalibrasyon sürükleme: kalem sütunları dikeyde birlikte hareket eder.
+  void calibrationDragDelta(String key, Offset delta, {bool notify = true}) {
+    _kalemSenkronDelta(key, delta, notify: notify);
+  }
+
+  void _kalemSenkronDelta(String key, Offset delta, {bool notify = true}) {
     const kalemKeys = {'cinsi', 'miktar', 'fiyat', 'tutar'};
     if (kalemKeys.contains(key)) {
-      if (dy != 0) {
+      if (delta.dy != 0) {
         for (final k in kalemKeys) {
-          updateCoordinateDelta(k, Offset(0, dy));
+          updateCoordinateDelta(k, Offset(0, delta.dy), notify: false);
         }
       }
-      if (dx != 0) {
-        updateCoordinateDelta(key, Offset(dx, 0));
+      if (delta.dx != 0) {
+        updateCoordinateDelta(key, Offset(delta.dx, 0), notify: false);
+      }
+      if (notify) {
+        notifyListeners();
+        _scheduleMatbuAyarKaydet();
       }
       return;
     }
-    updateCoordinateDelta(key, Offset(dx, dy));
+    updateCoordinateDelta(key, delta, notify: notify);
   }
+
+  FaturaMatbuKalibrasyon _mevcutKalibrasyon() {
+    return FaturaMatbuKalibrasyon(
+      surum: FaturaMatbuKalibrasyon.guncelSurum,
+      koordinatlar: Map<String, Offset>.from(coordinates),
+      kalemSatirAraligi: kalemSatirAraligi,
+      fontBoyutu: matbuFontBoyutu,
+      globalOffsetDx: globalOffsetDx,
+      globalOffsetDy: globalOffsetDy,
+      matbuBaskiModu: matbuBaskiModu,
+    );
+  }
+
+  void _kalibrasyonUygula(FaturaMatbuKalibrasyon ayar) {
+    coordinates = Map<String, Offset>.from(ayar.koordinatlar);
+    kalemSatirAraligi = ayar.kalemSatirAraligi;
+    matbuFontBoyutu = ayar.fontBoyutu;
+    globalOffsetDx = ayar.globalOffsetDx;
+    globalOffsetDy = ayar.globalOffsetDy;
+    matbuBaskiModu = ayar.matbuBaskiModu;
+  }
+
+  Map<String, String> ornekBaskiMetinleri() =>
+      FaturaMatbuConfig.ornekBaskiMetinleri(
+        isletmeVkn: _isletmeVknFallback(),
+      );
 
   void calibrationUiRefresh() {
     notifyListeners();
@@ -167,55 +210,34 @@ class BatchFaturaProvider extends ChangeNotifier {
   }
 
   Future<void> saveMatbuAyarlari() async {
-    final prefs = await SharedPreferences.getInstance();
-    for (final entry in coordinates.entries) {
-      await prefs.setDouble('${entry.key}_dx', entry.value.dx);
-      await prefs.setDouble('${entry.key}_dy', entry.value.dy);
+    final ayar = _mevcutKalibrasyon().normalize();
+    try {
+      await _matbuKalibrasyonServisi.kaydetFirestore(ayar);
+    } catch (e) {
+      debugPrint('Matbu kalibrasyon Firestore kaydı başarısız: $e');
     }
-    await prefs.setDouble('fatura_kalem_satir_araligi', kalemSatirAraligi);
-    await prefs.setDouble('fatura_matbu_font_boyutu', matbuFontBoyutu);
-    await prefs.setDouble('fatura_global_offset_dx', globalOffsetDx);
-    await prefs.setDouble('fatura_global_offset_dy', globalOffsetDy);
-    await prefs.setBool('fatura_matbu_baski_modu', matbuBaskiModu);
+    await _matbuKalibrasyonServisi.kaydetYerel(ayar);
   }
 
   Future<void> saveCoordinates() => saveMatbuAyarlari();
 
   Future<void> _loadMatbuAyarlari() async {
-    final prefs = await SharedPreferences.getInstance();
-    coordinates.forEach((key, value) {
-      final dx = prefs.getDouble('${key}_dx');
-      final dy = prefs.getDouble('${key}_dy');
-      if (dx != null && dy != null) {
-        coordinates[key] = Offset(dx, dy);
-      }
-    });
-    kalemSatirAraligi = prefs.getDouble('fatura_kalem_satir_araligi') ??
-        FaturaMatbuConfig.varsayilanKalemSatirAraligi;
-    matbuFontBoyutu = prefs.getDouble('fatura_matbu_font_boyutu') ??
-        FaturaMatbuConfig.varsayilanFontBoyutu;
-    globalOffsetDx = prefs.getDouble('fatura_global_offset_dx') ?? 0;
-    globalOffsetDy = prefs.getDouble('fatura_global_offset_dy') ?? 0;
-    matbuBaskiModu = prefs.getBool('fatura_matbu_baski_modu') ?? true;
+    FaturaMatbuKalibrasyon? ayar =
+        await _matbuKalibrasyonServisi.yukleFirestore();
+    ayar ??= await _matbuKalibrasyonServisi.yukleYerel();
+    _kalibrasyonUygula(ayar.normalize());
     notifyListeners();
   }
 
   Future<void> resetCoordinates() async {
-    final prefs = await SharedPreferences.getInstance();
-    for (final key in coordinates.keys) {
-      await prefs.remove('${key}_dx');
-      await prefs.remove('${key}_dy');
+    await _matbuKalibrasyonServisi.temizleYerel();
+    final varsayilan = FaturaMatbuKalibrasyon.varsayilan();
+    _kalibrasyonUygula(varsayilan);
+    try {
+      await _matbuKalibrasyonServisi.kaydetFirestore(varsayilan);
+    } catch (e) {
+      debugPrint('Matbu varsayılan Firestore kaydı başarısız: $e');
     }
-    await prefs.remove('fatura_kalem_satir_araligi');
-    await prefs.remove('fatura_matbu_font_boyutu');
-    await prefs.remove('fatura_global_offset_dx');
-    await prefs.remove('fatura_global_offset_dy');
-
-    coordinates = FaturaMatbuConfig.varsayilanKoordinatlar();
-    kalemSatirAraligi = FaturaMatbuConfig.varsayilanKalemSatirAraligi;
-    matbuFontBoyutu = FaturaMatbuConfig.varsayilanFontBoyutu;
-    globalOffsetDx = 0;
-    globalOffsetDy = 0;
     notifyListeners();
   }
 

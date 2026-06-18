@@ -30,4 +30,29 @@ class SistemAyarlariService {
       rethrow;
     }
   }
+
+  /// Ham Firestore alanı okur (ör. matbuKalibrasyon).
+  Future<Map<String, dynamic>?> getHamAlan(String alan) async {
+    try {
+      final doc = await _service.get(_collection, _docId);
+      if (!doc.exists || doc.data() == null) return null;
+      final value = doc.data()![alan];
+      if (value is Map<String, dynamic>) return value;
+      if (value is Map) return Map<String, dynamic>.from(value);
+      return null;
+    } catch (e) {
+      debugPrint('Ham alan okunamadı ($alan): $e');
+      return null;
+    }
+  }
+
+  /// Ham Firestore alanı yazar (merge).
+  Future<void> kaydetHamAlan(String alan, Map<String, dynamic> deger) async {
+    try {
+      await _service.set(_collection, _docId, {alan: deger}, merge: true);
+    } catch (e) {
+      debugPrint('Ham alan kaydedilemedi ($alan): $e');
+      rethrow;
+    }
+  }
 }
