@@ -23,10 +23,15 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
   late TextEditingController _hesapAdiController;
   late TextEditingController _ibanController;
   late TextEditingController _geminiKeyController;
+  late TextEditingController _visionKeyController;
   late TextEditingController _deepseekUrlController;
   late TextEditingController _deepseekKeyController;
   late TextEditingController _deepseekModelController;
   List<YkUyeModel> _kurulUyeleri = [];
+  String _isletmeVkn = '';
+  bool _geminiKeyGizli = true;
+  bool _visionKeyGizli = true;
+  bool _deepseekKeyGizli = true;
 
   @override
   void initState() {
@@ -34,6 +39,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
     _hesapAdiController = TextEditingController();
     _ibanController = TextEditingController();
     _geminiKeyController = TextEditingController();
+    _visionKeyController = TextEditingController();
     _deepseekUrlController = TextEditingController();
     _deepseekKeyController = TextEditingController();
     _deepseekModelController = TextEditingController();
@@ -46,9 +52,11 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
       _hesapAdiController.text = ayarlar.hesapAdi;
       _ibanController.text = ayarlar.iban;
       _geminiKeyController.text = ayarlar.geminiApiKey;
+      _visionKeyController.text = ayarlar.visionApiKey;
       _deepseekUrlController.text = ayarlar.deepseekApiUrl;
       _deepseekKeyController.text = ayarlar.deepseekApiKey;
       _deepseekModelController.text = ayarlar.deepseekModel;
+      _isletmeVkn = ayarlar.isletmeVkn;
       _kurulUyeleri = List.from(ayarlar.kurulUyeleri);
       _isLoading = false;
     });
@@ -62,10 +70,12 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
       final ayarlar = SistemAyarlariModel(
         hesapAdi: _hesapAdiController.text,
         iban: _ibanController.text,
-        geminiApiKey: _geminiKeyController.text,
-        deepseekApiUrl: _deepseekUrlController.text,
-        deepseekApiKey: _deepseekKeyController.text,
-        deepseekModel: _deepseekModelController.text,
+        isletmeVkn: _isletmeVkn,
+        geminiApiKey: _geminiKeyController.text.trim(),
+        visionApiKey: _visionKeyController.text.trim(),
+        deepseekApiUrl: _deepseekUrlController.text.trim(),
+        deepseekApiKey: _deepseekKeyController.text.trim(),
+        deepseekModel: _deepseekModelController.text.trim(),
         kurulUyeleri: _kurulUyeleri,
       );
       await _service.saveAyarlar(ayarlar);
@@ -90,6 +100,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
     _hesapAdiController.dispose();
     _ibanController.dispose();
     _geminiKeyController.dispose();
+    _visionKeyController.dispose();
     _deepseekUrlController.dispose();
     _deepseekKeyController.dispose();
     _deepseekModelController.dispose();
@@ -159,7 +170,14 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (_selectedIndex == 1) ...[
+                              ..._buildApiKurumsalBilgi(),
+                              const SizedBox(height: 28),
                               ..._buildGeminiAyarlari(),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 32.0),
+                                child: Divider(height: 1),
+                              ),
+                              ..._buildVisionOcrAyarlari(),
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 32.0),
                                 child: Divider(height: 1),
@@ -236,21 +254,123 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
 
 
 
+  List<Widget> _buildApiKurumsalBilgi() {
+    return [
+      _buildInfoBox(
+        icon: Icons.business_center_outlined,
+        title: 'Kurumsal süreklilik — önemli',
+        renk: Colors.blue,
+        maddeler: const [
+          'API anahtarlarını kişisel Gmail hesabınızla değil, birimin resmi Google hesabıyla oluşturun.',
+          'Siz görevden ayrılsanız bile sistem çalışmaya devam etsin diye anahtarlar bu ekranda Firestore\'a kaydedilir.',
+          'Devir teslimde bir sonraki sorumluya: birim Google hesabı şifresi, AI Studio erişimi ve bu sayfadaki kayıtlı anahtarlar aktarılmalıdır.',
+          'Fatura modülünde okuma sırası: Gemini → (taranmış PDF\'te) Google Vision OCR yedek → DeepSeek (isteğe bağlı).',
+        ],
+      ),
+    ];
+  }
+
   List<Widget> _buildGeminiAyarlari() {
     return [
-      _buildSectionHeader(Icons.auto_awesome, 'Gemini AI Ayarları', 'Faturaları otomatik okumak için kullanılacak birincil yapay zeka sağlayıcısıdır. Hızlı ve ücretsizdir.'),
-      const SizedBox(height: 32),
-      _buildTextField('Gemini API Key', _geminiKeyController, icon: Icons.key),
+      _buildSectionHeader(
+        Icons.auto_awesome,
+        'Gemini — Birincil yapay zeka',
+        'Fatura PDF okuma ve taranmış belge analizi için ana motor. Taranmış PDF\'lerde görsel okuma (Gemini Vision) kullanılır.',
+      ),
+      const SizedBox(height: 16),
+      _buildInfoBox(
+        icon: Icons.mail_outline,
+        title: 'Nasıl alınır?',
+        renk: Colors.indigo,
+        maddeler: const [
+          '1. Birim Google hesabıyla https://aistudio.google.com adresine girin.',
+          '2. «Get API key» → yeni proje birim adına oluşturulsun.',
+          '3. Oluşan anahtarı aşağıya yapıştırın ve Kaydet\'e basın.',
+          '4. Ücretsiz kota yetmezse aynı hesapta Cloud faturalandırma açılabilir — yine birim hesabı kullanın.',
+        ],
+      ),
+      const SizedBox(height: 24),
+      _buildApiKeyField(
+        label: 'Gemini API Key (birim hesabı)',
+        controller: _geminiKeyController,
+        gizli: _geminiKeyGizli,
+        onToggleGizlilik: () => setState(() => _geminiKeyGizli = !_geminiKeyGizli),
+        yardim:
+            'Zorunlu önerilir. Boş bırakılırsa fatura PDF\'leri yapay zeka ile okunamaz (yalnızca çevrimdışı kural devreye girer).',
+      ),
+    ];
+  }
+
+  List<Widget> _buildVisionOcrAyarlari() {
+    return [
+      _buildSectionHeader(
+        Icons.document_scanner_outlined,
+        'Google Vision OCR — Yedek (taranmış PDF)',
+        'Gemini Vision hata verdiğinde veya kota dolduğunda taranmış fatura PDF\'lerinden metin çıkarır.',
+      ),
+      const SizedBox(height: 16),
+      _buildInfoBox(
+        icon: Icons.cloud_outlined,
+        title: 'Nasıl alınır?',
+        renk: Colors.teal,
+        maddeler: const [
+          '1. Aynı birim Google hesabıyla https://console.cloud.google.com açın.',
+          '2. Gemini ile aynı projeyi seçin (veya yeni proje oluşturun).',
+          '3. «APIs & Services» → «Cloud Vision API» etkinleştirin.',
+          '4. «Credentials» → «Create credentials» → «API key» oluşturun.',
+          '5. Anahtarı aşağıya yapıştırın. OCR metni çıktıktan sonra yine Gemini veya DeepSeek alanları doldurulur.',
+        ],
+      ),
+      const SizedBox(height: 24),
+      _buildApiKeyField(
+        label: 'Google Cloud Vision API Key (birim hesabı)',
+        controller: _visionKeyController,
+        gizli: _visionKeyGizli,
+        onToggleGizlilik: () => setState(() => _visionKeyGizli = !_visionKeyGizli),
+        yardim:
+            'Taranmış PDF yedek katmanı. Gemini çalışıyorsa boş bırakılabilir; kurumsal dayanıklılık için önerilir.',
+      ),
     ];
   }
 
   List<Widget> _buildDeepseekAyarlari() {
     return [
-      _buildSectionHeader(Icons.psychology, 'DeepSeek AI Ayarları', 'Gemini kotası dolduğunda veya hata verdiğinde devreye girecek olan yedek yapay zeka sağlayıcısıdır.'),
-      const SizedBox(height: 32),
-      _buildTextField('API Base URL', _deepseekUrlController, icon: Icons.link, hint: 'https://api.deepseek.com/v1'),
-      _buildTextField('API Key', _deepseekKeyController, icon: Icons.key),
-      _buildTextField('Model Adı', _deepseekModelController, icon: Icons.memory, hint: 'deepseek-chat'),
+      _buildSectionHeader(
+        Icons.psychology,
+        'DeepSeek — İsteğe bağlı metin yedeği',
+        'Yalnızca metin tabanlı okumada veya OCR sonrası ikinci yapay zeka katmanı olarak kullanılır. Vision desteği yoktur.',
+      ),
+      const SizedBox(height: 16),
+      _buildInfoBox(
+        icon: Icons.info_outline,
+        title: 'Ne zaman gerekir?',
+        renk: Colors.grey,
+        maddeler: const [
+          'Birim hesabınızda DeepSeek yoksa bu bölümü boş bırakabilirsiniz.',
+          'Varsa yine mümkünse kurumsal hesap kullanın; kişisel anahtar devir teslimde sorun çıkarır.',
+          'Gemini + Vision OCR çoğu fatura senaryosunu karşılar.',
+        ],
+      ),
+      const SizedBox(height: 24),
+      _buildTextField(
+        'API Base URL',
+        _deepseekUrlController,
+        icon: Icons.link,
+        hint: 'https://api.deepseek.com/v1',
+      ),
+      _buildApiKeyField(
+        label: 'DeepSeek API Key',
+        controller: _deepseekKeyController,
+        gizli: _deepseekKeyGizli,
+        onToggleGizlilik: () => setState(() => _deepseekKeyGizli = !_deepseekKeyGizli),
+        yardim: 'İsteğe bağlı. Boş bırakılabilir.',
+      ),
+      _buildTextField(
+        'Model Adı',
+        _deepseekModelController,
+        icon: Icons.memory,
+        hint: 'deepseek-chat',
+      ),
     ];
   }
 
@@ -411,6 +531,106 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
         const SizedBox(height: 8),
         Text(subtitle, style: TextStyle(fontSize: 15, color: Colors.grey[600])),
       ],
+    );
+  }
+
+  Widget _buildInfoBox({
+    required IconData icon,
+    required String title,
+    required MaterialColor renk,
+    required List<String> maddeler,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: renk.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: renk.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: renk.shade700),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: renk.shade800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          for (final madde in maddeler)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('• ', style: TextStyle(color: renk.shade700)),
+                  Expanded(
+                    child: Text(
+                      madde,
+                      style: TextStyle(fontSize: 13, height: 1.45, color: Colors.grey.shade800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApiKeyField({
+    required String label,
+    required TextEditingController controller,
+    required bool gizli,
+    required VoidCallback onToggleGizlilik,
+    String? yardim,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+          if (yardim != null) ...[
+            const SizedBox(height: 4),
+            Text(yardim, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, height: 1.35)),
+          ],
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: controller,
+            obscureText: gizli,
+            decoration: InputDecoration(
+              prefixIcon: Icon(Icons.key, color: Colors.grey[500]),
+              suffixIcon: IconButton(
+                icon: Icon(gizli ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                onPressed: onToggleGizlilik,
+                tooltip: gizli ? 'Anahtarı göster' : 'Anahtarı gizle',
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              filled: true,
+              fillColor: Colors.grey[50],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

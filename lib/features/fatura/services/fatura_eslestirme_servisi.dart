@@ -1,13 +1,28 @@
 import '../models/fatura_model.dart';
+import '../models/fatura_parse_kaynaklari.dart';
 import 'fatura_offline_parser.dart';
 
+class FaturaEslestirmeSonucu {
+  const FaturaEslestirmeSonucu({
+    required this.fatura,
+    required this.skor,
+  });
+
+  final FaturaModel fatura;
+  final int skor;
+}
+
 class FaturaEslestirmeServisi {
-  static const int _minEslesmeSkoru = 30;
+  /// Bu skorun altında eşleşme kabul edilmez.
+  static const int minGuvenSkoru = 30;
+
+  /// UI'da yeşil rozet için önerilen üst eşik.
+  static const int yuksekGuvenSkoru = 50;
 
   /// Ham metni geçmiş faturalarla kıyaslar. Eşleşme skoru yüksekse,
-  /// geçmiş faturayı klonlayıp sadece değişken (Tutar/Tarih/İrsaliye) 
+  /// geçmiş faturayı klonlayıp sadece değişken (Tutar/Tarih/İrsaliye)
   /// verilerini Regex üzerinden günceller.
-  static FaturaModel? eslestir({
+  static FaturaEslestirmeSonucu? eslestir({
     required String rawText,
     required List<FaturaModel> gecmisFaturalar,
   }) {
@@ -85,8 +100,11 @@ class FaturaEslestirmeServisi {
       }
     }
 
-    if (maxSkor >= _minEslesmeSkoru && enIyiFatura != null) {
-      return _faturayiKlonlaVeGuncelle(enIyiFatura, rawText);
+    if (maxSkor >= minGuvenSkoru && enIyiFatura != null) {
+      return FaturaEslestirmeSonucu(
+        fatura: _faturayiKlonlaVeGuncelle(enIyiFatura, rawText, eslesmeSkoru: maxSkor),
+        skor: maxSkor,
+      );
     }
 
     return null; // Eşleşme yok veya skor yetersiz
@@ -94,7 +112,11 @@ class FaturaEslestirmeServisi {
 
   /// Geçmiş faturanın sabit bilgilerini (Müşteri, KDV durumu, Birim vs.) kopyalar,
   /// dinamik verileri (Miktar, Tarih, No vb.) OfflineParser kullanarak yeni metinden çıkarır.
-  static FaturaModel _faturayiKlonlaVeGuncelle(FaturaModel sablon, String rawText) {
+  static FaturaModel _faturayiKlonlaVeGuncelle(
+    FaturaModel sablon,
+    String rawText, {
+    required int eslesmeSkoru,
+  }) {
     // 1. Yeni metinden tarih, tutar ve olası kalemleri Regex/OfflineParser ile bul
     final parserSonuclari = FaturaOfflineParser.parse(rawText);
     FaturaModel? parsedFatura;
@@ -128,6 +150,7 @@ class FaturaEslestirmeServisi {
       vergiDairesi: sablon.vergiDairesi,
       vergiNo: sablon.vergiNo,
       tarih: parsedFatura?.tarih ?? sablon.tarih, // Yeni tarih
+      irsaliyeTarihi: parsedFatura?.irsaliyeTarihi ?? sablon.irsaliyeTarihi,
       irsaliyeNo: parsedFatura?.irsaliyeNo ?? '', // Yeni metinden
       melbesNo: parsedFatura?.melbesNo ?? '', // Yeni metinden
       melbesKurumOnEki: parsedFatura?.melbesKurumOnEki ?? '',
@@ -139,8 +162,11 @@ class FaturaEslestirmeServisi {
       kdvTutari: parsedFatura?.kdvTutari ?? 0.0,
       matrah: parsedFatura?.matrah ?? 0.0,
       genelToplam: parsedFatura?.genelToplam ?? 0.0,
-      isKdvMuaf: sablon.isKdvMuaf, // Eski muafiyet aynen kalır
-      parsedBy: 'Tier 1 - Akıllı Eşleştirme',
+      // Yeni belge çözümlenebildiyse KDV muaf bilgisinde yeni belgeyi esas al.
+      // Böylece geçmişte muaf olan bir şablon, yeni faturaları hatalı muaf yapmaz.
+      isKdvMuaf: parsedFatura?.isKdvMuaf ?? sablon.isKdvMuaf,
+      parsedBy: FaturaParseKaynaklari.arsivSablonu,
+      eslesmeSkoru: eslesmeSkoru,
       kalemler: yeniKalemler,
       hizmetTipi: sablon.hizmetTipi,
       kurNo: sablon.kurNo, // Belki değişebilir ama varsayılan kalsın

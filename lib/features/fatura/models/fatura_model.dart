@@ -1,4 +1,5 @@
 // KDV oranı dropdown seçenekleri
+import 'fatura_parse_kaynaklari.dart';
 const fKdvOranlari = [0.0, 1.0, 10.0, 20.0];
 
 // Hizmet Tipi seçenekleri
@@ -33,6 +34,7 @@ class FaturaModel {
   String vergiDairesi;
   String vergiNo;
   String tarih;
+  String irsaliyeTarihi;
   String irsaliyeNo;
   String melbesNo;
   String numuneNo;
@@ -41,11 +43,14 @@ class FaturaModel {
   String numuneAciklamasi;
   List<Map<String, dynamic>> kalemler;
   bool isKdvMuaf;
+  bool nakliYekunAktif;
   double matrah;
   double kdvOrani;
   double kdvTutari;
   double genelToplam;
   String parsedBy;
+  /// Akıllı eşleştirmeden gelen güven skoru (yalnızca arşiv klonunda).
+  int? eslesmeSkoru;
   String? iban;
   String? hesapAdi;
 
@@ -68,6 +73,7 @@ class FaturaModel {
     required this.vergiDairesi,
     required this.vergiNo,
     required this.tarih,
+    this.irsaliyeTarihi = '',
     required this.irsaliyeNo,
     required this.melbesNo,
     required this.numuneNo,
@@ -75,11 +81,13 @@ class FaturaModel {
     required this.numuneAciklamasi,
     required this.kalemler,
     required this.isKdvMuaf,
+    this.nakliYekunAktif = false,
     required this.matrah,
     required this.kdvOrani,
     required this.kdvTutari,
     required this.genelToplam,
     this.parsedBy = 'AI Parser',
+    this.eslesmeSkoru,
     this.iban,
     this.hesapAdi,
     this.hizmetTipi,
@@ -122,6 +130,7 @@ class FaturaModel {
       'vergiDairesi': vergiDairesi,
       'vergiNo': vergiNo,
       'tarih': tarih,
+      'irsaliyeTarihi': irsaliyeTarihi,
       'irsaliyeNo': irsaliyeNo,
       'melbesNo': melbesNo,
       'numuneNo': numuneNo,
@@ -129,11 +138,13 @@ class FaturaModel {
       'numuneAciklamasi': numuneAciklamasi,
       'kalemler': kalemler,
       'isKdvMuaf': isKdvMuaf,
+      'nakliYekunAktif': nakliYekunAktif,
       'matrah': matrah,
       'kdvOrani': kdvOrani,
       'kdvTutari': kdvTutari,
       'genelToplam': genelToplam,
       'parsedBy': parsedBy,
+      'eslesmeSkoru': eslesmeSkoru,
       'iban': iban,
       'hesapAdi': hesapAdi,
       'hizmetTipi': hizmetTipi,
@@ -180,6 +191,7 @@ class FaturaModel {
       vergiDairesi: json['vergiDairesi']?.toString() ?? '',
       vergiNo: json['vergiNo']?.toString() ?? '',
       tarih: json['tarih']?.toString() ?? '',
+      irsaliyeTarihi: json['irsaliyeTarihi']?.toString() ?? '',
       irsaliyeNo: json['irsaliyeNo']?.toString() ?? '',
       melbesNo: json['melbesNo']?.toString() ?? '',
       numuneNo: json['numuneNo']?.toString() ?? '',
@@ -189,8 +201,12 @@ class FaturaModel {
       kdvTutari: (json['kdvTutari'] as num?)?.toDouble() ?? 0.0,
       genelToplam: (json['genelToplam'] as num?)?.toDouble() ?? 0.0,
       isKdvMuaf: json['isKdvMuaf'] == true,
+      nakliYekunAktif: json['nakliYekunAktif'] == true,
       kdvOrani: _normalizeKdvOrani(json['kdvOrani']),
-      parsedBy: json['parsedBy']?.toString() ?? 'Bilinmiyor',
+      parsedBy: FaturaParseKaynaklari.normalize(json['parsedBy']?.toString()),
+      eslesmeSkoru: json['eslesmeSkoru'] != null
+          ? int.tryParse(json['eslesmeSkoru'].toString())
+          : null,
       iban: json['iban']?.toString(),
       hesapAdi: json['hesapAdi']?.toString(),
       hizmetTipi: _normalizeSecenek(json['hizmetTipi'], fHizmetTipleri),
@@ -215,6 +231,7 @@ class FaturaModel {
       vergiDairesi: '',
       vergiNo: '',
       tarih: '',
+      irsaliyeTarihi: '',
       irsaliyeNo: '',
       melbesNo: '',
       numuneNo: '',
@@ -224,8 +241,9 @@ class FaturaModel {
       kdvTutari: 0,
       genelToplam: 0,
       isKdvMuaf: false,
+      nakliYekunAktif: false,
       kdvOrani: 20,
-      parsedBy: 'Yeni Fatura',
+      parsedBy: FaturaParseKaynaklari.yeniFatura,
       kalemler: [],
       ytbOgrencisi: false,
     );

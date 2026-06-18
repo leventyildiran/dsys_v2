@@ -1,11 +1,15 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_generative_ai/google_generative_ai.dart';
+import '../models/sistem_ayarlari_model.dart';
+import 'google_vision_ocr_service.dart';
 import 'sistem_ayarlari_service.dart';
 
 class AIExtractionService {
   final SistemAyarlariService _ayarlarService = SistemAyarlariService();
+  final GoogleVisionOcrService _visionOcr = GoogleVisionOcrService();
   static const List<String> _geminiModelFallbacks = [
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
@@ -45,10 +49,8 @@ class AIExtractionService {
     // Prompt hazırlığı
     final prompt = _buildPrompt(rawBatchText);
 
-    // 1. GEMINI DENEMESİ (Farklı Modellerle Auto-Healing)
+    Object? geminiHata;
     if (ayarlar.geminiApiKey.isNotEmpty) {
-      Object? sonHata;
-
       try {
         final contentParts = <Part>[];
         if (pdfBytes != null && pdfBytes.isNotEmpty) {
@@ -61,89 +63,178 @@ class AIExtractionService {
         );
         final parsed = _parseJson(text ?? '');
         if (parsed.isNotEmpty) {
+          final etiket = (pdfBytes != null && pdfBytes.isNotEmpty)
+              ? 'Yapay zeka (Gemini Vision)'
+              : 'Yapay zeka (Gemini)';
           for (var p in parsed) {
-            p['parsedBy'] = 'Tier 1 - Gemini Fallback (Başarılı)';
+            p['parsedBy'] = etiket;
           }
           return parsed;
         }
-        sonHata = 'Yapay zeka (Gemini) faturayı anlayamadı, JSON formatı hatalı.';
+        geminiHata = 'Yapay zeka (Gemini) faturayı anlayamadı, JSON formatı hatalı.';
       } catch (e) {
-        sonHata = e;
-      }
-
-      print('Tüm Gemini modelleri başarısız oldu. DeepSeek/Offline yedeğe geçiliyor.');
-      if (pdfBytes != null && pdfBytes.isNotEmpty) {
-        // Eğer görsel PDF ise (text boş, byte var), offline parser ÇALIŞAMAZ.
-        // O yüzden hatayı direkt ekrana fırlat ki kullanıcı bilsin.
-        String hataMesaji = sonHata.toString();
-        if (hataMesaji.contains('not found') || hataMesaji.contains('404')) {
-          throw Exception(
-            'Google AI Studio API anahtarınız bu modellerden hiçbirine erişemiyor. '
-            'Lütfen https://aistudio.google.com adresine gidip yeni kullanıcı şartlarını kabul edin '
-            'veya yeni bir API anahtarı (API Key) oluşturup ayarlara girin.'
-          );
-        }
-        throw Exception('Gemini Vision Hatası: $hataMesaji');
+        geminiHata = e;
+        print('Gemini ayrıştırma hatası: $e');
       }
     }
 
-    // 2. DEEPSEEK DENEMESİ (Fallback)
+    if (pdfBytes != null && pdfBytes.isNotEmpty && ayarlar.visionApiKey.isNotEmpty) {
+      final ocrSonuc = await _ocrVeYapayZekaDene(
+        ayarlar: ayarlar,
+        ocrKaynakMetin: rawBatchText,
+        pdfBytes: pdfBytes,
+      );
+      if (ocrSonuc != null) return ocrSonuc;
+    }
+
+    if (pdfBytes != null && pdfBytes.isNotEmpty && geminiHata != null) {
+      final hataMesaji = geminiHata.toString();
+      if (hataMesaji.contains('not found') || hataMesaji.contains('404')) {
+        throw Exception(
+          'Birim Gemini API anahtarı bu modellere erişemiyor. '
+          'Google AI Studio (birim hesabı) üzerinden yeni anahtar oluşturun '
+          'veya Sistem Ayarları → OCR yedek anahtarını tanımlayın.',
+        );
+      }
+      if (ayarlar.visionApiKey.isEmpty) {
+        throw Exception(
+          'Taranmış PDF okunamadı. Sistem Ayarlarından birim Vision OCR anahtarını tanımlayın.\n$hataMesaji',
+        );
+      }
+      throw Exception(
+        'Taranmış PDF okunamadı (Gemini ve OCR yedek). Metin tabanlı PDF deneyin.\n$hataMesaji',
+      );
+    }
+
+    // Metin tabanlı — DeepSeek yedeği
     if (ayarlar.deepseekApiKey.isNotEmpty &&
         ayarlar.deepseekApiUrl.isNotEmpty) {
-      try {
-        print('DeepSeek API ile ayrıştırma deneniyor...');
-        final url = ayarlar.deepseekApiUrl.endsWith('/')
-            ? '${ayarlar.deepseekApiUrl}chat/completions'
-            : '${ayarlar.deepseekApiUrl}/chat/completions';
-        final modelName = ayarlar.deepseekModel.isEmpty
-            ? 'deepseek-chat'
-            : ayarlar.deepseekModel;
-
-        final response = await http.post(
-          Uri.parse(url),
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': 'Bearer ${ayarlar.deepseekApiKey}',
-          },
-          body: jsonEncode({
-            'model': modelName,
-            'messages': [
-              {
-                'role': 'system',
-                'content':
-                    'You are a precise invoice parsing AI that outputs strictly in JSON.',
-              },
-              {'role': 'user', 'content': prompt},
-            ],
-            'temperature': 0.1,
-          }),
-        );
-
-        if (response.statusCode >= 200 && response.statusCode < 300) {
-          final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-          final content = decoded['choices']?[0]?['message']?['content'] ?? '';
-
-          final parsed = _parseJson(content);
-          if (parsed.isNotEmpty) {
-            for (var p in parsed) {
-              p['parsedBy'] = 'Tier 2 - DeepSeek Fallback (Başarılı)';
-            }
-            return parsed;
-          }
-        } else {
-          print(
-            'DeepSeek API Hatası: ${response.statusCode} - ${response.body}',
-          );
-        }
-      } catch (e) {
-        print('DeepSeek hatası: $e');
-      }
+      final parsed = await _deepSeekParse(
+        ayarlar: ayarlar,
+        prompt: prompt,
+        parsedByEtiketi: 'Yapay zeka (DeepSeek)',
+      );
+      if (parsed != null) return parsed;
     }
 
     // Tüm AI denemeleri başarısızsa boş dön
     throw Exception(
-      'Yapay zeka faturayı okuyamadı. Lütfen API anahtarlarını kontrol edin.',
+      'Yapay zeka faturayı okuyamadı. Birim API anahtarlarını Sistem Ayarlarından kontrol edin.',
     );
+  }
+
+  /// Taranmış PDF: Vision OCR → metin → Gemini (metin) veya DeepSeek.
+  Future<List<Map<String, dynamic>>?> _ocrVeYapayZekaDene({
+    required SistemAyarlariModel ayarlar,
+    required String ocrKaynakMetin,
+    required Uint8List pdfBytes,
+  }) async {
+    if (ayarlar.visionApiKey.trim().isEmpty) {
+      debugPrint('[AI] Vision OCR anahtarı tanımlı değil.');
+      return null;
+    }
+
+    try {
+      final ocrMetin = await _visionOcr.pdfdenMetinCikar(
+        pdfBytes: pdfBytes,
+        apiKey: ayarlar.visionApiKey,
+      );
+      if (ocrMetin.trim().length < 30) {
+        debugPrint('[AI] Vision OCR yetersiz metin döndü.');
+        return null;
+      }
+
+      final birlesikMetin = ocrKaynakMetin.trim().isEmpty
+          ? ocrMetin
+          : '${ocrKaynakMetin.trim()}\n\n--- OCR ---\n$ocrMetin';
+      final ocrPrompt = _buildPrompt(birlesikMetin);
+
+      if (ayarlar.geminiApiKey.isNotEmpty) {
+        try {
+          final text = await _runGeminiWithFallback(
+            apiKey: ayarlar.geminiApiKey,
+            parts: [TextPart(ocrPrompt)],
+          );
+          final parsed = _parseJson(text ?? '');
+          if (parsed.isNotEmpty) {
+            for (var p in parsed) {
+              p['parsedBy'] = 'Yapay zeka (Gemini · OCR yedek)';
+            }
+            return parsed;
+          }
+        } catch (e) {
+          debugPrint('[AI] OCR sonrası Gemini metin hatası: $e');
+        }
+      }
+
+      if (ayarlar.deepseekApiKey.isNotEmpty &&
+          ayarlar.deepseekApiUrl.isNotEmpty) {
+        final parsed = await _deepSeekParse(
+          ayarlar: ayarlar,
+          prompt: ocrPrompt,
+          parsedByEtiketi: 'Yapay zeka (DeepSeek · OCR yedek)',
+        );
+        if (parsed != null) return parsed;
+      }
+    } catch (e) {
+      debugPrint('[AI] Vision OCR zinciri hatası: $e');
+    }
+    return null;
+  }
+
+  Future<List<Map<String, dynamic>>?> _deepSeekParse({
+    required SistemAyarlariModel ayarlar,
+    required String prompt,
+    required String parsedByEtiketi,
+  }) async {
+    try {
+      print('DeepSeek API ile ayrıştırma deneniyor...');
+      final url = ayarlar.deepseekApiUrl.endsWith('/')
+          ? '${ayarlar.deepseekApiUrl}chat/completions'
+          : '${ayarlar.deepseekApiUrl}/chat/completions';
+      final modelName = ayarlar.deepseekModel.isEmpty
+          ? 'deepseek-chat'
+          : ayarlar.deepseekModel;
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': 'Bearer ${ayarlar.deepseekApiKey}',
+        },
+        body: jsonEncode({
+          'model': modelName,
+          'messages': [
+            {
+              'role': 'system',
+              'content':
+                  'You are a precise invoice parsing AI that outputs strictly in JSON.',
+            },
+            {'role': 'user', 'content': prompt},
+          ],
+          'temperature': 0.1,
+        }),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        final content = decoded['choices']?[0]?['message']?['content'] ?? '';
+        final parsed = _parseJson(content);
+        if (parsed.isNotEmpty) {
+          for (var p in parsed) {
+            p['parsedBy'] = parsedByEtiketi;
+          }
+          return parsed;
+        }
+      } else {
+        print(
+          'DeepSeek API Hatası: ${response.statusCode} - ${response.body}',
+        );
+      }
+    } catch (e) {
+      print('DeepSeek hatası: $e');
+    }
+    return null;
   }
 
   String _buildPrompt(String rawText) {
@@ -159,6 +250,7 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
     "vergiDairesi": "Vergi Dairesi",
     "vergiNo": "Vergi veya TC No",
     "tarih": "Fatura veya İşlem Tarihi (DD.MM.YYYY vb. formatta)",
+    "irsaliyeTarihi": "İrsaliye Tarihi (DD.MM.YYYY vb. formatta)",
     "irsaliyeNo": "İrsaliye Numarası",
     "melbesNo": "Melbes numarası (yalnızca numara, kurum adı hariç)",
     "melbesKurumOnEki": "MELBES satırındaki kurum/bakanlık adı (Melbes kelimesinden önceki kısım)",
@@ -194,6 +286,7 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
 3. Faturada birden fazla müşteri verisi varsa liste içine birden fazla obje koy.
 4. "kalemler" listesinde, "fiyat" kısmına virgülleri noktaya çevirerek bir Number koy (örn: 1540.50). 
 5. DİKKAT: Eğer bir alana dair veri (örneğin Melbes No, Numune No, İrsaliye No) belgede YOKSA, KESİNLİKLE uydurma yapma ve o alanı boş string ("") olarak bırak. Sadece metinde net olarak geçen değerleri kullan.
+6. Kurum/bakanlık adını (ör. "Çevre, Şehircilik ve İklim Değişikliği Bakanlığı") kalemler dizisine EKLEME. Bu bilgi yalnızca "melbesKurumOnEki" alanına yazılmalı; kalemler yalnızca gerçek analiz/hizmet satırlarını içermeli.
 
 Ham Fatura Metni:
 $rawText

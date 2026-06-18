@@ -8,7 +8,9 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/turkce_format.dart';
 import '../models/fatura_model.dart';
+import '../models/fatura_parse_kaynaklari.dart';
 import '../providers/batch_fatura_provider.dart';
+import '../services/fatura_eslestirme_servisi.dart';
 import 'calibration_dialog.dart';
 import 'fatura_arsiv_arama_dialog.dart';
 import '../components/firma_secici_dialog.dart';
@@ -436,17 +438,50 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
           ),
         ),
         const Spacer(),
-        FilterChip(
-          label: const Text('Nakli yekün'),
-          selected: provider.isNakliYekunAktif,
-          onSelected: provider.toggleNakliYekunGlobal,
-        ),
-        const SizedBox(width: 8),
         OutlinedButton.icon(
           key: const ValueKey('fatura_arsiv_dialog_ac'),
           icon: const Icon(Icons.search, size: 18),
           label: const Text('Fatura Arşivi'),
           onPressed: () => showFaturaArsivAramaDialog(context),
+        ),
+        const SizedBox(width: 8),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.clear_all, size: 18),
+          label: const Text('Toplu Temizle'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.red.shade700,
+          ),
+          onPressed: () async {
+            final onay = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                icon: Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
+                title: const Text('Kuyruk temizlensin mi?'),
+                content: const Text(
+                  'Kuyruktaki tüm faturalar silinecek. Bu işlem geri alınamaz.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Vazgeç'),
+                  ),
+                  FilledButton(
+                    style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Temizle'),
+                  ),
+                ],
+              ),
+            );
+            if (onay != true) return;
+            await provider.kuyruguTemizle();
+            if (!mounted) return;
+            setState(() {
+              _expandedCards
+                ..clear()
+                ..add(0);
+            });
+          },
         ),
         const SizedBox(width: 8),
         FilledButton.icon(
@@ -510,6 +545,14 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
     final eksik = provider.eksikAlanlarForInvoice(invoice);
     final hazir = eksik.isEmpty;
     final expanded = _expandedCards.contains(index);
+    final seciliBirimIban = provider.seciliBirimIbanFor(index);
+    final faturaIban = invoice.iban?.trim() ?? '';
+    final ibanKontrolYapilabilir =
+        seciliBirimIban != null && seciliBirimIban.trim().isNotEmpty;
+    final ibanEslesiyor = ibanKontrolYapilabilir && provider.ibanEslesiyorMu(index);
+    final eslesmeSkoru = invoice.eslesmeSkoru;
+    final eslesmeYuksek = eslesmeSkoru != null &&
+        eslesmeSkoru >= FaturaEslestirmeServisi.yuksekGuvenSkoru;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -555,11 +598,80 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                         ),
                         Text(
                           '${invoice.numuneNo.isEmpty ? "Numune yok" : "N: ${invoice.numuneNo}"} · '
-                          '${TurkceFormat.para(invoice.genelToplam)} · ${invoice.parsedBy}',
+                          '${TurkceFormat.para(invoice.genelToplam)} · ${FaturaParseKaynaklari.normalize(invoice.parsedBy)}',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade700,
                           ),
+                        ),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            if (eslesmeSkoru != null)
+                              Tooltip(
+                                message: eslesmeYuksek
+                                    ? 'Geçmiş fatura arşivinden yüksek güvenle eşleşti'
+                                    : 'Geçmiş fatura arşivinden dolduruldu — firma, tutar ve kalemleri kontrol edin',
+                                child: Chip(
+                                  label: Text(
+                                    'Eşleşme $eslesmeSkoru',
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                  avatar: Icon(
+                                    eslesmeYuksek
+                                        ? Icons.verified_outlined
+                                        : Icons.warning_amber_rounded,
+                                    size: 14,
+                                    color: eslesmeYuksek
+                                        ? Colors.green.shade700
+                                        : Colors.orange.shade800,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  backgroundColor: eslesmeYuksek
+                                      ? Colors.green.shade100
+                                      : Colors.orange.shade100,
+                                ),
+                              ),
+                            if (invoice.nakliYekunAktif)
+                              Chip(
+                                label: const Text(
+                                  'Nakli Yekün',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                                avatar: const Icon(Icons.receipt_long, size: 14),
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                backgroundColor: Colors.blue.shade100,
+                              ),
+                            if (ibanKontrolYapilabilir)
+                              Chip(
+                                label: Text(
+                                  ibanEslesiyor
+                                      ? 'IBAN eşleşiyor'
+                                      : (faturaIban.isEmpty
+                                          ? 'IBAN boş'
+                                          : 'IBAN uyuşmuyor'),
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                                avatar: Icon(
+                                  ibanEslesiyor
+                                      ? Icons.check_circle
+                                      : Icons.warning_amber_rounded,
+                                  size: 14,
+                                  color: ibanEslesiyor
+                                      ? Colors.green.shade700
+                                      : Colors.orange.shade800,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                backgroundColor: ibanEslesiyor
+                                    ? Colors.green.shade100
+                                    : Colors.orange.shade100,
+                              ),
+                          ],
                         ),
                       ],
                     ),
@@ -731,6 +843,12 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                     cardIndex: index,
                   ),
                   _field(
+                    'İrsaliye Tarihi',
+                    invoice.irsaliyeTarihi,
+                    (v) => provider.updateField(index, 'irsaliyeTarihi', v),
+                    cardIndex: index,
+                  ),
+                  _field(
                     'İrsaliye No',
                     invoice.irsaliyeNo,
                     (v) => provider.updateField(index, 'irsaliyeNo', v),
@@ -872,10 +990,16 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
         children: [
           ListTile(
             dense: true,
-            title: const Text(
-              'Kalemler',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            title: Text(
+              'Kalemler (${invoice.kalemler.length})',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
+            subtitle: invoice.kalemler.isNotEmpty
+                ? Text(
+                    'Sıra numaraları yalnızca kontrol içindir; matbu faturada yazdırılmaz.',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  )
+                : null,
             trailing: Wrap(
               spacing: 6,
               children: [
@@ -907,7 +1031,23 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
               return Padding(
                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    SizedBox(
+                      width: 30,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 14),
+                        child: Text(
+                          '${ki + 1}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.blueGrey.shade700,
+                          ),
+                        ),
+                      ),
+                    ),
                     Expanded(
                       flex: 4,
                       child: TextFormField(
@@ -1058,6 +1198,11 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
         runSpacing: 8,
         alignment: WrapAlignment.end,
         children: [
+          FilterChip(
+            label: const Text('Nakli yekün (bu fatura)'),
+            selected: invoice.nakliYekunAktif,
+            onSelected: (v) => provider.setInvoiceNakliYekun(index, v),
+          ),
           OutlinedButton.icon(
             key: ValueKey('fatura_sil_$index'),
             icon: const Icon(Icons.delete_outline),
@@ -1512,19 +1657,34 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
     BuildContext context,
     BatchFaturaProvider provider,
   ) async {
+    BuildContext? progressDialogContext;
+    void closeProgressDialog() {
+      final dialogCtx = progressDialogContext;
+      if (dialogCtx == null) return;
+      if (!dialogCtx.mounted) {
+        progressDialogContext = null;
+        return;
+      }
+      Navigator.of(dialogCtx).pop();
+      progressDialogContext = null;
+    }
+
     if (!context.mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Expanded(child: Text('Excel seçiliyor…')),
-          ],
-        ),
-      ),
+      builder: (dialogCtx) {
+        progressDialogContext = dialogCtx;
+        return const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Expanded(child: Text('Excel seçiliyor…')),
+            ],
+          ),
+        );
+      },
     );
 
     try {
@@ -1535,7 +1695,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       );
 
       if (!context.mounted) return;
-      Navigator.pop(context); // yükleme dialogunu kapat
+      closeProgressDialog(); // yükleme dialogunu kapat
 
       if (result == null || result.files.isEmpty) return;
       final file = result.files.first;
@@ -1545,21 +1705,24 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (_) => const AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Expanded(child: Text('Excel analiz ediliyor…')),
-            ],
-          ),
-        ),
+        builder: (dialogCtx) {
+          progressDialogContext = dialogCtx;
+          return const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Expanded(child: Text('Excel analiz ediliyor…')),
+              ],
+            ),
+          );
+        },
       );
 
       await provider.loadExcelFile(file.bytes!, file.name);
 
       if (!context.mounted) return;
-      Navigator.pop(context);
+      closeProgressDialog();
       setState(() => _expandedCards.add(0));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1568,8 +1731,8 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
         ),
       );
     } catch (e) {
+      closeProgressDialog();
       if (context.mounted) {
-        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
         );
@@ -1581,19 +1744,34 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
     BuildContext context,
     BatchFaturaProvider provider,
   ) async {
+    BuildContext? progressDialogContext;
+    void closeProgressDialog() {
+      final dialogCtx = progressDialogContext;
+      if (dialogCtx == null) return;
+      if (!dialogCtx.mounted) {
+        progressDialogContext = null;
+        return;
+      }
+      Navigator.of(dialogCtx).pop();
+      progressDialogContext = null;
+    }
+
     if (!context.mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Expanded(child: Text('Dosya seçiliyor…')),
-          ],
-        ),
-      ),
+      builder: (dialogCtx) {
+        progressDialogContext = dialogCtx;
+        return const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Expanded(child: Text('Dosya seçiliyor…')),
+            ],
+          ),
+        );
+      },
     );
 
     try {
@@ -1604,7 +1782,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       );
 
       if (!context.mounted) return;
-      Navigator.pop(context); // seçim dialogunu kapat
+      closeProgressDialog(); // seçim dialogunu kapat
 
       if (result == null || result.files.isEmpty) return;
       final file = result.files.first;
@@ -1615,15 +1793,18 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          content: Row(
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(width: 16),
-              Expanded(child: Text('${file.name} okunuyor…')),
-            ],
-          ),
-        ),
+        builder: (dialogCtx) {
+          progressDialogContext = dialogCtx;
+          return AlertDialog(
+            content: Row(
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(width: 16),
+                Expanded(child: Text('${file.name} okunuyor…')),
+              ],
+            ),
+          );
+        },
       );
 
       final extension = (file.extension ?? '').toLowerCase();
@@ -1641,7 +1822,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       }
 
       if (!context.mounted) return;
-      Navigator.pop(context);
+      closeProgressDialog();
       setState(() => _expandedCards.add(0));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1650,8 +1831,8 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
         ),
       );
     } catch (e) {
+      closeProgressDialog();
       if (context.mounted) {
-        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Evrak okunamadı: $e'),

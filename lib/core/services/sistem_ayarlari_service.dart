@@ -24,7 +24,7 @@ class SistemAyarlariService {
 
   Future<void> saveAyarlar(SistemAyarlariModel ayarlar) async {
     try {
-      await _service.set(_collection, _docId, ayarlar.toJson(), merge: false);
+      await _service.set(_collection, _docId, ayarlar.toJson(), merge: true);
     } catch (e) {
       debugPrint('Ayarlar kaydedilemedi: $e');
       rethrow;

@@ -17,6 +17,7 @@ import '../../../core/services/hizmet_service.dart';
 import '../models/fatura_matbu_config.dart';
 import '../models/fatura_arsiv_util.dart';
 import '../models/fatura_model.dart';
+import '../models/fatura_parse_kaynaklari.dart';
 import '../services/fatura_service.dart';
 import '../services/fatura_offline_parser.dart';
 import '../services/fatura_eslestirme_servisi.dart';
@@ -79,6 +80,7 @@ class BatchFaturaProvider extends ChangeNotifier {
 
   static const _kuyrukPrefsKey = 'fatura_pending_kuyruk_v1';
   Timer? _kuyrukKaydetTimer;
+  Timer? _matbuAyarKaydetTimer;
 
   /// Fatura id → seçili birim id (sayfa yenilemede korunur).
   Map<String, String> seciliBirimByFaturaId = {};
@@ -101,7 +103,10 @@ class BatchFaturaProvider extends ChangeNotifier {
       newOffset.dx - globalOffsetDx,
       newOffset.dy - globalOffsetDy,
     );
-    if (notify) notifyListeners();
+    if (notify) {
+      notifyListeners();
+      _scheduleMatbuAyarKaydet();
+    }
   }
 
   /// Sürükleme sırasında delta uygular (notify=false ile kasma önlenir).
@@ -109,34 +114,56 @@ class BatchFaturaProvider extends ChangeNotifier {
     final current = coordinates[key];
     if (current == null) return;
     coordinates[key] = Offset(current.dx + delta.dx, current.dy + delta.dy);
-    if (notify) notifyListeners();
+    if (notify) {
+      notifyListeners();
+      _scheduleMatbuAyarKaydet();
+    }
   }
 
   void nudgeCoordinate(String key, double dx, double dy) {
+    const kalemKeys = {'cinsi', 'miktar', 'fiyat', 'tutar'};
+    if (kalemKeys.contains(key)) {
+      if (dy != 0) {
+        for (final k in kalemKeys) {
+          updateCoordinateDelta(k, Offset(0, dy));
+        }
+      }
+      if (dx != 0) {
+        updateCoordinateDelta(key, Offset(dx, 0));
+      }
+      return;
+    }
     updateCoordinateDelta(key, Offset(dx, dy));
   }
 
-  void calibrationUiRefresh() => notifyListeners();
+  void calibrationUiRefresh() {
+    notifyListeners();
+    _scheduleMatbuAyarKaydet();
+  }
 
   void setKalemSatirAraligi(double value) {
     kalemSatirAraligi = value;
     notifyListeners();
+    _scheduleMatbuAyarKaydet();
   }
 
   void setMatbuFontBoyutu(double value) {
     matbuFontBoyutu = value;
     notifyListeners();
+    _scheduleMatbuAyarKaydet();
   }
 
   void setGlobalOffset(double dx, double dy) {
     globalOffsetDx = dx;
     globalOffsetDy = dy;
     notifyListeners();
+    _scheduleMatbuAyarKaydet();
   }
 
   void setMatbuBaskiModu(bool value) {
     matbuBaskiModu = value;
     notifyListeners();
+    _scheduleMatbuAyarKaydet();
   }
 
   Future<void> saveMatbuAyarlari() async {
@@ -215,6 +242,13 @@ class BatchFaturaProvider extends ChangeNotifier {
 
   void toggleNakliYekunGlobal(bool value) {
     isNakliYekunAktif = value;
+    notifyListeners();
+    _scheduleMatbuAyarKaydet();
+  }
+
+  void setInvoiceNakliYekun(int index, bool value) {
+    if (index < 0 || index >= pendingInvoices.length) return;
+    pendingInvoices[index].nakliYekunAktif = value;
     _queueChanged();
   }
 
@@ -272,7 +306,6 @@ class BatchFaturaProvider extends ChangeNotifier {
       pendingInvoices = invoices;
       currentIndex = (data['currentIndex'] as int?) ?? 0;
       if (currentIndex >= pendingInvoices.length) currentIndex = 0;
-      isNakliYekunAktif = data['isNakliYekunAktif'] == true;
 
       final birimMap = data['seciliBirimByFaturaId'] as Map<String, dynamic>?;
       if (birimMap != null) {
@@ -303,6 +336,13 @@ class BatchFaturaProvider extends ChangeNotifier {
     });
   }
 
+  void _scheduleMatbuAyarKaydet() {
+    _matbuAyarKaydetTimer?.cancel();
+    _matbuAyarKaydetTimer = Timer(const Duration(milliseconds: 400), () {
+      unawaited(saveMatbuAyarlari());
+    });
+  }
+
   Future<void> _persistKuyruk() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -313,7 +353,6 @@ class BatchFaturaProvider extends ChangeNotifier {
       final payload = jsonEncode({
         'invoices': pendingInvoices.map((f) => f.toMap()).toList(),
         'currentIndex': currentIndex,
-        'isNakliYekunAktif': isNakliYekunAktif,
         'seciliBirimByFaturaId': seciliBirimByFaturaId,
         'savedAt': DateTime.now().toIso8601String(),
       });
@@ -341,6 +380,22 @@ class BatchFaturaProvider extends ChangeNotifier {
   String? seciliBirimFor(int index) {
     if (index < 0 || index >= pendingInvoices.length) return null;
     return seciliBirimByFaturaId[pendingInvoices[index].id];
+  }
+
+  String? seciliBirimIbanFor(int index) {
+    final birim = findBirim(seciliBirimFor(index));
+    final iban = birim?.iban?.trim() ?? '';
+    return iban.isEmpty ? null : iban;
+  }
+
+  bool ibanEslesiyorMu(int index) {
+    if (index < 0 || index >= pendingInvoices.length) return false;
+    final faturaIban = pendingInvoices[index].iban?.trim() ?? '';
+    final birimIban = seciliBirimIbanFor(index)?.trim() ?? '';
+    if (faturaIban.isEmpty || birimIban.isEmpty) return false;
+    String normalize(String v) =>
+        v.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    return normalize(faturaIban) == normalize(birimIban);
   }
 
   /// Dropdown çökmesini önler: yalnızca aktif birim listesinde olan ID döner.
@@ -544,9 +599,7 @@ class BatchFaturaProvider extends ChangeNotifier {
   }
 
   void _updateIbanForInvoice(FaturaModel invoice) {
-    if (invoice.kalemler.isEmpty) return;
-    final birimAdi = invoice.kalemler.first['birimAdi'] as String?;
-    final birim = findBirim(birimAdi);
+    final birim = _invoiceBirim(invoice);
     if (birim == null) return;
     if (birim.iban != null && birim.iban!.isNotEmpty) {
       invoice.iban = birim.iban;
@@ -605,25 +658,32 @@ class BatchFaturaProvider extends ChangeNotifier {
     List<FaturaModel> sonuc = [];
 
     if (!cevrimdisi) {
-      // Tier 1 - Akıllı Eşleştirme (Skor Bazlı Klonlama)
+      // Katman 1 — Arşiv eşleştirme (skor bazlı şablon klonlama)
       try {
         final arsivKayitlar = await _faturaService.araFaturalar(FaturaArsivAramaFiltre(metin: ''));
         final gecmis = arsivKayitlar.map((e) => e.fatura).toList();
-        final eslesme = FaturaEslestirmeServisi.eslestir(rawText: text, gecmisFaturalar: gecmis);
-        if (eslesme != null) {
-          sonuc = [eslesme];
-          sonAyristirmaBilgisi = 'Akıllı Eşleştirme Sistemi (Şablon)';
+        final eslesmeSonuc =
+            FaturaEslestirmeServisi.eslestir(rawText: text, gecmisFaturalar: gecmis);
+        if (eslesmeSonuc != null) {
+          sonuc = [eslesmeSonuc.fatura];
+          final skor = eslesmeSonuc.skor;
+          final dusukSkor = skor < FaturaEslestirmeServisi.yuksekGuvenSkoru;
+          sonAyristirmaBilgisi = dusukSkor
+              ? 'Arşiv şablonundan dolduruldu (eşleşme skoru: $skor — kontrol edin)'
+              : 'Arşiv şablonundan dolduruldu (eşleşme skoru: $skor)';
         }
       } catch (e) {
         debugPrint('Eşleştirme servisi hatası: $e');
       }
 
-      // Tier 2 - AI (Yapay Zeka)
+      // Katman 2 — Yapay zeka (Gemini / DeepSeek)
       if (sonuc.isEmpty) {
         try {
           final extractedData = await _aiService.extractBatchData(text, pdfBytes: pdfBytes);
           sonuc = extractedData.map(FaturaModel.fromJson).toList();
-          sonAyristirmaBilgisi = sonuc.isEmpty ? null : 'Yapay zeka ile okundu';
+          if (sonuc.isNotEmpty) {
+            sonAyristirmaBilgisi = sonuc.first.parsedBy;
+          }
         } catch (e) {
           debugPrint('AI ayrıştırma başarısız, çevrimdışı parser deneniyor: $e');
         }
@@ -633,7 +693,7 @@ class BatchFaturaProvider extends ChangeNotifier {
     if (sonuc.isEmpty) {
       sonuc = FaturaOfflineParser.parse(text);
       if (sonuc.isNotEmpty) {
-        sonAyristirmaBilgisi = 'Çevrimdışı (kural tabanlı) okundu';
+        sonAyristirmaBilgisi = sonuc.first.parsedBy;
       }
     }
 
@@ -646,11 +706,14 @@ class BatchFaturaProvider extends ChangeNotifier {
 
     seciliBirimByFaturaId.clear();
     for (final inv in sonuc) {
+      _recalculateTotals(inv);
       _updateIbanForInvoice(inv);
       if (inv.tahminiBirim != null && inv.tahminiBirim!.trim().isNotEmpty) {
         final predicted = findBirim(inv.tahminiBirim);
         if (predicted != null) {
           seciliBirimByFaturaId[inv.id] = predicted.id;
+          // Tahmini birim eşleşmesi yazıldıktan sonra IBAN/Hesap Adı tekrar uygulanır.
+          _updateIbanForInvoice(inv);
         }
       }
     }
@@ -671,7 +734,7 @@ class BatchFaturaProvider extends ChangeNotifier {
   void addBlankInvoice() {
     final bos = FaturaModel.bos(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
-    )..parsedBy = 'Manuel Giriş';
+    )..parsedBy = FaturaParseKaynaklari.manuel;
     
     // Kullanıcı manuel ekle dediğinde UI'da (yerTutucuMu) görünmez olmaması için 1 boş kalem ekliyoruz.
     bos.kalemler.add({'cinsi': '', 'miktar': 1, 'fiyat': 0.0});
@@ -695,7 +758,7 @@ class BatchFaturaProvider extends ChangeNotifier {
     final newId = DateTime.now().microsecondsSinceEpoch.toString();
     final copy = FaturaModel.fromJson(src.toMap())
       ..id = newId
-      ..parsedBy = 'Kopya';
+      ..parsedBy = FaturaParseKaynaklari.kopya;
     // Kaynak faturanın seçili birimini yeni ID ile kopyala.
     final kaynakBirimId = seciliBirimByFaturaId[src.id];
     if (kaynakBirimId != null) {
@@ -756,6 +819,7 @@ class BatchFaturaProvider extends ChangeNotifier {
             vergiDairesi: '',
             vergiNo: tc,
             tarih: '',
+            irsaliyeTarihi: '',
             irsaliyeNo: '',
             melbesNo: '',
             numuneNo: '',
@@ -768,7 +832,7 @@ class BatchFaturaProvider extends ChangeNotifier {
             isKdvMuaf: false,
             kdvTutari: 0.0,
             genelToplam: 0.0,
-            parsedBy: 'Excel Toplu Aktarım',
+            parsedBy: FaturaParseKaynaklari.excelToplu,
           );
           _recalculateTotals(inv);
           newInvoices.add(inv);
@@ -906,6 +970,8 @@ class BatchFaturaProvider extends ChangeNotifier {
         currentInvoice.vergiNo = value.toString();
       case 'tarih':
         currentInvoice.tarih = value.toString();
+      case 'irsaliyeTarihi':
+        currentInvoice.irsaliyeTarihi = value.toString();
       case 'irsaliyeNo':
         currentInvoice.irsaliyeNo = value.toString();
       case 'melbesNo':
@@ -985,6 +1051,7 @@ class BatchFaturaProvider extends ChangeNotifier {
       vergiDairesi: FaturaMatbuConfig.ornekMetinler['vergiDairesi']!,
       vergiNo: FaturaMatbuConfig.ornekMetinler['vkn']!,
       tarih: FaturaMatbuConfig.ornekMetinler['tarih']!,
+      irsaliyeTarihi: FaturaMatbuConfig.ornekMetinler['irsaliyeTarihi']!,
       irsaliyeNo: FaturaMatbuConfig.ornekMetinler['irsaliyeNo']!,
       melbesNo: 'MEL-2026-0042',
       melbesKurumOnEki: FaturaMatbuConfig.varsayilanMelbesKurumOnEki,
@@ -1004,7 +1071,7 @@ class BatchFaturaProvider extends ChangeNotifier {
       genelToplam: 1800,
       iban: FaturaMatbuConfig.ornekMetinler['iban'],
       hesapAdi: FaturaMatbuConfig.ornekMetinler['hesapAdi'],
-      parsedBy: 'Kalibrasyon Testi',
+      parsedBy: FaturaParseKaynaklari.kalibrasyon,
     );
   }
 
@@ -1143,6 +1210,15 @@ class BatchFaturaProvider extends ChangeNotifier {
                   ),
                 );
               }
+              if (invoice.irsaliyeTarihi.trim().isNotEmpty) {
+                children.add(
+                  pw.Positioned(
+                    top: _konum('irsaliyeTarihi').dy,
+                    left: _konum('irsaliyeTarihi').dx,
+                    child: pw.Text(invoice.irsaliyeTarihi, style: metin()),
+                  ),
+                );
+              }
               if (invoice.irsaliyeNo.trim().isNotEmpty) {
                 children.add(
                   pw.Positioned(
@@ -1153,7 +1229,7 @@ class BatchFaturaProvider extends ChangeNotifier {
                 );
               }
 
-              if (isNakliYekunAktif && oncekiSayfaToplam > 0) {
+              if (invoice.nakliYekunAktif && oncekiSayfaToplam > 0) {
                 children.addAll([
                   pw.Positioned(
                     top: _konum('nakliYekunUstYazi').dy,
@@ -1167,7 +1243,7 @@ class BatchFaturaProvider extends ChangeNotifier {
                     top: _konum('nakliYekunUstTutar').dy,
                     left: _konum('nakliYekunUstTutar').dx,
                     child: pw.Text(
-                      TurkceFormat.ondalik(oncekiSayfaToplam),
+                      TurkceFormat.para(oncekiSayfaToplam),
                       style: metin(weight: pw.FontWeight.bold),
                     ),
                   ),
@@ -1186,7 +1262,10 @@ class BatchFaturaProvider extends ChangeNotifier {
                   pw.Positioned(
                     top: currentTop,
                     left: _konum('cinsi').dx,
-                    child: pw.Text('${item['cinsi']}', style: metin()),
+                    child: pw.SizedBox(
+                      width: 255,
+                      child: pw.Text('${item['cinsi']}', style: metin()),
+                    ),
                   ),
                   pw.Positioned(
                     top: currentTop,
@@ -1201,17 +1280,17 @@ class BatchFaturaProvider extends ChangeNotifier {
                   pw.Positioned(
                     top: currentTop,
                     left: _konum('fiyat').dx,
-                    child: pw.Text(TurkceFormat.ondalik(fiyat), style: metin()),
+                    child: pw.Text(TurkceFormat.para(fiyat), style: metin()),
                   ),
                   pw.Positioned(
                     top: currentTop,
                     left: _konum('tutar').dx,
-                    child: pw.Text(TurkceFormat.ondalik(satirTutar), style: metin()),
+                    child: pw.Text(TurkceFormat.para(satirTutar), style: metin()),
                   ),
                 ]);
               }
 
-              if (isNakliYekunAktif && !sonSayfa) {
+              if (invoice.nakliYekunAktif && !sonSayfa) {
                 children.addAll([
                   pw.Positioned(
                     top: _konum('nakliYekunAltYazi').dy,
@@ -1225,7 +1304,7 @@ class BatchFaturaProvider extends ChangeNotifier {
                     top: _konum('nakliYekunAltTutar').dy,
                     left: _konum('nakliYekunAltTutar').dx,
                     child: pw.Text(
-                      TurkceFormat.ondalik(araToplam),
+                      TurkceFormat.para(araToplam),
                       style: metin(weight: pw.FontWeight.bold),
                     ),
                   ),
@@ -1233,8 +1312,13 @@ class BatchFaturaProvider extends ChangeNotifier {
               }
 
               if (sonSayfa) {
+                final numuneAciklamaAlt = invoice.numuneAciklamasi.trim();
+                final numuneAciklamaMelbesSatiri =
+                    numuneAciklamaAlt.toLowerCase().contains('melbes') &&
+                    numuneAciklamaAlt.toLowerCase().contains('numune');
                 final ustAciklamalar = [
-                  if (invoice.numuneAciklamasi.trim().isNotEmpty) invoice.numuneAciklamasi,
+                  if (numuneAciklamaAlt.isNotEmpty && !numuneAciklamaMelbesSatiri)
+                    numuneAciklamaAlt,
                   if (invoice.aciklama != null && invoice.aciklama!.trim().isNotEmpty) invoice.aciklama!,
                   if (invoice.isKdvMuaf) 'KDV\'den Muaftır (İstisna)'
                 ].join(' | ');
@@ -1251,69 +1335,45 @@ class BatchFaturaProvider extends ChangeNotifier {
                 final melbes = invoice.melbesNo.trim();
                 final numune = invoice.numuneNo.trim();
                 final kurumOnEki = invoice.melbesKurumOnEki.trim();
-                if (melbes.isNotEmpty || numune.isNotEmpty) {
-                  if (melbes.isNotEmpty && numune.isNotEmpty) {
-                    children.add(
-                      pw.Positioned(
-                        top: _konum('melbes').dy,
-                        left: _konum('melbes').dx,
-                        child: pw.SizedBox(
-                          width: 500,
-                          child: pw.Text(
-                            FaturaMatbuConfig.formatMelbesNumuneSatir(
-                              melbes: melbes,
-                              numune: numune,
-                              kurumOnEki: kurumOnEki.isNotEmpty
-                                  ? kurumOnEki
-                                  : null,
-                            ),
-                            style: metin(),
-                          ),
-                        ),
+                final melbesSatir = FaturaMatbuConfig.formatMelbesNumuneSatir(
+                  melbes: melbes,
+                  numune: numune,
+                  kurumOnEki: kurumOnEki.isNotEmpty ? kurumOnEki : null,
+                );
+                if (melbesSatir.isNotEmpty) {
+                  children.add(
+                    pw.Positioned(
+                      top: _konum('melbes').dy,
+                      left: _konum('melbes').dx,
+                      child: pw.SizedBox(
+                        width: 500,
+                        child: pw.Text(melbesSatir, style: metin()),
                       ),
-                    );
-                  } else {
-                    if (melbes.isNotEmpty) {
-                      children.add(
-                        pw.Positioned(
-                          top: _konum('melbes').dy,
-                          left: _konum('melbes').dx,
-                          child: pw.Text(
-                            FaturaMatbuConfig.formatMelbesMatbu(
-                              melbes,
-                              kurumOnEki:
-                                  kurumOnEki.isNotEmpty ? kurumOnEki : null,
-                            ),
-                            style: metin(),
-                          ),
-                        ),
-                      );
-                    }
-                    if (numune.isNotEmpty) {
-                      children.add(
-                        pw.Positioned(
-                          top: _konum('numuneNo').dy,
-                          left: _konum('numuneNo').dx,
-                          child: pw.Text(
-                            FaturaMatbuConfig.formatNumuneNoMatbu(numune),
-                            style: metin(),
-                          ),
-                        ),
-                      );
-                    }
-                  }
+                    ),
+                  );
+                } else if (kurumOnEki.isNotEmpty) {
+                  children.add(
+                    pw.Positioned(
+                      top: _konum('melbes').dy,
+                      left: _konum('melbes').dx,
+                      child: pw.SizedBox(
+                        width: 500,
+                        child: pw.Text(kurumOnEki, style: metin()),
+                      ),
+                    ),
+                  );
                 }
                 children.addAll([
                   pw.Positioned(
                     top: _konum('matrah').dy,
                     left: _konum('matrah').dx,
-                    child: pw.Text(TurkceFormat.ondalik(invoice.matrah), style: metin()),
+                    child: pw.Text(TurkceFormat.para(invoice.matrah), style: metin()),
                   ),
                   pw.Positioned(
                     top: _konum('kdv').dy,
                     left: _konum('kdv').dx,
                     child: pw.Text(
-                      TurkceFormat.ondalik(invoice.kdvTutari),
+                      TurkceFormat.para(invoice.kdvTutari),
                       style: metin(),
                     ),
                   ),
@@ -1321,7 +1381,7 @@ class BatchFaturaProvider extends ChangeNotifier {
                     top: _konum('genelToplam').dy,
                     left: _konum('genelToplam').dx,
                     child: pw.Text(
-                      TurkceFormat.ondalik(invoice.genelToplam),
+                      TurkceFormat.para(invoice.genelToplam),
                       style: metin(weight: pw.FontWeight.bold),
                     ),
                   ),
@@ -1476,5 +1536,12 @@ class BatchFaturaProvider extends ChangeNotifier {
     }
 
     return result.trim().replaceAll('  ', ' ');
+  }
+
+  @override
+  void dispose() {
+    _kuyrukKaydetTimer?.cancel();
+    _matbuAyarKaydetTimer?.cancel();
+    super.dispose();
   }
 }

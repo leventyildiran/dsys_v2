@@ -329,6 +329,7 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
       globalDx: provider.globalOffsetDx,
       globalDy: provider.globalOffsetDy,
       fontBoyutu: provider.matbuFontBoyutu,
+      satirAraligi: provider.kalemSatirAraligi,
       nakliAktif: provider.isNakliYekunAktif,
     );
 
@@ -444,11 +445,46 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
                       ),
                     );
                   }),
+                  if (_ornekMetinGoster) ..._kalemSatirOnizlemleri(data),
                 ],
               ),
             ),
           ),
         );
+  }
+
+  /// Kalem sütunlarında 2–4. satırların nereye düşeceğini gösterir.
+  List<Widget> _kalemSatirOnizlemleri(_CanvasData data) {
+    const kalemAlanlari = {'cinsi', 'miktar', 'fiyat', 'tutar'};
+    final widgets = <Widget>[];
+    final seciliKalemAlani =
+        _seciliAlan != null && kalemAlanlari.contains(_seciliAlan)
+        ? _seciliAlan
+        : null;
+    for (final key in kalemAlanlari) {
+      if (seciliKalemAlani != null && key != seciliKalemAlani) continue;
+      final base = data.coordinates[key];
+      if (base == null) continue;
+      final konum = Offset(base.dx + data.globalDx, base.dy + data.globalDy);
+      final etiket = FaturaMatbuConfig.alanEtiketleri[key] ?? key;
+      for (var satir = 1; satir < 4; satir++) {
+        widgets.add(
+          Positioned(
+            left: konum.dx,
+            top: konum.dy + satir * data.satirAraligi,
+            child: Text(
+              '$etiket — satır ${satir + 1}',
+              style: TextStyle(
+                fontSize: data.fontBoyutu,
+                color: Colors.blueGrey.withValues(alpha: 0.55),
+                height: 1.1,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+    return widgets;
   }
 }
 
@@ -496,6 +532,7 @@ class _CanvasData {
     required this.globalDx,
     required this.globalDy,
     required this.fontBoyutu,
+    required this.satirAraligi,
     required this.nakliAktif,
   });
 
@@ -503,6 +540,7 @@ class _CanvasData {
   final double globalDx;
   final double globalDy;
   final double fontBoyutu;
+  final double satirAraligi;
   final bool nakliAktif;
 
   @override
@@ -511,6 +549,7 @@ class _CanvasData {
       globalDx == other.globalDx &&
       globalDy == other.globalDy &&
       fontBoyutu == other.fontBoyutu &&
+      satirAraligi == other.satirAraligi &&
       nakliAktif == other.nakliAktif &&
       _mapEquals(coordinates, other.coordinates);
 
@@ -519,6 +558,7 @@ class _CanvasData {
         globalDx,
         globalDy,
         fontBoyutu,
+        satirAraligi,
         nakliAktif,
         Object.hashAll(coordinates.entries.map((e) => Object.hash(e.key, e.value))),
       );

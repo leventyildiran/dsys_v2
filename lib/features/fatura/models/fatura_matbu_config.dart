@@ -7,7 +7,7 @@ class FaturaMatbuConfig {
   static const double a4Genislik = 595;
   static const double a4Yukseklik = 842;
   static const double varsayilanFontBoyutu = 10.0;
-  static const double varsayilanKalemSatirAraligi = 18.0;
+  static const double varsayilanKalemSatirAraligi = 16.0;
 
   static const Map<String, String> alanEtiketleri = {
     'firmaAdi': 'Firma Adı',
@@ -15,6 +15,7 @@ class FaturaMatbuConfig {
     'vergiDairesi': 'Vergi Dairesi',
     'vkn': 'VKN / TC',
     'tarih': 'Tarih',
+    'irsaliyeTarihi': 'İrsaliye Tarihi',
     'irsaliyeNo': 'İrsaliye No',
     'cinsi': 'Kalem — Cinsi',
     'miktar': 'Kalem — Miktar',
@@ -41,6 +42,7 @@ class FaturaMatbuConfig {
     'vergiDairesi': 'Çankaya',
     'vkn': '1234567890',
     'tarih': '07.06.2026',
+    'irsaliyeTarihi': '05.06.2026',
     'irsaliyeNo': 'IRS-2026/001',
     'cinsi': 'Analiz Hizmet Bedeli',
     'miktar': '1',
@@ -196,11 +198,12 @@ class FaturaMatbuConfig {
         'vergiDairesi': const Offset(145, 275),
         'vkn': const Offset(145, 295),
         'tarih': const Offset(470, 270),
-        'irsaliyeNo': const Offset(470, 295),
-        'cinsi': const Offset(50, 360),
-        'miktar': const Offset(320, 360),
-        'fiyat': const Offset(380, 360),
-        'tutar': const Offset(510, 360),
+        'irsaliyeTarihi': const Offset(470, 285),
+        'irsaliyeNo': const Offset(470, 300),
+        'cinsi': const Offset(42, 332),
+        'miktar': const Offset(318, 332),
+        'fiyat': const Offset(378, 332),
+        'tutar': const Offset(508, 332),
         'nakliYekunUstYazi': const Offset(270, 340),
         'nakliYekunUstTutar': const Offset(510, 340),
         'nakliYekunAltYazi': const Offset(270, 580),

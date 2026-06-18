@@ -1,5 +1,6 @@
 import '../models/fatura_matbu_config.dart';
 import '../models/fatura_model.dart';
+import '../models/fatura_parse_kaynaklari.dart';
 
 /// İnternet/AI olmadan ham metni (Excel CSV dökümü veya yapıştırılan metin)
 /// kural tabanlı olarak faturaya çeviren çevrimdışı ayrıştırıcı.
@@ -9,7 +10,7 @@ import '../models/fatura_model.dart';
 /// - "FATURA" sayfası: görsel düzen (yedek)
 /// - "Firma Bilgileri" / "HAVUZ": firma & birim listeleri
 class FaturaOfflineParser {
-  static const String kaynakEtiketi = 'Tier 3 - Çevrimdışı (Kural)';
+  static const String kaynakEtiketi = FaturaParseKaynaklari.cevrimdisi;
 
   static final RegExp _ibanRegex = RegExp(
     r'TR\d{2}(?:[ ]?\d){22}',
@@ -21,6 +22,10 @@ class FaturaOfflineParser {
   );
   static final RegExp _numuneRegex = RegExp(
     r'numune\s*no\s*[:.\-]?\s*([A-Z0-9\-/]+)',
+    caseSensitive: false,
+  );
+  static final RegExp _irsaliyeTarihRegex = RegExp(
+    r'irsaliye\s*tarih(?:i)?\s*[:.\-]?\s*(\d{1,2}[./]\d{1,2}[./]\d{2,4})',
     caseSensitive: false,
   );
   static final RegExp _tarihRegex = RegExp(
@@ -351,7 +356,9 @@ class FaturaOfflineParser {
 
     final melbes = _melbesRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
     final numune = _numuneRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
+    final irsaliyeTarihi = _irsaliyeTarihRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
     final melbesKurumOnEki = _melbesKurumOnEkiFromText(fullText);
+
     final yaziyla = _yaziylaRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
     final aciklama = _numuneAciklama(fullText);
 
@@ -366,6 +373,9 @@ class FaturaOfflineParser {
       vergiDairesi: vergiDairesi.trim(),
       vergiNo: vergiNo.trim(),
       tarih: tarih.trim(),
+      irsaliyeTarihi: irsaliyeTarihi.isNotEmpty
+          ? _normalizeTarih(irsaliyeTarihi)
+          : '',
       irsaliyeNo: '',
       melbesNo: melbes,
       numuneNo: numune,

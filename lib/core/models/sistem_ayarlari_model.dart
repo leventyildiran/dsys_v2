@@ -25,6 +25,8 @@ class SistemAyarlariModel {
   /// Döner sermaye işletme VKN — fatura hesap adı alt satırı için.
   final String isletmeVkn;
   final String geminiApiKey;
+  /// Taranmış PDF için Gemini düşünce devreye giren Google Cloud Vision OCR anahtarı.
+  final String visionApiKey;
   final String deepseekApiUrl;
   final String deepseekApiKey;
   final String deepseekModel;
@@ -35,6 +37,7 @@ class SistemAyarlariModel {
     required this.iban,
     this.isletmeVkn = '',
     required this.geminiApiKey,
+    this.visionApiKey = '',
     required this.deepseekApiUrl,
     required this.deepseekApiKey,
     required this.deepseekModel,
@@ -47,6 +50,7 @@ class SistemAyarlariModel {
       iban: json['iban'] ?? '',
       isletmeVkn: json['isletmeVkn']?.toString() ?? '',
       geminiApiKey: json['geminiApiKey'] ?? '',
+      visionApiKey: json['visionApiKey']?.toString() ?? '',
       deepseekApiUrl: json['deepseekApiUrl'] ?? '',
       deepseekApiKey: json['deepseekApiKey'] ?? '',
       deepseekModel: json['deepseekModel'] ?? '',
@@ -63,6 +67,7 @@ class SistemAyarlariModel {
       'iban': iban,
       'isletmeVkn': isletmeVkn,
       'geminiApiKey': geminiApiKey,
+      'visionApiKey': visionApiKey,
       'deepseekApiUrl': deepseekApiUrl,
       'deepseekApiKey': deepseekApiKey,
       'deepseekModel': deepseekModel,
@@ -76,6 +81,7 @@ class SistemAyarlariModel {
       iban: '',
       isletmeVkn: '',
       geminiApiKey: '',
+      visionApiKey: '',
       deepseekApiUrl: '',
       deepseekApiKey: '',
       deepseekModel: '',

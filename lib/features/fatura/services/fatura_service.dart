@@ -169,6 +169,7 @@ class FaturaService {
       f.vergiDairesi,
       f.vergiNo,
       f.tarih,
+      f.irsaliyeTarihi,
       f.irsaliyeNo,
       f.melbesNo,
       f.numuneNo,
