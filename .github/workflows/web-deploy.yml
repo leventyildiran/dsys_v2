@@ -67,8 +67,9 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      - name: Deploy to Firebase Hosting
+      - name: Verify service account metadata
         run: |
-          npm install --no-save google-auth-library@9
-          TOKEN=$(node -e "const {GoogleAuth}=require('google-auth-library');(async()=>{const a=new GoogleAuth({scopes:['https://www.googleapis.com/auth/cloud-platform','https://www.googleapis.com/auth/firebase']});const c=await a.getClient();const r=await c.getAccessToken();if(!r.token)process.exit(1);process.stdout.write(r.token);})().catch(()=>process.exit(1));")
-          npx firebase-tools@15.12.0 deploy --only hosting --project dsys-44b8e --non-interactive --token "$TOKEN"
+          python3 -c "import json,os; d=json.load(open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'])); print('client_email=', d.get('client_email')); print('private_key_id=', d.get('private_key_id')); print('has_private_key=', bool(d.get('private_key')))"
+
+      - name: Deploy to Firebase Hosting
+        run: npx firebase-tools@15.12.0 deploy --only hosting --project dsys-44b8e --non-interactive
