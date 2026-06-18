@@ -26,7 +26,7 @@ if ($LASTEXITCODE -ne 0) {
 
 $raw = Get-Content -Raw -Path $keyFile.FullName
 $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($raw))
-$b64 | gh secret set FIREBASE_SERVICE_ACCOUNT_B64 --repo leventyildiran/dsys_v2
+gh secret set FIREBASE_SERVICE_ACCOUNT_B64 --repo leventyildiran/dsys_v2 --body $b64
 
 Write-Host "FIREBASE_SERVICE_ACCOUNT_B64 secret ayarlandı (base64)."
 Write-Host "Actions: https://github.com/leventyildiran/dsys_v2/actions/workflows/web-deploy.yml"
