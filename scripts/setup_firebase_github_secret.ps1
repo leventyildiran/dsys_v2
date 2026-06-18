@@ -24,8 +24,7 @@ if ($LASTEXITCODE -ne 0) {
     gh auth login -h github.com -p https -w
 }
 
-$json = Get-Content -Raw -Path $keyFile.FullName
-gh secret set FIREBASE_SERVICE_ACCOUNT --repo leventyildiran/dsys_v2 --body $json
+Get-Content -Raw -Path $keyFile.FullName | gh secret set FIREBASE_SERVICE_ACCOUNT --repo leventyildiran/dsys_v2
 
 Write-Host "FIREBASE_SERVICE_ACCOUNT secret ayarlandı."
 Write-Host "Actions: https://github.com/leventyildiran/dsys_v2/actions/workflows/web-deploy.yml"
