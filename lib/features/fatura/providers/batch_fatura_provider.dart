@@ -178,9 +178,7 @@ class BatchFaturaProvider extends ChangeNotifier {
   }
 
   Map<String, String> ornekBaskiMetinleri() =>
-      FaturaMatbuConfig.ornekBaskiMetinleri(
-        isletmeVkn: _isletmeVknFallback(),
-      );
+      FaturaMatbuConfig.ornekBaskiMetinleri(isletmeVkn: _isletmeVknFallback());
 
   /// Kalibrasyonda önizlenecek fatura: sıradaki gerçek kayıt, yoksa örnek.
   FaturaModel kalibrasyonFaturasi() {
@@ -257,8 +255,8 @@ class BatchFaturaProvider extends ChangeNotifier {
   Future<void> saveCoordinates() => saveMatbuAyarlari();
 
   Future<void> _loadMatbuAyarlari() async {
-    FaturaMatbuKalibrasyon? ayar =
-        await _matbuKalibrasyonServisi.yukleFirestore();
+    FaturaMatbuKalibrasyon? ayar = await _matbuKalibrasyonServisi
+        .yukleFirestore();
     ayar ??= await _matbuKalibrasyonServisi.yukleYerel();
     _kalibrasyonUygula(ayar.normalize());
     notifyListeners();
@@ -325,8 +323,8 @@ class BatchFaturaProvider extends ChangeNotifier {
     return null;
   }
 
-  void refreshBirimler() {
-    _fetchBirimler();
+  Future<void> refreshBirimler() async {
+    await _fetchBirimler(reapplyAndPersist: true);
     _hizmetService.getAllHizmetler(forceRefresh: true).then((val) {
       _tumHizmetler = val;
       notifyListeners();
@@ -336,10 +334,13 @@ class BatchFaturaProvider extends ChangeNotifier {
   /// Verilen hizmetin sistemdeki fiyatıyla eşleşip eşleşmediğini kontrol eder
   String? getFiyatUyarisi(String? birimAdi, String cinsi, double fiyat) {
     if (birimAdi == null || cinsi.trim().isEmpty) return null;
-    final sistemHizmeti = _tumHizmetler.where((h) => 
-      h.birimAdi.toLowerCase() == birimAdi.toLowerCase() && 
-      h.hizmetAdi.toLowerCase() == cinsi.trim().toLowerCase()
-    ).firstOrNull;
+    final sistemHizmeti = _tumHizmetler
+        .where(
+          (h) =>
+              h.birimAdi.toLowerCase() == birimAdi.toLowerCase() &&
+              h.hizmetAdi.toLowerCase() == cinsi.trim().toLowerCase(),
+        )
+        .firstOrNull;
 
     if (sistemHizmeti != null && sistemHizmeti.fiyat != fiyat) {
       return 'Sistemdeki Liste Fiyatı: ${sistemHizmeti.fiyat.toStringAsFixed(2)} TL';
@@ -355,8 +356,7 @@ class BatchFaturaProvider extends ChangeNotifier {
     unawaited(_loadKuyruk());
   }
 
-  bool _kayitWorthyQueue() =>
-      pendingInvoices.any((f) => !yerTutucuMu(f));
+  bool _kayitWorthyQueue() => pendingInvoices.any((f) => !yerTutucuMu(f));
 
   Future<void> _loadKuyruk() async {
     try {
@@ -382,12 +382,14 @@ class BatchFaturaProvider extends ChangeNotifier {
 
       final birimMap = data['seciliBirimByFaturaId'] as Map<String, dynamic>?;
       if (birimMap != null) {
-        seciliBirimByFaturaId =
-            birimMap.map((k, v) => MapEntry(k, v.toString()));
+        seciliBirimByFaturaId = birimMap.map(
+          (k, v) => MapEntry(k, v.toString()),
+        );
       }
 
-      geriYuklenenKuyrukSayisi =
-          invoices.where((f) => !yerTutucuMu(f)).length;
+      _reapplySelectedBirimlerToInvoices();
+
+      geriYuklenenKuyrukSayisi = invoices.where((f) => !yerTutucuMu(f)).length;
       notifyListeners();
     } catch (e) {
       debugPrint('Sistem ayarları yüklenemedi: $e');
@@ -494,7 +496,8 @@ class BatchFaturaProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  static String _arsivUyarisiPrefsKey(int yil) => 'fatura_arsiv_uyari_${yil}_kapatildi';
+  static String _arsivUyarisiPrefsKey(int yil) =>
+      'fatura_arsiv_uyari_${yil}_kapatildi';
 
   /// Geçici arşivde arama (tarih + metin).
   Future<List<FaturaArsivKayit>> araArsiv(FaturaArsivAramaFiltre filtre) async {
@@ -530,7 +533,10 @@ class BatchFaturaProvider extends ChangeNotifier {
   /// Bu yıl için temizlik uyarısını "daha sonra" olarak işaretle.
   Future<void> yilBasiUyarisiErtele() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_arsivUyarisiPrefsKey(FaturaArsivUtil.suAnkiYil()), true);
+    await prefs.setBool(
+      _arsivUyarisiPrefsKey(FaturaArsivUtil.suAnkiYil()),
+      true,
+    );
   }
 
   /// Belirtilen yılın geçici arşivini siler.
@@ -550,14 +556,16 @@ class BatchFaturaProvider extends ChangeNotifier {
   /// Belirtilen yılın arşivini JSON olarak indirir.
   Future<void> indirYilArsiviJson(int yil) async {
     final kayitlar = await _faturaService.yilArsiviniGetir(yil);
-    if (kayitlar.isEmpty) throw Exception('$yil yılında indirilecek kayıt yok.');
+    if (kayitlar.isEmpty)
+      throw Exception('$yil yılında indirilecek kayıt yok.');
     await FaturaArsivExportServisi.indirJson(yil, kayitlar);
   }
 
   /// Belirtilen yılın arşivini CSV (Excel) olarak indirir.
   Future<void> indirYilArsiviCsv(int yil) async {
     final kayitlar = await _faturaService.yilArsiviniGetir(yil);
-    if (kayitlar.isEmpty) throw Exception('$yil yılında indirilecek kayıt yok.');
+    if (kayitlar.isEmpty)
+      throw Exception('$yil yılında indirilecek kayıt yok.');
     await FaturaArsivExportServisi.indirCsv(yil, kayitlar);
   }
 
@@ -586,7 +594,6 @@ class BatchFaturaProvider extends ChangeNotifier {
     return (indirilen: indirilen, silinen: silinen);
   }
 
-
   void _initializeEmpty() {
     pendingInvoices = [FaturaModel.bos()];
     currentIndex = 0;
@@ -598,14 +605,15 @@ class BatchFaturaProvider extends ChangeNotifier {
   String getBirimKategori(String? birimIdOrAd) {
     final birim = findBirim(birimIdOrAd);
     if (birim == null) return 'genel';
-    
+
     final ad = birim.kisaAd.toLowerCase();
     if (ad.contains('tömer') || ad.contains('usem')) return 'kurs';
     if (ad.contains('tarım') || ad.contains('tadaum')) return 'tarimsal';
     if (ad.contains('ubatam') || ad.contains('analiz')) return 'analiz';
-    if (ad.contains('dösim') || ad.contains('dts') || ad.contains('deri')) return 'hizmet';
+    if (ad.contains('dösim') || ad.contains('dts') || ad.contains('deri'))
+      return 'hizmet';
     if (ad.contains('satın alma')) return 'satin_alma';
-    
+
     return 'genel';
   }
 
@@ -640,6 +648,11 @@ class BatchFaturaProvider extends ChangeNotifier {
     final birim = findBirim(birimIdOrAd);
     if (birim == null) return;
     final invoice = pendingInvoices[invoiceIndex];
+    _applyBirimModelToInvoice(invoice, birim);
+    _queueChanged();
+  }
+
+  void _applyBirimModelToInvoice(FaturaModel invoice, BirimModel birim) {
     invoice.iban = birim.iban;
     invoice.hesapAdi = _formatHesapAdi(birim.hesapAdi);
     final ad = birim.ad.toLowerCase();
@@ -652,10 +665,21 @@ class BatchFaturaProvider extends ChangeNotifier {
     for (var i = 0; i < invoice.kalemler.length; i++) {
       invoice.kalemler[i] = {...invoice.kalemler[i], 'birimAdi': birimEtiket};
     }
-    _queueChanged();
   }
 
-  Future<void> _fetchBirimler() async {
+  void _reapplySelectedBirimlerToInvoices({bool scheduleSave = false}) {
+    if (_birimlerById.isEmpty || pendingInvoices.isEmpty) return;
+    for (var i = 0; i < pendingInvoices.length; i++) {
+      final invoice = pendingInvoices[i];
+      final birimId = seciliBirimByFaturaId[invoice.id];
+      final birim = birimId == null ? null : _birimlerById[birimId];
+      if (birim == null) continue;
+      _applyBirimModelToInvoice(invoice, birim);
+    }
+    if (scheduleSave) _scheduleKuyrukKaydet();
+  }
+
+  Future<void> _fetchBirimler({bool reapplyAndPersist = false}) async {
     try {
       final birimler = await _birimService.getAll(onlyActive: true);
       _birimlerList = birimler;
@@ -665,6 +689,7 @@ class BatchFaturaProvider extends ChangeNotifier {
         _birimlerCache[b.ad] = b;
         if (b.kisaAd.isNotEmpty) _birimlerCache[b.kisaAd] = b;
       }
+      _reapplySelectedBirimlerToInvoices(scheduleSave: reapplyAndPersist);
       notifyListeners();
     } catch (e) {
       debugPrint('Birimler çekilirken hata: $e');
@@ -706,7 +731,8 @@ class BatchFaturaProvider extends ChangeNotifier {
     if (invoice.firmaAdi.trim().isEmpty) eksik.add('Firma Adı');
     if (invoice.tarih.trim().isEmpty) eksik.add('Tarih');
     if (invoice.iban == null || invoice.iban!.trim().isEmpty) eksik.add('IBAN');
-    if (invoice.hesapAdi == null || invoice.hesapAdi!.trim().isEmpty) eksik.add('Hesap Adı');
+    if (invoice.hesapAdi == null || invoice.hesapAdi!.trim().isEmpty)
+      eksik.add('Hesap Adı');
     if (invoice.kalemler.isEmpty) eksik.add('En az 1 kalem');
 
     if (_ubatamZorunluAlanGecerliMi(invoice)) {
@@ -727,16 +753,24 @@ class BatchFaturaProvider extends ChangeNotifier {
   /// [cevrimdisi] true ise doğrudan kural tabanlı parser kullanılır.
   /// false ise önce AI denenir, başarısız olursa otomatik olarak
   /// çevrimdışı parser'a düşülür (internet/AI yoksa iş durmaz).
-  Future<void> loadBatch(String text, {bool cevrimdisi = false, Uint8List? pdfBytes}) async {
+  Future<void> loadBatch(
+    String text, {
+    bool cevrimdisi = false,
+    Uint8List? pdfBytes,
+  }) async {
     List<FaturaModel> sonuc = [];
 
     if (!cevrimdisi) {
       // Katman 1 — Arşiv eşleştirme (skor bazlı şablon klonlama)
       try {
-        final arsivKayitlar = await _faturaService.araFaturalar(FaturaArsivAramaFiltre(metin: ''));
+        final arsivKayitlar = await _faturaService.araFaturalar(
+          FaturaArsivAramaFiltre(metin: ''),
+        );
         final gecmis = arsivKayitlar.map((e) => e.fatura).toList();
-        final eslesmeSonuc =
-            FaturaEslestirmeServisi.eslestir(rawText: text, gecmisFaturalar: gecmis);
+        final eslesmeSonuc = FaturaEslestirmeServisi.eslestir(
+          rawText: text,
+          gecmisFaturalar: gecmis,
+        );
         if (eslesmeSonuc != null) {
           sonuc = [eslesmeSonuc.fatura];
           final skor = eslesmeSonuc.skor;
@@ -752,13 +786,18 @@ class BatchFaturaProvider extends ChangeNotifier {
       // Katman 2 — Yapay zeka (Gemini / DeepSeek)
       if (sonuc.isEmpty) {
         try {
-          final extractedData = await _aiService.extractBatchData(text, pdfBytes: pdfBytes);
+          final extractedData = await _aiService.extractBatchData(
+            text,
+            pdfBytes: pdfBytes,
+          );
           sonuc = extractedData.map(FaturaModel.fromJson).toList();
           if (sonuc.isNotEmpty) {
             sonAyristirmaBilgisi = sonuc.first.parsedBy;
           }
         } catch (e) {
-          debugPrint('AI ayrıştırma başarısız, çevrimdışı parser deneniyor: $e');
+          debugPrint(
+            'AI ayrıştırma başarısız, çevrimdışı parser deneniyor: $e',
+          );
         }
       }
     }
@@ -796,7 +835,8 @@ class BatchFaturaProvider extends ChangeNotifier {
   }
 
   /// Çevrimdışı (AI'sız) ayrıştırma için kısayol.
-  Future<void> loadBatchOffline(String text) => loadBatch(text, cevrimdisi: true);
+  Future<void> loadBatchOffline(String text) =>
+      loadBatch(text, cevrimdisi: true);
 
   /// Başlangıç yer tutucusu mu? (henüz kullanıcı işlem yapmadı)
   /// parsedBy değerinden bağımsız: firma adı ve kalem yoksa yer tutucudur.
@@ -808,7 +848,7 @@ class BatchFaturaProvider extends ChangeNotifier {
     final bos = FaturaModel.bos(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
     )..parsedBy = FaturaParseKaynaklari.manuel;
-    
+
     // Kullanıcı manuel ekle dediğinde UI'da (yerTutucuMu) görünmez olmaması için 1 boş kalem ekliyoruz.
     bos.kalemler.add({'cinsi': '', 'miktar': 1, 'fiyat': 0.0});
 
@@ -952,7 +992,12 @@ class BatchFaturaProvider extends ChangeNotifier {
     _queueChanged();
   }
 
-  void updateKalem(int invoiceIndex, int kalemIndex, String key, dynamic value) {
+  void updateKalem(
+    int invoiceIndex,
+    int kalemIndex,
+    String key,
+    dynamic value,
+  ) {
     if (invoiceIndex < 0 || invoiceIndex >= pendingInvoices.length) return;
     final currentInvoice = pendingInvoices[invoiceIndex];
     if (kalemIndex < 0 || kalemIndex >= currentInvoice.kalemler.length) return;
@@ -1025,7 +1070,10 @@ class BatchFaturaProvider extends ChangeNotifier {
     });
     if (pendingInvoices.isEmpty) _initializeEmpty();
     _queueChanged();
-    return FaturaOnaySonucu(kaydedilen: kaydedilenIdler.length, hatalar: hatalar);
+    return FaturaOnaySonucu(
+      kaydedilen: kaydedilenIdler.length,
+      hatalar: hatalar,
+    );
   }
 
   void updateField(int index, String field, dynamic value) {
@@ -1096,7 +1144,9 @@ class BatchFaturaProvider extends ChangeNotifier {
       case 'kursAdi':
         currentInvoice.kursAdi = value?.toString();
       case 'kurNo':
-        currentInvoice.kurNo = value != null ? int.tryParse(value.toString()) : null;
+        currentInvoice.kurNo = value != null
+            ? int.tryParse(value.toString())
+            : null;
       case 'odemeTipi':
         currentInvoice.odemeTipi = value?.toString();
       case 'ytbOgrencisi':
@@ -1162,10 +1212,7 @@ class BatchFaturaProvider extends ChangeNotifier {
     try {
       final (fontRegular, fontBold) = await _pdfFontlari();
       final pdf = pw.Document(
-        theme: pw.ThemeData.withFont(
-          base: fontRegular,
-          bold: fontBold,
-        ),
+        theme: pw.ThemeData.withFont(base: fontRegular, bold: fontBold),
       );
       const int satirLimit = 10;
 
@@ -1190,10 +1237,10 @@ class BatchFaturaProvider extends ChangeNotifier {
       var oncekiSayfaToplam = 0.0;
 
       pw.TextStyle metin({pw.FontWeight? weight}) => pw.TextStyle(
-            fontSize: matbuFontBoyutu,
-            fontWeight: weight,
-            font: weight == pw.FontWeight.bold ? fontBold : fontRegular,
-          );
+        fontSize: matbuFontBoyutu,
+        fontWeight: weight,
+        font: weight == pw.FontWeight.bold ? fontBold : fontRegular,
+      );
 
       for (var sayfaIndex = 0; sayfaIndex < toplamSayfa; sayfaIndex++) {
         final baslangic = sayfaIndex * satirLimit;
@@ -1219,9 +1266,9 @@ class BatchFaturaProvider extends ChangeNotifier {
               buildBackground: bgImage == null
                   ? null
                   : (context) => pw.FullPage(
-                        ignoreMargins: true,
-                        child: pw.Image(bgImage!, fit: pw.BoxFit.fill),
-                      ),
+                      ignoreMargins: true,
+                      child: pw.Image(bgImage!, fit: pw.BoxFit.fill),
+                    ),
             ),
             build: (context) {
               final children = <pw.Widget>[];
@@ -1326,9 +1373,11 @@ class BatchFaturaProvider extends ChangeNotifier {
               for (final entry in sayfaSatirlari.asMap().entries) {
                 final index = entry.key;
                 final item = entry.value;
-                final currentTop = _konum('cinsi').dy + (index * kalemSatirAraligi);
+                final currentTop =
+                    _konum('cinsi').dy + (index * kalemSatirAraligi);
                 final fiyat = double.tryParse(item['fiyat'].toString()) ?? 0.0;
-                final miktar = double.tryParse(item['miktar'].toString()) ?? 1.0;
+                final miktar =
+                    double.tryParse(item['miktar'].toString()) ?? 1.0;
                 final satirTutar = fiyat * miktar;
 
                 children.addAll([
@@ -1358,7 +1407,10 @@ class BatchFaturaProvider extends ChangeNotifier {
                   pw.Positioned(
                     top: currentTop,
                     left: _konum('tutar').dx,
-                    child: pw.Text(TurkceFormat.para(satirTutar), style: metin()),
+                    child: pw.Text(
+                      TurkceFormat.para(satirTutar),
+                      style: metin(),
+                    ),
                   ),
                 ]);
               }
@@ -1382,7 +1434,9 @@ class BatchFaturaProvider extends ChangeNotifier {
                     ),
                   ),
                 ]);
-              } else if (invoice.nakliYekunAktif && toplamSayfa == 1 && sonSayfa) {
+              } else if (invoice.nakliYekunAktif &&
+                  toplamSayfa == 1 &&
+                  sonSayfa) {
                 children.addAll([
                   pw.Positioned(
                     top: _konum('nakliYekunAltYazi').dy,
@@ -1409,10 +1463,13 @@ class BatchFaturaProvider extends ChangeNotifier {
                     numuneAciklamaAlt.toLowerCase().contains('melbes') &&
                     numuneAciklamaAlt.toLowerCase().contains('numune');
                 final ustAciklamalar = [
-                  if (numuneAciklamaAlt.isNotEmpty && !numuneAciklamaMelbesSatiri)
+                  if (numuneAciklamaAlt.isNotEmpty &&
+                      !numuneAciklamaMelbesSatiri)
                     numuneAciklamaAlt,
-                  if (invoice.aciklama != null && invoice.aciklama!.trim().isNotEmpty) invoice.aciklama!,
-                  if (invoice.isKdvMuaf) 'KDV\'den Muaftır (İstisna)'
+                  if (invoice.aciklama != null &&
+                      invoice.aciklama!.trim().isNotEmpty)
+                    invoice.aciklama!,
+                  if (invoice.isKdvMuaf) 'KDV\'den Muaftır (İstisna)',
                 ].join(' | ');
 
                 if (ustAciklamalar.isNotEmpty) {
@@ -1459,7 +1516,10 @@ class BatchFaturaProvider extends ChangeNotifier {
                   pw.Positioned(
                     top: _konum('matrah').dy,
                     left: _konum('matrah').dx,
-                    child: pw.Text(TurkceFormat.para(invoice.matrah), style: metin()),
+                    child: pw.Text(
+                      TurkceFormat.para(invoice.matrah),
+                      style: metin(),
+                    ),
                   ),
                   pw.Positioned(
                     top: _konum('kdv').dy,
@@ -1490,7 +1550,8 @@ class BatchFaturaProvider extends ChangeNotifier {
                   ),
                 ]);
 
-                final hesapAdiHam = (invoice.hesapAdi?.trim().isNotEmpty == true)
+                final hesapAdiHam =
+                    (invoice.hesapAdi?.trim().isNotEmpty == true)
                     ? invoice.hesapAdi!
                     : (sistemAyarlari?.hesapAdi ?? '');
                 final hesapAdi = FaturaMatbuConfig.formatHesapAdiMatbu(
@@ -1548,9 +1609,8 @@ class BatchFaturaProvider extends ChangeNotifier {
       final errDoc = pw.Document();
       errDoc.addPage(
         pw.Page(
-          build: (context) => pw.Center(
-            child: pw.Text('PDF oluşturulamadı: $e'),
-          ),
+          build: (context) =>
+              pw.Center(child: pw.Text('PDF oluşturulamadı: $e')),
         ),
       );
       return errDoc.save();

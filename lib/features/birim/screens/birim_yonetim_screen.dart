@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../fatura/providers/batch_fatura_provider.dart';
 import '../models/birim_model.dart';
 import '../services/birim_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -15,6 +17,10 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
   final BirimService _birimService = BirimService();
   BirimTuru? _seciliTur;
 
+  void _faturaBirimleriniYenile() {
+    context.read<BatchFaturaProvider>().refreshBirimler();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -28,9 +34,9 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                 child: Text(
                   'Birim Yönetimi',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               FilledButton.icon(
@@ -38,7 +44,10 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                 icon: const Icon(Icons.add_business),
                 label: const Text('Yeni Birim'),
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
                 ),
               ),
             ],
@@ -54,11 +63,13 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                 selected: _seciliTur == null,
                 onSelected: (_) => setState(() => _seciliTur = null),
               ),
-              ...BirimTuru.values.map((t) => FilterChip(
-                    label: Text(t.displayName),
-                    selected: _seciliTur == t,
-                    onSelected: (_) => setState(() => _seciliTur = t),
-                  )),
+              ...BirimTuru.values.map(
+                (t) => FilterChip(
+                  label: Text(t.displayName),
+                  selected: _seciliTur == t,
+                  onSelected: (_) => setState(() => _seciliTur = t),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -72,8 +83,8 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                     child: Text(
                       'Birim verileri alınamadı. ${snapshot.error}',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   );
                 }
@@ -84,7 +95,9 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
 
                 var birimler = snapshot.data!;
                 if (_seciliTur != null) {
-                  birimler = birimler.where((b) => b.tur == _seciliTur).toList();
+                  birimler = birimler
+                      .where((b) => b.tur == _seciliTur)
+                      .toList();
                 }
 
                 if (birimler.isEmpty) {
@@ -92,8 +105,8 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                     child: Text(
                       'Birim bulunamadı.',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   );
                 }
@@ -104,7 +117,8 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                   itemBuilder: (context, index) {
                     return _BirimKarti(
                       birim: birimler[index],
-                      onDuzenle: () => _birimDuzenleDialog(context, birimler[index]),
+                      onDuzenle: () =>
+                          _birimDuzenleDialog(context, birimler[index]),
                       onDurumDegistir: () => _durumDegistir(birimler[index]),
                     );
                   },
@@ -144,7 +158,8 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                       prefixIcon: Icon(Icons.business),
                       border: OutlineInputBorder(),
                     ),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Zorunlu alan' : null,
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Zorunlu alan' : null,
                     onSaved: (v) => ad = v!.trim(),
                   ),
                   const SizedBox(height: 16),
@@ -154,7 +169,8 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                       prefixIcon: Icon(Icons.short_text),
                       border: OutlineInputBorder(),
                     ),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Zorunlu alan' : null,
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Zorunlu alan' : null,
                     onSaved: (v) => kisaAd = v!.trim(),
                   ),
                   const SizedBox(height: 16),
@@ -166,10 +182,12 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: BirimTuru.values
-                        .map((t) => DropdownMenuItem(
-                              value: t,
-                              child: Text(t.displayName),
-                            ))
+                        .map(
+                          (t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(t.displayName),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) {
                       if (v != null) setDialogState(() => tur = v);
@@ -229,14 +247,21 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                     await _birimService.create(birim);
                     if (ctx.mounted) Navigator.pop(ctx);
                     if (mounted) {
+                      _faturaBirimleriniYenile();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Birim başarıyla eklendi.'), backgroundColor: Colors.green),
+                        const SnackBar(
+                          content: Text('Birim başarıyla eklendi.'),
+                          backgroundColor: Colors.green,
+                        ),
                       );
                     }
                   } catch (e) {
                     if (ctx.mounted) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+                        SnackBar(
+                          content: Text('Hata: $e'),
+                          backgroundColor: Colors.red,
+                        ),
                       );
                     }
                   }
@@ -250,7 +275,10 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
     );
   }
 
-  Future<void> _birimDuzenleDialog(BuildContext context, BirimModel birim) async {
+  Future<void> _birimDuzenleDialog(
+    BuildContext context,
+    BirimModel birim,
+  ) async {
     final formKey = GlobalKey<FormState>();
     String ad = birim.ad;
     String kisaAd = birim.kisaAd;
@@ -278,7 +306,8 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                       prefixIcon: Icon(Icons.business),
                       border: OutlineInputBorder(),
                     ),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Zorunlu alan' : null,
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Zorunlu alan' : null,
                     onSaved: (v) => ad = v!.trim(),
                   ),
                   const SizedBox(height: 16),
@@ -289,7 +318,8 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                       prefixIcon: Icon(Icons.short_text),
                       border: OutlineInputBorder(),
                     ),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Zorunlu alan' : null,
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Zorunlu alan' : null,
                     onSaved: (v) => kisaAd = v!.trim(),
                   ),
                   const SizedBox(height: 16),
@@ -301,10 +331,12 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: BirimTuru.values
-                        .map((t) => DropdownMenuItem(
-                              value: t,
-                              child: Text(t.displayName),
-                            ))
+                        .map(
+                          (t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(t.displayName),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) {
                       if (v != null) setDialogState(() => tur = v);
@@ -354,14 +386,21 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                     });
                     if (ctx.mounted) Navigator.pop(ctx);
                     if (mounted) {
+                      _faturaBirimleriniYenile();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Birim güncellendi.'), backgroundColor: Colors.green),
+                        const SnackBar(
+                          content: Text('Birim güncellendi.'),
+                          backgroundColor: Colors.green,
+                        ),
                       );
                     }
                   } catch (e) {
                     if (ctx.mounted) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+                        SnackBar(
+                          content: Text('Hata: $e'),
+                          backgroundColor: Colors.red,
+                        ),
                       );
                     }
                   }
@@ -380,9 +419,14 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
     try {
       await _birimService.update(birim.id, {'aktif': yeniDurum});
       if (mounted) {
+        _faturaBirimleriniYenile();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(yeniDurum ? '${birim.kisaAd} aktif edildi.' : '${birim.kisaAd} deaktif edildi.'),
+            content: Text(
+              yeniDurum
+                  ? '${birim.kisaAd} aktif edildi.'
+                  : '${birim.kisaAd} deaktif edildi.',
+            ),
             backgroundColor: Colors.blue,
           ),
         );
@@ -410,8 +454,6 @@ class _BirimKarti extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -421,7 +463,9 @@ class _BirimKarti extends StatelessWidget {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
-          backgroundColor: birim.aktif ? AppTheme.primaryColor.withOpacity(0.1) : Colors.grey.shade200,
+          backgroundColor: birim.aktif
+              ? AppTheme.primaryColor.withOpacity(0.1)
+              : Colors.grey.shade200,
           child: Icon(
             Icons.business_rounded,
             color: birim.aktif ? AppTheme.primaryColor : Colors.grey,
@@ -444,7 +488,9 @@ class _BirimKarti extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: birim.aktif ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                color: birim.aktif
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.red.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(

@@ -10,15 +10,22 @@ class FaturaMatbuConfig {
   static const double varsayilanFontBoyutu = 10.0;
   static const double varsayilanKalemSatirAraligi = 16.0;
 
-  /// Matbu baskı/kalibrasyonda boş cinsi satırları atlar (yalnızca miktar görünmesin).
+  /// Matbu baskı/kalibrasyonda yalnızca gerçek tutarlı kalemleri basar.
+  /// Başlık/grup satırları (cinsi var, fiyat/tutar yok) miktar sütununu kaydırmasın.
   static List<Map<String, dynamic>> matbuKalemleri(
     List<Map<String, dynamic>> kalemler,
   ) {
     final kaynak = List<Map<String, dynamic>>.from(kalemler);
-    final dolu = kaynak
-        .where((k) => '${k['cinsi']}'.trim().isNotEmpty)
-        .toList();
-    return dolu.isNotEmpty ? dolu : kaynak;
+    final gercekKalemler = kaynak.where((k) {
+      final cinsi = '${k['cinsi']}'.trim();
+      if (cinsi.isEmpty) return false;
+      final fiyat = TurkceFormat.parseSayi(k['fiyat'], fallback: 0);
+      final tutar = TurkceFormat.parseSayi(k['tutar'], fallback: 0);
+      return fiyat > 0 || tutar > 0;
+    }).toList();
+    if (gercekKalemler.isNotEmpty) return gercekKalemler;
+
+    return kaynak.where((k) => '${k['cinsi']}'.trim().isNotEmpty).toList();
   }
 
   static const Map<String, String> alanEtiketleri = {
@@ -65,7 +72,8 @@ class FaturaMatbuConfig {
     'nakliYekunAltYazi': 'Nakli Yekün (Devreden)',
     'nakliYekunAltTutar': '750,00',
     'numuneAciklama': 'Su numunesi — klor analizi',
-    'melbes': 'Çevre Şehircilik ve İklim Değişikliği Bakanlığı Melbes Başvuru No: MEL-2026-0042 Numune No: N-1087',
+    'melbes':
+        'Çevre Şehircilik ve İklim Değişikliği Bakanlığı Melbes Başvuru No: MEL-2026-0042 Numune No: N-1087',
     'numuneNo': 'Numune No: N-1087',
     'matrah': '1.500,00',
     'kdv': '300,00',
@@ -230,14 +238,16 @@ class FaturaMatbuConfig {
     final kurum = kurumOnEki?.trim() ?? '';
 
     if (m.isNotEmpty && n.isNotEmpty) {
-      if (m.toLowerCase().contains('melbes') && n.toLowerCase().contains('numune')) {
+      if (m.toLowerCase().contains('melbes') &&
+          n.toLowerCase().contains('numune')) {
         return '$m $n';
       }
       final melbesKisim = m.toLowerCase().contains('melbes')
           ? m
           : formatMelbesMatbu(m, kurumOnEki: kurum);
-      final numuneKisim =
-          n.toLowerCase().contains('numune') ? n : 'Numune No: $n';
+      final numuneKisim = n.toLowerCase().contains('numune')
+          ? n
+          : 'Numune No: $n';
       if (melbesKisim.toLowerCase().contains('numune')) return melbesKisim;
       return '$melbesKisim $numuneKisim';
     }
@@ -247,29 +257,29 @@ class FaturaMatbuConfig {
   }
 
   static Map<String, Offset> varsayilanKoordinatlar() => {
-        'firmaAdi': const Offset(45, 135),
-        'adres': const Offset(45, 155),
-        'vergiDairesi': const Offset(145, 275),
-        'vkn': const Offset(145, 295),
-        'tarih': const Offset(470, 270),
-        'irsaliyeTarihi': const Offset(470, 285),
-        'irsaliyeNo': const Offset(470, 300),
-        'cinsi': const Offset(42, 332),
-        'miktar': const Offset(318, 332),
-        'fiyat': const Offset(378, 332),
-        'tutar': const Offset(508, 332),
-        'nakliYekunUstYazi': const Offset(270, 340),
-        'nakliYekunUstTutar': const Offset(510, 340),
-        'nakliYekunAltYazi': const Offset(270, 580),
-        'nakliYekunAltTutar': const Offset(510, 580),
-        'numuneAciklama': const Offset(50, 600),
-        'melbes': const Offset(50, 620),
-        'numuneNo': const Offset(50, 640),
-        'matrah': const Offset(470, 675),
-        'kdv': const Offset(470, 705),
-        'genelToplam': const Offset(470, 735),
-        'yaziylaTutar': const Offset(90, 785),
-        'hesapAdi': const Offset(90, 805),
-        'iban': const Offset(90, 825),
-      };
+    'firmaAdi': const Offset(45, 135),
+    'adres': const Offset(45, 155),
+    'vergiDairesi': const Offset(145, 275),
+    'vkn': const Offset(145, 295),
+    'tarih': const Offset(470, 270),
+    'irsaliyeTarihi': const Offset(470, 285),
+    'irsaliyeNo': const Offset(470, 300),
+    'cinsi': const Offset(42, 332),
+    'miktar': const Offset(318, 332),
+    'fiyat': const Offset(378, 332),
+    'tutar': const Offset(508, 332),
+    'nakliYekunUstYazi': const Offset(270, 340),
+    'nakliYekunUstTutar': const Offset(510, 340),
+    'nakliYekunAltYazi': const Offset(270, 580),
+    'nakliYekunAltTutar': const Offset(510, 580),
+    'numuneAciklama': const Offset(50, 600),
+    'melbes': const Offset(50, 620),
+    'numuneNo': const Offset(50, 640),
+    'matrah': const Offset(470, 675),
+    'kdv': const Offset(470, 705),
+    'genelToplam': const Offset(470, 735),
+    'yaziylaTutar': const Offset(90, 785),
+    'hesapAdi': const Offset(90, 805),
+    'iban': const Offset(90, 825),
+  };
 }
