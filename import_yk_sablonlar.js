@@ -393,14 +393,9 @@ async function main() {
 async function uploadToFirebase(items) {
   const admin = require('firebase-admin');
   const { randomUUID } = require('crypto');
-  const serviceAccount = require('./dsys-44b8e-firebase-adminsdk-fbsvc-6c70b81940.json');
+  const { initializeFirebaseAdmin } = require('./scripts/firebase_admin_init');
 
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      storageBucket: 'dsys-44b8e.firebasestorage.app',
-    });
-  }
+  initializeFirebaseAdmin();
 
   const db = admin.firestore();
   const bucket = admin.storage().bucket();

@@ -5,15 +5,8 @@
  * node verify_sistem_sablonlari.js
  */
 
-const admin = require('firebase-admin');
-const serviceAccount = require('./dsys-44b8e-firebase-adminsdk-fbsvc-6c70b81940.json');
-
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: 'dsys-44b8e.firebasestorage.app',
-  });
-}
+const { initializeFirebaseAdmin } = require('./scripts/firebase_admin_init');
+const admin = initializeFirebaseAdmin();
 
 const db = admin.firestore();
 const bucket = admin.storage().bucket();

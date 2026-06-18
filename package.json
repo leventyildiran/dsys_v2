@@ -2,7 +2,9 @@
   "scripts": {
     "migrate:tenant:dry": "node migrate_to_multitenant.js --dry-run --uni=usak",
     "migrate:tenant": "node migrate_to_multitenant.js --uni=usak",
-    "migrate:tenant:with-temp": "node migrate_to_multitenant.js --uni=usak --include-temp"
+    "migrate:tenant:with-temp": "node migrate_to_multitenant.js --uni=usak --include-temp",
+    "security:rotate-sa": "node scripts/rotate_service_account_key.js",
+    "security:purge-git": "node scripts/purge_leaked_credentials_from_git.js"
   },
   "dependencies": {
     "adm-zip": "^0.5.17",

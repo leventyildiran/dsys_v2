@@ -10,6 +10,12 @@ $keyFile = Get-ChildItem -Path $repoRoot -Filter '*firebase-adminsdk*.json' -Fil
     Select-Object -First 1
 
 if (-not $keyFile) {
+    if ($env:GOOGLE_APPLICATION_CREDENTIALS -and (Test-Path $env:GOOGLE_APPLICATION_CREDENTIALS)) {
+        $keyFile = Get-Item $env:GOOGLE_APPLICATION_CREDENTIALS
+    }
+}
+
+if (-not $keyFile) {
     Write-Error "Firebase service account JSON bulunamadı. Dosyayı proje köküne koyun (*firebase-adminsdk*.json)."
 }
 

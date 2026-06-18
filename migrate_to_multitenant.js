@@ -1,12 +1,8 @@
 const fs = require('fs');
 const path = require('path');
-const admin = require('firebase-admin');
+const { initializeFirebaseAdmin } = require('./scripts/firebase_admin_init');
 
-const serviceAccount = require('./dsys-44b8e-firebase-adminsdk-fbsvc-6c70b81940.json');
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+const admin = initializeFirebaseAdmin();
 
 const db = admin.firestore();
 
