@@ -10,6 +10,17 @@ class FaturaMatbuConfig {
   static const double varsayilanFontBoyutu = 10.0;
   static const double varsayilanKalemSatirAraligi = 16.0;
 
+  /// Matbu baskı/kalibrasyonda boş cinsi satırları atlar (yalnızca miktar görünmesin).
+  static List<Map<String, dynamic>> matbuKalemleri(
+    List<Map<String, dynamic>> kalemler,
+  ) {
+    final kaynak = List<Map<String, dynamic>>.from(kalemler);
+    final dolu = kaynak
+        .where((k) => '${k['cinsi']}'.trim().isNotEmpty)
+        .toList();
+    return dolu.isNotEmpty ? dolu : kaynak;
+  }
+
   static const Map<String, String> alanEtiketleri = {
     'firmaAdi': 'Firma Adı',
     'adres': 'Adres',

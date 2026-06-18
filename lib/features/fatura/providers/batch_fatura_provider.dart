@@ -14,6 +14,7 @@ import '../../birim/models/birim_model.dart';
 import '../../birim/services/birim_service.dart';
 import '../../../core/models/hizmet_model.dart';
 import '../../../core/services/hizmet_service.dart';
+import '../models/fatura_matbu_baski_onizleme.dart';
 import '../models/fatura_matbu_config.dart';
 import '../models/fatura_matbu_kalibrasyon.dart';
 import '../services/fatura_matbu_kalibrasyon_servisi.dart';
@@ -134,7 +135,7 @@ class BatchFaturaProvider extends ChangeNotifier {
   }
 
   void _kalemSenkronDelta(String key, Offset delta, {bool notify = true}) {
-    const kalemKeys = {'cinsi', 'miktar', 'fiyat', 'tutar'};
+    const kalemKeys = FaturaMatbuKalibrasyon.kalemSutunlari;
     if (kalemKeys.contains(key)) {
       if (delta.dy != 0) {
         for (final k in kalemKeys) {
@@ -144,6 +145,7 @@ class BatchFaturaProvider extends ChangeNotifier {
       if (delta.dx != 0) {
         updateCoordinateDelta(key, Offset(delta.dx, 0), notify: false);
       }
+      FaturaMatbuKalibrasyon.senkronizeKalemDy(coordinates);
       if (notify) {
         notifyListeners();
         _scheduleMatbuAyarKaydet();
@@ -167,6 +169,7 @@ class BatchFaturaProvider extends ChangeNotifier {
 
   void _kalibrasyonUygula(FaturaMatbuKalibrasyon ayar) {
     coordinates = Map<String, Offset>.from(ayar.koordinatlar);
+    FaturaMatbuKalibrasyon.senkronizeKalemDy(coordinates);
     kalemSatirAraligi = ayar.kalemSatirAraligi;
     matbuFontBoyutu = ayar.fontBoyutu;
     globalOffsetDx = ayar.globalOffsetDx;
@@ -178,6 +181,38 @@ class BatchFaturaProvider extends ChangeNotifier {
       FaturaMatbuConfig.ornekBaskiMetinleri(
         isletmeVkn: _isletmeVknFallback(),
       );
+
+  /// Kalibrasyonda önizlenecek fatura: sıradaki gerçek kayıt, yoksa örnek.
+  FaturaModel kalibrasyonFaturasi() {
+    final idx = _kalibrasyonFaturaIndex();
+    if (idx != null) return pendingInvoices[idx];
+    return ornekFatura();
+  }
+
+  int kalibrasyonFaturaIndex() => _kalibrasyonFaturaIndex() ?? currentIndex;
+
+  KalibrasyonBaskiOnizleme kalibrasyonBaskiOnizlemesi() {
+    final fatura = kalibrasyonFaturasi();
+    final ornek = fatura.id == 'ornek';
+    if (ornek) {
+      return KalibrasyonBaskiOnizleme.ornek(
+        isletmeVkn: _isletmeVknFallback(),
+        yaziyla: _sayiyiYaziyaCevir,
+      );
+    }
+    final baslik = fatura.firmaAdi.trim().isNotEmpty
+        ? fatura.firmaAdi.trim()
+        : 'Sıradaki fatura';
+    return KalibrasyonBaskiOnizleme.fromFatura(
+      fatura,
+      isletmeVkn: _isletmeVknFallback(),
+      sistemHesapAdi: sistemAyarlari?.hesapAdi,
+      sistemIban: sistemAyarlari?.iban,
+      yaziyla: _sayiyiYaziyaCevir,
+      canliVeri: true,
+      baslik: baslik,
+    );
+  }
 
   void calibrationUiRefresh() {
     notifyListeners();
@@ -272,6 +307,22 @@ class BatchFaturaProvider extends ChangeNotifier {
     if (index < 0 || index >= pendingInvoices.length) return;
     pendingInvoices[index].nakliYekunAktif = value;
     _queueChanged();
+  }
+
+  /// Kalibrasyon/önizleme: yalnızca faturanın kendi nakli bayrağı.
+  bool nakliAlanlariGoster(FaturaModel invoice) => invoice.nakliYekunAktif;
+
+  int? _kalibrasyonFaturaIndex() {
+    if (pendingInvoices.isEmpty) return null;
+    if (currentIndex >= 0 &&
+        currentIndex < pendingInvoices.length &&
+        !yerTutucuMu(pendingInvoices[currentIndex])) {
+      return currentIndex;
+    }
+    for (var i = 0; i < pendingInvoices.length; i++) {
+      if (!yerTutucuMu(pendingInvoices[i])) return i;
+    }
+    return null;
   }
 
   void refreshBirimler() {
@@ -1124,7 +1175,7 @@ class BatchFaturaProvider extends ChangeNotifier {
         bgImage = pw.MemoryImage(raw.buffer.asUint8List());
       }
 
-      final kalemler = List<Map<String, dynamic>>.from(invoice.kalemler);
+      final kalemler = FaturaMatbuConfig.matbuKalemleri(invoice.kalemler);
       if (kalemler.isEmpty) {
         kalemler.add({
           'cinsi': invoice.numuneAciklamasi.isNotEmpty
@@ -1327,6 +1378,25 @@ class BatchFaturaProvider extends ChangeNotifier {
                     left: _konum('nakliYekunAltTutar').dx,
                     child: pw.Text(
                       TurkceFormat.para(araToplam),
+                      style: metin(weight: pw.FontWeight.bold),
+                    ),
+                  ),
+                ]);
+              } else if (invoice.nakliYekunAktif && toplamSayfa == 1 && sonSayfa) {
+                children.addAll([
+                  pw.Positioned(
+                    top: _konum('nakliYekunAltYazi').dy,
+                    left: _konum('nakliYekunAltYazi').dx,
+                    child: pw.Text(
+                      'Nakli Yekün (Devreden)',
+                      style: metin(weight: pw.FontWeight.bold),
+                    ),
+                  ),
+                  pw.Positioned(
+                    top: _konum('nakliYekunAltTutar').dy,
+                    left: _konum('nakliYekunAltTutar').dx,
+                    child: pw.Text(
+                      TurkceFormat.para(sayfaToplami),
                       style: metin(weight: pw.FontWeight.bold),
                     ),
                   ),

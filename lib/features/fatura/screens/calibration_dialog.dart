@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/fatura_matbu_baski_onizleme.dart';
 import '../models/fatura_matbu_config.dart';
 import '../models/fatura_matbu_kalibrasyon.dart';
 import '../providers/batch_fatura_provider.dart';
@@ -12,14 +13,19 @@ class FaturaCalibrationDialog extends StatefulWidget {
 }
 
 class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
-  bool _ornekMetinGoster = true;
+  /// Kapalıyken canlı/PDF metni; açıkken yalnızca alan adları (hizalama).
+  bool _etiketModu = false;
   String? _seciliAlan;
   bool _alanSurukleniyor = false;
 
   Iterable<MapEntry<String, Offset>> _gorunurAlanlar(BatchFaturaProvider p) {
     return p.coordinates.entries.where((e) {
       if (FaturaMatbuKalibrasyon.gizliAlanlar.contains(e.key)) return false;
-      if (!p.isNakliYekunAktif && e.key.startsWith('nakliYekun')) return false;
+      if (KalibrasyonBaskiOnizleme.kalemAlanlari.contains(e.key)) return false;
+      if (!p.nakliAlanlariGoster(p.kalibrasyonFaturasi()) &&
+          e.key.startsWith('nakliYekun')) {
+        return false;
+      }
       return true;
     });
   }
@@ -57,6 +63,7 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
 
   Widget _buildHeader(BuildContext context) {
     final provider = context.read<BatchFaturaProvider>();
+    final onizleme = provider.kalibrasyonBaskiOnizlemesi();
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
       decoration: BoxDecoration(
@@ -67,32 +74,37 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
         children: [
           const Icon(Icons.print_outlined, color: Color(0xFF2C3E50)),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Matbu Fatura Kalibrasyonu',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  'Soldan alan seçin veya form üzerinde sürükleyin. Önce «Tüm alanları kaydır» ile hızlı hizalayın.',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                  onizleme.canliVeri
+                      ? 'Canlı önizleme: ${onizleme.baslik} — PDF ile aynı metin'
+                      : onizleme.baslik,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: onizleme.canliVeri ? Colors.green.shade800 : Colors.black54,
+                  ),
                 ),
               ],
             ),
           ),
           Switch(
-            value: _ornekMetinGoster,
-            onChanged: (v) => setState(() => _ornekMetinGoster = v),
+            value: _etiketModu,
+            onChanged: (v) => setState(() => _etiketModu = v),
           ),
-          const Text('Örnek metin', style: TextStyle(fontSize: 12)),
+          const Text('Alan etiketleri', style: TextStyle(fontSize: 12)),
           const SizedBox(width: 12),
           OutlinedButton.icon(
             icon: const Icon(Icons.print),
             label: const Text('Test Baskı'),
             onPressed: () async {
-              await provider.matbuYazdir(provider.ornekFatura());
+              await provider.matbuYazdir(provider.kalibrasyonFaturasi());
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -148,13 +160,15 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
   }
 
   Widget _buildSidePanel() {
+    final provider = context.read<BatchFaturaProvider>();
+    final fatura = provider.kalibrasyonFaturasi();
     return Selector<BatchFaturaProvider, _SidePanelData>(
       selector: (_, p) => _SidePanelData(
         fontBoyutu: p.matbuFontBoyutu,
         satirAraligi: p.kalemSatirAraligi,
         globalDx: p.globalOffsetDx,
         globalDy: p.globalOffsetDy,
-        nakliAktif: p.isNakliYekunAktif,
+        nakliAktif: p.nakliAlanlariGoster(fatura),
         coordinates: Map.from(p.coordinates),
       ),
       builder: (context, data, _) {
@@ -170,8 +184,8 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
                 border: Border.all(color: Colors.amber.shade200),
               ),
               child: Text(
-                'İpucu: Önce alttaki X/Y kaydırıcılarıyla tüm formu hizalayın. '
-                'Sonra tek tek alan seçip ok tuşlarıyla ince ayar yapın.',
+                'Önizleme sıradaki faturanın gerçek verisini gösterir (PDF ile aynı). '
+                'Önce X/Y ile genel hizalama, sonra ok tuşlarıyla ince ayar.',
                 style: TextStyle(fontSize: 11, color: Colors.amber.shade900, height: 1.35),
               ),
             ),
@@ -215,10 +229,44 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
             const Divider(height: 20),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Nakli yekün alanları', style: TextStyle(fontSize: 13)),
+              title: const Text('Nakli yekün (bu fatura)', style: TextStyle(fontSize: 13)),
+              subtitle: const Text(
+                'Fatura kartındaki ayarla aynı — önizleme ve PDF ile eşleşir',
+                style: TextStyle(fontSize: 10),
+              ),
               value: data.nakliAktif,
-              onChanged: provider.toggleNakliYekunGlobal,
+              onChanged: (v) => provider.setInvoiceNakliYekun(
+                provider.kalibrasyonFaturaIndex(),
+                v,
+              ),
             ),
+            const Divider(height: 12),
+            const Text('Kalem sütunları', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            ...KalibrasyonBaskiOnizleme.kalemAlanlari.map((key) {
+              final secili = _seciliAlan == key;
+              final koord = data.coordinates[key];
+              return Material(
+                color: secili ? Colors.blue.shade50 : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: () => setState(() => _seciliAlan = key),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Text(
+                      '${FaturaMatbuConfig.alanEtiketleri[key] ?? key}: '
+                      '${koord?.dx.toStringAsFixed(0) ?? "?"}, ${koord?.dy.toStringAsFixed(0) ?? "?"}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: secili ? FontWeight.w600 : FontWeight.normal,
+                        color: secili ? Colors.blue.shade900 : Colors.black54,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
             if (_seciliAlan != null) ...[
               const Divider(height: 16),
               Text(
@@ -229,7 +277,7 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
               _nudgePad(context, _seciliAlan!),
             ],
             const SizedBox(height: 8),
-            const Text('Alan listesi (dokunun)', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Diğer alanlar', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             ..._gorunurAlanlar(provider).map((e) {
               final secili = _seciliAlan == e.key;
@@ -326,171 +374,294 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
 
   Widget _buildCanvas() {
     final provider = context.read<BatchFaturaProvider>();
-    final ornekMetinler = provider.ornekBaskiMetinleri();
+    final fatura = provider.kalibrasyonFaturasi();
+    final onizleme = provider.kalibrasyonBaskiOnizlemesi();
+    final nakliAktif = provider.nakliAlanlariGoster(fatura);
     final data = _CanvasData(
       coordinates: Map.from(provider.coordinates),
       globalDx: provider.globalOffsetDx,
       globalDy: provider.globalOffsetDy,
       fontBoyutu: provider.matbuFontBoyutu,
       satirAraligi: provider.kalemSatirAraligi,
-      nakliAktif: provider.isNakliYekunAktif,
+      nakliAktif: nakliAktif,
     );
 
     return Container(
-          color: Colors.grey.shade200,
-          child: InteractiveViewer(
-            constrained: false,
-            boundaryMargin: const EdgeInsets.all(40),
-            minScale: 0.6,
-            maxScale: 1.4,
-            panEnabled: !_alanSurukleniyor,
-            scaleEnabled: !_alanSurukleniyor,
-            child: Container(
-              width: FaturaMatbuConfig.a4Genislik,
-              height: FaturaMatbuConfig.a4Yukseklik,
-              margin: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    blurRadius: 12,
-                    spreadRadius: 2,
-                  ),
-                ],
+      color: Colors.grey.shade200,
+      child: InteractiveViewer(
+        constrained: false,
+        boundaryMargin: const EdgeInsets.all(40),
+        minScale: 0.6,
+        maxScale: 1.4,
+        panEnabled: !_alanSurukleniyor,
+        scaleEnabled: !_alanSurukleniyor,
+        child: Container(
+          width: FaturaMatbuConfig.a4Genislik,
+          height: FaturaMatbuConfig.a4Yukseklik,
+          margin: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 12,
+                spreadRadius: 2,
               ),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  RepaintBoundary(
-                    child: Image.asset(
-                      'assets/images/fatura_sablon.jpeg',
-                      fit: BoxFit.fill,
-                      width: FaturaMatbuConfig.a4Genislik,
-                      height: FaturaMatbuConfig.a4Yukseklik,
-                      cacheWidth: FaturaMatbuConfig.a4Genislik.round(),
-                    ),
-                  ),
-                  ...data.coordinates.entries.where((entry) {
-                    if (FaturaMatbuKalibrasyon.gizliAlanlar.contains(entry.key)) {
-                      return false;
-                    }
-                    if (!data.nakliAktif && entry.key.startsWith('nakliYekun')) {
-                      return false;
-                    }
-                    return true;
-                  }).map((entry) {
-                    final konum = Offset(
+            ],
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              RepaintBoundary(
+                child: Image.asset(
+                  'assets/images/fatura_sablon.jpeg',
+                  fit: BoxFit.fill,
+                  width: FaturaMatbuConfig.a4Genislik,
+                  height: FaturaMatbuConfig.a4Yukseklik,
+                  cacheWidth: FaturaMatbuConfig.a4Genislik.round(),
+                ),
+              ),
+              ..._kalemSatirlari(provider, onizleme, data),
+              ...data.coordinates.entries.where((entry) {
+                if (FaturaMatbuKalibrasyon.gizliAlanlar.contains(entry.key)) {
+                  return false;
+                }
+                if (KalibrasyonBaskiOnizleme.kalemAlanlari.contains(entry.key)) {
+                  return false;
+                }
+                if (!nakliAktif && entry.key.startsWith('nakliYekun')) {
+                  return false;
+                }
+                final metin = onizleme.alanlar[entry.key]?.trim() ?? '';
+                if (!_etiketModu && metin.isEmpty) return false;
+                return true;
+              }).map((entry) => _alanWidget(
+                    provider: provider,
+                    data: data,
+                    alanKey: entry.key,
+                    konum: Offset(
                       entry.value.dx + data.globalDx,
                       entry.value.dy + data.globalDy,
-                    );
-                    final etiket =
-                        FaturaMatbuConfig.alanEtiketleri[entry.key] ?? entry.key;
-                    final metin = _ornekMetinGoster
-                        ? (ornekMetinler[entry.key] ?? etiket)
-                        : etiket;
-                    final secili = _seciliAlan == entry.key;
-
-                    return Positioned(
-                      left: konum.dx,
-                      top: konum.dy,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.translucent,
-                        onTap: () => setState(() => _seciliAlan = entry.key),
-                        onPanStart: (_) {
-                          setState(() {
-                            _alanSurukleniyor = true;
-                            _seciliAlan = entry.key;
-                          });
-                        },
-                        onPanUpdate: (details) {
-                          provider.calibrationDragDelta(
-                            entry.key,
-                            details.delta,
-                            notify: false,
-                          );
-                          setState(() {});
-                        },
-                        onPanEnd: (_) {
-                          setState(() => _alanSurukleniyor = false);
-                          provider.calibrationUiRefresh();
-                        },
-                        onPanCancel: () {
-                          setState(() => _alanSurukleniyor = false);
-                          provider.calibrationUiRefresh();
-                        },
-                        child: Container(
-                          constraints: const BoxConstraints(maxWidth: 280),
-                          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
-                          decoration: secili || !_ornekMetinGoster
-                              ? BoxDecoration(
-                                  color: secili
-                                      ? Colors.blue.withValues(alpha: 0.15)
-                                      : Colors.white.withValues(alpha: 0.92),
-                                  border: Border.all(
-                                    color: secili ? Colors.blue : Colors.red,
-                                    width: secili ? 2 : 1.5,
-                                  ),
-                                  borderRadius: BorderRadius.circular(3),
-                                )
-                              : null,
-                          child: Text(
-                            metin,
-                            style: TextStyle(
-                              fontSize: data.fontBoyutu,
-                              fontWeight: entry.key == 'firmaAdi' ||
-                                      entry.key == 'genelToplam'
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              color: _ornekMetinGoster
-                                  ? Colors.black
-                                  : Colors.red.shade700,
-                              height: 1.1,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                  if (_ornekMetinGoster) ..._kalemSatirOnizlemleri(data),
-                ],
-              ),
-            ),
+                    ),
+                    metin: _etiketModu
+                        ? (FaturaMatbuConfig.alanEtiketleri[entry.key] ?? entry.key)
+                        : (onizleme.alanlar[entry.key] ?? ''),
+                    maxWidth: entry.key == 'melbes' || entry.key == 'yaziylaTutar'
+                        ? 500
+                        : entry.key == 'firmaAdi' || entry.key == 'adres'
+                        ? 270
+                        : 280,
+                  )),
+            ],
           ),
-        );
+        ),
+      ),
+    );
   }
 
-  /// Kalem sütunlarında 2–4. satırların nereye düşeceğini gösterir.
-  List<Widget> _kalemSatirOnizlemleri(_CanvasData data) {
-    const kalemAlanlari = {'cinsi', 'miktar', 'fiyat', 'tutar'};
+  List<Widget> _kalemSatirlari(
+    BatchFaturaProvider provider,
+    KalibrasyonBaskiOnizleme onizleme,
+    _CanvasData data,
+  ) {
+    const sutunlar = ['cinsi', 'miktar', 'fiyat', 'tutar'];
     final widgets = <Widget>[];
-    final seciliKalemAlani =
-        _seciliAlan != null && kalemAlanlari.contains(_seciliAlan)
-        ? _seciliAlan
-        : null;
-    for (final key in kalemAlanlari) {
-      if (seciliKalemAlani != null && key != seciliKalemAlani) continue;
-      final base = data.coordinates[key];
-      if (base == null) continue;
-      final konum = Offset(base.dx + data.globalDx, base.dy + data.globalDy);
-      final etiket = FaturaMatbuConfig.alanEtiketleri[key] ?? key;
-      for (var satir = 1; satir < 4; satir++) {
+
+    String? deger(KalibrasyonKalemSatir satir, String sutun) {
+      switch (sutun) {
+        case 'cinsi':
+          return satir.cinsi;
+        case 'miktar':
+          return satir.miktar;
+        case 'fiyat':
+          return satir.fiyat;
+        case 'tutar':
+          return satir.tutar;
+        default:
+          return '';
+      }
+    }
+
+    for (var satirIndex = 0; satirIndex < onizleme.kalemler.length; satirIndex++) {
+      final satir = onizleme.kalemler[satirIndex];
+      final satirDy = satirIndex * data.satirAraligi;
+      final cinsiBase = data.coordinates['cinsi'];
+      if (cinsiBase == null) continue;
+      final satirTop = cinsiBase.dy + data.globalDy + satirDy;
+
+      for (final sutun in sutunlar) {
+        final base = data.coordinates[sutun];
+        if (base == null) continue;
+
+        final metin = _etiketModu
+            ? (FaturaMatbuConfig.alanEtiketleri[sutun] ?? sutun)
+            : (deger(satir, sutun) ?? '');
+
+        final suruklenebilir = satirIndex == 0;
+        final secili = _seciliAlan == sutun;
+        final maxWidth = sutun == 'cinsi' ? 255.0 : 72.0;
+
         widgets.add(
           Positioned(
-            left: konum.dx,
-            top: konum.dy + satir * data.satirAraligi,
-            child: Text(
-              '$etiket — satır ${satir + 1}',
-              style: TextStyle(
-                fontSize: data.fontBoyutu,
-                color: Colors.blueGrey.withValues(alpha: 0.55),
-                height: 1.1,
-              ),
-            ),
+            left: base.dx + data.globalDx,
+            top: satirTop,
+            child: suruklenebilir
+                ? _suruklenebilirAlan(
+                    provider: provider,
+                    alanKey: sutun,
+                    secili: secili,
+                    etiketModu: _etiketModu,
+                    child: _metinKutusu(
+                      metin: metin,
+                      fontBoyutu: data.fontBoyutu,
+                      etiketModu: _etiketModu,
+                      secili: secili,
+                      kalin: false,
+                      maxWidth: maxWidth,
+                      textAlign: _kalemSutunHizasi(sutun),
+                      tekSatir: sutun != 'cinsi',
+                    ),
+                  )
+                : _metinKutusu(
+                    metin: metin,
+                    fontBoyutu: data.fontBoyutu,
+                    etiketModu: _etiketModu,
+                    secili: false,
+                    kalin: false,
+                    maxWidth: maxWidth,
+                    textAlign: _kalemSutunHizasi(sutun),
+                    tekSatir: sutun != 'cinsi',
+                  ),
           ),
         );
       }
     }
+
     return widgets;
+  }
+
+  Widget _alanWidget({
+    required BatchFaturaProvider provider,
+    required _CanvasData data,
+    required String alanKey,
+    required Offset konum,
+    required String metin,
+    required double maxWidth,
+  }) {
+    final secili = _seciliAlan == alanKey;
+    return Positioned(
+      left: konum.dx,
+      top: konum.dy,
+      child: _suruklenebilirAlan(
+        provider: provider,
+        alanKey: alanKey,
+        secili: secili,
+        etiketModu: _etiketModu,
+        child: _metinKutusu(
+          metin: metin,
+          fontBoyutu: data.fontBoyutu,
+          etiketModu: _etiketModu,
+          secili: secili,
+          kalin: alanKey == 'firmaAdi' || alanKey == 'genelToplam',
+          maxWidth: maxWidth,
+        ),
+      ),
+    );
+  }
+
+  Widget _suruklenebilirAlan({
+    required BatchFaturaProvider provider,
+    required String alanKey,
+    required bool secili,
+    required bool etiketModu,
+    required Widget child,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () => setState(() => _seciliAlan = alanKey),
+      onPanStart: (_) {
+        setState(() {
+          _alanSurukleniyor = true;
+          _seciliAlan = alanKey;
+        });
+      },
+      onPanUpdate: (details) {
+        provider.calibrationDragDelta(
+          alanKey,
+          details.delta,
+          notify: false,
+        );
+        setState(() {});
+      },
+      onPanEnd: (_) {
+        setState(() => _alanSurukleniyor = false);
+        provider.calibrationUiRefresh();
+      },
+      onPanCancel: () {
+        setState(() => _alanSurukleniyor = false);
+        provider.calibrationUiRefresh();
+      },
+      child: child,
+    );
+  }
+
+  TextAlign _kalemSutunHizasi(String sutun) {
+    switch (sutun) {
+      case 'miktar':
+        return TextAlign.center;
+      case 'fiyat':
+      case 'tutar':
+        return TextAlign.right;
+      default:
+        return TextAlign.left;
+    }
+  }
+
+  Widget _metinKutusu({
+    required String metin,
+    required double fontBoyutu,
+    required bool etiketModu,
+    required bool secili,
+    required bool kalin,
+    required double maxWidth,
+    TextAlign textAlign = TextAlign.left,
+    bool tekSatir = false,
+  }) {
+    final cerceve = secili || etiketModu;
+    return Container(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      padding: cerceve
+          ? const EdgeInsets.symmetric(horizontal: 3, vertical: 2)
+          : EdgeInsets.zero,
+      decoration: cerceve
+          ? BoxDecoration(
+              color: secili
+                  ? Colors.blue.withValues(alpha: 0.15)
+                  : Colors.white.withValues(alpha: 0.92),
+              border: Border.all(
+                color: secili ? Colors.blue : Colors.red,
+                width: secili ? 2 : 1.5,
+              ),
+              borderRadius: BorderRadius.circular(3),
+            )
+          : null,
+      child: Text(
+        metin,
+        textAlign: textAlign,
+        maxLines: tekSatir ? 1 : null,
+        overflow: tekSatir ? TextOverflow.clip : null,
+        strutStyle: StrutStyle(
+          fontSize: fontBoyutu,
+          height: 1.0,
+          forceStrutHeight: true,
+        ),
+        style: TextStyle(
+          fontSize: fontBoyutu,
+          fontWeight: kalin ? FontWeight.bold : FontWeight.normal,
+          color: etiketModu ? Colors.red.shade700 : Colors.black,
+          height: 1.0,
+        ),
+      ),
+    );
   }
 }
 
@@ -548,26 +719,6 @@ class _CanvasData {
   final double fontBoyutu;
   final double satirAraligi;
   final bool nakliAktif;
-
-  @override
-  bool operator ==(Object other) =>
-      other is _CanvasData &&
-      globalDx == other.globalDx &&
-      globalDy == other.globalDy &&
-      fontBoyutu == other.fontBoyutu &&
-      satirAraligi == other.satirAraligi &&
-      nakliAktif == other.nakliAktif &&
-      _mapEquals(coordinates, other.coordinates);
-
-  @override
-  int get hashCode => Object.hash(
-        globalDx,
-        globalDy,
-        fontBoyutu,
-        satirAraligi,
-        nakliAktif,
-        Object.hashAll(coordinates.entries.map((e) => Object.hash(e.key, e.value))),
-      );
 }
 
 bool _mapEquals(Map<String, Offset> a, Map<String, Offset> b) {

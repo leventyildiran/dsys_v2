@@ -16,8 +16,22 @@ class FaturaMatbuKalibrasyon {
   /// Şema değişince artırılır; eski kayıtlar varsayılanlarla birleştirilir.
   static const int guncelSurum = 4;
 
+  static const kalemSutunlari = {'cinsi', 'miktar', 'fiyat', 'tutar'};
+
   /// PDF'te basılmayan; kalibrasyon listesinde gösterilmez.
   static const gizliAlanlar = {'numuneNo'};
+
+  /// Kalem satırında dikey konum hep cinsi satırından; PDF ile aynı.
+  static void senkronizeKalemDy(Map<String, Offset> koordinatlar) {
+    final cinsi = koordinatlar['cinsi'];
+    if (cinsi == null) return;
+    for (final key in kalemSutunlari) {
+      if (key == 'cinsi') continue;
+      final mevcut = koordinatlar[key];
+      if (mevcut == null) continue;
+      koordinatlar[key] = Offset(mevcut.dx, cinsi.dy);
+    }
+  }
 
   final int surum;
   final Map<String, Offset> koordinatlar;
@@ -55,6 +69,8 @@ class FaturaMatbuKalibrasyon {
       }
     }
 
+    FaturaMatbuKalibrasyon.senkronizeKalemDy(koordinatlar);
+
     return FaturaMatbuKalibrasyon(
       surum: (map['surum'] as num?)?.toInt() ?? 0,
       koordinatlar: koordinatlar,
@@ -87,6 +103,8 @@ class FaturaMatbuKalibrasyon {
         birlesik[key] = varsayilan.koordinatlar[key]!;
       }
     }
+
+    FaturaMatbuKalibrasyon.senkronizeKalemDy(birlesik);
 
     return FaturaMatbuKalibrasyon(
       surum: guncelSurum,
