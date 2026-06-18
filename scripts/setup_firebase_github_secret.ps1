@@ -1,4 +1,4 @@
-# GitHub Actions FIREBASE_SERVICE_ACCOUNT secret kurulumu.
+# GitHub Actions FIREBASE_SERVICE_ACCOUNT_B64 secret kurulumu.
 # Önkoşul: gh auth login (bir kez)
 # Kullanım: .\scripts\setup_firebase_github_secret.ps1
 
@@ -24,7 +24,9 @@ if ($LASTEXITCODE -ne 0) {
     gh auth login -h github.com -p https -w
 }
 
-Get-Content -Raw -Path $keyFile.FullName | gh secret set FIREBASE_SERVICE_ACCOUNT --repo leventyildiran/dsys_v2
+$raw = Get-Content -Raw -Path $keyFile.FullName
+$b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($raw))
+$b64 | gh secret set FIREBASE_SERVICE_ACCOUNT_B64 --repo leventyildiran/dsys_v2
 
-Write-Host "FIREBASE_SERVICE_ACCOUNT secret ayarlandı."
+Write-Host "FIREBASE_SERVICE_ACCOUNT_B64 secret ayarlandı (base64)."
 Write-Host "Actions: https://github.com/leventyildiran/dsys_v2/actions/workflows/web-deploy.yml"

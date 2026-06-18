@@ -56,16 +56,14 @@ jobs:
 
       - name: Verify Firebase secret
         run: |
-          if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" ]; then
-            echo "::error::FIREBASE_SERVICE_ACCOUNT secret tanımlı değil."
+          if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT_B64 }}" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT_B64 secret tanımlı değil."
             echo "Yerelde: .\\scripts\\setup_firebase_github_secret.ps1"
             exit 1
           fi
 
       - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: dsys-44b8e
-          channelId: live
-          entryPoint: .
+        run: |
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_B64 }}" | base64 -d > "${RUNNER_TEMP}/firebase-sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="${RUNNER_TEMP}/firebase-sa.json"
+          npx firebase-tools@13.35.1 deploy --only hosting --project dsys-44b8e --non-interactive
