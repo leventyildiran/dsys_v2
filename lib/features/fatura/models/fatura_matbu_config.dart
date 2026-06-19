@@ -9,6 +9,7 @@ class FaturaMatbuConfig {
   static const double a4Yukseklik = 842;
   static const double varsayilanFontBoyutu = 10.0;
   static const double varsayilanKalemSatirAraligi = 16.0;
+  static const int varsayilanSatirLimit = 10;
 
   /// Matbu baskı/kalibrasyonda yalnızca gerçek tutarlı kalemleri basar.
   /// Başlık/grup satırları (cinsi var, fiyat/tutar yok) miktar sütununu kaydırmasın.
@@ -40,8 +41,6 @@ class FaturaMatbuConfig {
     'miktar': 'Kalem — Miktar',
     'fiyat': 'Kalem — Fiyat',
     'tutar': 'Kalem — Tutar',
-    'nakliYekunUstYazi': 'Nakli Yekün (Üst)',
-    'nakliYekunUstTutar': 'Nakli Yekün Tutar (Üst)',
     'nakliYekunAltYazi': 'Nakli Yekün (Alt)',
     'nakliYekunAltTutar': 'Nakli Yekün Tutar (Alt)',
     'numuneAciklama': 'Numune Açıklaması',
@@ -54,6 +53,11 @@ class FaturaMatbuConfig {
     'yaziylaTutar': 'Yazıyla Tutar',
     'hesapAdi': 'Hesap Adı',
     'iban': 'IBAN',
+    'ekstraNot_0': '1. Özel Not',
+    'ekstraNot_1': '2. Özel Not',
+    'ekstraNot_2': '3. Özel Not',
+    'ekstraNot_3': '4. Özel Not',
+    'ekstraNot_4': '5. Özel Not',
   };
 
   static const Map<String, String> ornekMetinler = {
@@ -68,8 +72,6 @@ class FaturaMatbuConfig {
     'miktar': '1',
     'fiyat': '1.500,00',
     'tutar': '1.500,00',
-    'nakliYekunUstYazi': 'Nakli Yekün',
-    'nakliYekunUstTutar': '750,00',
     'nakliYekunAltYazi': 'Nakli Yekün (Devreden)',
     'nakliYekunAltTutar': '750,00',
     'numuneAciklama': 'Su numunesi — klor analizi',
@@ -83,6 +85,11 @@ class FaturaMatbuConfig {
     'yaziylaTutar': 'BİN SEKİZ YÜZ TÜRK LİRASI SIFIR KURUŞTUR.',
     'hesapAdi': 'Ankara Üniversitesi UBATAM\n(VKN:1234567890)',
     'iban': 'TR00 0000 0000 0000 0000 0000 00',
+    'ekstraNot_0': 'Sürükle: 1. Özel Not',
+    'ekstraNot_1': 'Sürükle: 2. Özel Not',
+    'ekstraNot_2': 'Sürükle: 3. Özel Not',
+    'ekstraNot_3': 'Sürükle: 4. Özel Not',
+    'ekstraNot_4': 'Sürükle: 5. Özel Not',
   };
 
   /// Kalibrasyon önizlemesi ile PDF baskısında aynı metin biçimi.
@@ -112,8 +119,6 @@ class FaturaMatbuConfig {
       'miktar': ornekMetinler['miktar']!,
       'fiyat': TurkceFormat.para(1500),
       'tutar': TurkceFormat.para(1500),
-      'nakliYekunUstYazi': ornekMetinler['nakliYekunUstYazi']!,
-      'nakliYekunUstTutar': TurkceFormat.para(750),
       'nakliYekunAltYazi': ornekMetinler['nakliYekunAltYazi']!,
       'nakliYekunAltTutar': TurkceFormat.para(750),
       'numuneAciklama': ornekMetinler['numuneAciklama']!,
@@ -125,6 +130,11 @@ class FaturaMatbuConfig {
       'yaziylaTutar': ornekMetinler['yaziylaTutar']!,
       'hesapAdi': hesap,
       'iban': ornekMetinler['iban']!,
+      'ekstraNot_0': ornekMetinler['ekstraNot_0']!,
+      'ekstraNot_1': ornekMetinler['ekstraNot_1']!,
+      'ekstraNot_2': ornekMetinler['ekstraNot_2']!,
+      'ekstraNot_3': ornekMetinler['ekstraNot_3']!,
+      'ekstraNot_4': ornekMetinler['ekstraNot_4']!,
     };
   }
 
@@ -285,5 +295,10 @@ class FaturaMatbuConfig {
     'yaziylaTutar': const Offset(90, 785),
     'hesapAdi': const Offset(90, 805),
     'iban': const Offset(90, 825),
+    'ekstraNot_0': const Offset(50, 660),
+    'ekstraNot_1': const Offset(50, 680),
+    'ekstraNot_2': const Offset(50, 700),
+    'ekstraNot_3': const Offset(50, 720),
+    'ekstraNot_4': const Offset(50, 740),
   };
 }

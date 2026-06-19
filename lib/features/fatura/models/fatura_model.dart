@@ -65,6 +65,7 @@ class FaturaModel {
   String? donem;
   String? aciklama;
   String? tahminiBirim;
+  List<String> ekstraNotlar;
 
   FaturaModel({
     required this.id,
@@ -100,6 +101,7 @@ class FaturaModel {
     this.donem,
     this.aciklama,
     this.tahminiBirim,
+    this.ekstraNotlar = const [],
   });
 
   bool get kaydaHazir =>
@@ -156,6 +158,7 @@ class FaturaModel {
       'tedarikYontemi': tedarikYontemi,
       'donem': donem,
       'aciklama': aciklama,
+      'ekstraNotlar': ekstraNotlar,
     };
   }
 
@@ -220,6 +223,7 @@ class FaturaModel {
       aciklama: json['aciklama']?.toString(),
       tahminiBirim: json['tahminiBirim']?.toString(),
       kalemler: List<Map<String, dynamic>>.from(json['kalemler'] ?? []),
+      ekstraNotlar: List<String>.from(json['ekstraNotlar'] ?? []),
     );
   }
 
@@ -246,6 +250,7 @@ class FaturaModel {
       parsedBy: FaturaParseKaynaklari.yeniFatura,
       kalemler: [],
       ytbOgrencisi: false,
+      ekstraNotlar: [],
     );
   }
 }

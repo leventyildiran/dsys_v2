@@ -26,8 +26,11 @@ class FaturaMatbuProvider extends ChangeNotifier {
 
   double kalemSatirAraligi = FaturaMatbuConfig.varsayilanKalemSatirAraligi;
   double matbuFontBoyutu = FaturaMatbuConfig.varsayilanFontBoyutu;
+  int satirLimit = FaturaMatbuConfig.varsayilanSatirLimit;
   double globalOffsetDx = 0;
   double globalOffsetDy = 0;
+  String nakliYekunUstMetin = 'Nakli Yekün (Devreden)';
+  String nakliYekunAltMetin = 'Nakli Yekün (Devreden)';
 
   /// Global Nakli Yekün aktif/pasif (tüm faturalar).
   bool isNakliYekunAktif = false;
@@ -45,8 +48,10 @@ class FaturaMatbuProvider extends ChangeNotifier {
   // Constructor & Initialization
   // ─────────────────────────────────────────────────────────
 
+  String? aktifBirimId;
+
   FaturaMatbuProvider() {
-    unawaited(_loadMatbuAyarlari());
+    unawaited(loadMatbuAyarlari(null));
   }
 
   // ─────────────────────────────────────────────────────────
@@ -124,6 +129,9 @@ class FaturaMatbuProvider extends ChangeNotifier {
       globalOffsetDx: globalOffsetDx,
       globalOffsetDy: globalOffsetDy,
       matbuBaskiModu: matbuBaskiModu,
+      satirLimit: satirLimit,
+      nakliYekunUstMetin: nakliYekunUstMetin,
+      nakliYekunAltMetin: nakliYekunAltMetin,
     );
   }
 
@@ -135,6 +143,9 @@ class FaturaMatbuProvider extends ChangeNotifier {
     globalOffsetDx = ayar.globalOffsetDx;
     globalOffsetDy = ayar.globalOffsetDy;
     matbuBaskiModu = ayar.matbuBaskiModu;
+    satirLimit = ayar.satirLimit;
+    nakliYekunUstMetin = ayar.nakliYekunUstMetin;
+    nakliYekunAltMetin = ayar.nakliYekunAltMetin;
   }
 
   // ─────────────────────────────────────────────────────────
@@ -149,6 +160,24 @@ class FaturaMatbuProvider extends ChangeNotifier {
 
   void setMatbuFontBoyutu(double value) {
     matbuFontBoyutu = value;
+    notifyListeners();
+    _scheduleMatbuAyarKaydet();
+  }
+
+  void setSatirLimit(int value) {
+    satirLimit = value;
+    notifyListeners();
+    _scheduleMatbuAyarKaydet();
+  }
+
+  void setNakliYekunUstMetin(String value) {
+    nakliYekunUstMetin = value;
+    notifyListeners();
+    _scheduleMatbuAyarKaydet();
+  }
+
+  void setNakliYekunAltMetin(String value) {
+    nakliYekunAltMetin = value;
     notifyListeners();
     _scheduleMatbuAyarKaydet();
   }
@@ -179,29 +208,36 @@ class FaturaMatbuProvider extends ChangeNotifier {
   Future<void> saveMatbuAyarlari() async {
     final ayar = _mevcutKalibrasyon().normalize();
     try {
-      await _matbuKalibrasyonServisi.kaydetFirestore(ayar);
+      await _matbuKalibrasyonServisi.kaydetFirestore(ayar, birimId: aktifBirimId);
     } catch (e) {
       debugPrint('Matbu kalibrasyon Firestore kaydı başarısız: $e');
     }
-    await _matbuKalibrasyonServisi.kaydetYerel(ayar);
+    // Yerel yedeği sadece global ayar için tutuyoruz şimdilik, 
+    // ancak istenirse birim bazlı yerel yedek de yapılabilir.
+    if (aktifBirimId == null) {
+      await _matbuKalibrasyonServisi.kaydetYerel(ayar);
+    }
   }
 
   Future<void> saveCoordinates() => saveMatbuAyarlari();
 
-  Future<void> _loadMatbuAyarlari() async {
+  Future<void> loadMatbuAyarlari(String? birimId) async {
+    aktifBirimId = birimId;
     FaturaMatbuKalibrasyon? ayar =
-        await _matbuKalibrasyonServisi.yukleFirestore();
+        await _matbuKalibrasyonServisi.yukleFirestore(birimId: aktifBirimId);
     ayar ??= await _matbuKalibrasyonServisi.yukleYerel();
     _kalibrasyonUygula(ayar.normalize());
     notifyListeners();
   }
 
   Future<void> resetCoordinates() async {
-    await _matbuKalibrasyonServisi.temizleYerel();
+    if (aktifBirimId == null) {
+      await _matbuKalibrasyonServisi.temizleYerel();
+    }
     final varsayilan = FaturaMatbuKalibrasyon.varsayilan();
     _kalibrasyonUygula(varsayilan);
     try {
-      await _matbuKalibrasyonServisi.kaydetFirestore(varsayilan);
+      await _matbuKalibrasyonServisi.kaydetFirestore(varsayilan, birimId: aktifBirimId);
     } catch (e) {
       debugPrint('Matbu varsayılan Firestore kaydı başarısız: $e');
     }

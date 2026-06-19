@@ -26,6 +26,9 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
           e.key.startsWith('nakliYekun')) {
         return false;
       }
+      if (p.aktifKalibrasyonSayfasi == 1 && e.key.startsWith('nakliYekun')) {
+        return false;
+      }
       return true;
     });
   }
@@ -39,7 +42,10 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
         height: MediaQuery.of(context).size.height * 0.94,
         child: Column(
           children: [
-            _buildHeader(context),
+            ListenableBuilder(
+              listenable: context.read<BatchFaturaProvider>(),
+              builder: (context, _) => _buildHeader(context),
+            ),
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -94,6 +100,30 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
               ],
             ),
           ),
+          if (provider.kalibrasyonToplamSayfasi > 1) ...[
+            IconButton(
+              icon: const Icon(Icons.chevron_left),
+              onPressed: provider.aktifKalibrasyonSayfasi > 1
+                  ? () => provider.setAktifKalibrasyonSayfasi(
+                      provider.aktifKalibrasyonSayfasi - 1)
+                  : null,
+            ),
+            Text(
+              'Sayfa ${provider.aktifKalibrasyonSayfasi} / ${provider.kalibrasyonToplamSayfasi}',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+            IconButton(
+              icon: const Icon(Icons.chevron_right),
+              onPressed: provider.aktifKalibrasyonSayfasi <
+                      provider.kalibrasyonToplamSayfasi
+                  ? () => provider.setAktifKalibrasyonSayfasi(
+                      provider.aktifKalibrasyonSayfasi + 1)
+                  : null,
+            ),
+            const SizedBox(width: 8),
+            Container(width: 1, height: 24, color: Colors.grey.shade300),
+            const SizedBox(width: 8),
+          ],
           Switch(
             value: _etiketModu,
             onChanged: (v) => setState(() => _etiketModu = v),
@@ -166,9 +196,12 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
       selector: (_, p) => _SidePanelData(
         fontBoyutu: p.matbuFontBoyutu,
         satirAraligi: p.kalemSatirAraligi,
+        satirLimit: p.satirLimit,
         globalDx: p.globalOffsetDx,
         globalDy: p.globalOffsetDy,
         nakliAktif: p.nakliAlanlariGoster(fatura),
+        nakliYekunUstMetin: p.nakliYekunUstMetin,
+        nakliYekunAltMetin: p.nakliYekunAltMetin,
         coordinates: Map.from(p.coordinates),
       ),
       builder: (context, data, _) {
@@ -205,6 +238,38 @@ class _FaturaCalibrationDialogState extends State<FaturaCalibrationDialog> {
               max: 24,
               divisions: 10,
               onChanged: provider.setKalemSatirAraligi,
+            ),
+            Text('Sayfa başı satır limiti: ${data.satirLimit}'),
+            Slider(
+              value: data.satirLimit.toDouble(),
+              min: 5,
+              max: 20,
+              divisions: 15,
+              onChanged: (v) => provider.setSatirLimit(v.toInt()),
+            ),
+            const Divider(height: 24),
+            const Text('Nakli Yekün Metinleri', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            TextFormField(
+              initialValue: data.nakliYekunUstMetin,
+              decoration: const InputDecoration(
+                labelText: 'Sayfa Başı Metni (Üst)',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              style: const TextStyle(fontSize: 12),
+              onChanged: provider.setNakliYekunUstMetin,
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              initialValue: data.nakliYekunAltMetin,
+              decoration: const InputDecoration(
+                labelText: 'Sayfa Sonu Metni (Alt)',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              style: const TextStyle(fontSize: 12),
+              onChanged: provider.setNakliYekunAltMetin,
             ),
             const Divider(height: 24),
             const Text('Tüm alanları kaydır', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -669,17 +734,23 @@ class _SidePanelData {
   const _SidePanelData({
     required this.fontBoyutu,
     required this.satirAraligi,
+    required this.satirLimit,
     required this.globalDx,
     required this.globalDy,
     required this.nakliAktif,
+    required this.nakliYekunUstMetin,
+    required this.nakliYekunAltMetin,
     required this.coordinates,
   });
 
   final double fontBoyutu;
   final double satirAraligi;
+  final int satirLimit;
   final double globalDx;
   final double globalDy;
   final bool nakliAktif;
+  final String nakliYekunUstMetin;
+  final String nakliYekunAltMetin;
   final Map<String, Offset> coordinates;
 
   @override
@@ -687,18 +758,24 @@ class _SidePanelData {
       other is _SidePanelData &&
       fontBoyutu == other.fontBoyutu &&
       satirAraligi == other.satirAraligi &&
+      satirLimit == other.satirLimit &&
       globalDx == other.globalDx &&
       globalDy == other.globalDy &&
       nakliAktif == other.nakliAktif &&
+      nakliYekunUstMetin == other.nakliYekunUstMetin &&
+      nakliYekunAltMetin == other.nakliYekunAltMetin &&
       _mapEquals(coordinates, other.coordinates);
 
   @override
   int get hashCode => Object.hash(
         fontBoyutu,
         satirAraligi,
+        satirLimit,
         globalDx,
         globalDy,
         nakliAktif,
+        nakliYekunUstMetin,
+        nakliYekunAltMetin,
         Object.hashAll(coordinates.entries.map((e) => Object.hash(e.key, e.value))),
       );
 }

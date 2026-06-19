@@ -298,6 +298,29 @@ class FaturaKuyrukProvider extends ChangeNotifier {
     _queueChanged();
   }
 
+  void addEkstraNot(int index) {
+    if (index < 0 || index >= pendingInvoices.length) return;
+    if (pendingInvoices[index].ekstraNotlar.length >= 5) return; // Limit to 5
+    pendingInvoices[index].ekstraNotlar.add('');
+    _queueChanged();
+  }
+
+  void updateEkstraNot(int invoiceIndex, int notIndex, String value) {
+    if (invoiceIndex < 0 || invoiceIndex >= pendingInvoices.length) return;
+    final ekstraNotlar = pendingInvoices[invoiceIndex].ekstraNotlar;
+    if (notIndex < 0 || notIndex >= ekstraNotlar.length) return;
+    ekstraNotlar[notIndex] = value;
+    _queueChanged();
+  }
+
+  void removeEkstraNot(int invoiceIndex, int notIndex) {
+    if (invoiceIndex < 0 || invoiceIndex >= pendingInvoices.length) return;
+    final ekstraNotlar = pendingInvoices[invoiceIndex].ekstraNotlar;
+    if (notIndex < 0 || notIndex >= ekstraNotlar.length) return;
+    ekstraNotlar.removeAt(notIndex);
+    _queueChanged();
+  }
+
   // ─────────────────────────────────────────────────────────
   // Field Update
   // ─────────────────────────────────────────────────────────

@@ -102,6 +102,16 @@ class BatchFaturaProvider extends ChangeNotifier {
     dialogUpdateCounter = _kuyrukProvider.dialogUpdateCounter;
     seciliBirimByFaturaId = _kuyrukProvider.seciliBirimByFaturaId;
     geriYuklenenKuyrukSayisi = _kuyrukProvider.geriYuklenenKuyrukSayisi;
+
+    // Aktif fatura değiştiğinde veya birimi değiştiğinde kalibrasyonu yükle
+    if (currentIndex >= 0 && currentIndex < pendingInvoices.length) {
+      final fatura = pendingInvoices[currentIndex];
+      final birimId = seciliBirimFor(currentIndex);
+      if (birimId != _matbuProvider.aktifBirimId) {
+        _matbuProvider.loadMatbuAyarlari(birimId);
+      }
+    }
+
     _syncingFromKuyruk = false;
     notifyListeners();
   }
@@ -137,6 +147,15 @@ class BatchFaturaProvider extends ChangeNotifier {
 
   double get matbuFontBoyutu => _matbuProvider.matbuFontBoyutu;
   set matbuFontBoyutu(double v) => _matbuProvider.matbuFontBoyutu = v;
+
+  int get satirLimit => _matbuProvider.satirLimit;
+  set satirLimit(int v) => _matbuProvider.satirLimit = v;
+
+  String get nakliYekunUstMetin => _matbuProvider.nakliYekunUstMetin;
+  set nakliYekunUstMetin(String v) => _matbuProvider.nakliYekunUstMetin = v;
+
+  String get nakliYekunAltMetin => _matbuProvider.nakliYekunAltMetin;
+  set nakliYekunAltMetin(String v) => _matbuProvider.nakliYekunAltMetin = v;
 
   double get globalOffsetDx => _matbuProvider.globalOffsetDx;
   set globalOffsetDx(double v) => _matbuProvider.globalOffsetDx = v;
@@ -184,6 +203,18 @@ class BatchFaturaProvider extends ChangeNotifier {
     _matbuProvider.setMatbuFontBoyutu(value);
   }
 
+  void setSatirLimit(int value) {
+    _matbuProvider.setSatirLimit(value);
+  }
+
+  void setNakliYekunUstMetin(String value) {
+    _matbuProvider.setNakliYekunUstMetin(value);
+  }
+
+  void setNakliYekunAltMetin(String value) {
+    _matbuProvider.setNakliYekunAltMetin(value);
+  }
+
   void setGlobalOffset(double dx, double dy) {
     _matbuProvider.setGlobalOffset(dx, dy);
   }
@@ -202,7 +233,6 @@ class BatchFaturaProvider extends ChangeNotifier {
 
   void calibrationUiRefresh() {
     notifyListeners();
-    _matbuProvider.calibrationUiRefresh();
   }
 
   // ─────────────────────────────────────────────────────────
@@ -269,6 +299,24 @@ class BatchFaturaProvider extends ChangeNotifier {
   int kalibrasyonFaturaIndex() =>
       _kalibrasyonFaturaIndex() ?? _kuyrukProvider.currentIndex;
 
+  int _aktifKalibrasyonSayfasi = 1;
+  int get aktifKalibrasyonSayfasi => _aktifKalibrasyonSayfasi;
+
+  void setAktifKalibrasyonSayfasi(int s) {
+    _aktifKalibrasyonSayfasi = s;
+    notifyListeners();
+  }
+
+  int get kalibrasyonToplamSayfasi {
+    final fatura = kalibrasyonFaturasi();
+    final ornek = fatura.id == 'ornek';
+    if (ornek) return 1;
+    final kalemlerHam = FaturaMatbuConfig.matbuKalemleri(fatura.kalemler);
+    if (kalemlerHam.isEmpty) return 1;
+    const satirLimit = 10;
+    return (kalemlerHam.length / satirLimit).ceil().clamp(1, 9999);
+  }
+
   KalibrasyonBaskiOnizleme kalibrasyonBaskiOnizlemesi() {
     final fatura = kalibrasyonFaturasi();
     final ornek = fatura.id == 'ornek';
@@ -289,6 +337,7 @@ class BatchFaturaProvider extends ChangeNotifier {
       yaziyla: TurkceFormat.sayiyiYaziyaCevir,
       canliVeri: true,
       baslik: baslik,
+      sayfaNo: _aktifKalibrasyonSayfasi,
     );
   }
 
@@ -323,12 +372,12 @@ class BatchFaturaProvider extends ChangeNotifier {
       {bool validateRequired = true}) async {
     await _kuyrukProvider.approveInvoice(index,
         validateRequired: validateRequired);
-    await yukleArsivDurumu();
+    yukleArsivDurumu(); // don't await to avoid UI blocking
   }
 
   Future<FaturaOnaySonucu> approveAll() async {
     final sonuc = await _kuyrukProvider.approveAll();
-    if (sonuc.kaydedilen > 0) await yukleArsivDurumu();
+    if (sonuc.kaydedilen > 0) yukleArsivDurumu(); // don't await
     return sonuc;
   }
 
@@ -347,6 +396,18 @@ class BatchFaturaProvider extends ChangeNotifier {
 
   void removeKalem(int invoiceIndex, int kalemIndex) {
     _kuyrukProvider.removeKalem(invoiceIndex, kalemIndex);
+  }
+
+  void addEkstraNot(int index) {
+    _kuyrukProvider.addEkstraNot(index);
+  }
+
+  void updateEkstraNot(int invoiceIndex, int notIndex, String value) {
+    _kuyrukProvider.updateEkstraNot(invoiceIndex, notIndex, value);
+  }
+
+  void removeEkstraNot(int invoiceIndex, int notIndex) {
+    _kuyrukProvider.removeEkstraNot(invoiceIndex, notIndex);
   }
 
   void updateField(int index, String field, dynamic value) {
@@ -535,6 +596,9 @@ class BatchFaturaProvider extends ChangeNotifier {
       globalOffsetDx: _matbuProvider.globalOffsetDx,
       globalOffsetDy: _matbuProvider.globalOffsetDy,
       matbuBaskiModu: _matbuProvider.matbuBaskiModu,
+      satirLimit: _matbuProvider.satirLimit,
+      nakliYekunUstMetin: _matbuProvider.nakliYekunUstMetin,
+      nakliYekunAltMetin: _matbuProvider.nakliYekunAltMetin,
       isletmeVknFallback: _isletmeVknFallback(),
       sistemHesapAdi: sistemAyarlari?.hesapAdi,
       sistemIban: sistemAyarlari?.iban,
@@ -555,6 +619,31 @@ class BatchFaturaProvider extends ChangeNotifier {
       globalOffsetDx: _matbuProvider.globalOffsetDx,
       globalOffsetDy: _matbuProvider.globalOffsetDy,
       matbuBaskiModu: _matbuProvider.matbuBaskiModu,
+      satirLimit: _matbuProvider.satirLimit,
+      nakliYekunUstMetin: _matbuProvider.nakliYekunUstMetin,
+      nakliYekunAltMetin: _matbuProvider.nakliYekunAltMetin,
+      isletmeVknFallback: _isletmeVknFallback(),
+      sistemHesapAdi: sistemAyarlari?.hesapAdi,
+      sistemIban: sistemAyarlari?.iban,
+    );
+  }
+
+  Future<Uint8List> generateBatchPdf(
+    List<FaturaModel> invoices, {
+    bool? includeBackground,
+  }) async {
+    return FaturaPdfUretici.generateBatchPdf(
+      invoices: invoices,
+      includeBackground: includeBackground,
+      coordinates: _matbuProvider.coordinates,
+      kalemSatirAraligi: _matbuProvider.kalemSatirAraligi,
+      matbuFontBoyutu: _matbuProvider.matbuFontBoyutu,
+      globalOffsetDx: _matbuProvider.globalOffsetDx,
+      globalOffsetDy: _matbuProvider.globalOffsetDy,
+      matbuBaskiModu: _matbuProvider.matbuBaskiModu,
+      satirLimit: _matbuProvider.satirLimit,
+      nakliYekunUstMetin: _matbuProvider.nakliYekunUstMetin,
+      nakliYekunAltMetin: _matbuProvider.nakliYekunAltMetin,
       isletmeVknFallback: _isletmeVknFallback(),
       sistemHesapAdi: sistemAyarlari?.hesapAdi,
       sistemIban: sistemAyarlari?.iban,

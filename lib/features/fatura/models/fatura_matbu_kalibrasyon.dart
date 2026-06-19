@@ -11,10 +11,13 @@ class FaturaMatbuKalibrasyon {
     required this.globalOffsetDx,
     required this.globalOffsetDy,
     required this.matbuBaskiModu,
+    required this.satirLimit,
+    required this.nakliYekunUstMetin,
+    required this.nakliYekunAltMetin,
   });
 
   /// Şema değişince artırılır; eski kayıtlar varsayılanlarla birleştirilir.
-  static const int guncelSurum = 4;
+  static const int guncelSurum = 5;
 
   static const kalemSutunlari = {'cinsi', 'miktar', 'fiyat', 'tutar'};
 
@@ -40,6 +43,9 @@ class FaturaMatbuKalibrasyon {
   final double globalOffsetDx;
   final double globalOffsetDy;
   final bool matbuBaskiModu;
+  final int satirLimit;
+  final String nakliYekunUstMetin;
+  final String nakliYekunAltMetin;
 
   factory FaturaMatbuKalibrasyon.varsayilan() {
     return FaturaMatbuKalibrasyon(
@@ -50,6 +56,9 @@ class FaturaMatbuKalibrasyon {
       globalOffsetDx: 0,
       globalOffsetDy: 0,
       matbuBaskiModu: true,
+      satirLimit: FaturaMatbuConfig.varsayilanSatirLimit,
+      nakliYekunUstMetin: 'Nakli Yekün (Devreden)',
+      nakliYekunAltMetin: 'Nakli Yekün (Devreden)',
     );
   }
 
@@ -84,6 +93,10 @@ class FaturaMatbuKalibrasyon {
       globalOffsetDy:
           (map['globalOffsetDy'] as num?)?.toDouble() ?? 0,
       matbuBaskiModu: map['matbuBaskiModu'] as bool? ?? true,
+      satirLimit: (map['satirLimit'] as num?)?.toInt() ??
+          varsayilan.satirLimit,
+      nakliYekunUstMetin: map['nakliYekunUstMetin'] as String? ?? 'Nakli Yekün (Devreden)',
+      nakliYekunAltMetin: map['nakliYekunAltMetin'] as String? ?? 'Nakli Yekün (Devreden)',
     );
   }
 
@@ -114,6 +127,9 @@ class FaturaMatbuKalibrasyon {
       globalOffsetDx: globalOffsetDx,
       globalOffsetDy: globalOffsetDy,
       matbuBaskiModu: matbuBaskiModu,
+      satirLimit: satirLimit,
+      nakliYekunUstMetin: nakliYekunUstMetin,
+      nakliYekunAltMetin: nakliYekunAltMetin,
     );
   }
 
@@ -125,6 +141,9 @@ class FaturaMatbuKalibrasyon {
       'globalOffsetDx': globalOffsetDx,
       'globalOffsetDy': globalOffsetDy,
       'matbuBaskiModu': matbuBaskiModu,
+      'satirLimit': satirLimit,
+      'nakliYekunUstMetin': nakliYekunUstMetin,
+      'nakliYekunAltMetin': nakliYekunAltMetin,
       'koordinatlar': {
         for (final e in koordinatlar.entries)
           if (!gizliAlanlar.contains(e.key))

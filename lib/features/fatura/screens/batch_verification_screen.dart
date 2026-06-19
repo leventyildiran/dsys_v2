@@ -438,6 +438,16 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
           ),
         ),
         const Spacer(),
+        FilledButton.icon(
+          key: const ValueKey('toplu_yazdir_btn'),
+          icon: const Icon(Icons.print, size: 18),
+          label: const Text('Toplu Yazdır'),
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.deepOrange.shade700,
+          ),
+          onPressed: count > 0 ? () => _showBatchPreview(context, provider) : null,
+        ),
+        const SizedBox(width: 8),
         OutlinedButton.icon(
           key: const ValueKey('fatura_arsiv_dialog_ac'),
           icon: const Icon(Icons.search, size: 18),
@@ -841,18 +851,21 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                     invoice.tarih,
                     (v) => provider.updateField(index, 'tarih', v),
                     cardIndex: index,
+                    rebuildKey: ValueKey('tarih_${index}_$dialogCounter'),
                   ),
                   _field(
                     'İrsaliye Tarihi',
                     invoice.irsaliyeTarihi,
                     (v) => provider.updateField(index, 'irsaliyeTarihi', v),
                     cardIndex: index,
+                    rebuildKey: ValueKey('irsaliye_tarihi_${index}_$dialogCounter'),
                   ),
                   _field(
                     'İrsaliye No',
                     invoice.irsaliyeNo,
                     (v) => provider.updateField(index, 'irsaliyeNo', v),
                     cardIndex: index,
+                    rebuildKey: ValueKey('irsaliye_no_${index}_$dialogCounter'),
                   ),
                 ],
               ),
@@ -861,32 +874,44 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
         ),
         const SizedBox(height: 8),
         _field(
-          'Kurum / Bakanlık (MELBES satırı)',
+          'Kurum / Bakanlık (Alt Bölüm)',
           invoice.melbesKurumOnEki,
           (v) => provider.updateField(index, 'melbesKurumOnEki', v),
           cardIndex: index,
           hintText: 'Örn: Çevre Şehircilik ve İklim Değişikliği Bakanlığı',
+          rebuildKey: ValueKey('melbes_kurum_${index}_$dialogCounter'),
         ),
         Row(
           children: [
             Expanded(
               child: _field(
-                'MELBES No *',
+                'MELBES No * (Alt Bölüm)',
                 invoice.melbesNo,
                 (v) => provider.updateField(index, 'melbesNo', v),
                 cardIndex: index,
+                rebuildKey: ValueKey('melbes_no_${index}_$dialogCounter'),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: _field(
-                'Numune No *',
+                'Numune No * (Alt Bölüm)',
                 invoice.numuneNo,
                 (v) => provider.updateField(index, 'numuneNo', v),
                 cardIndex: index,
+                rebuildKey: ValueKey('numune_no_${index}_$dialogCounter'),
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 8),
+        _field(
+          'Numune Açıklaması (Sayfanın Üstünde Çıkar)',
+          invoice.numuneAciklamasi,
+          (v) => provider.updateField(index, 'numuneAciklamasi', v),
+          cardIndex: index,
+          maxLines: 2,
+          rebuildKey: ValueKey('numune_aciklama_${index}_$dialogCounter'),
         ),
         // IBAN ve Hesap Adı: dialogCounter key'e dahil edilir.
         // Birim/firma seçiciden dönerken counter artar → alan yenilenir (yeni IBAN gösterilir).
@@ -904,13 +929,35 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
           maxLines: 2,
           rebuildKey: ValueKey('hesap_${index}_$dialogCounter'),
         ),
-        _field(
-          'Numune Açıklaması',
-          invoice.numuneAciklamasi,
-          (v) => provider.updateField(index, 'numuneAciklamasi', v),
-          maxLines: 2,
-          cardIndex: index,
-        ),
+        const SizedBox(height: 8),
+        for (int i = 0; i < invoice.ekstraNotlar.length; i++)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _field(
+                  '${i + 1}. Özel Not',
+                  invoice.ekstraNotlar[i],
+                  (v) => provider.updateEkstraNot(index, i, v),
+                  cardIndex: index,
+                  rebuildKey: ValueKey('ekstra_not_${index}_${i}_$dialogCounter'),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () => provider.removeEkstraNot(index, i),
+              ),
+            ],
+          ),
+        if (invoice.ekstraNotlar.length < 5)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              icon: const Icon(Icons.add_comment, size: 18),
+              label: const Text('Özel Not Ekle (+)'),
+              onPressed: () => provider.addEkstraNot(index),
+            ),
+          ),
         _field(
           'Genel Açıklama',
           invoice.aciklama ?? '',
@@ -1207,15 +1254,56 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
             key: ValueKey('fatura_sil_$index'),
             icon: const Icon(Icons.delete_outline),
             label: const Text('Sil'),
-            onPressed: () => provider.removeInvoice(index),
+            onPressed: () async {
+              final onay = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Faturayı Sil'),
+                  content: const Text('Bu faturayı listeden silmek istediğinize emin misiniz?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Vazgeç'),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Sil'),
+                    ),
+                  ],
+                ),
+              );
+              if (onay == true) {
+                provider.removeInvoice(index);
+              }
+            },
           ),
           OutlinedButton.icon(
             key: ValueKey('fatura_kopyala_$index'),
             icon: const Icon(Icons.copy_all),
             label: const Text('Kopyala'),
-            onPressed: () {
-              provider.duplicateInvoice(index);
-              setState(() => _expandedCards.add(index + 1));
+            onPressed: () async {
+              final onay = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Faturayı Kopyala'),
+                  content: const Text('Bu faturanın birebir kopyası oluşturulup listeye eklensin mi?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Vazgeç'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Kopyala'),
+                    ),
+                  ],
+                ),
+              );
+              if (onay == true) {
+                provider.duplicateInvoice(index);
+                setState(() => _expandedCards.add(index + 1));
+              }
             },
           ),
           OutlinedButton.icon(
@@ -1224,6 +1312,19 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
             label: const Text('Önizle'),
             onPressed: () => _showPreview(context, provider, invoice),
           ),
+          if (invoice.nakliYekunAktif)
+            OutlinedButton.icon(
+              icon: const Icon(Icons.tune),
+              label: const Text('Kalibrasyon'),
+              onPressed: () {
+                provider.setAktifKalibrasyonSayfasi(1);
+                provider.currentIndex = index;
+                showDialog(
+                  context: context,
+                  builder: (_) => const FaturaCalibrationDialog(),
+                );
+              },
+            ),
           FilledButton.icon(
             key: ValueKey('fatura_matbu_yazdir_$index'),
             style: FilledButton.styleFrom(
@@ -1463,6 +1564,72 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                     child: PdfPreview(
                       build: (format) => provider.generatePdf(
                         invoice,
+                        includeBackground: arkaPlan,
+                      ),
+                      allowSharing: true,
+                      allowPrinting: true,
+                      canChangeOrientation: false,
+                      canChangePageFormat: false,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showBatchPreview(
+    BuildContext context,
+    BatchFaturaProvider provider,
+  ) {
+    var arkaPlan = !provider.matbuBaskiModu;
+    final gercekFaturalar = provider.pendingInvoices
+        .where((f) => !BatchFaturaProvider.yerTutucuMu(f))
+        .toList();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          return Dialog(
+            insetPadding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: MediaQuery.of(ctx).size.width * 0.85,
+              height: MediaQuery.of(ctx).size.height * 0.9,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Toplu PDF Önizleme (${gercekFaturalar.length} Fatura)',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const Spacer(),
+                        FilterChip(
+                          label: const Text('Şablon arka planı'),
+                          selected: arkaPlan,
+                          onSelected: (v) => setLocal(() => arkaPlan = v),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: PdfPreview(
+                      build: (format) => provider.generateBatchPdf(
+                        gercekFaturalar,
                         includeBackground: arkaPlan,
                       ),
                       allowSharing: true,

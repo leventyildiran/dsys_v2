@@ -13,9 +13,15 @@ class FaturaMatbuKalibrasyonServisi {
 
   static const _prefsSurumKey = 'fatura_matbu_kalibrasyon_surum';
 
-  Future<FaturaMatbuKalibrasyon?> yukleFirestore() async {
+  Future<FaturaMatbuKalibrasyon?> yukleFirestore({String? birimId}) async {
     try {
-      final doc = await _sistemAyarlari.getHamAlan('matbuKalibrasyon');
+      final key = birimId != null && birimId.isNotEmpty ? 'matbuKalibrasyon_$birimId' : 'matbuKalibrasyon';
+      var doc = await _sistemAyarlari.getHamAlan(key);
+      if (doc == null || doc.isEmpty) {
+        if (key != 'matbuKalibrasyon') {
+          doc = await _sistemAyarlari.getHamAlan('matbuKalibrasyon');
+        }
+      }
       if (doc == null || doc.isEmpty) return null;
       return FaturaMatbuKalibrasyon.fromMap(doc).normalize();
     } catch (e) {
@@ -24,9 +30,10 @@ class FaturaMatbuKalibrasyonServisi {
     }
   }
 
-  Future<void> kaydetFirestore(FaturaMatbuKalibrasyon ayar) async {
+  Future<void> kaydetFirestore(FaturaMatbuKalibrasyon ayar, {String? birimId}) async {
+    final key = birimId != null && birimId.isNotEmpty ? 'matbuKalibrasyon_$birimId' : 'matbuKalibrasyon';
     await _sistemAyarlari.kaydetHamAlan(
-      'matbuKalibrasyon',
+      key,
       ayar.normalize().toMap(),
     );
   }
@@ -55,6 +62,9 @@ class FaturaMatbuKalibrasyonServisi {
       globalOffsetDx: prefs.getDouble('fatura_global_offset_dx') ?? 0,
       globalOffsetDy: prefs.getDouble('fatura_global_offset_dy') ?? 0,
       matbuBaskiModu: prefs.getBool('fatura_matbu_baski_modu') ?? true,
+      satirLimit: prefs.getInt('fatura_satir_limit') ?? varsayilan.satirLimit,
+      nakliYekunUstMetin: prefs.getString('fatura_nakli_yekun_ust_metin') ?? varsayilan.nakliYekunUstMetin,
+      nakliYekunAltMetin: prefs.getString('fatura_nakli_yekun_alt_metin') ?? varsayilan.nakliYekunAltMetin,
     ).normalize();
   }
 
@@ -75,6 +85,9 @@ class FaturaMatbuKalibrasyonServisi {
     await prefs.setDouble('fatura_global_offset_dx', normalized.globalOffsetDx);
     await prefs.setDouble('fatura_global_offset_dy', normalized.globalOffsetDy);
     await prefs.setBool('fatura_matbu_baski_modu', normalized.matbuBaskiModu);
+    await prefs.setInt('fatura_satir_limit', normalized.satirLimit);
+    await prefs.setString('fatura_nakli_yekun_ust_metin', normalized.nakliYekunUstMetin);
+    await prefs.setString('fatura_nakli_yekun_alt_metin', normalized.nakliYekunAltMetin);
   }
 
   Future<void> temizleYerel() async {
@@ -90,5 +103,8 @@ class FaturaMatbuKalibrasyonServisi {
     await prefs.remove('fatura_global_offset_dx');
     await prefs.remove('fatura_global_offset_dy');
     await prefs.remove('fatura_matbu_baski_modu');
+    await prefs.remove('fatura_satir_limit');
+    await prefs.remove('fatura_nakli_yekun_ust_metin');
+    await prefs.remove('fatura_nakli_yekun_alt_metin');
   }
 }
