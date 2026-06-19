@@ -74,4 +74,46 @@ class TurkceFormat {
   static String ondalik(double value, {int decimals = 2}) {
     return value.toStringAsFixed(decimals).replaceAll('.', ',');
   }
+
+  /// Tutarı yazıyla Türkçe olarak döndürür: `1.800,00` → `BİN SEKİZ YÜZ TÜRK LİRASI SIFIR KURUŞTUR.`
+  static String sayiyiYaziyaCevir(double tutar) {
+    if (tutar == 0) return 'SIFIR TÜRK LİRASI SIFIR KURUŞTUR.';
+    final parts = tutar.toStringAsFixed(2).split('.');
+    final lira = int.parse(parts[0]);
+    final kurus = int.parse(parts[1]);
+    final liraYazi = lira == 0 ? 'SIFIR' : _convertNumberToWords(lira);
+    final kurusYazi = kurus == 0 ? 'SIFIR' : _convertNumberToWords(kurus);
+    return '$liraYazi TÜRK LİRASI $kurusYazi KURUŞTUR.';
+  }
+
+  static String _convertNumberToWords(int number) {
+    const birler = [
+      '', 'BİR', 'İKİ', 'ÜÇ', 'DÖRT', 'BEŞ', 'ALTI', 'YEDİ', 'SEKİZ', 'DOKUZ',
+    ];
+    const onlar = [
+      '', 'ON', 'YİRMİ', 'OTUZ', 'KIRK', 'ELLİ', 'ALTMIŞ', 'YETMİŞ', 'SEKSEN', 'DOKSAN',
+    ];
+    const binler = ['', 'BİN', 'MİLYON', 'MİLYAR'];
+    if (number == 0) return 'SIFIR';
+    var result = '';
+    var groupIndex = 0;
+    var n = number;
+    while (n > 0) {
+      final group = n % 1000;
+      if (group > 0) {
+        var groupText = '';
+        final yuzler = group ~/ 100;
+        final onlarBasamagi = (group % 100) ~/ 10;
+        final birlerBasamagi = group % 10;
+        if (yuzler > 0) groupText += yuzler == 1 ? 'YÜZ ' : '${birler[yuzler]} YÜZ ';
+        if (onlarBasamagi > 0) groupText += '${onlar[onlarBasamagi]} ';
+        if (birlerBasamagi > 0 && !(groupIndex == 1 && group == 1)) groupText += '${birler[birlerBasamagi]} ';
+        groupText += '${binler[groupIndex]} ';
+        result = groupText + result;
+      }
+      n ~/= 1000;
+      groupIndex++;
+    }
+    return result.trim().replaceAll('  ', ' ');
+  }
 }

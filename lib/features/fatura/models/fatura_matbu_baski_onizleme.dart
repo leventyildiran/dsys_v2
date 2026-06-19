@@ -136,6 +136,7 @@ class KalibrasyonBaskiOnizleme {
             : invoice.melbesKurumOnEki.trim(),
         'matrah': TurkceFormat.para(invoice.matrah),
         'kdv': TurkceFormat.para(invoice.kdvTutari),
+        'kdvOrani': invoice.isKdvMuaf ? '' : '%${invoice.kdvOrani.toInt()}',
         'genelToplam': TurkceFormat.para(invoice.genelToplam),
         'yaziylaTutar': yaziyla(invoice.genelToplam),
         'hesapAdi': hesapAdi,
