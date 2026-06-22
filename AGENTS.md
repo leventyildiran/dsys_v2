@@ -131,3 +131,10 @@ node import_yk_sablonlar.js
 node test_tum_birimler.js
 node verify_sablon_tablolari.js UBATAM
 ```
+
+## Fatura Matbu & Visual Entry Kalibrasyon Kuralları (DOKUNULMAZLAR)
+
+Gelecekteki ajanlar ve düzenlemeler için kesin kurallar:
+1. **Nakli Yekün Görsel Hizalaması:** `visual_entry_screen.dart` dosyasındaki Nakli Yekün sanal satırı, *asla* BoxConstraints ile sıkıştırılamaz. Normal kalemler nasıl `width: maxWidth` ile oluşturuluyorsa, Nakli Yekün `Container`ı da `width: maxWidth` ile oluşturulmalıdır. Aksi halde hizalama merkezden değil soldan başlar ve "1" rakamı normal kalemlerle aynı hizaya gelmez.
+2. **Sürükle-Bırak (Hit Testing) Sınırları:** A4 kağıdının dışına (siyah/gri arka plan boşluğuna) sürüklenen öğelerin tıklanabilmesi için, `Stack` ve parent `Container`ın genişlik ve yükseklikleri (`FaturaMatbuConfig.a4Genislik + 600` gibi) taşmaya izin verecek şekilde devasa olmalıdır. `_konum` fonksiyonuna eklenen `+ 300` ve `+ 200` offset değerleri silinmemelidir.
+3. **Nakli Yekün Ara Toplam (Çift Sayım) Mantığı:** Nakli Yekün, sayfalar arası hesaplamada `pageRealTotal` olarak gerçek kalemlerin toplamı üzerinden kümülatif (`runningTotal`) yürütülmelidir. Kesinlikle `sayfaToplami` veya `oncekiSayfaToplam` diyerek `pages` dizisindeki öğeler toplanmamalıdır; aksi takdirde Nakli Yekün sahte kalemi listeye dahil edildiği için toplam fiyatlar çift sayılır (double-counting). Toplamlar doğrudan `pageTotals` (her sayfanın sonundaki gerçek toplam dizisi) üzerinden çekilmelidir.
