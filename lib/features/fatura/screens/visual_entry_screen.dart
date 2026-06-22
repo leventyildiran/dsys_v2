@@ -397,11 +397,26 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
         spaceLeft--;
       }
 
-      while (spaceLeft > 0 && currentItemIndex < kalemler.length) {
+      int itemsRemaining = kalemler.length - currentItemIndex;
+      bool willHaveNextPage = false;
+      if (invoice.nakliYekunAktif && itemsRemaining > spaceLeft) {
+          willHaveNextPage = true;
+      }
+      
+      int effectiveSpace = willHaveNextPage ? spaceLeft - 1 : spaceLeft;
+
+      while (effectiveSpace > 0 && currentItemIndex < kalemler.length) {
         currentPageIndices.add(currentItemIndex);
         currentItemIndex++;
+        effectiveSpace--;
         spaceLeft--;
       }
+      
+      if (willHaveNextPage) {
+        currentPageIndices.add(-1); // -1 means Nakli Yekün row
+        spaceLeft--;
+      }
+      
       pagesOfIndices.add(currentPageIndices);
     }
 

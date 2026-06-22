@@ -75,14 +75,22 @@ class KalibrasyonBaskiOnizleme {
       if (pages.isNotEmpty && invoice.nakliYekunAktif) {
         currentPageItems.add({
           'cinsi': 'N A K L İ Y E K Ü N',
-          'miktar': 1,
-          'fiyat': runningTotal,
+          'isNakliYekun': true,
+          'nakliTutar': runningTotal,
         });
         spaceLeft--;
       }
 
+      int itemsRemaining = kalemlerHam.length - currentItemIndex;
+      bool willHaveNextPage = false;
+      if (invoice.nakliYekunAktif && itemsRemaining > spaceLeft) {
+          willHaveNextPage = true;
+      }
+      
+      int effectiveSpace = willHaveNextPage ? spaceLeft - 1 : spaceLeft;
+
       double pageRealTotal = 0.0;
-      while (spaceLeft > 0 && currentItemIndex < kalemlerHam.length) {
+      while (effectiveSpace > 0 && currentItemIndex < kalemlerHam.length) {
         final item = kalemlerHam[currentItemIndex];
         currentPageItems.add(item);
         
@@ -95,6 +103,16 @@ class KalibrasyonBaskiOnizleme {
       }
       
       runningTotal += pageRealTotal;
+      
+      if (willHaveNextPage) {
+        currentPageItems.add({
+          'cinsi': 'N A K L İ Y E K Ü N',
+          'isNakliYekun': true,
+          'nakliTutar': runningTotal,
+        });
+        spaceLeft--;
+      }
+
       pages.add(currentPageItems);
       pageTotals.add(runningTotal);
     }
@@ -104,6 +122,15 @@ class KalibrasyonBaskiOnizleme {
     final aktifKalemlerHam = pages[startIndex];
     
     final kalemler = aktifKalemlerHam.map((item) {
+      if (item['isNakliYekun'] == true) {
+        return KalibrasyonKalemSatir(
+          cinsi: item['cinsi'].toString(),
+          miktar: '',
+          fiyat: '',
+          tutar: TurkceFormat.para(item['nakliTutar']),
+        );
+      }
+      
       final fiyat = double.tryParse(item['fiyat'].toString()) ?? 0.0;
       final miktar = double.tryParse(item['miktar'].toString()) ?? 1.0;
       final miktarMetin = miktar == miktar.roundToDouble() ? miktar.toInt().toString() : TurkceFormat.ondalik(miktar);

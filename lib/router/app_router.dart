@@ -11,6 +11,7 @@ import '../features/yk_karar/screens/gundem_yonetim_screen.dart';
 import '../features/danismanlik/screens/danismanlik_detay_screen.dart';
 import '../features/danismanlik/screens/danismanlik_dagitim_screen.dart';
 import '../features/danismanlik/screens/danismanlik_takip_screen.dart';
+import '../features/beyanname/screens/beyanname_hesapla_screen.dart';
 import '../features/fatura/screens/batch_verification_screen.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/pending_approval_screen.dart';
@@ -160,6 +161,15 @@ class AppRouter {
                       },
                     ),
                   ],
+                ),
+              ],
+            ),
+
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/beyanname-hesapla',
+                  builder: (context, state) => const BeyannameHesaplaScreen(),
                 ),
               ],
             ),

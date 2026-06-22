@@ -88,17 +88,27 @@ class _SideMenuState extends State<SideMenu> {
                 initialLocation: widget.navigationShell.currentIndex == 2,
               ),
             ),
+            _MenuButton(
+              title: 'Beyanname Hesapla',
+              icon: Icons.calculate,
+              isActive: widget.navigationShell.currentIndex == 3,
+              isExpanded: _isHovered,
+              onTap: () => widget.navigationShell.goBranch(
+                3,
+                initialLocation: widget.navigationShell.currentIndex == 3,
+              ),
+            ),
             const SizedBox(height: 20),
             const Divider(color: Colors.white24, indent: 10, endIndent: 10),
             const SizedBox(height: 10),
             _MenuButton(
               title: 'Sistem Ayarları',
               icon: Icons.settings,
-              isActive: widget.navigationShell.currentIndex == 3,
+              isActive: widget.navigationShell.currentIndex == 4,
               isExpanded: _isHovered,
               onTap: () => widget.navigationShell.goBranch(
-                3,
-                initialLocation: widget.navigationShell.currentIndex == 3,
+                4,
+                initialLocation: widget.navigationShell.currentIndex == 4,
               ),
             ),
 
