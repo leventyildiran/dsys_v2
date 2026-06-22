@@ -99,6 +99,7 @@ class KalibrasyonBaskiOnizleme {
         pageRealTotal += (fiyat * miktar);
         
         currentItemIndex++;
+        effectiveSpace--;
         spaceLeft--;
       }
       
