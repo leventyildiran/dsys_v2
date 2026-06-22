@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/turkce_format.dart';
+import '../models/danismanlik_model.dart';
 import '../models/taksit_model.dart';
 import '../models/taksit_takip_kayit.dart';
 import '../providers/taksit_takip_provider.dart';
@@ -85,16 +86,58 @@ class _DanismanlikTakipBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _heroOzet(provider.istatistik, filtered.length),
-        const SizedBox(height: 12),
+        const SizedBox(height: 24),
         Expanded(
           child: filtered.isEmpty
               ? _bosDurum(provider)
               : ListView.builder(
                   itemCount: filtered.length,
-                  itemBuilder: (context, i) => Padding(
-                    padding: const EdgeInsets.only(bottom: DanismanlikLayout.sectionGap),
-                    child: _taksitKarti(context, filtered[i], provider),
-                  ),
+                  itemBuilder: (context, i) {
+                    final isLast = i == filtered.length - 1;
+                    return IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Timeline Line and Dot
+                          SizedBox(
+                            width: 32,
+                            child: Column(
+                              children: [
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  margin: const EdgeInsets.only(top: 24),
+                                  decoration: BoxDecoration(
+                                    color: _durumRenk(filtered[i].taksit.durum),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                    boxShadow: [
+                                      BoxShadow(color: _durumRenk(filtered[i].taksit.durum).withOpacity(0.3), blurRadius: 4),
+                                    ],
+                                  ),
+                                ),
+                                if (!isLast)
+                                  Expanded(
+                                    child: Container(
+                                      width: 2,
+                                      color: Colors.blueGrey.shade100,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // The Card
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: DanismanlikLayout.sectionGap),
+                              child: _taksitKarti(context, filtered[i], provider),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
         ),
       ],
@@ -270,11 +313,12 @@ class _DanismanlikTakipBody extends StatelessWidget {
 
   Widget _taksitKarti(BuildContext context, TaksitTakipKayit kayit, TaksitTakipProvider provider) {
     final t = kayit.taksit;
-    final sonraki = TaksitOnayAkisi.sonrakiDurum(t.durum);
-    final onceki = TaksitOnayAkisi.oncekiDurum(t.durum);
+    final akis = IsAkisiMotoru.forTur(kayit.danismanlik.tur);
+    final sonraki = akis.sonrakiDurum(t.durum);
+    final onceki = akis.oncekiDurum(t.durum);
 
     final renk = _durumRenk(t.durum);
-    final sonrakiEtiket = sonraki == null ? 'Tamamlandı' : TaksitOnayAkisi.ilerletEtiketi(t.durum);
+    final sonrakiEtiket = sonraki == null ? 'Tamamlandı' : akis.ilerletEtiketi(t.durum);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
@@ -323,7 +367,7 @@ class _DanismanlikTakipBody extends StatelessWidget {
                   ],
                 ),
               ),
-              _durumChip(t.durum),
+              _durumChip(t.durum, kayit.danismanlik.tur),
             ],
           ),
           const SizedBox(height: 12),
@@ -333,7 +377,7 @@ class _DanismanlikTakipBody extends StatelessWidget {
               color: Colors.blueGrey.shade50.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: TaksitPipeline(durum: t.durum),
+            child: TaksitPipeline(durum: t.durum, tur: kayit.danismanlik.tur),
           ),
           if (t.ekOdemeKatsayisi != null || t.dagitilabilirTutar != null) ...[
             const SizedBox(height: 10),
@@ -383,7 +427,7 @@ class _DanismanlikTakipBody extends StatelessWidget {
     );
   }
 
-  Widget _durumChip(TaksitDurum durum) {
+  Widget _durumChip(TaksitDurum durum, DanismanlikTuru tur) {
     final renk = _durumRenk(durum);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -392,7 +436,7 @@ class _DanismanlikTakipBody extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        durum.displayName,
+        durum.getDisplayName(tur),
         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: renk),
       ),
     );
@@ -404,12 +448,13 @@ class _DanismanlikTakipBody extends StatelessWidget {
         return Colors.indigo;
       case TaksitDurum.taslak:
         return Colors.grey.shade600;
-      case TaksitDurum.mudurOnayinda:
-      case TaksitDurum.merkezOnayinda:
+      case TaksitDurum.faturaKesildi:
         return Colors.orange.shade700;
-      case TaksitDurum.ykGundeminde:
+      case TaksitDurum.paraGeldi:
+        return Colors.teal.shade600;
+      case TaksitDurum.dagitimHesaplandi:
         return Colors.purple.shade600;
-      case TaksitDurum.onaylandi:
+      case TaksitDurum.ykOnaylandi:
         return Colors.green.shade700;
       case TaksitDurum.odendi:
         return Colors.blue.shade700;
@@ -424,7 +469,8 @@ class _DanismanlikTakipBody extends StatelessWidget {
     TaksitTakipProvider provider,
   ) {
     final renk = _durumRenk(kayit.taksit.durum);
-    final sonraki = TaksitOnayAkisi.sonrakiDurum(kayit.taksit.durum);
+    final akis = IsAkisiMotoru.forTur(kayit.danismanlik.tur);
+    final sonraki = akis.sonrakiDurum(kayit.taksit.durum);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
@@ -444,7 +490,7 @@ class _DanismanlikTakipBody extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            'Ay ${kayit.taksit.ayNo} · ${kayit.taksit.durum.displayName}',
+            'Ay ${kayit.taksit.ayNo} · ${kayit.taksit.durum.getDisplayName(kayit.danismanlik.tur)}',
             style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade600),
           ),
           if (sonraki != null) ...[
@@ -457,7 +503,7 @@ class _DanismanlikTakipBody extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   foregroundColor: renk,
                 ),
-                child: Text(TaksitOnayAkisi.ilerletEtiketi(kayit.taksit.durum)),
+                child: Text(akis.ilerletEtiketi(kayit.taksit.durum)),
               ),
             ),
           ],

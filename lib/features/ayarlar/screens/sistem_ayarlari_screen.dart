@@ -33,6 +33,8 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
   bool _visionKeyGizli = true;
   bool _deepseekKeyGizli = true;
 
+  List<Map<String, TextEditingController>> _unvanControllers = [];
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +60,10 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
       _deepseekModelController.text = ayarlar.deepseekModel;
       _isletmeVkn = ayarlar.isletmeVkn;
       _kurulUyeleri = List.from(ayarlar.kurulUyeleri);
+      _unvanControllers = ayarlar.unvanKatsayilari.entries.map((e) => {
+        'unvan': TextEditingController(text: e.key),
+        'katsayi': TextEditingController(text: e.value.toString()),
+      }).toList();
       _isLoading = false;
     });
   }
@@ -77,6 +83,11 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
         deepseekApiKey: _deepseekKeyController.text.trim(),
         deepseekModel: _deepseekModelController.text.trim(),
         kurulUyeleri: _kurulUyeleri,
+        unvanKatsayilari: {
+          for (var item in _unvanControllers)
+            if (item['unvan']!.text.trim().isNotEmpty)
+              item['unvan']!.text.trim(): double.tryParse(item['katsayi']!.text.replaceAll(',', '.')) ?? 1.0
+        },
       );
       await _service.saveAyarlar(ayarlar);
       if (mounted) {
@@ -104,6 +115,10 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
     _deepseekUrlController.dispose();
     _deepseekKeyController.dispose();
     _deepseekModelController.dispose();
+    for (var item in _unvanControllers) {
+      item['unvan']!.dispose();
+      item['katsayi']!.dispose();
+    }
     super.dispose();
   }
 
@@ -140,6 +155,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
                 _buildMenuItem(3, Icons.people, 'Yürütme Kurulu'),
                 _buildMenuItem(4, Icons.business, 'Döner Sermaye Birimleri'),
                 _buildMenuItem(5, Icons.folder_copy, 'Şablon ve Form Havuzu'),
+                _buildMenuItem(6, Icons.functions, 'Unvan Katsayıları'),
               ],
             ),
           ),
@@ -186,6 +202,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
                             ],
                             if (_selectedIndex == 2) const AdminDashboardScreen(),
                             if (_selectedIndex == 3) ..._buildYkUyeleriAyarlari(),
+                            if (_selectedIndex == 6) ..._buildUnvanKatsayilariAyarlari(),
                           ],
                         ),
                       ),
@@ -250,6 +267,59 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildUnvanKatsayilariAyarlari() {
+    return [
+      _buildSectionHeader(
+        Icons.functions,
+        'Unvan Katsayıları',
+        'Personel net hakediş hesaplamasında kullanılan akademik/idari unvan katsayıları.',
+      ),
+      const SizedBox(height: 16),
+      ..._unvanControllers.asMap().entries.map((entry) {
+        final index = entry.key;
+        final item = entry.value;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextFormField(
+                  controller: item['unvan'],
+                  decoration: const InputDecoration(labelText: 'Unvan', border: OutlineInputBorder()),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: item['katsayi'],
+                  decoration: const InputDecoration(labelText: 'Katsayı (örn: 2.5)', border: OutlineInputBorder()),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                onPressed: () => setState(() => _unvanControllers.removeAt(index)),
+                tooltip: 'Sil',
+              ),
+            ],
+          ),
+        );
+      }),
+      const SizedBox(height: 8),
+      TextButton.icon(
+        onPressed: () => setState(() {
+          _unvanControllers.add({
+            'unvan': TextEditingController(),
+            'katsayi': TextEditingController(text: '1.0'),
+          });
+        }),
+        icon: const Icon(Icons.add),
+        label: const Text('Yeni Unvan Ekle'),
+      ),
+    ];
   }
 
 

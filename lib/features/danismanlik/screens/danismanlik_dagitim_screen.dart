@@ -1,7 +1,7 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-
 import '../../../core/turkce_format.dart';
 import '../models/dagitim_model.dart';
 import '../models/danismanlik_model.dart';
@@ -10,6 +10,7 @@ import '../providers/danismanlik_detay_provider.dart';
 import '../services/danismanlik_excel_hesaplama.dart';
 import '../widgets/danismanlik_layout.dart';
 import '../widgets/danismanlik_onizleme_dialog.dart';
+import '../widgets/taksit_pipeline.dart';
 
 class DanismanlikDagitimScreen extends StatefulWidget {
   const DanismanlikDagitimScreen({
@@ -34,10 +35,14 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
   final _katsayiController = TextEditingController();
   bool _katsayiManuel = false;
   double? _otomatikKatsayi;
+  int _sanalAySayisi = 1;
+  late String _sanalTaksitId;
+  final _hScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    _sanalTaksitId = 'sanal_${DateTime.now().millisecondsSinceEpoch}';
     _seciliTaksit = widget.taksit;
     _editableGirdiler =
         DanismanlikExcelHesaplama.personelGirdileriFromDanismanlik(widget.danismanlik);
@@ -46,6 +51,7 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
   @override
   void dispose() {
     _katsayiController.dispose();
+    _hScrollController.dispose();
     super.dispose();
   }
 
@@ -61,6 +67,23 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
     if (!_katsayiManuel) {
       _katsayiController.text = TurkceFormat.katsayi(sonuc.katsayi);
     }
+  }
+
+  void _sanalAylikGuncelle(int ay, DanismanlikDetayProvider provider) {
+    if (ay < 1 || ay > widget.danismanlik.suresi) return;
+    setState(() {
+      _sanalAySayisi = ay;
+      if (_seciliTaksit?.id == _sanalTaksitId) {
+        final aylik = widget.danismanlik.suresi > 0 
+            ? widget.danismanlik.toplamTutar / widget.danismanlik.suresi 
+            : widget.danismanlik.toplamTutar;
+        _seciliTaksit = _seciliTaksit!.copyWith(
+          brutTutar: aylik * ay,
+          ayNo: ay,
+        );
+      }
+    });
+    _yenidenHesapla(provider);
   }
 
   void _yenidenHesapla(DanismanlikDetayProvider provider) {
@@ -121,10 +144,11 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
     }
   }
 
-  void _girdiGuncelle(int index, ExcelPersonelGirdi girdi) {
+  void _girdiGuncelle(int index, ExcelPersonelGirdi girdi, DanismanlikDetayProvider provider) {
     setState(() {
       _editableGirdiler = List.of(_editableGirdiler)..[index] = girdi;
     });
+    _yenidenHesapla(provider);
   }
 
   @override
@@ -135,12 +159,26 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
         builder: (context) {
           final provider = context.watch<DanismanlikDetayProvider>();
 
-          if (_seciliTaksit == null && provider.taksitler.isNotEmpty) {
-            _seciliTaksit = provider.taksitler.first;
-            WidgetsBinding.instance.addPostFrameCallback((_) => _hesapla(provider));
-          } else if (_sonuc == null && _seciliTaksit != null && !_hesaplaniyor) {
+          if (_seciliTaksit == null) {
+            if (provider.taksitler.isNotEmpty) {
+              _seciliTaksit = provider.taksitler.first;
+              WidgetsBinding.instance.addPostFrameCallback((_) => _hesapla(provider));
+            } else {
+              _seciliTaksit = TaksitModel(
+                id: _sanalTaksitId,
+                ayNo: _sanalAySayisi,
+                brutTutar: widget.danismanlik.suresi > 0 
+                    ? (widget.danismanlik.toplamTutar / widget.danismanlik.suresi) * _sanalAySayisi
+                    : widget.danismanlik.toplamTutar,
+                durum: TaksitDurum.taslak,
+              );
+              WidgetsBinding.instance.addPostFrameCallback((_) => _hesapla(provider));
+            }
+          } else if (_sonuc == null && !_hesaplaniyor) {
             WidgetsBinding.instance.addPostFrameCallback((_) => _hesapla(provider));
           }
+
+          final ddlValue = provider.taksitler.where((t) => t.id == _seciliTaksit?.id).firstOrNull;
 
           return Scaffold(
             backgroundColor: const Color(0xFFF5F7FA),
@@ -153,12 +191,12 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
                   aksiyon: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (provider.taksitler.length > 1)
+                      if (provider.taksitler.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: DropdownButton<TaksitModel>(
-                            value: _seciliTaksit,
-                            hint: const Text('Taksit'),
+                            value: ddlValue,
+                            hint: const Text('Genel Önizleme'),
                             items: provider.taksitler
                                 .map((t) => DropdownMenuItem(
                                       value: t,
@@ -183,6 +221,22 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
                     ],
                   ),
                 ),
+                if (_seciliTaksit != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border(bottom: BorderSide(color: Colors.blueGrey.shade100)),
+                    ),
+                    child: Center(
+                      child: TaksitPipeline(
+                        durum: _seciliTaksit!.durum,
+                        tur: widget.danismanlik.tur,
+                        compact: false,
+                      ),
+                    ),
+                  ),
                 Expanded(
                   child: _seciliTaksit == null
                       ? Center(
@@ -223,7 +277,7 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
     final profil = DanismanlikExcelHesaplama.profilFromDanismanlik(d);
 
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Column(
         children: [
           _buildKatsayiCubugu(excel, provider, profil),
@@ -232,18 +286,16 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
             unselectedLabelColor: Colors.blueGrey,
             indicatorWeight: 2,
             isScrollable: true,
-            tabs: [
-              const Tab(text: 'Dağ. Maks. Pay'),
-              Tab(text: profil.katkiSekmeAdi),
-              const Tab(text: 'Liste'),
+            tabs: const [
+              Tab(text: 'Personel Dağılımı'),
+              Tab(text: 'Gelir ve Kesintiler'),
             ],
           ),
           Expanded(
             child: TabBarView(
               children: [
-                _buildDagMaksPayTab(excel, d),
                 _buildKatkiPayiTab(excel, provider),
-                _buildListeTab(excel, d),
+                _buildDagMaksPayTab(excel, d),
               ],
             ),
           ),
@@ -295,6 +347,34 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
               ),
+              if (_seciliTaksit?.id == _sanalTaksitId && widget.danismanlik.suresi > 1) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    border: Border.all(color: Colors.blue.shade200),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Dağıtılan Süre: ', style: TextStyle(fontSize: 10)),
+                      InkWell(
+                        onTap: _sanalAySayisi > 1 ? () => _sanalAylikGuncelle(_sanalAySayisi - 1, provider) : null,
+                        child: Icon(Icons.remove_circle, size: 14, color: _sanalAySayisi > 1 ? Colors.blue.shade700 : Colors.grey),
+                      ),
+                      const SizedBox(width: 4),
+                      Text('$_sanalAySayisi Ay', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 4),
+                      InkWell(
+                        onTap: _sanalAySayisi < widget.danismanlik.suresi ? () => _sanalAylikGuncelle(_sanalAySayisi + 1, provider) : null,
+                        child: Icon(Icons.add_circle, size: 14, color: _sanalAySayisi < widget.danismanlik.suresi ? Colors.blue.shade700 : Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               if (_otomatikKatsayi != null)
                 Text(
                   'Otomatik: ${TurkceFormat.katsayi(_otomatikKatsayi!)}',
@@ -421,24 +501,52 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
           ),
         ),
         Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SingleChildScrollView(
-              child: DataTable(
-                headingRowHeight: 36,
-                columnSpacing: 12,
-                columns: const [
-                  DataColumn(label: Text('Adı Soyadı')),
-                  DataColumn(label: Text('Puanı')),
-                  DataColumn(label: Text('Unvan Kats.')),
-                  DataColumn(label: Text('Ders Saati')),
-                  DataColumn(label: Text('Bireysel Net Katkı Puanı')),
-                  DataColumn(label: Text('Dönem Katsayı')),
-                  DataColumn(label: Text('Kurs 1 Saatlik')),
-                  DataColumn(label: Text('Tavan Saatlik')),
-                  DataColumn(label: Text('Brüt Hakediş')),
-                  DataColumn(label: Text('Net Ödenen')),
-                ],
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: {PointerDeviceKind.touch, PointerDeviceKind.mouse, PointerDeviceKind.trackpad},
+            ),
+            child: Scrollbar(
+              controller: _hScrollController,
+              thumbVisibility: true,
+              thickness: 8,
+              radius: const Radius.circular(4),
+              child: SingleChildScrollView(
+                controller: _hScrollController,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(bottom: 16),
+                child: SingleChildScrollView(
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      dividerColor: Colors.blueGrey.shade50,
+                      dataTableTheme: DataTableThemeData(
+                        headingTextStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blueGrey.shade700, letterSpacing: 0.3),
+                        dataTextStyle: TextStyle(fontSize: 12, color: Colors.blueGrey.shade900),
+                        horizontalMargin: 16,
+                        columnSpacing: 16,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.blueGrey.shade100, width: 0.5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                    child: DataTable(
+                      headingRowHeight: 40,
+                      dataRowMinHeight: 40,
+                      dataRowMaxHeight: 48,
+                  columns: [
+                    const DataColumn(label: Text('Adı Soyadı')),
+                    const DataColumn(label: Text('Puanı')),
+                    const DataColumn(label: Text('Unvan Kats.')),
+                    const DataColumn(label: Text('Ders Saati')),
+                    const DataColumn(label: Text('Bireysel Net\nKatkı Puanı')),
+                    const DataColumn(label: Text('Dönem Katsayı')),
+                    if (DanismanlikExcelHesaplama.profilFromDanismanlik(widget.danismanlik) == DanismanlikExcelProfili.usemSurekliEgitim) ...[
+                      const DataColumn(label: Text('Kurs 1 Saatlik')),
+                      const DataColumn(label: Text('Tavan Saatlik')),
+                    ],
+                    const DataColumn(label: Text('Brüt Hakediş')),
+                    const DataColumn(label: Text('Net Ödenen')),
+                  ],
                 rows: [
                   ...List.generate(_editableGirdiler.length, (i) {
                     final p = _editableGirdiler[i];
@@ -457,14 +565,14 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
                       DataCell(_EditableSayiHucre(
                         key: ValueKey('puan-${p.personelId}'),
                         deger: p.puan.toStringAsFixed(0),
-                        onChanged: (v) => _girdiGuncelle(i, p.copyWith(puan: v)),
+                        onChanged: (v) => _girdiGuncelle(i, p.copyWith(puan: v), provider),
                         onDone: () => _yenidenHesapla(provider),
                       )),
                       DataCell(_EditableSayiHucre(
                         key: ValueKey('uk-${p.personelId}'),
                         deger: p.unvanKatsayisi.toStringAsFixed(1),
                         onChanged: (v) =>
-                            _girdiGuncelle(i, p.copyWith(unvanKatsayisi: v)),
+                            _girdiGuncelle(i, p.copyWith(unvanKatsayisi: v), provider),
                         onDone: () => _yenidenHesapla(provider),
                         width: 56,
                       )),
@@ -472,17 +580,19 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
                         key: ValueKey('ds-${p.personelId}'),
                         deger: p.dersSaati.toStringAsFixed(0),
                         onChanged: (v) =>
-                            _girdiGuncelle(i, p.copyWith(dersSaati: v)),
+                            _girdiGuncelle(i, p.copyWith(dersSaati: v), provider),
                         onDone: () => _yenidenHesapla(provider),
                       )),
                       DataCell(Text(
                         (s?.bireyselNetKatkiPuani ?? 0).toStringAsFixed(0),
                       )),
                       DataCell(Text(TurkceFormat.katsayi(s?.donemKatsayi ?? 0))),
-                      DataCell(Text(TurkceFormat.para(s?.kursSaatlikUcreti ?? 0))),
-                      DataCell(Text(TurkceFormat.para(s?.tavanSaatlikUcreti ?? 0))),
-                      DataCell(Text(TurkceFormat.para(s?.brutHakedis ?? 0))),
-                      DataCell(Text(TurkceFormat.para(s?.odenebilirHakedis ?? 0))),
+                      if (DanismanlikExcelHesaplama.profilFromDanismanlik(widget.danismanlik) == DanismanlikExcelProfili.usemSurekliEgitim) ...[
+                        DataCell(Text(TurkceFormat.para(s?.kursSaatlikUcreti ?? 0))),
+                        DataCell(Text(TurkceFormat.para(s?.tavanSaatlikUcreti ?? 0))),
+                      ],
+                      DataCell(Text(TurkceFormat.para(s?.brutHakedis ?? 0), style: const TextStyle(fontWeight: FontWeight.w600))),
+                      DataCell(Text(TurkceFormat.para(s?.odenebilirHakedis ?? 0), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade800))),
                     ]);
                   }),
                   DataRow(cells: [
@@ -498,8 +608,10 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     )),
                     DataCell(Text(TurkceFormat.katsayi(excel.donemKatsayi))),
-                    const DataCell(Text('')),
-                    const DataCell(Text('')),
+                    if (DanismanlikExcelHesaplama.profilFromDanismanlik(widget.danismanlik) == DanismanlikExcelProfili.usemSurekliEgitim) ...[
+                      const DataCell(Text('')),
+                      const DataCell(Text('')),
+                    ],
                     const DataCell(Text('')),
                     const DataCell(Text('')),
                   ]),
@@ -508,40 +620,10 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
             ),
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildListeTab(DanismanlikExcelSonuc? excel, DanismanlikModel d) {
-    if (excel == null) return const SizedBox.shrink();
-    final k = excel.kesinti;
-    final kdv = DanismanlikExcelHesaplama.kdvTutari(k.kdvHaricGelir, d.kdvOrani);
-    final genel = DanismanlikExcelHesaplama.genelToplam(k.kdvHaricGelir, d.kdvOrani);
-
-    return ListView(
-      padding: const EdgeInsets.all(DanismanlikLayout.kartPadding),
-      children: [
-        const Text('Fatura / Gelir Listesi', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        DataTable(
-          columns: const [
-            DataColumn(label: Text('S.N')),
-            DataColumn(label: Text('Açıklama')),
-            DataColumn(label: Text('Tutar')),
-          ],
-          rows: [
-            DataRow(cells: [
-              const DataCell(Text('1')),
-              DataCell(Text(d.firmaUnvan ?? d.konusu)),
-              DataCell(Text(TurkceFormat.para(k.kdvHaricGelir))),
-            ]),
-          ],
-        ),
-        const Divider(),
-        _satir('GELİR', TurkceFormat.para(k.kdvHaricGelir)),
-        _satir('KDV', TurkceFormat.para(kdv)),
-        _satir('TOPLAM', TurkceFormat.para(genel), kalin: true),
-      ],
+      ),
+    ),
+  ),
+],
     );
   }
 
@@ -550,15 +632,48 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
 
     final excel = _sonuc!.excelSonuc;
     final k = _sonuc!.kesinti;
+    
+    final double totalBrut = widget.taksit?.brutTutar ?? k.kdvHaricMatrah;
+    final double kdv = k.kdvHaricMatrah > 0 ? (totalBrut - k.kdvHaricMatrah) : 0;
+    final double kesintiler = k.hazinePayi + k.bapPayi + k.aracGerecPayi;
+    final double dagitilabilir = k.dagitilabilirTutar;
 
     return Container(
       padding: const EdgeInsets.all(DanismanlikLayout.kartPadding),
       decoration: DanismanlikLayout.kart(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           DanismanlikLayout.kartBaslik('Dönem Özeti', icon: Icons.pie_chart_outline),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          
+          // Görsel Bütçe Dağılımı (Altın Oran ve İnce Çizgiler)
+          if (totalBrut > 0) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Row(
+                children: [
+                  Expanded(flex: (dagitilabilir * 100).toInt(), child: Container(height: 6, color: Colors.green.shade500)),
+                  Expanded(flex: (kesintiler * 100).toInt(), child: Container(height: 6, color: Colors.orange.shade400)),
+                  Expanded(flex: (kdv * 100).toInt(), child: Container(height: 6, color: Colors.red.shade400)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _LegendItem('Dağıtılabilir', Colors.green.shade500),
+                _LegendItem('Kurum Payı', Colors.orange.shade400),
+                _LegendItem('KDV', Colors.red.shade400),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+          ],
+
           if (excel != null) ...[
             _ozetSatir('Toplam Puan', excel.toplamPuan.toStringAsFixed(0)),
             _ozetSatir('Ek Ödeme Katsayısı', TurkceFormat.katsayi(excel.donemKatsayi), kalin: true),
@@ -581,16 +696,30 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
             DanismanlikLayout.kartBaslik('Karar Metni'),
             const SizedBox(height: 6),
             Expanded(
-              child: SingleChildScrollView(
-                child: Text(
-                  _sonuc!.kararMetni,
-                  style: TextStyle(fontSize: 11, height: 1.4, color: Colors.blueGrey.shade700),
+              child: Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  child: Text(
+                    _sonuc!.kararMetni,
+                    style: TextStyle(fontSize: 11, height: 1.4, color: Colors.blueGrey.shade700),
+                  ),
                 ),
               ),
             ),
           ],
         ],
       ),
+      ),
+    );
+  }
+
+  Widget _LegendItem(String label, Color color) {
+    return Row(
+      children: [
+        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 10, color: Colors.blueGrey.shade600)),
+      ],
     );
   }
 
@@ -643,7 +772,7 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
             onPressed: _seciliTaksit == null ||
                     provider.isLoading ||
                     _sonuc == null ||
-                    _seciliTaksit!.durum == TaksitDurum.onaylandi
+                    _seciliTaksit!.durum == TaksitDurum.ykOnaylandi
                 ? null
                 : () async {
                     await provider.dagitimiKaydetSonuc(

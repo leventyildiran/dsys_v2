@@ -1,11 +1,13 @@
+import 'danismanlik_model.dart';
+
 /// Taksit durumu enum tanımı.
 enum TaksitDurum {
-  taslak('taslak', 'Taslak'),
-  mudurOnayinda('mudur_onayinda', 'Müdür Onayında'),
-  merkezOnayinda('merkez_onayinda', 'Merkez Onayında'),
-  ykGundeminde('yk_gundeminde', 'YK Gündeminde'),
-  onaylandi('onaylandi', 'Onaylandı'),
-  odendi('odendi', 'Ödendi'),
+  taslak('taslak', 'Taslak (Bekliyor)'),
+  faturaKesildi('fatura_kesildi', 'Fatura Kesildi'),
+  paraGeldi('para_geldi', 'Para Kuruma Geldi'),
+  dagitimHesaplandi('dagitim_hesaplandi', 'Dağıtım Hesaplandı'),
+  ykOnaylandi('yk_onaylandi', 'YKK Onaylandı'),
+  odendi('odendi', 'Hocalara Ödendi'),
   gecikti('gecikti', 'Gecikti');
 
   const TaksitDurum(this.value, this.displayName);
@@ -17,6 +19,25 @@ enum TaksitDurum {
       (t) => t.value == value,
       orElse: () => TaksitDurum.taslak,
     );
+  }
+}
+
+extension TaksitDurumExtension on TaksitDurum {
+  String getDisplayName(DanismanlikTuru tur) {
+    switch (this) {
+      case TaksitDurum.faturaKesildi:
+        if (tur == DanismanlikTuru.egitimKuru) return 'Tahsilat/Dekont Geldi';
+        return 'Fatura Kesildi';
+      case TaksitDurum.paraGeldi:
+        if (tur == DanismanlikTuru.egitimKuru) return 'Bütçe Toplandı';
+        return 'Para Kuruma Geldi';
+      case TaksitDurum.dagitimHesaplandi:
+        return 'Dağıtım Hesaplandı';
+      case TaksitDurum.odendi:
+        return 'Hocalara Ödendi';
+      default:
+        return displayName;
+    }
   }
 }
 
@@ -33,6 +54,9 @@ class TaksitModel {
     this.birimKurulTarihi,
     this.birimToplantiSayisi,
     this.birimKararNo,
+    this.ykKararTarihi,
+    this.ykToplantiSayisi,
+    this.ykKararNo,
     this.hazinePayi,
     this.bapPayi,
     this.aracGerecPayi,
@@ -47,12 +71,17 @@ class TaksitModel {
   final TaksitDurum durum;
   final DateTime? odemeTarihi;
 
-  // Evrak bilgileri
+  // Evrak bilgileri (BYK)
   final String? birimEvrakTarihi;
   final String? birimEvrakSayisi;
   final String? birimKurulTarihi;
   final String? birimToplantiSayisi;
   final String? birimKararNo;
+
+  // Evrak bilgileri (YKK)
+  final String? ykKararTarihi;
+  final String? ykToplantiSayisi;
+  final String? ykKararNo;
 
   // Hesaplama sonuçları
   final double? hazinePayi;
@@ -76,6 +105,9 @@ class TaksitModel {
       birimKurulTarihi: map['birimKurulTarihi'] as String?,
       birimToplantiSayisi: map['birimToplantiSayisi'] as String?,
       birimKararNo: map['birimKararNo'] as String?,
+      ykKararTarihi: map['ykKararTarihi'] as String?,
+      ykToplantiSayisi: map['ykToplantiSayisi'] as String?,
+      ykKararNo: map['ykKararNo'] as String?,
       hazinePayi: (map['hazinePayi'] as num?)?.toDouble(),
       bapPayi: (map['bapPayi'] as num?)?.toDouble(),
       aracGerecPayi: (map['aracGerecPayi'] as num?)?.toDouble(),
@@ -96,6 +128,9 @@ class TaksitModel {
       'birimKurulTarihi': birimKurulTarihi,
       'birimToplantiSayisi': birimToplantiSayisi,
       'birimKararNo': birimKararNo,
+      'ykKararTarihi': ykKararTarihi,
+      'ykToplantiSayisi': ykToplantiSayisi,
+      'ykKararNo': ykKararNo,
       'hazinePayi': hazinePayi,
       'bapPayi': bapPayi,
       'aracGerecPayi': aracGerecPayi,
@@ -115,6 +150,9 @@ class TaksitModel {
     String? birimKurulTarihi,
     String? birimToplantiSayisi,
     String? birimKararNo,
+    String? ykKararTarihi,
+    String? ykToplantiSayisi,
+    String? ykKararNo,
     double? hazinePayi,
     double? bapPayi,
     double? aracGerecPayi,
@@ -133,6 +171,9 @@ class TaksitModel {
       birimKurulTarihi: birimKurulTarihi ?? this.birimKurulTarihi,
       birimToplantiSayisi: birimToplantiSayisi ?? this.birimToplantiSayisi,
       birimKararNo: birimKararNo ?? this.birimKararNo,
+      ykKararTarihi: ykKararTarihi ?? this.ykKararTarihi,
+      ykToplantiSayisi: ykToplantiSayisi ?? this.ykToplantiSayisi,
+      ykKararNo: ykKararNo ?? this.ykKararNo,
       hazinePayi: hazinePayi ?? this.hazinePayi,
       bapPayi: bapPayi ?? this.bapPayi,
       aracGerecPayi: aracGerecPayi ?? this.aracGerecPayi,

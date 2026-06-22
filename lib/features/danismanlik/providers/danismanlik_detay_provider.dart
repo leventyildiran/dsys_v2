@@ -200,48 +200,81 @@ class DanismanlikDetayProvider extends ChangeNotifier {
           ? sonuc.dagitimlar.first.toplamPuan
           : 0,
       ekOdemeKatsayisi: katsayi,
-      durum: arshiveGonder ? TaksitDurum.onaylandi : TaksitDurum.taslak,
+      durum: arshiveGonder ? TaksitDurum.ykOnaylandi : TaksitDurum.dagitimHesaplandi,
     );
 
     await _taksitService.update(danismanlik.id, taksit.id, guncelTaksit);
     await _dagitimService.topluKaydet(danismanlik.id, taksit.id, dagitimlar);
 
     if (arshiveGonder) {
-      for (final d in dagitimlar) {
-        if (d.odenebilirHakedis != null && d.odenebilirHakedis! > 0) {
-          await _hakedisService.donerSermayeEkle(
-            d.personelId,
-            islemAyi,
-            d.odenebilirHakedis!,
-          );
-        }
+      await _arsivle(guncelTaksit, islemAyi, dagitimlar, sonuc.kararMetni);
+    }
+  }
+
+  Future<void> _ykOnayVeArsivle(TaksitModel taksit, String islemAyi) async {
+    _setLoading(true);
+    _error = null;
+
+    try {
+      final mevcutDagitimlar = await _dagitimService.getAll(danismanlik.id, taksit.id);
+      
+      if (mevcutDagitimlar.isEmpty) {
+        throw Exception('Dağıtım tablosu boş. Önce dağıtım hesaplanmalıdır.');
       }
 
-      final ykKarar = YkKararModel(
-        id: '',
-        kararNo:
-            'DSYS-${DateTime.now().year}-${taksit.id.substring(0, taksit.id.length.clamp(0, 4)).toUpperCase()}',
-        toplantiId: '',
-        toplantiNo: '',
-        birimId: danismanlik.birimId,
-        birimAd: danismanlik.birimKisaAd ?? 'Birim',
-        tur: YkKararTuru.danismanlik,
-        baslik: '${danismanlik.firmaUnvan} Danışmanlık Dağılımı',
-        kararMetni: sonuc.kararMetni,
-        kararTarihi: DateTime.now().toIso8601String().split('T').first,
-        olusturmaTarihi: DateTime.now(),
-        tabloVerileri: dagitimlar.map((d) {
-          return {
-            'Personel': '${d.unvan} ${d.adSoyad}',
-            'Brüt Hakediş': TurkceFormat.para(d.brutHakedis),
-            'Kesinti/Taşan': TurkceFormat.para(d.fazlalikHavuzTutari ?? 0.0),
-            'Net Ödenen': TurkceFormat.para(d.odenebilirHakedis ?? 0.0),
-          };
-        }).toList(),
+      final veriler = _kararMetniVerileriHazirla(
+        taksit.ekOdemeKatsayisi ?? 0.0,
+        taksit.dagitilabilirTutar ?? 0.0,
+      );
+      final kararMetni = KararMetniServisi.metinUret(
+        isStandart: danismanlik.tur == DanismanlikTuru.standart,
+        veriler: veriler,
       );
 
-      await _ykKararService.kararCreate(ykKarar);
+      await _arsivle(taksit, islemAyi, mevcutDagitimlar, kararMetni);
+      await _taksitService.updateDurum(danismanlik.id, taksit.id, TaksitDurum.ykOnaylandi);
+
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _setLoading(false);
     }
+  }
+
+  Future<void> _arsivle(TaksitModel taksit, String islemAyi, List<DagitimModel> dagitimlar, String kararMetni) async {
+    for (final d in dagitimlar) {
+      if (d.odenebilirHakedis != null && d.odenebilirHakedis! > 0) {
+        await _hakedisService.donerSermayeEkle(
+          d.personelId,
+          islemAyi,
+          d.odenebilirHakedis!,
+        );
+      }
+    }
+
+    final ykKarar = YkKararModel(
+      id: '',
+      kararNo: taksit.ykKararNo?.isNotEmpty == true ? taksit.ykKararNo! : 'DSYS-${DateTime.now().year}-${taksit.id.substring(0, taksit.id.length.clamp(0, 4)).toUpperCase()}',
+      toplantiId: '',
+      toplantiNo: taksit.ykToplantiSayisi ?? '',
+      birimId: danismanlik.birimId,
+      birimAd: danismanlik.birimKisaAd ?? 'Birim',
+      tur: YkKararTuru.danismanlik,
+      baslik: '${danismanlik.firmaUnvan} Danışmanlık Dağılımı',
+      kararMetni: kararMetni,
+      kararTarihi: taksit.ykKararTarihi?.isNotEmpty == true ? taksit.ykKararTarihi! : DateTime.now().toIso8601String().split('T').first,
+      olusturmaTarihi: DateTime.now(),
+      tabloVerileri: dagitimlar.map((d) {
+        return {
+          'Personel': '${d.unvan} ${d.adSoyad}',
+          'Brüt Hakediş': TurkceFormat.para(d.brutHakedis),
+          'Kesinti/Taşan': TurkceFormat.para(d.fazlalikHavuzTutari ?? 0.0),
+          'Net Ödenen': TurkceFormat.para(d.odenebilirHakedis ?? 0.0),
+        };
+      }).toList(),
+    );
+
+    await _ykKararService.kararCreate(ykKarar);
   }
 
   Future<DagitimHesapSonuc?> _hesaplaDagitim(
@@ -322,7 +355,7 @@ class DanismanlikDetayProvider extends ChangeNotifier {
       final eydma = HesaplamaMotoru.eydmaHesapla(
         gostergeEk: 4000,
         gostergeMakamTemsil: 6000,
-        memurMaasKatsayisi: 0.907796,
+        memurMaasKatsayisi: DanismanlikExcelHesaplama.memurMaasKatsayisiGuncel,
       );
       final unvanTavani = HesaplamaMotoru.unvanTavaniHesapla(eydma, 1200);
 
@@ -386,19 +419,23 @@ class DanismanlikDetayProvider extends ChangeNotifier {
     }
   }
 
-  /// Onay hattında bir adım ilerletir. YK onayında dağıtım hesaplar.
   Future<bool> durumIlerlet(TaksitModel taksit) async {
-    final hedef = TaksitOnayAkisi.sonrakiDurum(taksit.durum);
+    final akis = IsAkisiMotoru.forTur(danismanlik.tur);
+    final hedef = akis.sonrakiDurum(taksit.durum);
     if (hedef == null) return false;
 
-    if (hedef == TaksitDurum.onaylandi) {
-      await dagitimiHesaplaVeKaydet(taksit, guncelIslemAyi(), true);
+    if (hedef == TaksitDurum.dagitimHesaplandi) {
+      // Para Geldi -> Dağıtım Hesaplandi aşamasına geçerken her şeyi hesapla ve kaydet
+      await dagitimiHesaplaVeKaydet(taksit, guncelIslemAyi(), false);
       return _error == null;
     }
-    if (hedef == TaksitDurum.odendi) {
-      await _taksitService.updateDurum(danismanlik.id, taksit.id, hedef);
-      return true;
+
+    if (hedef == TaksitDurum.ykOnaylandi) {
+      // Dağıtım Hesaplandi -> YK Onaylandı aşamasına geçerken ARŞİVLE ve onayları kaydet
+      await _ykOnayVeArsivle(taksit, guncelIslemAyi());
+      return _error == null;
     }
+
     try {
       await _taksitService.updateDurum(danismanlik.id, taksit.id, hedef);
       return true;
@@ -410,7 +447,8 @@ class DanismanlikDetayProvider extends ChangeNotifier {
   }
 
   Future<bool> durumGeriAl(TaksitModel taksit) async {
-    final hedef = TaksitOnayAkisi.oncekiDurum(taksit.durum);
+    final akis = IsAkisiMotoru.forTur(danismanlik.tur);
+    final hedef = akis.oncekiDurum(taksit.durum);
     if (hedef == null) return false;
     try {
       await _taksitService.updateDurum(danismanlik.id, taksit.id, hedef);
@@ -419,6 +457,20 @@ class DanismanlikDetayProvider extends ChangeNotifier {
       _error = e.toString();
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<bool> taksitKararGuncelle(String taksitId, TaksitModel guncel) async {
+    _setLoading(true);
+    _error = null;
+    try {
+      await _taksitService.update(danismanlik.id, taksitId, guncel);
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _setLoading(false);
     }
   }
 

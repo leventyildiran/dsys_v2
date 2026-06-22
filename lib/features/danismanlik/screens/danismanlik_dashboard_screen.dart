@@ -108,31 +108,33 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
               
               const SizedBox(height: 32),
 
-              // FILTER BAR
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.blueGrey.shade100),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
+              // FILTER BAR (Pill Design)
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.blueGrey.shade100),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
                       child: TextField(
+                        style: const TextStyle(fontSize: 13),
                         decoration: InputDecoration(
                           hintText: 'Firma Adı veya Konu Ara...',
-                          prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                          hintStyle: TextStyle(fontSize: 13, color: Colors.blueGrey.shade300),
+                          prefixIcon: Icon(Icons.search, color: Colors.blueGrey.shade400, size: 18),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                         ),
                         onChanged: (val) {
                           setState(() {
@@ -141,31 +143,26 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                         },
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      flex: 1,
-                      child: DropdownButtonFormField<DanismanlikDurum?>(
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                        ),
-                        value: _selectedDurum,
-                        hint: const Text('Tüm Durumlar'),
-                        items: [
-                          const DropdownMenuItem(value: null, child: Text('Tüm Durumlar')),
-                          ...DanismanlikDurum.values.map((d) => DropdownMenuItem(value: d, child: Text(d.displayName))),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 3,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildFilterPill('Tümü', null, _selectedDurum == null),
+                          const SizedBox(width: 8),
+                          _buildFilterPill('Bekleyenler', DanismanlikDurum.bekliyor, _selectedDurum == DanismanlikDurum.bekliyor),
+                          const SizedBox(width: 8),
+                          _buildFilterPill('Aktif', DanismanlikDurum.aktif, _selectedDurum == DanismanlikDurum.aktif),
+                          const SizedBox(width: 8),
+                          _buildFilterPill('Tamamlanan', DanismanlikDurum.tamamlandi, _selectedDurum == DanismanlikDurum.tamamlandi),
                         ],
-                        onChanged: (val) {
-                          setState(() {
-                            _selectedDurum = val;
-                          });
-                        },
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 24),
@@ -247,26 +244,41 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
 
   Widget _buildKpiCard(String title, String value, String subtitle, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: DanismanlikLayout.kart(),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blueGrey.shade50),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(icon, color: color, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade500)),
-                Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.blueGrey.shade900)),
-                Text(subtitle, style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade400), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(title, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade500, letterSpacing: 0.3)),
+                const SizedBox(height: 2),
+                Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.blueGrey.shade900, height: 1.1)),
+                const SizedBox(height: 1),
+                Text(subtitle, style: TextStyle(fontSize: 10, color: Colors.blueGrey.shade400), maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
@@ -282,7 +294,7 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
         onTap: () => context.push('/danismanlik/detay/${model.id}'),
         hoverColor: Colors.blueGrey.shade50.withOpacity(0.5),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -524,6 +536,35 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
           style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
         ),
       ],
+    );
+  }
+
+  Widget _buildFilterPill(String label, DanismanlikDurum? durum, bool isSelected) {
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedDurum = durum;
+        });
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.indigo.shade600 : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.indigo.shade600 : Colors.blueGrey.shade200,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+            color: isSelected ? Colors.white : Colors.blueGrey.shade600,
+          ),
+        ),
+      ),
     );
   }
 }

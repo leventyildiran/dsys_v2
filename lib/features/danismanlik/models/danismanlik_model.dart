@@ -3,7 +3,8 @@ import '../../personel/models/personel_model.dart';
 /// Danışmanlık türü enum tanımı.
 enum DanismanlikTuru {
   standart('standart', 'Standart Danışmanlık'),
-  sanayiIsbirligi58k('sanayi_isbirligi_58k', 'Sanayi İşbirliği (58/k)');
+  sanayiIsbirligi58k('sanayi_isbirligi_58k', 'Sanayi İşbirliği (58/k)'),
+  egitimKuru('egitim_kuru', 'Eğitim / Kur (TÖMER vb.)');
 
   const DanismanlikTuru(this.value, this.displayName);
   final String value;

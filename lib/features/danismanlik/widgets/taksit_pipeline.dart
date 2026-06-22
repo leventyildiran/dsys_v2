@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/danismanlik_model.dart';
 import '../models/taksit_model.dart';
 import '../services/taksit_onay_akisi.dart';
 
@@ -8,16 +9,19 @@ class TaksitPipeline extends StatelessWidget {
   const TaksitPipeline({
     super.key,
     required this.durum,
+    required this.tur,
     this.compact = false,
   });
 
   final TaksitDurum durum;
+  final DanismanlikTuru tur;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final aktif = TaksitOnayAkisi.adimIndeksi(durum);
-    final adimlar = TaksitOnayAkisi.onayHatti;
+    final akis = IsAkisiMotoru.forTur(tur);
+    final aktif = akis.adimIndeksi(durum);
+    final adimlar = akis.onayHatti;
 
     if (compact) {
       return Row(
@@ -68,7 +72,7 @@ class TaksitPipeline extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _kisalt(d.displayName),
+                    _kisalt(d.getDisplayName(tur)),
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: suAn ? FontWeight.w700 : FontWeight.w500,
@@ -103,12 +107,13 @@ class TaksitPipeline extends StatelessWidget {
       switch (durum) {
         case TaksitDurum.taslak:
           return Colors.grey.shade600;
-        case TaksitDurum.mudurOnayinda:
-        case TaksitDurum.merkezOnayinda:
+        case TaksitDurum.faturaKesildi:
           return Colors.orange.shade700;
-        case TaksitDurum.ykGundeminde:
-          return Colors.purple.shade600;
-        case TaksitDurum.onaylandi:
+        case TaksitDurum.paraGeldi:
+          return Colors.deepPurple.shade600;
+        case TaksitDurum.dagitimHesaplandi:
+          return Colors.teal.shade600;
+        case TaksitDurum.ykOnaylandi:
           return Colors.green.shade700;
         case TaksitDurum.odendi:
           return Colors.blue.shade700;

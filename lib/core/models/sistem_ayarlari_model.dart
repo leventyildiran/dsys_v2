@@ -19,6 +19,18 @@ class YkUyeModel {
   }
 }
 
+const _defaultUnvanlar = <String, double>{
+  'Prof. Dr.': 3.0,
+  'Doç. Dr.': 2.5,
+  'Dr. Öğr. Üyesi': 2.0,
+  'Arş. Gör.': 1.0,
+  'Öğr. Görevlisi': 1.0,
+  'Bilgisayar İşletmeni': 1.0,
+  'Memur': 1.0,
+  'Sürekli İşçi': 1.0,
+  'Diğer': 1.0,
+};
+
 class SistemAyarlariModel {
   final String hesapAdi;
   final String iban;
@@ -31,6 +43,7 @@ class SistemAyarlariModel {
   final String deepseekApiKey;
   final String deepseekModel;
   final List<YkUyeModel> kurulUyeleri;
+  final Map<String, double> unvanKatsayilari;
 
   SistemAyarlariModel({
     required this.hesapAdi,
@@ -42,6 +55,7 @@ class SistemAyarlariModel {
     required this.deepseekApiKey,
     required this.deepseekModel,
     this.kurulUyeleri = const [],
+    this.unvanKatsayilari = _defaultUnvanlar,
   });
 
   factory SistemAyarlariModel.fromJson(Map<String, dynamic> json) {
@@ -58,6 +72,13 @@ class SistemAyarlariModel {
               ?.map((e) => YkUyeModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      unvanKatsayilari: json['unvanKatsayilari'] != null
+          ? Map<String, double>.from(
+              (json['unvanKatsayilari'] as Map<String, dynamic>).map(
+                (k, v) => MapEntry(k, (v as num).toDouble()),
+              ),
+            )
+          : _defaultUnvanlar,
     );
   }
 
@@ -72,6 +93,7 @@ class SistemAyarlariModel {
       'deepseekApiKey': deepseekApiKey,
       'deepseekModel': deepseekModel,
       'kurulUyeleri': kurulUyeleri.map((e) => e.toJson()).toList(),
+      'unvanKatsayilari': unvanKatsayilari,
     };
   }
 
@@ -86,6 +108,7 @@ class SistemAyarlariModel {
       deepseekApiKey: '',
       deepseekModel: '',
       kurulUyeleri: [],
+      unvanKatsayilari: _defaultUnvanlar,
     );
   }
 }

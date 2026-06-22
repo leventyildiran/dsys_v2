@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../personel/models/personel_model.dart';
 import '../../personel/services/personel_service.dart';
+import '../../birim/models/birim_model.dart';
+import '../../birim/services/birim_service.dart';
+import '../../../core/services/sistem_ayarlari_service.dart';
 
 class PersonelSeciciDialog extends StatefulWidget {
   const PersonelSeciciDialog({
@@ -33,6 +36,10 @@ class _PersonelSeciciDialogState extends State<PersonelSeciciDialog> {
   bool _saving = false;
   bool _yeniFormAcik = false;
 
+  List<BirimModel>? _birimler;
+  Map<String, double> _unvanlar = {};
+  String? _seciliUnvan;
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +49,26 @@ class _PersonelSeciciDialogState extends State<PersonelSeciciDialog> {
           : widget.varsayilanBirimAd,
     );
     _loadPersoneller();
+    _loadBirimler();
+    _loadUnvanlar();
+  }
+
+  Future<void> _loadUnvanlar() async {
+    final srv = SistemAyarlariService();
+    final ayarlar = await srv.getAyarlar();
+    if (!mounted) return;
+    setState(() {
+      _unvanlar = ayarlar.unvanKatsayilari;
+    });
+  }
+
+  Future<void> _loadBirimler() async {
+    final srv = BirimService();
+    final list = await srv.getAll(onlyActive: true);
+    if (!mounted) return;
+    setState(() {
+      _birimler = list;
+    });
   }
 
   @override
@@ -229,15 +256,29 @@ class _PersonelSeciciDialogState extends State<PersonelSeciciDialog> {
                       v == null || v.trim().isEmpty ? 'Zorunlu' : null,
                 ),
                 const SizedBox(height: 10),
-                TextFormField(
-                  controller: _unvanController,
+                DropdownButtonFormField<String>(
+                  value: _seciliUnvan,
                   decoration: const InputDecoration(
                     labelText: 'Unvan',
-                    hintText: 'Prof. Dr.',
                     border: OutlineInputBorder(),
                   ),
+                  items: _unvanlar.keys.map((u) {
+                    return DropdownMenuItem(
+                      value: u,
+                      child: Text(u),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _seciliUnvan = val;
+                        _unvanController.text = val;
+                        _katsayiController.text = _unvanlar[val]!.toStringAsFixed(1);
+                      });
+                    }
+                  },
                   validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Zorunlu' : null,
+                      v == null || v.isEmpty ? 'Zorunlu' : null,
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
@@ -276,13 +317,30 @@ class _PersonelSeciciDialogState extends State<PersonelSeciciDialog> {
                   },
                 ),
                 const SizedBox(height: 10),
-                TextFormField(
-                  controller: _birimController,
-                  decoration: const InputDecoration(
-                    labelText: 'Birim',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
+                _birimler == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : DropdownButtonFormField<String>(
+                        value: _birimler!.any((b) => b.id == _birimController.text)
+                            ? _birimController.text
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Birim',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _birimler!.map((b) {
+                          return DropdownMenuItem(
+                            value: b.id,
+                            child: Text(b.kisaAd),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            _birimController.text = val;
+                          }
+                        },
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Zorunlu' : null,
+                      ),
                 const SizedBox(height: 16),
                 FilledButton.icon(
                   onPressed: _saving ? null : _yeniPersonelKaydet,

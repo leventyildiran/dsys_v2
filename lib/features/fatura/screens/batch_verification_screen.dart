@@ -11,7 +11,8 @@ import '../models/fatura_model.dart';
 import '../models/fatura_parse_kaynaklari.dart';
 import '../providers/batch_fatura_provider.dart';
 import '../services/fatura_eslestirme_servisi.dart';
-import 'calibration_dialog.dart';
+
+import 'visual_entry_screen.dart';
 import 'fatura_arsiv_arama_dialog.dart';
 import '../components/firma_secici_dialog.dart';
 import '../components/hizmet_secici_dialog.dart';
@@ -296,18 +297,6 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                   ),
                 ],
               ),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white54),
-                ),
-                icon: const Icon(Icons.tune, size: 18),
-                label: const Text('Kalibrasyon'),
-                onPressed: () => showDialog(
-                  context: context,
-                  builder: (_) => const FaturaCalibrationDialog(),
-                ),
-              ),
             ],
           ),
         ],
@@ -343,6 +332,15 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
               ..clear()
               ..add(provider.pendingInvoices.length - 1);
           });
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Yeni manuel fatura kuyruğun sonuna eklendi.'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
         },
       ),
     ];
@@ -1058,7 +1056,18 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                 FilledButton.tonalIcon(
                   icon: const Icon(Icons.add, size: 16),
                   label: const Text('Kalem'),
-                  onPressed: () => provider.addKalem(index),
+                  onPressed: () {
+                    provider.addKalem(index);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Yeni kalem listenin en altına eklendi.'),
+                          backgroundColor: Colors.green,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  },
                 ),
               ],
             ),
@@ -1125,13 +1134,13 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                           index,
                           ki,
                           'miktar',
-                          int.tryParse(v) ?? 0,
+                          provider.parseTurkceSayi(v, fallback: 0),
                         ),
                       ),
                     ),
                     const SizedBox(width: 6),
                     SizedBox(
-                      width: 120,
+                      width: 100,
                       child: _KalemFiyatAlani(
                         fieldKey: ValueKey('kalem_${index}_${ki}_fiyat'),
                         value: provider.parseTurkceSayi(k['fiyat'], fallback: 0),
@@ -1140,6 +1149,23 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                           ki,
                           'fiyat',
                           v,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      width: 80,
+                      padding: const EdgeInsets.only(top: 10, right: 4),
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        TurkceFormat.paraKalem(
+                          provider.parseTurkceSayi(k['miktar'], fallback: 0) *
+                          provider.parseTurkceSayi(k['fiyat'], fallback: 0)
+                        ),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
                         ),
                       ),
                     ),
@@ -1306,25 +1332,20 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
               }
             },
           ),
+
           OutlinedButton.icon(
-            key: ValueKey('fatura_onizle_$index'),
-            icon: const Icon(Icons.visibility),
-            label: const Text('Önizle'),
-            onPressed: () => _showPreview(context, provider, invoice),
+            key: ValueKey('gorsel_mod_$index'),
+            icon: const Icon(Icons.edit_document),
+            label: const Text('Görsel Mod / Kalibrasyon'),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => VisualEntryScreen(invoiceIndex: index),
+                ),
+              );
+            },
           ),
-          if (invoice.nakliYekunAktif)
-            OutlinedButton.icon(
-              icon: const Icon(Icons.tune),
-              label: const Text('Kalibrasyon'),
-              onPressed: () {
-                provider.setAktifKalibrasyonSayfasi(1);
-                provider.currentIndex = index;
-                showDialog(
-                  context: context,
-                  builder: (_) => const FaturaCalibrationDialog(),
-                );
-              },
-            ),
           FilledButton.icon(
             key: ValueKey('fatura_matbu_yazdir_$index'),
             style: FilledButton.styleFrom(
@@ -1517,69 +1538,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
     }
   }
 
-  void _showPreview(
-    BuildContext context,
-    BatchFaturaProvider provider,
-    FaturaModel invoice,
-  ) {
-    var arkaPlan = !provider.matbuBaskiModu;
 
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) {
-          return Dialog(
-            insetPadding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: MediaQuery.of(ctx).size.width * 0.85,
-              height: MediaQuery.of(ctx).size.height * 0.9,
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        const Text(
-                          'PDF Önizleme',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const Spacer(),
-                        FilterChip(
-                          label: const Text('Şablon arka planı'),
-                          selected: arkaPlan,
-                          onSelected: (v) => setLocal(() => arkaPlan = v),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(ctx),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: PdfPreview(
-                      build: (format) => provider.generatePdf(
-                        invoice,
-                        includeBackground: arkaPlan,
-                      ),
-                      allowSharing: true,
-                      allowPrinting: true,
-                      canChangeOrientation: false,
-                      canChangePageFormat: false,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 
   void _showBatchPreview(
     BuildContext context,
@@ -1818,6 +1777,15 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       provider.updateKalem(index, ni, 'fiyat', hizmet.fiyat);
     }
     provider.notifyDialogReturn();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${hizmet.hizmetAdi} listenin en altına eklendi.'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Future<void> _uploadExcel(

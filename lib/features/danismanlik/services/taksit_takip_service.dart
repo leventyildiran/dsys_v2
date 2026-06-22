@@ -81,11 +81,11 @@ class TaksitTakipIstatistik {
       switch (k.taksit.durum) {
         case TaksitDurum.taslak:
           taslak++;
-        case TaksitDurum.mudurOnayinda:
-        case TaksitDurum.merkezOnayinda:
-        case TaksitDurum.ykGundeminde:
+        case TaksitDurum.faturaKesildi:
+        case TaksitDurum.paraGeldi:
+        case TaksitDurum.dagitimHesaplandi:
           onayBekleyen++;
-        case TaksitDurum.onaylandi:
+        case TaksitDurum.ykOnaylandi:
           onaylanan++;
         case TaksitDurum.odendi:
           odenen++;

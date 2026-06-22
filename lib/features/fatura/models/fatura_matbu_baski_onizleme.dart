@@ -60,25 +60,53 @@ class KalibrasyonBaskiOnizleme {
             ];
     }
 
-    const satirLimit = 10;
-    final toplamSayfa = (kalemlerHam.length / satirLimit).ceil().clamp(1, 9999);
-    final tekSayfa = toplamSayfa == 1;
-    final sayfaIndex = sayfaNo - 1;
-    final startIndex = sayfaIndex * satirLimit;
-    final endIndex = startIndex + satirLimit < kalemlerHam.length
-        ? startIndex + satirLimit
-        : kalemlerHam.length;
 
-    final aktifKalemlerHam = startIndex < kalemlerHam.length
-        ? kalemlerHam.sublist(startIndex, endIndex)
-        : <Map<String, dynamic>>[];
+    final satirLimit = (invoice.id == 'ornek') ? 10 : 8;
+    
+    final List<List<Map<String, dynamic>>> pages = [];
+    final List<double> pageTotals = []; // Her sayfanın sonundaki gerçek toplam
+    int currentItemIndex = 0;
+    double runningTotal = 0.0;
 
+    while (currentItemIndex < kalemlerHam.length || pages.isEmpty) {
+      int spaceLeft = satirLimit;
+      final List<Map<String, dynamic>> currentPageItems = [];
+      
+      if (pages.isNotEmpty && invoice.nakliYekunAktif) {
+        currentPageItems.add({
+          'cinsi': 'N A K L İ Y E K Ü N',
+          'miktar': 1,
+          'fiyat': runningTotal,
+        });
+        spaceLeft--;
+      }
+
+      double pageRealTotal = 0.0;
+      while (spaceLeft > 0 && currentItemIndex < kalemlerHam.length) {
+        final item = kalemlerHam[currentItemIndex];
+        currentPageItems.add(item);
+        
+        final fiyat = double.tryParse(item['fiyat'].toString()) ?? 0.0;
+        final miktar = double.tryParse(item['miktar'].toString()) ?? 1.0;
+        pageRealTotal += (fiyat * miktar);
+        
+        currentItemIndex++;
+        spaceLeft--;
+      }
+      
+      runningTotal += pageRealTotal;
+      pages.add(currentPageItems);
+      pageTotals.add(runningTotal);
+    }
+
+    final toplamSayfa = pages.length;
+    final startIndex = (sayfaNo - 1).clamp(0, pages.length - 1);
+    final aktifKalemlerHam = pages[startIndex];
+    
     final kalemler = aktifKalemlerHam.map((item) {
       final fiyat = double.tryParse(item['fiyat'].toString()) ?? 0.0;
       final miktar = double.tryParse(item['miktar'].toString()) ?? 1.0;
-      final miktarMetin = miktar == miktar.roundToDouble()
-          ? miktar.toInt().toString()
-          : TurkceFormat.ondalik(miktar);
+      final miktarMetin = miktar == miktar.roundToDouble() ? miktar.toInt().toString() : TurkceFormat.ondalik(miktar);
       return KalibrasyonKalemSatir(
         cinsi: '${item['cinsi']}',
         miktar: miktarMetin,
@@ -86,20 +114,8 @@ class KalibrasyonBaskiOnizleme {
         tutar: TurkceFormat.para(fiyat * miktar),
       );
     }).toList();
-
-    double oncekiSayfaToplam = 0;
-    for (var i = 0; i < startIndex; i++) {
-      final fiyat = double.tryParse(kalemlerHam[i]['fiyat'].toString()) ?? 0.0;
-      final miktar = double.tryParse(kalemlerHam[i]['miktar'].toString()) ?? 1.0;
-      oncekiSayfaToplam += (fiyat * miktar);
-    }
-
-    double sayfaToplami = 0;
-    for (final item in aktifKalemlerHam) {
-      final fiyat = double.tryParse(item['fiyat'].toString()) ?? 0.0;
-      final miktar = double.tryParse(item['miktar'].toString()) ?? 1.0;
-      sayfaToplami += (fiyat * miktar);
-    }
+    
+    final araToplam = pageTotals[startIndex];
 
     final numuneAciklamaAlt = invoice.numuneAciklamasi.trim();
     final numuneMelbesSatir = numuneAciklamaAlt.toLowerCase().contains('melbes') &&
@@ -111,13 +127,11 @@ class KalibrasyonBaskiOnizleme {
       if (invoice.isKdvMuaf) "KDV'den Muaftır (İstisna)",
     ].join(' | ');
 
-    final melbesSatir = FaturaMatbuConfig.formatMelbesNumuneSatir(
-      melbes: invoice.melbesNo,
-      numune: invoice.numuneNo,
-      kurumOnEki: invoice.melbesKurumOnEki.trim().isNotEmpty
-          ? invoice.melbesKurumOnEki
-          : null,
+    final melbesYazi = FaturaMatbuConfig.formatMelbesMatbu(
+      invoice.melbesNo,
+      kurumOnEki: invoice.melbesKurumOnEki.trim().isNotEmpty ? invoice.melbesKurumOnEki : null,
     );
+    final numuneYazi = FaturaMatbuConfig.formatNumuneNoMatbu(invoice.numuneNo);
 
     final hesapHam = (invoice.hesapAdi?.trim().isNotEmpty == true)
         ? invoice.hesapAdi!
@@ -133,7 +147,6 @@ class KalibrasyonBaskiOnizleme {
 
     final ilkSayfa = sayfaNo == 1;
     final sonSayfa = sayfaNo >= toplamSayfa;
-    final araToplam = sayfaToplami + oncekiSayfaToplam;
 
     return KalibrasyonBaskiOnizleme(
       canliVeri: canliVeri,
@@ -147,19 +160,12 @@ class KalibrasyonBaskiOnizleme {
         'tarih': invoice.tarih,
         'irsaliyeTarihi': invoice.irsaliyeTarihi,
         'irsaliyeNo': invoice.irsaliyeNo,
-        'nakliYekunUstYazi': '',
-        'nakliYekunUstTutar': '',
-        'nakliYekunAltYazi':
-            invoice.nakliYekunAktif && (!ilkSayfa || !canliVeri) 
-                ? 'Nakli Yekün (Devreden)' : '',
-        'nakliYekunAltTutar':
-            invoice.nakliYekunAktif && (!ilkSayfa || !canliVeri) 
-                ? TurkceFormat.para(oncekiSayfaToplam) : '',
         'numuneAciklama': ustAciklamalar,
-        'melbes': melbesSatir.isNotEmpty
-            ? melbesSatir
+        'melbes': melbesYazi.isNotEmpty
+            ? melbesYazi
             : invoice.melbesKurumOnEki.trim(),
-        'matrah': (sonSayfa || !canliVeri) ? TurkceFormat.para(invoice.matrah) : '',
+        'numuneNo': numuneYazi,
+        'matrah': (!canliVeri || sonSayfa) ? TurkceFormat.para(invoice.matrah) : (invoice.nakliYekunAktif ? TurkceFormat.para(araToplam) : ''),
         'kdv': (sonSayfa || !canliVeri) ? TurkceFormat.para(invoice.kdvTutari) : '',
         'kdvOrani': (sonSayfa || !canliVeri) ? (invoice.isKdvMuaf ? '' : '%${invoice.kdvOrani.toInt()}') : '',
         'genelToplam': (sonSayfa || !canliVeri) ? TurkceFormat.para(invoice.genelToplam) : '',
@@ -178,6 +184,7 @@ class KalibrasyonBaskiOnizleme {
   factory KalibrasyonBaskiOnizleme.ornek({
     required String isletmeVkn,
     required String Function(double) yaziyla,
+    int sayfaNo = 1,
   }) {
     final ornekFatura = FaturaModel(
       id: 'ornek',
@@ -192,17 +199,15 @@ class KalibrasyonBaskiOnizleme {
       melbesKurumOnEki: FaturaMatbuConfig.varsayilanMelbesKurumOnEki,
       numuneNo: 'N-1087',
       numuneAciklamasi: FaturaMatbuConfig.ornekMetinler['numuneAciklama']!,
-      kalemler: [
-        {
-          'cinsi': FaturaMatbuConfig.ornekMetinler['cinsi'],
-          'miktar': 1,
-          'fiyat': 1500.0,
-        },
-      ],
-      matrah: 1500,
+      kalemler: List.generate(12, (index) => {
+        'cinsi': '${FaturaMatbuConfig.ornekMetinler['cinsi']} ${index + 1}',
+        'miktar': 1,
+        'fiyat': 150.0,
+      }),
+      matrah: 1800,
       kdvOrani: 20,
-      kdvTutari: 300,
-      genelToplam: 1800,
+      kdvTutari: 360,
+      genelToplam: 2160,
       isKdvMuaf: false,
       nakliYekunAktif: true,
       iban: FaturaMatbuConfig.ornekMetinler['iban'],
@@ -213,6 +218,7 @@ class KalibrasyonBaskiOnizleme {
       isletmeVkn: isletmeVkn,
       yaziyla: yaziyla,
       canliVeri: false,
+      sayfaNo: sayfaNo,
       baslik: 'Örnek şablon (kuyrukta fatura yok)',
     );
   }

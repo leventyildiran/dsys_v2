@@ -22,7 +22,7 @@ class FaturaMatbuKalibrasyon {
   static const kalemSutunlari = {'cinsi', 'miktar', 'fiyat', 'tutar'};
 
   /// PDF'te basılmayan; kalibrasyon listesinde gösterilmez.
-  static const gizliAlanlar = {'numuneNo'};
+  static const gizliAlanlar = <String>{};
 
   /// Kalem satırında dikey konum hep cinsi satırından; PDF ile aynı.
   static void senkronizeKalemDy(Map<String, Offset> koordinatlar) {

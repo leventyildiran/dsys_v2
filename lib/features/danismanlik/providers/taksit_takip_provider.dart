@@ -79,8 +79,8 @@ class TaksitTakipProvider extends ChangeNotifier {
     return _kayitlar
         .where((k) =>
             k.taksit.durum == TaksitDurum.gecikti ||
-            k.taksit.durum == TaksitDurum.ykGundeminde ||
-            k.taksit.durum == TaksitDurum.merkezOnayinda)
+            k.taksit.durum == TaksitDurum.dagitimHesaplandi ||
+            k.taksit.durum == TaksitDurum.paraGeldi)
         .toList()
       ..sort(_oncelikSirala);
   }
@@ -106,15 +106,15 @@ class TaksitTakipProvider extends ChangeNotifier {
     switch (durum) {
       case TaksitDurum.gecikti:
         return 0;
-      case TaksitDurum.ykGundeminde:
+      case TaksitDurum.dagitimHesaplandi:
         return 1;
-      case TaksitDurum.merkezOnayinda:
+      case TaksitDurum.paraGeldi:
         return 2;
-      case TaksitDurum.mudurOnayinda:
+      case TaksitDurum.faturaKesildi:
         return 3;
       case TaksitDurum.taslak:
         return 4;
-      case TaksitDurum.onaylandi:
+      case TaksitDurum.ykOnaylandi:
         return 5;
       case TaksitDurum.odendi:
         return 6;
@@ -129,19 +129,22 @@ class TaksitTakipProvider extends ChangeNotifier {
 
   /// Taksiti bir sonraki onay adımına taşır.
   Future<bool> durumIlerlet(TaksitTakipKayit kayit) async {
-    final hedef = TaksitOnayAkisi.sonrakiDurum(kayit.taksit.durum);
+    final akis = IsAkisiMotoru.forTur(kayit.danismanlik.tur);
+    final hedef = akis.sonrakiDurum(kayit.taksit.durum);
     if (hedef == null) return false;
     return _durumDegistir(kayit, hedef);
   }
 
   Future<bool> durumGeriAl(TaksitTakipKayit kayit) async {
-    final hedef = TaksitOnayAkisi.oncekiDurum(kayit.taksit.durum);
+    final akis = IsAkisiMotoru.forTur(kayit.danismanlik.tur);
+    final hedef = akis.oncekiDurum(kayit.taksit.durum);
     if (hedef == null) return false;
     return _durumDegistir(kayit, hedef);
   }
 
   Future<bool> _durumDegistir(TaksitTakipKayit kayit, TaksitDurum hedef) async {
-    if (!TaksitOnayAkisi.gecisUygunMu(kayit.taksit.durum, hedef)) {
+    final akis = IsAkisiMotoru.forTur(kayit.danismanlik.tur);
+    if (!akis.gecisUygunMu(kayit.taksit.durum, hedef)) {
       _hata = 'Geçersiz durum geçişi.';
       notifyListeners();
       return false;
@@ -153,7 +156,7 @@ class TaksitTakipProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (hedef == TaksitDurum.onaylandi) {
+      if (hedef == TaksitDurum.ykOnaylandi) {
         final danismanlik = await _danismanlikService.getById(kayit.danismanlikId);
         if (danismanlik == null) {
           _hata = 'Danışmanlık bulunamadı.';

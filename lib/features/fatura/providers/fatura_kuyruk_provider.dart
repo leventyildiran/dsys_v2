@@ -346,6 +346,9 @@ class FaturaKuyrukProvider extends ChangeNotifier {
         currentInvoice.irsaliyeNo = value.toString();
       case 'melbesNo':
         currentInvoice.melbesNo = value.toString();
+      case 'melbesTam':
+        currentInvoice.melbesNo = value.toString();
+        currentInvoice.melbesKurumOnEki = ''; // Düzenleme yapıldığında öneki silip tamamını no'ya atıyoruz
       case 'melbesKurumOnEki':
         currentInvoice.melbesKurumOnEki = value.toString();
       case 'numuneNo':

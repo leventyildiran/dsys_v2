@@ -8,9 +8,9 @@ import '../models/taksit_model.dart';
 class DanismanlikLayout {
   DanismanlikLayout._();
 
-  static const double sidebarOran = 0.236;
-  static const double sidebarMin = 220;
-  static const double sidebarMax = 300;
+  static const double sidebarOran = 0.28;
+  static const double sidebarMin = 320;
+  static const double sidebarMax = 600;
 
   static const double sayfaPadding = 16;
   static const double kartPadding = 16;

@@ -154,23 +154,51 @@ class FaturaPdfUretici {
           });
         }
 
-        final toplamSayfa = (kalemler.length / satirLimit).ceil().clamp(1, 9999);
-        var oncekiSayfaToplamLoop = 0.0;
+        final List<List<Map<String, dynamic>>> pages = [];
+        int currentItemIndex = 0;
+        double runningTotal = 0.0;
+
+        while (currentItemIndex < kalemler.length || pages.isEmpty) {
+          int spaceLeft = satirLimit;
+          final List<Map<String, dynamic>> currentPageItems = [];
+          
+          if (pages.isNotEmpty && invoice.nakliYekunAktif) {
+            currentPageItems.add({
+              'cinsi': 'N A K L İ Y E K Ü N',
+              'miktar': 1,
+              'fiyat': runningTotal,
+              'isNakliYekunRow': true,
+            });
+            spaceLeft--;
+          }
+
+          double pageRealTotal = 0.0;
+          while (spaceLeft > 0 && currentItemIndex < kalemler.length) {
+            final item = kalemler[currentItemIndex];
+            currentPageItems.add(item);
+            
+            final fiyat = double.tryParse(item['fiyat'].toString()) ?? 0.0;
+            final miktar = double.tryParse(item['miktar'].toString()) ?? 1.0;
+            pageRealTotal += (fiyat * miktar);
+            
+            currentItemIndex++;
+            spaceLeft--;
+          }
+          
+          runningTotal += pageRealTotal;
+          pages.add(currentPageItems);
+        }
+
+        final toplamSayfa = pages.length;
 
         for (var sayfaIndex = 0; sayfaIndex < toplamSayfa; sayfaIndex++) {
-          final oncekiSayfaToplam = oncekiSayfaToplamLoop;
-          final baslangic = sayfaIndex * satirLimit;
-          final bitis = (baslangic + satirLimit > kalemler.length)
-              ? kalemler.length
-              : baslangic + satirLimit;
-          final sayfaSatirlari = kalemler.sublist(baslangic, bitis);
+          final sayfaSatirlari = pages[sayfaIndex];
 
-          final sayfaToplami = sayfaSatirlari.fold<double>(0, (acc, item) {
+          final araToplam = sayfaSatirlari.fold<double>(0, (acc, item) {
             final fiyat = double.tryParse(item['fiyat'].toString()) ?? 0.0;
             final miktar = double.tryParse(item['miktar'].toString()) ?? 1.0;
             return acc + (fiyat * miktar);
           });
-          final araToplam = oncekiSayfaToplam + sayfaToplami;
           final sonSayfa = sayfaIndex == toplamSayfa - 1;
 
           pdf.addPage(
@@ -246,25 +274,6 @@ class FaturaPdfUretici {
                   ));
                 }
 
-                if (invoice.nakliYekunAktif &&
-                    oncekiSayfaToplam > 0 &&
-                    nakliYekunUstMetin.trim().isNotEmpty) {
-                  children.addAll([
-                    pw.Positioned(
-                      top: konum('nakliYekunUstYazi').dy,
-                      left: konum('nakliYekunUstYazi').dx,
-                      child: pw.Text(nakliYekunUstMetin,
-                          style: metin(weight: pw.FontWeight.bold)),
-                    ),
-                    pw.Positioned(
-                      top: konum('nakliYekunUstTutar').dy,
-                      left: konum('nakliYekunUstTutar').dx,
-                      child: pw.Text(TurkceFormat.para(oncekiSayfaToplam),
-                          style: metin(weight: pw.FontWeight.bold)),
-                    ),
-                  ]);
-                }
-
                 for (final entry in sayfaSatirlari.asMap().entries) {
                   final index = entry.key;
                   final item = entry.value;
@@ -309,42 +318,7 @@ class FaturaPdfUretici {
                   ]);
                 }
 
-                if (invoice.nakliYekunAktif &&
-                    !sonSayfa &&
-                    nakliYekunAltMetin.trim().isNotEmpty) {
-                  children.addAll([
-                    pw.Positioned(
-                      top: konum('nakliYekunAltYazi').dy,
-                      left: konum('nakliYekunAltYazi').dx,
-                      child: pw.Text(nakliYekunAltMetin,
-                          style: metin(weight: pw.FontWeight.bold)),
-                    ),
-                    pw.Positioned(
-                      top: konum('nakliYekunAltTutar').dy,
-                      left: konum('nakliYekunAltTutar').dx,
-                      child: pw.Text(TurkceFormat.para(araToplam),
-                          style: metin(weight: pw.FontWeight.bold)),
-                    ),
-                  ]);
-                } else if (invoice.nakliYekunAktif &&
-                    toplamSayfa == 1 &&
-                    sonSayfa &&
-                    nakliYekunAltMetin.trim().isNotEmpty) {
-                  children.addAll([
-                    pw.Positioned(
-                      top: konum('nakliYekunAltYazi').dy,
-                      left: konum('nakliYekunAltYazi').dx,
-                      child: pw.Text(nakliYekunAltMetin,
-                          style: metin(weight: pw.FontWeight.bold)),
-                    ),
-                    pw.Positioned(
-                      top: konum('nakliYekunAltTutar').dy,
-                      left: konum('nakliYekunAltTutar').dx,
-                      child: pw.Text(TurkceFormat.para(sayfaToplami),
-                          style: metin(weight: pw.FontWeight.bold)),
-                    ),
-                  ]);
-                }
+
 
                 final numuneAciklamaAlt = invoice.numuneAciklamasi.trim();
                 final numuneAciklamaMelbesSatiri =
@@ -368,30 +342,31 @@ class FaturaPdfUretici {
                   ));
                 }
 
-                final melbes = invoice.melbesNo.trim();
-                final numune = invoice.numuneNo.trim();
-                final kurumOnEki = invoice.melbesKurumOnEki.trim();
-                final melbesSatir = FaturaMatbuConfig.formatMelbesNumuneSatir(
-                  melbes: melbes,
-                  numune: numune,
-                  kurumOnEki: kurumOnEki.isNotEmpty ? kurumOnEki : null,
+                final melbesYazi = FaturaMatbuConfig.formatMelbesMatbu(
+                  invoice.melbesNo.trim(),
+                  kurumOnEki: invoice.melbesKurumOnEki.trim().isNotEmpty ? invoice.melbesKurumOnEki.trim() : null,
                 );
-                if (melbesSatir.isNotEmpty) {
+
+                if (melbesYazi.isNotEmpty) {
                   children.add(pw.Positioned(
                     top: konum('melbes').dy,
                     left: konum('melbes').dx,
                     child: pw.SizedBox(
                       width: 500,
-                      child: pw.Text(melbesSatir, style: metin()),
+                      child: pw.Text(melbesYazi, style: metin()),
                     ),
                   ));
-                } else if (kurumOnEki.isNotEmpty) {
+                }
+
+                final numune = invoice.numuneNo.trim();
+                final numuneYazi = FaturaMatbuConfig.formatNumuneNoMatbu(numune);
+                if (numuneYazi.isNotEmpty) {
                   children.add(pw.Positioned(
-                    top: konum('melbes').dy,
-                    left: konum('melbes').dx,
+                    top: konum('numuneNo').dy,
+                    left: konum('numuneNo').dx,
                     child: pw.SizedBox(
                       width: 500,
-                      child: pw.Text(kurumOnEki, style: metin()),
+                      child: pw.Text(numuneYazi, style: metin()),
                     ),
                   ));
                 }
@@ -407,14 +382,24 @@ class FaturaPdfUretici {
                   }
                 }
 
-                if (sonSayfa) {
-                  children.addAll([
-                    pw.Positioned(
+                if (konum('matrah').dx >= 0) {
+                  final canliVeri = invoice.id != 'ornek';
+                  final textToShow = (!canliVeri || sonSayfa) 
+                      ? TurkceFormat.para(invoice.matrah)
+                      : (invoice.nakliYekunAktif ? TurkceFormat.para(araToplam) : '');
+                  
+                  if (textToShow.isNotEmpty) {
+                    children.add(pw.Positioned(
                       top: konum('matrah').dy,
                       left: konum('matrah').dx,
-                      child: pw.Text(TurkceFormat.para(invoice.matrah),
-                          style: metin()),
-                    ),
+                      child: pw.Text(textToShow,
+                          style: metin(weight: pw.FontWeight.bold)),
+                    ));
+                  }
+                }
+
+                if (sonSayfa) {
+                  children.addAll([
                     pw.Positioned(
                       top: konum('kdv').dy,
                       left: konum('kdv').dx,
@@ -491,7 +476,6 @@ class FaturaPdfUretici {
           );
 
           // ARA TOPLAMI BİR SONRAKİ SAYFAYA DEVRET!
-          oncekiSayfaToplamLoop = araToplam;
         }
       }
 

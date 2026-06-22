@@ -10,6 +10,9 @@ import '../services/danismanlik_service.dart';
 /// Canlı önizleme hesaplama sonucu.
 class OnizlemeSonucu {
   const OnizlemeSonucu({
+    required this.kdvHaricMatrah,
+    required this.kdvTutari,
+    required this.kdvDahilTutar,
     required this.kesinti,
     required this.katsayi,
     required this.artikBakiye,
@@ -18,6 +21,9 @@ class OnizlemeSonucu {
     required this.sablonDogrulama,
   });
 
+  final double kdvHaricMatrah;
+  final double kdvTutari;
+  final double kdvDahilTutar;
   final KesintiBilgisi kesinti;
   final double katsayi;
   final double artikBakiye;
@@ -37,6 +43,9 @@ class PersonelDagitimSonucu {
     required this.bireyselPuan,
     required this.brutHakedis,
     required this.tavanAsimi,
+    this.dersSaati = 0,
+    this.saatlikUcret = 0,
+    this.havuzTutari = 0,
   });
 
   final String personelId;
@@ -47,6 +56,9 @@ class PersonelDagitimSonucu {
   final double bireyselPuan;
   final double brutHakedis;
   final bool tavanAsimi;
+  final double dersSaati;
+  final double saatlikUcret;
+  final double havuzTutari;
 }
 
 class DanismanlikProvider extends ChangeNotifier {
@@ -130,6 +142,9 @@ class DanismanlikProvider extends ChangeNotifier {
 
   String? _saveError;
   String? get saveError => _saveError;
+
+  String? _mevcutDanismanlikId;
+  String? get mevcutDanismanlikId => _mevcutDanismanlikId;
 
   // ─────────────────────────────────────────────────────────────
   // SETTER'LAR
@@ -293,6 +308,33 @@ class DanismanlikProvider extends ChangeNotifier {
     _personeller = [];
     _onizleme = null;
     _saveError = null;
+    _mevcutDanismanlikId = null;
+    notifyListeners();
+  }
+
+  void mevcutDanismanlikYukle(DanismanlikModel model) {
+    _mevcutDanismanlikId = model.id;
+    _birimId = model.birimId;
+    _firmaId = model.firmaId ?? '';
+    _firmaUnvan = model.firmaUnvan ?? '';
+    _birimAd = model.birimKisaAd ?? '';
+    _tur = model.danismanlikTuru;
+    _isinKonusu = model.konusu;
+    _brutTaksitTutari = model.toplamTutar;
+    _kdvOrani = model.kdvOrani;
+    _suresi = model.suresi;
+    _kaynakYkKararId = model.ykKararId ?? '';
+    _ykKararTarihi = model.ykKararTarihi ?? '';
+    _ykKararNo = model.ykKararNo ?? '';
+    _ykToplantiSayisi = model.ykToplantiSayisi ?? '';
+    _birimKurulTarihi = model.birimKararTarihi ?? '';
+    _birimKararNo = model.birimKararNo ?? '';
+    _birimToplantiSayisi = model.birimToplantiSayisi ?? '';
+    _hazinePayiOrani = model.hazinePayiOrani;
+    _bapPayiOrani = model.bapPayiOrani;
+    _aracGerecPayiOrani = model.aracGerecPayiOrani;
+    _personeller = List.from(model.personeller);
+    _hesapla();
     notifyListeners();
   }
 
@@ -320,7 +362,7 @@ class DanismanlikProvider extends ChangeNotifier {
                 : 'merkez');
 
       final model = DanismanlikModel(
-        id: '', // Firestore oluştururken atayacak
+        id: _mevcutDanismanlikId ?? '',
         birimId: kayitBirimId,
         firmaId: _firmaId.trim(),
         firmaUnvan: firma,
@@ -351,10 +393,14 @@ class DanismanlikProvider extends ChangeNotifier {
         aracGerecPayiOrani: _aracGerecPayiOrani,
         dagitilabilirOran: _tur == DanismanlikTuru.standart ? 49 : 85,
         personeller: List.from(_personeller),
-        createdAt: DateTime.now(),
+        createdAt: DateTime.now(), // Will be updated by server mostly, or ignored in update depending on implementation
       );
 
-      await _danismanlikService.create(model);
+      if (_mevcutDanismanlikId != null) {
+        await _danismanlikService.update(_mevcutDanismanlikId!, model);
+      } else {
+        await _danismanlikService.create(model);
+      }
       return true;
     } catch (_) {
       _saveError = 'Kayıt sırasında bir hata oluştu.';
@@ -441,11 +487,20 @@ class DanismanlikProvider extends ChangeNotifier {
           bireyselPuan: s.bireyselNetKatkiPuani,
           brutHakedis: s.brutHakedis,
           tavanAsimi: s.havuzTutari > 0,
+          dersSaati: s.girdi.dersSaati.toDouble(),
+          saatlikUcret: s.girdi.dersSaati > 0 ? (s.brutHakedis / s.girdi.dersSaati) : 0.0,
+          havuzTutari: s.havuzTutari,
         );
       }).toList();
 
       final veriler = _kararMetniVerileriHazirla(excel.donemKatsayi);
+      final kdvTutari = DanismanlikExcelHesaplama.kdvTutari(_brutTaksitTutari, _kdvOrani);
+      final kdvDahilTutar = DanismanlikExcelHesaplama.genelToplam(_brutTaksitTutari, _kdvOrani);
+
       _onizleme = OnizlemeSonucu(
+        kdvHaricMatrah: _brutTaksitTutari,
+        kdvTutari: kdvTutari,
+        kdvDahilTutar: kdvDahilTutar,
         kesinti: kesinti,
         katsayi: excel.donemKatsayi,
         artikBakiye: excel.artikBakiye,
@@ -463,21 +518,40 @@ class DanismanlikProvider extends ChangeNotifier {
       return;
     }
 
-    final KesintiBilgisi kesinti;
+    // Gerçek Zamanlı Önizleme (Hesaplama)
+    final kdvTutari = DanismanlikExcelHesaplama.kdvTutari(_brutTaksitTutari, _kdvOrani);
+    final kdvDahilTutar = DanismanlikExcelHesaplama.genelToplam(_brutTaksitTutari, _kdvOrani);
+
+    final ExcelKesintiSonuc k;
     if (_tur == DanismanlikTuru.standart) {
-      kesinti = HesaplamaMotoru.standartKesintiler(
-        brutTutar: _brutTaksitTutari,
-        kdvOrani: _kdvOrani,
-        hazinePayiOrani: _hazinePayiOrani,
-        bapPayiOrani: _bapPayiOrani,
-        aracGerecPayiOrani: _aracGerecPayiOrani,
+      k = DanismanlikExcelHesaplama.kesintiler(
+        kdvHaricGelir: _brutTaksitTutari,
+        hazineOrani: _hazinePayiOrani,
+        bapOrani: _bapPayiOrani,
+        aracGerecOrani: _aracGerecPayiOrani / 100,
       );
     } else {
-      kesinti = HesaplamaMotoru.sanayiIsbirligiKesintiler(
-        brutTutar: _brutTaksitTutari,
-        kdvOrani: _kdvOrani,
+      // YÖK 58/k kesintileri (Araç Gereç %15 vb.)
+      // Note: Bu kısım HesaplamaMotoru'ndan da alınabilir, şimdilik basitçe:
+      final dagitilabilir = _brutTaksitTutari * 0.85;
+      k = ExcelKesintiSonuc(
+        kdvHaricGelir: _brutTaksitTutari,
+        hazinePayi: 0,
+        bapPayi: 0,
+        aracGerecPayi: 0,
+        katkiPayi: dagitilabilir,
+        dagMaksAkademikPay: _brutTaksitTutari * 0.85,
+        toplam: dagitilabilir,
       );
     }
+
+    final kesinti = KesintiBilgisi(
+      kdvHaricMatrah: k.kdvHaricGelir,
+      hazinePayi: k.hazinePayi,
+      bapPayi: k.bapPayi,
+      aracGerecPayi: k.aracGerecPayi,
+      dagitilabilirTutar: k.katkiPayi,
+    );
 
     final personelPuanlar = _personeller
         .where((p) => p.faaliyetPuani > 0)
@@ -530,22 +604,23 @@ class DanismanlikProvider extends ChangeNotifier {
 
     final isStandart = _tur == DanismanlikTuru.standart;
     final veriler = _kararMetniVerileriHazirla(katsayi);
-    final dogrulama = KararMetniServisi.dogrula(
-      isStandart: isStandart,
-      veriler: veriler,
-    );
-    final kararMetni = KararMetniServisi.metinUret(
-      isStandart: isStandart,
-      veriler: veriler,
-    );
 
     _onizleme = OnizlemeSonucu(
+      kdvHaricMatrah: _brutTaksitTutari,
+      kdvTutari: kdvTutari,
+      kdvDahilTutar: kdvDahilTutar,
       kesinti: kesinti,
       katsayi: katsayi,
       artikBakiye: artikBakiye,
       personelDagitimlari: dagitimlar,
-      kararMetni: kararMetni,
-      sablonDogrulama: dogrulama,
+      kararMetni: KararMetniServisi.metinUret(
+        isStandart: isStandart,
+        veriler: veriler,
+      ),
+      sablonDogrulama: KararMetniServisi.dogrula(
+        isStandart: isStandart,
+        veriler: veriler,
+      ),
     );
     notifyListeners();
   }

@@ -310,20 +310,26 @@ class BatchFaturaProvider extends ChangeNotifier {
   int get kalibrasyonToplamSayfasi {
     final fatura = kalibrasyonFaturasi();
     final ornek = fatura.id == 'ornek';
-    if (ornek) return 1;
+    if (ornek) {
+      final kalemlerHam = FaturaMatbuConfig.matbuKalemleri(fatura.kalemler);
+      if (kalemlerHam.isEmpty) return 1;
+      const satirLimit = 10;
+      return (kalemlerHam.length / satirLimit).ceil().clamp(1, 9999);
+    }
     final kalemlerHam = FaturaMatbuConfig.matbuKalemleri(fatura.kalemler);
     if (kalemlerHam.isEmpty) return 1;
     const satirLimit = 10;
     return (kalemlerHam.length / satirLimit).ceil().clamp(1, 9999);
   }
 
-  KalibrasyonBaskiOnizleme kalibrasyonBaskiOnizlemesi() {
+  KalibrasyonBaskiOnizleme kalibrasyonBaskiOnizlemesi([int? sayfaNo]) {
     final fatura = kalibrasyonFaturasi();
     final ornek = fatura.id == 'ornek';
     if (ornek) {
       return KalibrasyonBaskiOnizleme.ornek(
         isletmeVkn: _isletmeVknFallback(),
         yaziyla: TurkceFormat.sayiyiYaziyaCevir,
+        sayfaNo: sayfaNo ?? 1,
       );
     }
     final baslik = fatura.firmaAdi.trim().isNotEmpty
@@ -334,10 +340,10 @@ class BatchFaturaProvider extends ChangeNotifier {
       isletmeVkn: _isletmeVknFallback(),
       sistemHesapAdi: sistemAyarlari?.hesapAdi,
       sistemIban: sistemAyarlari?.iban,
+      sayfaNo: sayfaNo ?? _aktifKalibrasyonSayfasi,
       yaziyla: TurkceFormat.sayiyiYaziyaCevir,
       canliVeri: true,
       baslik: baslik,
-      sayfaNo: _aktifKalibrasyonSayfasi,
     );
   }
 

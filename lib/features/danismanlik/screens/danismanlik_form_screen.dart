@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -11,10 +13,13 @@ import '../providers/danismanlik_provider.dart';
 import '../../yk_karar/models/yk_karar_model.dart';
 import '../widgets/danismanlik_layout.dart';
 import '../components/personel_secici_dialog.dart';
+import '../../birim/models/birim_model.dart';
+import '../../birim/services/birim_service.dart';
 
 class DanismanlikFormScreen extends StatefulWidget {
   final YkKararModel? ykKarar;
-  const DanismanlikFormScreen({super.key, this.ykKarar});
+  final DanismanlikModel? mevcutDanismanlik;
+  const DanismanlikFormScreen({super.key, this.ykKarar, this.mevcutDanismanlik});
 
   @override
   State<DanismanlikFormScreen> createState() => _DanismanlikFormScreenState();
@@ -27,6 +32,8 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
   final _brutController = TextEditingController();
   final _suresiController = TextEditingController(text: '1');
   final _birimAdController = TextEditingController();
+  final _birimEvrakTarihiController = TextEditingController();
+  final _birimEvrakSayisiController = TextEditingController();
   final _birimKararTarihiController = TextEditingController();
   final _birimToplantiSayisiController = TextEditingController();
   final _birimKararNoController = TextEditingController();
@@ -34,9 +41,12 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
   final _ykKararTarihiController = TextEditingController();
   final _ykKararNoController = TextEditingController();
 
+  List<BirimModel>? _birimler;
+
   @override
   void initState() {
     super.initState();
+    _loadBirimler();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = context.read<DanismanlikProvider>();
       provider.temizle();
@@ -46,11 +56,34 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
         provider.setBirimId(aktifBirimId);
       }
 
-      if (widget.ykKarar != null) {
+      if (widget.mevcutDanismanlik != null) {
+        provider.mevcutDanismanlikYukle(widget.mevcutDanismanlik!);
+        _firmaController.text = widget.mevcutDanismanlik!.firmaUnvan ?? '';
+        _konuController.text = widget.mevcutDanismanlik!.konusu;
+        _brutController.text = widget.mevcutDanismanlik!.toplamTutar.toStringAsFixed(2);
+        _suresiController.text = widget.mevcutDanismanlik!.suresi.toString();
+        _birimAdController.text = widget.mevcutDanismanlik!.birimKisaAd ?? '';
+        _birimKararTarihiController.text = widget.mevcutDanismanlik!.birimKararTarihi ?? '';
+        _birimToplantiSayisiController.text = widget.mevcutDanismanlik!.birimToplantiSayisi ?? '';
+        _birimKararNoController.text = widget.mevcutDanismanlik!.birimKararNo ?? '';
+        _ykToplantiSayisiController.text = widget.mevcutDanismanlik!.ykToplantiSayisi ?? '';
+        _ykKararTarihiController.text = widget.mevcutDanismanlik!.ykKararTarihi ?? '';
+        _ykKararNoController.text = widget.mevcutDanismanlik!.ykKararNo ?? '';
+      } else if (widget.ykKarar != null) {
         await _ykKararBilgileriniDoldur(provider, widget.ykKarar!);
       }
       _syncControllers(provider);
     });
+  }
+
+  Future<void> _loadBirimler() async {
+    final srv = BirimService();
+    final liste = await srv.getAll(onlyActive: true);
+    if (mounted) {
+      setState(() {
+        _birimler = liste;
+      });
+    }
   }
 
   @override
@@ -60,6 +93,8 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
     _brutController.dispose();
     _suresiController.dispose();
     _birimAdController.dispose();
+    _birimEvrakTarihiController.dispose();
+    _birimEvrakSayisiController.dispose();
     _birimKararTarihiController.dispose();
     _birimToplantiSayisiController.dispose();
     _birimKararNoController.dispose();
@@ -169,11 +204,11 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
   void _syncControllers(DanismanlikProvider provider) {
     _firmaController.text = provider.firmaUnvan;
     _konuController.text = provider.isinKonusu;
-    _brutController.text = provider.brutTaksitTutari > 0
-        ? provider.brutTaksitTutari.toStringAsFixed(2)
-        : '';
+    _brutController.text = provider.brutTaksitTutari > 0 ? provider.brutTaksitTutari.toString() : '';
     _suresiController.text = provider.suresi.toString();
     _birimAdController.text = provider.birimAd;
+    _birimEvrakTarihiController.text = provider.birimEvrakTarihi;
+    _birimEvrakSayisiController.text = provider.birimEvrakSayisi;
     _birimKararTarihiController.text = provider.birimKurulTarihi;
     _birimToplantiSayisiController.text = provider.birimToplantiSayisi;
     _birimKararNoController.text = provider.birimKararNo;
@@ -217,11 +252,11 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildFormSection(context),
+                              _buildKararBilgileriSection(context),
                               const SizedBox(
                                 height: DanismanlikLayout.sectionGap,
                               ),
-                              _buildKararBilgileriSection(context),
+                              _buildFormSection(context),
                               const SizedBox(
                                 height: DanismanlikLayout.sectionGap,
                               ),
@@ -322,14 +357,17 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                 child: TextFormField(
                   controller: _brutController,
                   decoration: const InputDecoration(
-                    labelText: 'Brüt Tutar (TL)',
+                    labelText: 'KDV Hariç Tutar (TL)',
                     border: OutlineInputBorder(),
                     prefixText: '₺ ',
                   ),
-                  keyboardType: TextInputType.number,
-                  onChanged: (v) => provider.setBrutTaksitTutari(
-                    double.tryParse(v.replaceAll(',', '.')) ?? 0,
-                  ),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [TlInputFormatter()],
+                  onChanged: (v) {
+                    // String içindeki 100.000,50 -> 100000.50 çevirimi
+                    String clean = v.replaceAll('.', '').replaceAll(',', '.');
+                    provider.setBrutTaksitTutari(double.tryParse(clean) ?? 0);
+                  },
                 ),
               ),
               const SizedBox(width: 16),
@@ -386,13 +424,74 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          _birimler == null
+              ? const Center(child: CircularProgressIndicator())
+              : DropdownButtonFormField<BirimModel>(
+                  value: _birimler!.where((b) => b.id == provider.birimId).firstOrNull,
+                  decoration: const InputDecoration(
+                    labelText: 'Bağlı Birim Seçiniz (Sistem Kaydı)',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _birimler!.map((b) {
+                    return DropdownMenuItem(
+                      value: b,
+                      child: Text('${b.kisaAd} - ${b.ad}'),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      provider.setBirimId(val.id);
+                      provider.setBirimAd(val.kisaAd);
+                      _birimAdController.text = val.kisaAd;
+                      
+                      final blob = '${val.kisaAd} ${val.ad}'.toLowerCase();
+                      if (blob.contains('usem') ||
+                          blob.contains('tömer') ||
+                          blob.contains('tomer') ||
+                          blob.contains('sürekli eğitim') ||
+                          blob.contains('surekli egitim')) {
+                        provider.setTur(DanismanlikTuru.egitimKuru);
+                      } else {
+                        provider.setTur(DanismanlikTuru.standart);
+                      }
+                    }
+                  },
+                ),
+          const SizedBox(height: 12),
           TextFormField(
             controller: _birimAdController,
             decoration: const InputDecoration(
-              labelText: 'Bağlı Birim',
+              labelText: 'Alt Birim / İşin Detayı (Örn: TÖMER XYZ Eğitimi)',
               border: OutlineInputBorder(),
             ),
             onChanged: provider.setBirimAd,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _birimEvrakTarihiController,
+                  decoration: const InputDecoration(
+                    labelText: 'Birim Üst Yazı (Evrak) Tarihi',
+                    hintText: 'gg.aa.yyyy',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: provider.setBirimEvrakTarihi,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _birimEvrakSayisiController,
+                  decoration: const InputDecoration(
+                    labelText: 'Birim Üst Yazı (Evrak) Sayısı',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: provider.setBirimEvrakSayisi,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Row(
@@ -537,14 +636,36 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                       children: [
                         Expanded(
                           flex: 2,
-                          child: Text(
-                            '${p.personel.unvan} ${p.personel.adSoyad}',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${p.personel.unvan} ${p.personel.adSoyad}',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              if (provider.onizleme != null)
+                                Builder(builder: (_) {
+                                  final stats = provider.onizleme!.personelDagitimlari.where((dp) => dp.personelId == p.personel.id).firstOrNull;
+                                  if (stats == null) return const SizedBox.shrink();
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 4.0),
+                                    child: Text(
+                                      'Kat: ${stats.unvanKatsayisi} • Toplam Puan: ${stats.bireyselPuan.toStringAsFixed(0)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.green.shade700,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  );
+                                }),
+                            ],
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: TextFormField(
+                            key: ValueKey('puan_${p.personel.id}'),
                             initialValue: p.faaliyetPuani > 0
                                 ? p.faaliyetPuani.toString()
                                 : '',
@@ -566,7 +687,8 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: TextFormField(
-                            initialValue: '${p.dersSaati.toInt()}',
+                            key: ValueKey('ders_${p.personel.id}'),
+                            initialValue: p.dersSaati > 0 ? '${p.dersSaati.toInt()}' : '',
                             decoration: const InputDecoration(
                               labelText: 'Ders Saati',
                               border: OutlineInputBorder(),
@@ -578,7 +700,7 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                                 .read<DanismanlikProvider>()
                                 .personelDersSaatiGuncelle(
                                   index,
-                                  double.tryParse(v.replaceAll(',', '.')) ?? 1,
+                                  double.tryParse(v.replaceAll(',', '.')) ?? 0,
                                 ),
                           ),
                         ),
@@ -586,6 +708,7 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                         SizedBox(
                           width: 90,
                           child: TextFormField(
+                            key: ValueKey('pay_${p.personel.id}'),
                             initialValue: '${p.payOrani}',
                             decoration: const InputDecoration(
                               labelText: 'Pay %',
@@ -679,8 +802,21 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                     content: Column(
                       children: [
                         _buildSummaryRow(
+                          'Sözleşme Tutarı (KDV Dahil):',
+                          TurkceFormat.para(onizleme.kdvDahilTutar),
+                          isBold: true,
+                          color: Colors.blueGrey.shade900,
+                        ),
+                        _buildSummaryRow(
+                          'KDV Tutarı (%${provider.kdvOrani}):',
+                          TurkceFormat.para(onizleme.kdvTutari),
+                          color: Colors.red.shade400,
+                        ),
+                        const Divider(),
+                        _buildSummaryRow(
                           'KDV Hariç Matrah:',
-                          TurkceFormat.para(onizleme.kesinti.kdvHaricMatrah),
+                          TurkceFormat.para(onizleme.kdvHaricMatrah),
+                          isBold: true,
                         ),
                         _buildSummaryRow(
                           'Hazine Payı:',
@@ -707,37 +843,111 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _buildSummaryCard(
-                    title: 'Hesaplama Sonuçları',
-                    content: Column(
-                      children: [
-                        _buildSummaryRow(
-                          'Dönem Katsayısı:',
-                          onizleme.katsayi.toStringAsFixed(4),
-                        ),
-                        _buildSummaryRow(
-                          'Artık Bakiye:',
-                          TurkceFormat.para(onizleme.artikBakiye),
-                        ),
-                      ],
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final toplamPuan = onizleme.personelDagitimlari.fold(0.0, (sum, p) => sum + p.bireyselPuan);
+                      final saglama = toplamPuan * onizleme.katsayi;
+                      final egitimPersoneli = onizleme.personelDagitimlari.where((p) => p.dersSaati > 0).toList();
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSummaryCard(
+                            title: 'DÖNEM EK KATSAYI HESAPLAMA',
+                            content: Column(
+                              children: [
+                                _buildSummaryRow(
+                                  'Dağıtılacak Maks. Akademik Pay:',
+                                  TurkceFormat.para(onizleme.kesinti.dagitilabilirTutar),
+                                  isBold: true,
+                                  color: Colors.green.shade700,
+                                ),
+                                _buildSummaryRow('Toplam Puan:', toplamPuan.toStringAsFixed(0)),
+                                _buildSummaryRow('Dönem Ek Ödeme Katsayısı:', onizleme.katsayi.toStringAsFixed(6)),
+                                _buildSummaryRow('Sağlaması (Puan x Katsayı):', TurkceFormat.para(saglama)),
+                                _buildSummaryRow('Artık Bakiye:', TurkceFormat.para(onizleme.artikBakiye)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          if (egitimPersoneli.isNotEmpty)
+                            _buildSummaryCard(
+                              title: 'KURSUN 1 SAATLİK ÜCRETİ HESAPLAMA',
+                              content: Column(
+                                children: egitimPersoneli.map((p) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 8.0),
+                                  child: Column(
+                                    children: [
+                                      _buildSummaryRow(
+                                        'Personel:',
+                                        '${p.unvan} ${p.adSoyad}',
+                                        color: Colors.blueGrey.shade700,
+                                      ),
+                                      _buildSummaryRow('Bireysel Net Katkı Puanı:', p.bireyselPuan.toStringAsFixed(0)),
+                                      _buildSummaryRow('Verdiği Ders Saati:', p.dersSaati.toStringAsFixed(0)),
+                                      _buildSummaryRow(
+                                        'Kursun 1 Saatlik Ücreti:',
+                                        TurkceFormat.para(p.saatlikUcret),
+                                        isBold: true,
+                                      ),
+                                      const Divider(),
+                                    ],
+                                  ),
+                                )).toList(),
+                              ),
+                            ),
+                          if (egitimPersoneli.isNotEmpty) const SizedBox(height: 16),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                   _buildSummaryCard(
-                    title: 'Personel Dağılımı',
-                    content: Column(
-                      children: onizleme.personelDagitimlari
-                          .map(
-                            (d) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8.0),
-                              child: _buildSummaryRow(
-                                '${d.unvan} ${d.adSoyad}',
-                                TurkceFormat.para(d.brutHakedis),
-                                isBold: true,
+                    title: 'Personel Dağılımı (Excel Görünümü)',
+                    content: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingRowColor: MaterialStateProperty.all(Colors.blueGrey.shade50),
+                        headingTextStyle: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueGrey.shade800,
+                          fontSize: 13,
+                        ),
+                        dataTextStyle: TextStyle(
+                          color: Colors.blueGrey.shade700,
+                          fontSize: 13,
+                        ),
+                        columnSpacing: 16,
+                        horizontalMargin: 8,
+                        columns: const [
+                          DataColumn(label: Text('Personel')),
+                          DataColumn(label: Text('Puan')),
+                          DataColumn(label: Text('Kat.')),
+                          DataColumn(label: Text('Saat')),
+                          DataColumn(label: Text('B.Net')),
+                          DataColumn(label: Text('Brüt Hakediş')),
+                          DataColumn(label: Text('Havuz')),
+                        ],
+                        rows: onizleme.personelDagitimlari.map((d) {
+                          return DataRow(cells: [
+                            DataCell(Text('${d.unvan} ${d.adSoyad}')),
+                            DataCell(Text(d.faaliyetPuani.toString())),
+                            DataCell(Text(d.unvanKatsayisi.toString())),
+                            DataCell(Text(d.dersSaati > 0 ? d.dersSaati.toString() : '-')),
+                            DataCell(Text(d.bireyselPuan.toStringAsFixed(0))),
+                            DataCell(Text(
+                              TurkceFormat.para(d.brutHakedis),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            )),
+                            DataCell(Text(
+                              d.tavanAsimi ? TurkceFormat.para(d.havuzTutari) : '-',
+                              style: TextStyle(
+                                color: d.tavanAsimi ? Colors.red.shade600 : Colors.blueGrey.shade400,
                               ),
-                            ),
-                          )
-                          .toList(),
+                            )),
+                          ]);
+                        }).toList(),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -857,6 +1067,49 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class TlInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) return newValue;
+
+    // Sadece rakam ve virgül kalacak şekilde temizle (nokta falan varsa sil)
+    String text = newValue.text.replaceAll(RegExp(r'[^0-9,]'), '');
+    
+    // Birden fazla virgül varsa engelle (eski haline dön)
+    if (text.split(',').length > 2) {
+      return oldValue;
+    }
+
+    List<String> parts = text.split(',');
+    String tamKisim = parts[0];
+    String? ondalikKisim = parts.length > 1 ? parts[1] : null;
+
+    if (tamKisim.isNotEmpty) {
+      final int value = int.parse(tamKisim);
+      final formatter = NumberFormat("#,###", "tr_TR");
+      tamKisim = formatter.format(value);
+    }
+
+    String finalString = tamKisim;
+    if (ondalikKisim != null) {
+      // Sadece 2 ondalık basamağa izin ver
+      if (ondalikKisim.length > 2) {
+        ondalikKisim = ondalikKisim.substring(0, 2);
+      }
+      finalString = '$tamKisim,$ondalikKisim';
+    } else if (newValue.text.endsWith(',')) {
+      finalString = '$tamKisim,';
+    }
+
+    // İmleci sona al
+    return TextEditingValue(
+      text: finalString,
+      selection: TextSelection.collapsed(offset: finalString.length),
     );
   }
 }

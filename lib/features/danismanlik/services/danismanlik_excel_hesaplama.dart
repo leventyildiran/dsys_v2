@@ -16,44 +16,33 @@ import '../models/danismanlik_model.dart';
 enum DanismanlikExcelProfili {
   dtsDanismanlik(
     katkiSekmeAdi: 'Katkı Payı',
-    memurMaasKatsayisi: 1.387871,
   ),
   usemSurekliEgitim(
     katkiSekmeAdi: 'Dönem Ek Katsayı',
-    memurMaasKatsayisi: 0.907796,
   );
 
   const DanismanlikExcelProfili({
     required this.katkiSekmeAdi,
-    required this.memurMaasKatsayisi,
   });
 
   final String katkiSekmeAdi;
-  final double memurMaasKatsayisi;
 }
 
 /// DTS / USEM Excel şablonu formüllerinin birebir Dart karşılığı.
 class DanismanlikExcelHesaplama {
   DanismanlikExcelHesaplama._();
 
-  /// DTS varsayılanı (geriye dönük uyumluluk).
-  static const double memurMaasKatsayisiDts = 1.387871;
-
-  /// USEM `DÖNEM EK KATSAYI HESAPLAMA` sayfasındaki değer.
-  static const double memurMaasKatsayisiUsem = 0.907796;
+  /// Güncel memur maaş katsayısı (ek ders tavanı)
+  static const double memurMaasKatsayisiGuncel = 1.387871;
 
   static DanismanlikExcelProfili profilFromDanismanlik(DanismanlikModel d) {
-    final blob = [
-      d.birimKisaAd,
-      d.konusu,
-      d.firmaUnvan,
-    ].whereType<String>().join(' ').toLowerCase();
-    if (blob.contains('usem') ||
-        blob.contains('sürekli eğitim') ||
-        blob.contains('surekli egitim')) {
-      return DanismanlikExcelProfili.usemSurekliEgitim;
+    switch (d.tur) {
+      case DanismanlikTuru.egitimKuru:
+        return DanismanlikExcelProfili.usemSurekliEgitim;
+      case DanismanlikTuru.standart:
+      default:
+        return DanismanlikExcelProfili.dtsDanismanlik;
     }
-    return DanismanlikExcelProfili.dtsDanismanlik;
   }
 
   static const Map<String, int> ekGostergeler = {
@@ -257,13 +246,18 @@ class DanismanlikExcelHesaplama {
           : 0.0;
 
       // C32 = A32*B32*2, D32 = C32*1.6  → mesai dışı = A*B*3.2
-      final bazSaatlik = p.ekGosterge * profil.memurMaasKatsayisi;
+      final bazSaatlik = p.ekGosterge * memurMaasKatsayisiGuncel;
       final tavanSaatlik = p.mesaiIci ? bazSaatlik * 2 : bazSaatlik * 3.2;
 
-      final tavanAsildi = kursSaatlik > tavanSaatlik;
-      // Excel KATKI PAYI sayfası brüt hakedişi doğrudan yazar; tavan ayrı bilgi bloğudur.
-      final odenebilir = brutHakedis;
-      final havuz = 0.0;
+      final tavanAsildi = profil == DanismanlikExcelProfili.usemSurekliEgitim && kursSaatlik > tavanSaatlik;
+      
+      double odenebilir = brutHakedis;
+      double havuz = 0.0;
+
+      if (tavanAsildi) {
+        odenebilir = _round(tavanSaatlik * p.dersSaati, 2);
+        havuz = _round(brutHakedis - odenebilir, 2);
+      }
 
       netOdemeToplam += odenebilir;
       havuzToplam += havuz;
@@ -317,11 +311,10 @@ class DanismanlikExcelHesaplama {
 
   static DanismanlikExcelSonuc hesaplaDanismanlik({
     required DanismanlikModel danismanlik,
-    required double brutTaksitTutari,
+    required double brutTaksitTutari, // Note: This now represents KDV Hariç Tutar conceptually
   }) {
-    final kesinti = kesintilerBrutten(
-      brutTutar: brutTaksitTutari,
-      kdvOrani: danismanlik.kdvOrani,
+    final kesinti = kesintiler(
+      kdvHaricGelir: brutTaksitTutari,
       hazineOrani: danismanlik.hazinePayiOrani,
       bapOrani: danismanlik.bapPayiOrani,
       aracGerecOrani: danismanlik.aracGerecPayiOrani / 100,
