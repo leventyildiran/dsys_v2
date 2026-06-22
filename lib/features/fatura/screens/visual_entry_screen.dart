@@ -35,24 +35,8 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     final satirLimit = provider.satirLimit;
     final gercekKalemler = FaturaMatbuConfig.matbuKalemleri(invoice.kalemler);
     
-    // YENİ NAKLİ YEKÜN MANTIĞI İLE TOPLAM SAYFA HESABI
-    int currentItemIndex = 0;
-    int computedToplamSayfa = 0;
-    
-    while (currentItemIndex < gercekKalemler.length || computedToplamSayfa == 0) {
-      int spaceLeft = satirLimit;
-      if (computedToplamSayfa > 0 && invoice.nakliYekunAktif) {
-        spaceLeft--; // Nakli yekün satırı
-      }
-      
-      while (spaceLeft > 0 && currentItemIndex < gercekKalemler.length) {
-        currentItemIndex++;
-        spaceLeft--;
-      }
-      computedToplamSayfa++;
-    }
-    
-    final toplamSayfa = computedToplamSayfa;
+    final pagesOfIndices = _hesaplaSayfalar(provider, invoice, satirLimit);
+    final toplamSayfa = pagesOfIndices.length;
     
     provider.currentIndex = widget.invoiceIndex;
 
@@ -161,6 +145,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
                         children: List.generate(toplamSayfa, (index) {
                           final sNo = index + 1;
                           final onizleme = provider.kalibrasyonBaskiOnizlemesi(sNo);
+                          final pageIndices = pagesOfIndices[index];
                           
                           return Container(
                             width: FaturaMatbuConfig.a4Genislik + 600,
@@ -203,7 +188,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
                                 ..._buildEkstraNotlar(provider, invoice),
 
                                 // Kalemler
-                                ..._buildKalemler(provider, invoice, onizleme, sNo, satirLimit),
+                                ..._buildKalemler(provider, invoice, onizleme, pageIndices),
                               ],
                             ),
                           );
@@ -376,28 +361,25 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     return w;
   }
 
-  List<Widget> _buildKalemler(BatchFaturaProvider provider, var invoice, KalibrasyonBaskiOnizleme onizleme, int sayfaNo, int satirLimit) {
-    final w = <Widget>[];
+  List<List<int>> _hesaplaSayfalar(BatchFaturaProvider provider, var invoice, int satirLimit) {
     final kalemler = invoice.kalemler;
-    if (kalemler.isEmpty) return w;
+    final isGercekList = kalemler.map((k) => FaturaMatbuConfig.matbuKalemleri([k]).isNotEmpty).toList();
+    final gercekKalemler = FaturaMatbuConfig.matbuKalemleri(kalemler);
 
-    final cinsiBase = provider.coordinates['cinsi'];
-    if (cinsiBase == null) return w;
-
-    // YENİ NAKLİ YEKÜN MANTIĞI İLE SAYFAYI BÖL
     final List<List<int>> pagesOfIndices = [];
     int currentItemIndex = 0;
+    int currentGercekIndex = 0;
     
-    while (currentItemIndex < kalemler.length || pagesOfIndices.isEmpty) {
+    while (currentGercekIndex < gercekKalemler.length || pagesOfIndices.isEmpty) {
       int spaceLeft = satirLimit;
       final List<int> currentPageIndices = [];
       
       if (pagesOfIndices.isNotEmpty && invoice.nakliYekunAktif) {
-        currentPageIndices.add(-1); // -1 means Nakli Yekün row
+        currentPageIndices.add(-1); // Top Nakli Yekün
         spaceLeft--;
       }
 
-      int itemsRemaining = kalemler.length - currentItemIndex;
+      int itemsRemaining = gercekKalemler.length - currentGercekIndex;
       bool willHaveNextPage = false;
       if (invoice.nakliYekunAktif && itemsRemaining > spaceLeft) {
           willHaveNextPage = true;
@@ -407,27 +389,51 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
 
       while (effectiveSpace > 0 && currentItemIndex < kalemler.length) {
         currentPageIndices.add(currentItemIndex);
+        if (isGercekList[currentItemIndex]) {
+          currentGercekIndex++;
+          effectiveSpace--;
+          spaceLeft--;
+        }
         currentItemIndex++;
-        effectiveSpace--;
-        spaceLeft--;
       }
       
       if (willHaveNextPage) {
-        currentPageIndices.add(-1); // -1 means Nakli Yekün row
+        currentPageIndices.add(-1); // Bottom Nakli Yekün
         spaceLeft--;
       }
       
       pagesOfIndices.add(currentPageIndices);
     }
+    
+    while (currentItemIndex < kalemler.length) {
+       if (pagesOfIndices.isNotEmpty) {
+           final lastPage = pagesOfIndices.last;
+           if (lastPage.isNotEmpty && lastPage.last == -1) {
+              lastPage.insert(lastPage.length - 1, currentItemIndex);
+           } else {
+              lastPage.add(currentItemIndex);
+           }
+       }
+       currentItemIndex++;
+    }
 
-    final sIndex = (sayfaNo - 1).clamp(0, pagesOfIndices.length - 1);
-    final pageIndices = pagesOfIndices[sIndex];
+    return pagesOfIndices;
+  }
+
+  List<Widget> _buildKalemler(BatchFaturaProvider provider, var invoice, KalibrasyonBaskiOnizleme onizleme, List<int> pageIndices) {
+    final w = <Widget>[];
+    final kalemler = invoice.kalemler;
+    if (kalemler.isEmpty) return w;
+
+    final cinsiBase = provider.coordinates['cinsi'];
+    if (cinsiBase == null) return w;
 
     int renderIndex = 0;
+    int gercekRenderIndex = 0;
+    
     for (int i in pageIndices) {
       final satirDy = renderIndex * provider.kalemSatirAraligi;
       final satirTop = cinsiBase.dy + provider.globalOffsetDy + satirDy + 200;
-      final kalemIndexOnizleme = renderIndex;
       renderIndex++;
       
       if (i == -1) {
@@ -473,17 +479,24 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
           );
         }
 
-        final satirOnizleme = onizleme.kalemler[kalemIndexOnizleme];
+        if (gercekRenderIndex < onizleme.kalemler.length) {
+          final satirOnizleme = onizleme.kalemler[gercekRenderIndex];
 
-        if (provider.coordinates.containsKey('cinsi')) w.add(buildReadOnly('cinsi', satirOnizleme.cinsi, 255, true, TextAlign.left));
-        if (provider.coordinates.containsKey('miktar')) w.add(buildReadOnly('miktar', satirOnizleme.miktar, 50, false, TextAlign.center));
-        if (provider.coordinates.containsKey('fiyat')) w.add(buildReadOnly('fiyat', satirOnizleme.fiyat, 80, false, TextAlign.left));
-        if (provider.coordinates.containsKey('tutar')) w.add(buildReadOnly('tutar', satirOnizleme.tutar, 80, false, TextAlign.left));
+          if (provider.coordinates.containsKey('cinsi')) w.add(buildReadOnly('cinsi', satirOnizleme.cinsi, 255, true, TextAlign.left));
+          if (provider.coordinates.containsKey('miktar')) w.add(buildReadOnly('miktar', satirOnizleme.miktar, 50, false, TextAlign.center));
+          if (provider.coordinates.containsKey('fiyat')) w.add(buildReadOnly('fiyat', satirOnizleme.fiyat, 80, false, TextAlign.left));
+          if (provider.coordinates.containsKey('tutar')) w.add(buildReadOnly('tutar', satirOnizleme.tutar, 80, false, TextAlign.left));
+        }
         
+        gercekRenderIndex++;
         continue;
       }
 
       final satirMap = kalemler[i];
+      final isGercek = FaturaMatbuConfig.matbuKalemleri([satirMap]).isNotEmpty;
+      if (isGercek) {
+        gercekRenderIndex++;
+      }
 
       // Cinsi
       if (provider.coordinates.containsKey('cinsi')) {
