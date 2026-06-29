@@ -1177,6 +1177,22 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                       ),
                       onPressed: () => provider.removeKalem(index, ki),
                     ),
+                    Tooltip(
+                      message: k['sayfayiBol'] == true 
+                          ? 'Sayfa bölmesi kaldır' 
+                          : 'Buradan sayfayı böl (Nakli Yekün ekle)',
+                      child: IconButton(
+                        icon: Icon(
+                          k['sayfayiBol'] == true ? Icons.content_cut : Icons.cut_outlined,
+                          color: k['sayfayiBol'] == true ? Colors.blue : Colors.grey,
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          final current = k['sayfayiBol'] == true;
+                          provider.updateKalem(index, ki, 'sayfayiBol', !current);
+                        },
+                      ),
+                    ),
                   ],
                 ),
               );

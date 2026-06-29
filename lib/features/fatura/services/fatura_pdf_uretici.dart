@@ -159,7 +159,7 @@ class FaturaPdfUretici {
         double runningTotal = 0.0;
 
         while (currentItemIndex < kalemler.length || pages.isEmpty) {
-          int spaceLeft = satirLimit;
+          int spaceLeft = 9999;
           final List<Map<String, dynamic>> currentPageItems = [];
           
           if (pages.isNotEmpty && invoice.nakliYekunAktif) {
@@ -183,6 +183,10 @@ class FaturaPdfUretici {
             
             currentItemIndex++;
             spaceLeft--;
+
+            if (item['sayfayiBol'] == true && currentItemIndex < kalemler.length) {
+              break;
+            }
           }
           
           runningTotal += pageRealTotal;
@@ -398,21 +402,30 @@ class FaturaPdfUretici {
                   }
                 }
 
+                if (invoice.isKdvMuaf) {
+                  children.add(pw.Positioned(
+                    top: konum('kdv').dy,
+                    left: konum('kdv').dx,
+                    child: pw.Text('MUAF', style: metin()),
+                  ));
+                }
+
                 if (sonSayfa) {
                   children.addAll([
-                    pw.Positioned(
-                      top: konum('kdv').dy,
-                      left: konum('kdv').dx,
-                      child: pw.Text(TurkceFormat.para(invoice.kdvTutari),
-                          style: metin()),
-                    ),
-                    if (!invoice.isKdvMuaf)
+                    if (!invoice.isKdvMuaf) ...[
+                      pw.Positioned(
+                        top: konum('kdv').dy,
+                        left: konum('kdv').dx,
+                        child: pw.Text(TurkceFormat.para(invoice.kdvTutari),
+                            style: metin()),
+                      ),
                       pw.Positioned(
                         top: konum('kdvOrani')?.dy ?? konum('kdv').dy,
                         left: konum('kdvOrani')?.dx ?? (konum('kdv').dx - 30),
                         child: pw.Text('%${invoice.kdvOrani.toInt()}',
                             style: metin()),
                       ),
+                    ],
                     pw.Positioned(
                       top: konum('genelToplam').dy,
                       left: konum('genelToplam').dx,

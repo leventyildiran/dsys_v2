@@ -17,11 +17,28 @@ class VisualEntryScreen extends StatefulWidget {
 }
 
 class _VisualEntryScreenState extends State<VisualEntryScreen> {
-  int _sayfaNo = 1;
   bool _kalibrasyonModu = false;
   String? _seciliAlan;
   bool _alanSurukleniyor = false;
   bool _arkaPlanGoster = true;
+  
+  final ScrollController _horizontalScrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_horizontalScrollController.hasClients) {
+        _horizontalScrollController.jumpTo(260.0); // A4 kağıdını sola yaklaştırmak için boşluğu atla
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _horizontalScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,10 +49,9 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
 
     final invoice = provider.pendingInvoices[widget.invoiceIndex];
     
-    final satirLimit = provider.satirLimit;
-    final gercekKalemler = FaturaMatbuConfig.matbuKalemleri(invoice.kalemler);
-    
-    final pagesOfIndices = _hesaplaSayfalar(provider, invoice, satirLimit);
+    final sayfaHesabi = _hesaplaSayfalar(provider, invoice);
+    final pagesOfIndices = sayfaHesabi['pages'] as List<List<int>>;
+    final nakliTutarlar = sayfaHesabi['nakliTutarlar'] as List<double>;
     final toplamSayfa = pagesOfIndices.length;
     
     provider.currentIndex = widget.invoiceIndex;
@@ -135,64 +151,78 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
               child: SingleChildScrollView(
                 scrollDirection: Axis.vertical,
                 child: Scrollbar(
+                  controller: _horizontalScrollController,
                   thumbVisibility: true,
                   notificationPredicate: (notif) => notif.depth == 1,
                   child: SingleChildScrollView(
+                    controller: _horizontalScrollController,
                     scrollDirection: Axis.horizontal,
                     child: Padding(
-                      padding: const EdgeInsets.all(40.0),
+                      padding: const EdgeInsets.only(top: 40, bottom: 40, right: 40, left: 10),
                       child: Column(
-                        children: List.generate(toplamSayfa, (index) {
-                          final sNo = index + 1;
-                          final onizleme = provider.kalibrasyonBaskiOnizlemesi(sNo);
-                          final pageIndices = pagesOfIndices[index];
+                        children: List.generate(toplamSayfa, (sayfaIndex) {
+                          final pageIndices = pagesOfIndices[sayfaIndex];
+                          final pageOnizleme = provider.kalibrasyonBaskiOnizlemesi(sayfaIndex + 1);
+                          // Nakli yekün tutarı: bu sayfanın sonundaki kümülatif
+                          // Sayfa 2+ üst nakli yekünü için önceki sayfanın tutarı kullanılır
+                          final nakliTutar = sayfaIndex > 0 
+                              ? nakliTutarlar[sayfaIndex - 1]  // Önceki sayfadan gelen tutar (üst nakli yekün)
+                              : (nakliTutarlar.isNotEmpty ? nakliTutarlar[sayfaIndex] : 0.0); // İlk sayfanın alt nakli yekünü
                           
                           return Container(
-                            width: FaturaMatbuConfig.a4Genislik + 600,
-                            height: FaturaMatbuConfig.a4Yukseklik + 400,
-                            margin: const EdgeInsets.only(bottom: 40),
-                            child: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                // A4 Arkaplan
-                                Positioned(
-                                  left: 300,
-                                  top: 200,
-                                  child: Container(
-                                    width: FaturaMatbuConfig.a4Genislik,
-                                    height: FaturaMatbuConfig.a4Yukseklik,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.2),
-                                          blurRadius: 15,
-                                          spreadRadius: 5,
-                                        ),
-                                      ],
-                                    ),
-                                    child: Visibility(
-                                      visible: _arkaPlanGoster,
-                                      child: Image.asset(
-                                        'assets/images/fatura_sablon.jpeg',
-                                        fit: BoxFit.fill,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                
-                                // Alanlar
-                                ..._buildSabitAlanlar(provider, invoice, onizleme),
-                                
-                                // Ekstra Notlar
-                                ..._buildEkstraNotlar(provider, invoice),
-
-                                // Kalemler
-                                ..._buildKalemler(provider, invoice, onizleme, pageIndices),
-                              ],
+                  width: FaturaMatbuConfig.a4Genislik + 600,
+                  height: FaturaMatbuConfig.a4Yukseklik + 400,
+                  margin: const EdgeInsets.only(bottom: 40),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      // A4 Arkaplan
+                      Positioned(
+                        left: 300,
+                        top: 200,
+                        child: Container(
+                          width: FaturaMatbuConfig.a4Genislik,
+                          height: FaturaMatbuConfig.a4Yukseklik,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 15,
+                                spreadRadius: 5,
+                              ),
+                            ],
+                          ),
+                          child: Visibility(
+                            visible: _arkaPlanGoster,
+                            child: Image.asset(
+                              'assets/images/fatura_sablon.jpeg',
+                              fit: BoxFit.fill,
                             ),
-                          );
-                        }),
+                          ),
+                        ),
+                      ),
+                      
+                      // Sabit alanlar ilk sayfadaysa veya genel bilgiler
+                      ..._buildSabitAlanlar(
+                        provider,
+                        invoice,
+                        pageOnizleme,
+                        sonSayfa: sayfaIndex == toplamSayfa - 1,
+                        sayfaIndex: sayfaIndex,
+                        toplamSayfa: toplamSayfa,
+                      ),
+                      
+                      // Ekstra notlar yalnızca son sayfada
+                      if (sayfaIndex == toplamSayfa - 1)
+                        ..._buildEkstraNotlar(provider, invoice),
+
+                      // Kalemler
+                      ..._buildKalemler(provider, invoice, pageOnizleme, pageIndices, nakliYekunTutari: nakliTutar),
+                    ],
+                  ),
+                );
+              }),
                       ),
                     ),
                   ),
@@ -205,10 +235,17 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     );
   }
 
-  List<Widget> _buildSabitAlanlar(BatchFaturaProvider provider, var invoice, KalibrasyonBaskiOnizleme onizleme) {
+  List<Widget> _buildSabitAlanlar(
+    BatchFaturaProvider provider,
+    var invoice,
+    KalibrasyonBaskiOnizleme onizleme, {
+    required bool sonSayfa,
+    required int sayfaIndex,
+    required int toplamSayfa,
+  }) {
     final w = <Widget>[];
     
-    // Düzenlenebilir alanlar haritası: key -> (value, updateFieldKey, maxWidth, maxLines)
+    // Düzenlenebilir alanlar: key -> (value, updateFieldKey, maxWidth, maxLines)
     final editables = {
       'firmaAdi': (invoice.firmaAdi, 'firmaAdi', 270.0, 2),
       'adres': (invoice.adres, 'adres', 270.0, 3),
@@ -217,15 +254,34 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       'tarih': (invoice.tarih, 'tarih', 100.0, 1),
       'irsaliyeTarihi': (invoice.irsaliyeTarihi, 'irsaliyeTarihi', 100.0, 1),
       'irsaliyeNo': (invoice.irsaliyeNo, 'irsaliyeNo', 100.0, 1),
-      'iban': (invoice.iban ?? '', 'iban', 250.0, 1),
-      'hesapAdi': (invoice.hesapAdi ?? '', 'hesapAdi', 250.0, 2),
-      'numuneAciklama': (onizleme.alanlar['numuneAciklama'] ?? '', 'numuneAciklamasi', 350.0, 1),
-      'melbes': (onizleme.alanlar['melbes'] ?? '', 'melbesTam', 320.0, 1),
-      'numuneNo': (onizleme.alanlar['numuneNo'] ?? '', 'numuneNo', 320.0, 1),
+      'iban': (onizleme.alanlar['iban'] ?? invoice.iban ?? '', 'iban', 280.0, 1),
+      'hesapAdi': (onizleme.alanlar['hesapAdi'] ?? invoice.hesapAdi ?? '', 'hesapAdi', 280.0, 2),
+      'numuneAciklama': (onizleme.alanlar['numuneAciklama'] ?? '', 'numuneAciklamasi', 250.0, 2),
+      'melbesKurum': (
+        onizleme.alanlar['melbesKurum'] ?? invoice.melbesKurumOnEki,
+        'melbesKurumOnEki',
+        250.0,
+        2,
+      ),
+      'melbes': (onizleme.alanlar['melbes'] ?? '', 'melbesNo', 200.0, 1),
+      'numuneNo': (onizleme.alanlar['numuneNo'] ?? '', 'numuneNo', 160.0, 1),
     };
 
+    if (invoice.nakliYekunAktif) {
+      if (sayfaIndex > 0) {
+        editables['nakliYekunUstYazi'] = (onizleme.alanlar['nakliYekunUstYazi']?.isNotEmpty == true ? onizleme.alanlar['nakliYekunUstYazi']! : provider.nakliYekunUstMetin, 'GLOBAL_nakliYekunUstMetin', 255.0, 1);
+      }
+      if (sayfaIndex < toplamSayfa - 1) {
+        editables['nakliYekunAltYazi'] = (onizleme.alanlar['nakliYekunAltYazi']?.isNotEmpty == true ? onizleme.alanlar['nakliYekunAltYazi']! : provider.nakliYekunAltMetin, 'GLOBAL_nakliYekunAltMetin', 255.0, 1);
+      }
+    }
+
     editables.forEach((key, data) {
-      if (!provider.coordinates.containsKey(key) || FaturaMatbuKalibrasyon.gizliAlanlar.contains(key)) return;
+      if (!provider.coordinates.containsKey(key) ||
+          FaturaMatbuKalibrasyon.gizliAlanlar.contains(key)) {
+        return;
+      }
+      if (FaturaMatbuConfig.altBolgeAlanMi(key) && !sonSayfa) return;
       
       final val = data.$1 as String;
       final updateKey = data.$2 as String;
@@ -241,7 +297,15 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
           provider,
           key,
           val,
-          (v) => provider.updateField(widget.invoiceIndex, updateKey, v),
+          (v) {
+            if (updateKey == 'GLOBAL_nakliYekunUstMetin') {
+               provider.nakliYekunUstMetin = v;
+            } else if (updateKey == 'GLOBAL_nakliYekunAltMetin') {
+               provider.nakliYekunAltMetin = v;
+            } else {
+               provider.updateField(widget.invoiceIndex, updateKey, v);
+            }
+          },
           provider.matbuFontBoyutu,
           maxWidth: maxW,
           maxLines: lines,
@@ -250,32 +314,36 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     });
 
     // Sadece Okunur Alanlar (Hesaplananlar)
-    final readOnly = {
+    final readOnly = <String, dynamic>{
       'matrah': onizleme.alanlar['matrah'],
-      'kdv': onizleme.alanlar['kdv'],
-      'kdvOrani': onizleme.alanlar['kdvOrani'],
       'genelToplam': onizleme.alanlar['genelToplam'],
       'yaziylaTutar': onizleme.alanlar['yaziylaTutar'],
     };
 
-    readOnly.forEach((key, val) {
-      String? finalVal = val;
+    readOnly['kdv'] = onizleme.alanlar['kdv'];
+    readOnly['kdvOrani'] = onizleme.alanlar['kdvOrani'];
 
-      if (_kalibrasyonModu) {
-        // Kalibrasyon modunda: tüm alanları placeholder ile göster (sürükleyip konumlandırabilsin)
-        if (finalVal == null || finalVal.isEmpty) {
-          finalVal = FaturaMatbuConfig.ornekMetinler[key] 
-              ?? FaturaMatbuConfig.alanEtiketleri[key] 
-              ?? key;
+    if (invoice.nakliYekunAktif) {
+      if (sayfaIndex > 0) {
+        readOnly['nakliYekunUstTutar'] = onizleme.alanlar['nakliYekunUstTutar'];
+      }
+      if (sayfaIndex < toplamSayfa - 1) {
+        readOnly['nakliYekunAltTutar'] = onizleme.alanlar['nakliYekunAltTutar'];
+      }
+    }
+
+    readOnly.forEach((key, val) {
+      if (FaturaMatbuConfig.altBolgeAlanMi(key) && !sonSayfa) {
+        if (key != 'kdv' || !invoice.isKdvMuaf) {
+          return;
         }
       }
+
+      String? finalVal = val;
 
       if (finalVal == null || finalVal.isEmpty || !provider.coordinates.containsKey(key)) return;
       final offset = _konum(provider, key);
       Offset adjustedOffset = offset;
-      if (key == 'genelToplam' && invoice.nakliYekunAktif) {
-        adjustedOffset = Offset(offset.dx, offset.dy + 30);
-      }
       final isBold = key.toLowerCase().contains('toplam') || key.toLowerCase().contains('yekun');
 
       // Alan genişliği ve satır sayısı
@@ -284,9 +352,15 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       if (key == 'yaziylaTutar') {
         maxW = 420; maxLines = 3;
       } else if (key == 'numuneAciklama') {
-        maxW = 350; maxLines = 1;
+        maxW = 220; maxLines = 1;
+      } else if (key == 'melbesKurum') {
+        maxW = 245; maxLines = 2;
       } else if (key == 'melbes' || key == 'numuneNo') {
-        maxW = 320; maxLines = 1;
+        maxW = key == 'melbes' ? 155 : 140; maxLines = 1;
+      } else if (key == 'kdvOrani') {
+        maxW = 40; maxLines = 1;
+      } else if (key == 'matrah' || key == 'kdv' || key == 'genelToplam' || key.contains('Tutar')) {
+        maxW = 80; maxLines = 1;
       } else {
         maxW = 150; maxLines = 2;
       }
@@ -352,7 +426,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
             }
           },
           provider.matbuFontBoyutu,
-          maxWidth: 300,
+          maxWidth: 200,
           maxLines: 2,
           hint: 'Özel Not $i',
         ),
@@ -361,21 +435,26 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     return w;
   }
 
-  List<List<int>> _hesaplaSayfalar(BatchFaturaProvider provider, var invoice, int satirLimit) {
+  /// Her sayfanın kalem index listesi + nakli yekün tutarlarını hesaplar.
+  /// Index -1 = Nakli Yekün satırı (top veya bottom).
+  /// Döndürülen Map: 'pages' → List<List<int>>, 'nakliTutarlar' → List<double> (her sayfa sonundaki kümülatif)
+  Map<String, dynamic> _hesaplaSayfalar(BatchFaturaProvider provider, var invoice) {
     final kalemler = invoice.kalemler;
+    final satirLimit = 9999;
     final isGercekList = kalemler.map((k) => FaturaMatbuConfig.matbuKalemleri([k]).isNotEmpty).toList();
     final gercekKalemler = FaturaMatbuConfig.matbuKalemleri(kalemler);
 
     final List<List<int>> pagesOfIndices = [];
+    final List<double> nakliTutarlar = []; // Her sayfa sonundaki kümülatif toplam
     int currentItemIndex = 0;
     int currentGercekIndex = 0;
+    double runningTotal = 0.0;
     
     while (currentGercekIndex < gercekKalemler.length || pagesOfIndices.isEmpty) {
       int spaceLeft = satirLimit;
       final List<int> currentPageIndices = [];
       
       if (pagesOfIndices.isNotEmpty && invoice.nakliYekunAktif) {
-        currentPageIndices.add(-1); // Top Nakli Yekün
         spaceLeft--;
       }
 
@@ -387,22 +466,36 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       
       int effectiveSpace = willHaveNextPage ? spaceLeft - 1 : spaceLeft;
 
+      double pageTotal = 0.0;
       while (effectiveSpace > 0 && currentItemIndex < kalemler.length) {
         currentPageIndices.add(currentItemIndex);
         if (isGercekList[currentItemIndex]) {
+          final m = TurkceFormat.parseSayi(kalemler[currentItemIndex]['miktar'], fallback: 1.0);
+          final f = TurkceFormat.parseSayi(kalemler[currentItemIndex]['fiyat'], fallback: 0.0);
+          pageTotal += (m * f);
           currentGercekIndex++;
-          effectiveSpace--;
-          spaceLeft--;
         }
+        
+        effectiveSpace--;
+        spaceLeft--;
+
+        final bool bolunmeIstendi = kalemler[currentItemIndex]['sayfayiBol'] == true;
         currentItemIndex++;
+        
+        if (bolunmeIstendi && currentGercekIndex < gercekKalemler.length) {
+          willHaveNextPage = true;
+          break;
+        }
       }
       
+      runningTotal += pageTotal;
+      
       if (willHaveNextPage) {
-        currentPageIndices.add(-1); // Bottom Nakli Yekün
         spaceLeft--;
       }
       
       pagesOfIndices.add(currentPageIndices);
+      nakliTutarlar.add(runningTotal);
     }
     
     while (currentItemIndex < kalemler.length) {
@@ -413,14 +506,23 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
            } else {
               lastPage.add(currentItemIndex);
            }
+           // Son sayfadaki ek kalemleri de toplama ekle
+           if (isGercekList[currentItemIndex]) {
+             final m = TurkceFormat.parseSayi(kalemler[currentItemIndex]['miktar'], fallback: 1.0);
+             final f = TurkceFormat.parseSayi(kalemler[currentItemIndex]['fiyat'], fallback: 0.0);
+             nakliTutarlar[nakliTutarlar.length - 1] += (m * f);
+           }
        }
        currentItemIndex++;
     }
 
-    return pagesOfIndices;
+    return {
+      'pages': pagesOfIndices,
+      'nakliTutarlar': nakliTutarlar,
+    };
   }
 
-  List<Widget> _buildKalemler(BatchFaturaProvider provider, var invoice, KalibrasyonBaskiOnizleme onizleme, List<int> pageIndices) {
+  List<Widget> _buildKalemler(BatchFaturaProvider provider, var invoice, KalibrasyonBaskiOnizleme onizleme, List<int> pageIndices, {double nakliYekunTutari = 0.0}) {
     final w = <Widget>[];
     final kalemler = invoice.kalemler;
     if (kalemler.isEmpty) return w;
@@ -429,74 +531,13 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     if (cinsiBase == null) return w;
 
     int renderIndex = 0;
-    int gercekRenderIndex = 0;
     
     for (int i in pageIndices) {
       final satirDy = renderIndex * provider.kalemSatirAraligi;
       final satirTop = cinsiBase.dy + provider.globalOffsetDy + satirDy + 200;
       renderIndex++;
       
-      if (i == -1) {
-        // NAKLİ YEKÜN SATIRI
-        Widget buildReadOnly(String key, String text, double maxW, bool bold, TextAlign align) {
-          final childWidget = Container(
-            width: maxW,
-            decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.05),
-              border: Border(bottom: BorderSide(color: Colors.blue.withValues(alpha: 0.3), width: 1)),
-            ),
-            padding: const EdgeInsets.only(bottom: 2),
-            child: Text(
-              text,
-              maxLines: 1,
-              textAlign: align,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: provider.matbuFontBoyutu,
-                fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-                color: Colors.black87,
-              ),
-            ),
-          );
-          
-          return Positioned(
-            left: provider.coordinates[key]!.dx + provider.globalOffsetDx + 300,
-            top: satirTop,
-            child: _kalibrasyonModu
-                ? _suruklenebilirAlan(
-                    provider: provider,
-                    alanKey: key,
-                    child: _metinKutusu(
-                      metin: text,
-                      fontBoyutu: provider.matbuFontBoyutu,
-                      secili: _seciliAlan == key,
-                      maxWidth: maxW,
-                      kalin: bold,
-                      textAlign: align,
-                    ),
-                  )
-                : childWidget,
-          );
-        }
-
-        if (gercekRenderIndex < onizleme.kalemler.length) {
-          final satirOnizleme = onizleme.kalemler[gercekRenderIndex];
-
-          if (provider.coordinates.containsKey('cinsi')) w.add(buildReadOnly('cinsi', satirOnizleme.cinsi, 255, true, TextAlign.left));
-          if (provider.coordinates.containsKey('miktar')) w.add(buildReadOnly('miktar', satirOnizleme.miktar, 50, false, TextAlign.center));
-          if (provider.coordinates.containsKey('fiyat')) w.add(buildReadOnly('fiyat', satirOnizleme.fiyat, 80, false, TextAlign.left));
-          if (provider.coordinates.containsKey('tutar')) w.add(buildReadOnly('tutar', satirOnizleme.tutar, 80, false, TextAlign.left));
-        }
-        
-        gercekRenderIndex++;
-        continue;
-      }
-
       final satirMap = kalemler[i];
-      final isGercek = FaturaMatbuConfig.matbuKalemleri([satirMap]).isNotEmpty;
-      if (isGercek) {
-        gercekRenderIndex++;
-      }
 
       // Cinsi
       if (provider.coordinates.containsKey('cinsi')) {

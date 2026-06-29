@@ -17,7 +17,7 @@ class FaturaMatbuKalibrasyon {
   });
 
   /// Şema değişince artırılır; eski kayıtlar varsayılanlarla birleştirilir.
-  static const int guncelSurum = 5;
+  static const int guncelSurum = 7;
 
   static const kalemSutunlari = {'cinsi', 'miktar', 'fiyat', 'tutar'};
 
@@ -111,8 +111,31 @@ class FaturaMatbuKalibrasyon {
     }
 
     if (surum < guncelSurum) {
-      // Yeni eklenen veya yeniden konumlanan üst-sağ alanlar varsayılanla güncellenir.
       for (final key in ['tarih', 'irsaliyeTarihi', 'irsaliyeNo']) {
+        birlesik[key] = varsayilan.koordinatlar[key]!;
+      }
+      for (final key in [
+        'numuneAciklama',
+        'melbesKurum',
+        'melbes',
+        'numuneNo',
+        'nakliYekunUstYazi',
+        'nakliYekunUstTutar',
+        'nakliYekunAltYazi',
+        'nakliYekunAltTutar',
+        'matrah',
+        'kdv',
+        'kdvOrani',
+        'genelToplam',
+        'yaziylaTutar',
+        'hesapAdi',
+        'iban',
+        'ekstraNot_0',
+        'ekstraNot_1',
+        'ekstraNot_2',
+        'ekstraNot_3',
+        'ekstraNot_4',
+      ]) {
         birlesik[key] = varsayilan.koordinatlar[key]!;
       }
     }

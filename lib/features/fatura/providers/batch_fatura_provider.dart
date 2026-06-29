@@ -313,12 +313,10 @@ class BatchFaturaProvider extends ChangeNotifier {
     if (ornek) {
       final kalemlerHam = FaturaMatbuConfig.matbuKalemleri(fatura.kalemler);
       if (kalemlerHam.isEmpty) return 1;
-      const satirLimit = 10;
       return (kalemlerHam.length / satirLimit).ceil().clamp(1, 9999);
     }
     final kalemlerHam = FaturaMatbuConfig.matbuKalemleri(fatura.kalemler);
     if (kalemlerHam.isEmpty) return 1;
-    const satirLimit = 10;
     return (kalemlerHam.length / satirLimit).ceil().clamp(1, 9999);
   }
 
@@ -330,6 +328,7 @@ class BatchFaturaProvider extends ChangeNotifier {
         isletmeVkn: _isletmeVknFallback(),
         yaziyla: TurkceFormat.sayiyiYaziyaCevir,
         sayfaNo: sayfaNo ?? 1,
+        satirLimit: satirLimit,
       );
     }
     final baslik = fatura.firmaAdi.trim().isNotEmpty
@@ -344,6 +343,7 @@ class BatchFaturaProvider extends ChangeNotifier {
       yaziyla: TurkceFormat.sayiyiYaziyaCevir,
       canliVeri: true,
       baslik: baslik,
+      satirLimit: satirLimit,
     );
   }
 

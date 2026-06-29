@@ -11,6 +11,27 @@ class FaturaMatbuConfig {
   static const double varsayilanKalemSatirAraligi = 16.0;
   static const int varsayilanSatirLimit = 10;
 
+  /// KDV muaf matbu faturada basılacak kısa metin (yalnızca son sayfa).
+  static const String kdvMuafMatbuMetin = 'MUAF';
+
+  /// Numune açıklama alanı — KDV muaf metni yalnızca son sayfada eklenir.
+  static String numuneAciklamaMatbuMetni({
+    required String numuneAciklamasi,
+    required String? aciklama,
+    required bool isKdvMuaf,
+    required bool sonSayfa,
+  }) {
+    final numuneAciklamaAlt = numuneAciklamasi.trim();
+    final numuneMelbesSatir = numuneAciklamaAlt.toLowerCase().contains('melbes') &&
+        numuneAciklamaAlt.toLowerCase().contains('numune');
+    final parts = <String>[
+      if (numuneAciklamaAlt.isNotEmpty && !numuneMelbesSatir) numuneAciklamaAlt,
+      if (aciklama != null && aciklama.trim().isNotEmpty) aciklama.trim(),
+      if (isKdvMuaf && sonSayfa) kdvMuafMatbuMetin,
+    ];
+    return parts.join(' | ');
+  }
+
   /// Matbu baskı/kalibrasyonda yalnızca gerçek tutarlı kalemleri basar.
   /// Başlık/grup satırları (cinsi var, fiyat/tutar yok) miktar sütununu kaydırmasın.
   static List<Map<String, dynamic>> matbuKalemleri(
@@ -46,6 +67,7 @@ class FaturaMatbuConfig {
     'nakliYekunAltYazi': 'Nakli Yekün (Alt)',
     'nakliYekunAltTutar': 'Nakli Yekün Tutar (Alt)',
     'numuneAciklama': 'Numune Açıklaması',
+    'melbesKurum': 'Bakanlık / Kurum Adı',
     'melbes': 'MELBES No',
     'numuneNo': 'Numune No',
     'matrah': 'Matrah',
@@ -75,8 +97,8 @@ class FaturaMatbuConfig {
     'fiyat': '1.500,00',
     'tutar': '1.500,00',
     'numuneAciklama': 'Su numunesi — klor analizi',
-    'melbes':
-        'Çevre Şehircilik ve İklim Değişikliği Bakanlığı Melbes Başvuru No: MEL-2026-0042 Numune No: N-1087',
+    'melbesKurum': 'Çevre Şehircilik ve İklim Değişikliği Bakanlığı',
+    'melbes': 'Melbes Başvuru No: MEL-2026-0042',
     'numuneNo': 'Numune No: N-1087',
     'matrah': '1.500,00',
     'kdv': '300,00',
@@ -90,18 +112,20 @@ class FaturaMatbuConfig {
     'ekstraNot_2': 'Sürükle: 3. Özel Not',
     'ekstraNot_3': 'Sürükle: 4. Özel Not',
     'ekstraNot_4': 'Sürükle: 5. Özel Not',
+    'nakliYekunUstTutar': '1.500,00',
+    'nakliYekunAltTutar': '1.500,00',
   };
+
+  /// Alt bölüm: yalnızca son sayfada basılır (çok sayfalı fatura).
+  static const altBolgeSonSayfaAlanlari = <String>{};
+
+  static bool altBolgeAlanMi(String alan) => false;
 
   /// Kalibrasyon önizlemesi ile PDF baskısında aynı metin biçimi.
   static Map<String, String> ornekBaskiMetinleri({String? isletmeVkn}) {
     const matrah = 1500.0;
     const kdv = 300.0;
     const genel = 1800.0;
-    final melbesSatir = formatMelbesNumuneSatir(
-      melbes: 'MEL-2026-0042',
-      numune: 'N-1087',
-      kurumOnEki: varsayilanMelbesKurumOnEki,
-    );
     final hesap = formatHesapAdiMatbu(
       ornekMetinler['hesapAdi']!,
       fallbackVkn: isletmeVkn ?? varsayilanIsletmeVkn,
@@ -120,7 +144,9 @@ class FaturaMatbuConfig {
       'fiyat': TurkceFormat.para(1500),
       'tutar': TurkceFormat.para(1500),
       'numuneAciklama': ornekMetinler['numuneAciklama']!,
-      'melbes': melbesSatir,
+      'melbesKurum': ornekMetinler['melbesKurum']!,
+      'melbes': ornekMetinler['melbes']!,
+      'numuneNo': ornekMetinler['numuneNo']!,
       'matrah': TurkceFormat.para(matrah),
       'kdv': TurkceFormat.para(kdv),
       'kdvOrani': '%20',
@@ -216,24 +242,22 @@ class FaturaMatbuConfig {
   static const String varsayilanMelbesKurumOnEki =
       'Çevre Şehircilik ve İklim Değişikliği Bakanlığı';
 
-  /// Matbu faturada MELBES alanı — yalnızca numara girilmişse etiket eklenir.
+  /// Matbu: bakanlık/kurum adı (ayrı alan).
+  static String formatMelbesKurumMatbu(String raw) => raw.trim();
+
+  /// Matbu: yalnızca MELBES numarası — kurum ayrı alanda.
+  static String formatMelbesNoMatbu(String raw) {
+    return raw.trim();
+  }
+
+  /// Matbu faturada MELBES alanı — kurum ile birleşik (eski tek satır).
   static String formatMelbesMatbu(String raw, {String? kurumOnEki}) {
-    final t = raw.trim();
-    if (t.isEmpty) return '';
-    if (RegExp(r'melbes', caseSensitive: false).hasMatch(t)) return t;
-    final kurum = kurumOnEki?.trim() ?? '';
-    if (kurum.isNotEmpty) {
-      return '$kurum Melbes Başvuru No: $t';
-    }
-    return 'Melbes Başvuru No: $t';
+    return raw.trim();
   }
 
   /// Matbu faturada Numune No alanı — yalnızca numara girilmişse etiket eklenir.
   static String formatNumuneNoMatbu(String raw) {
-    final t = raw.trim();
-    if (t.isEmpty) return '';
-    if (RegExp(r'numune', caseSensitive: false).hasMatch(t)) return t;
-    return 'Numune No: $t';
+    return raw.trim();
   }
 
   /// Matbu: tek satırda kurum + MELBES + Numune No.
@@ -279,20 +303,25 @@ class FaturaMatbuConfig {
     'miktar': const Offset(318, 332),
     'fiyat': const Offset(378, 332),
     'tutar': const Offset(508, 332),
-    'numuneAciklama': const Offset(50, 600),
-    'melbes': const Offset(50, 620),
-    'numuneNo': const Offset(50, 640),
-    'matrah': const Offset(470, 675),
-    'kdv': const Offset(470, 705),
-    'kdvOrani': const Offset(440, 705),
-    'genelToplam': const Offset(470, 735),
-    'yaziylaTutar': const Offset(90, 785),
-    'hesapAdi': const Offset(90, 805),
-    'iban': const Offset(90, 825),
-    'ekstraNot_0': const Offset(50, 660),
-    'ekstraNot_1': const Offset(50, 680),
-    'ekstraNot_2': const Offset(50, 700),
-    'ekstraNot_3': const Offset(50, 720),
-    'ekstraNot_4': const Offset(50, 740),
+    'numuneAciklama': const Offset(50, 578),
+    'melbesKurum': const Offset(42, 598),
+    'melbes': const Offset(295, 598),
+    'numuneNo': const Offset(455, 598),
+    'nakliYekunUstYazi': const Offset(42, 310),
+    'nakliYekunUstTutar': const Offset(508, 310),
+    'nakliYekunAltYazi': const Offset(42, 560),
+    'nakliYekunAltTutar': const Offset(508, 560),
+    'matrah': const Offset(470, 672),
+    'kdv': const Offset(470, 692),
+    'kdvOrani': const Offset(440, 692),
+    'genelToplam': const Offset(470, 712),
+    'yaziylaTutar': const Offset(90, 738),
+    'hesapAdi': const Offset(90, 758),
+    'iban': const Offset(90, 778),
+    'ekstraNot_0': const Offset(50, 618),
+    'ekstraNot_1': const Offset(50, 636),
+    'ekstraNot_2': const Offset(50, 654),
+    'ekstraNot_3': const Offset(50, 672),
+    'ekstraNot_4': const Offset(50, 690),
   };
 }

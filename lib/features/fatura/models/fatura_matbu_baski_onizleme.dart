@@ -41,6 +41,7 @@ class KalibrasyonBaskiOnizleme {
     String Function(double)? yaziyla,
     bool canliVeri = true,
     String baslik = '',
+    required int satirLimit,
     int sayfaNo = 1,
   }) {
     List<Map<String, dynamic>> kalemlerHam;
@@ -59,17 +60,15 @@ class KalibrasyonBaskiOnizleme {
               },
             ];
     }
-
-
-    final satirLimit = (invoice.id == 'ornek') ? 10 : 8;
     
+    final satirLimitVal = 9999;
     final List<List<Map<String, dynamic>>> pages = [];
     final List<double> pageTotals = []; // Her sayfanın sonundaki gerçek toplam
     int currentItemIndex = 0;
     double runningTotal = 0.0;
 
     while (currentItemIndex < kalemlerHam.length || pages.isEmpty) {
-      int spaceLeft = satirLimit;
+      int spaceLeft = satirLimitVal;
       final List<Map<String, dynamic>> currentPageItems = [];
       
       if (pages.isNotEmpty && invoice.nakliYekunAktif) {
@@ -101,6 +100,11 @@ class KalibrasyonBaskiOnizleme {
         currentItemIndex++;
         effectiveSpace--;
         spaceLeft--;
+
+        if (item['sayfayiBol'] == true && currentItemIndex < kalemlerHam.length) {
+          willHaveNextPage = true;
+          break;
+        }
       }
       
       runningTotal += pageRealTotal;
@@ -144,6 +148,7 @@ class KalibrasyonBaskiOnizleme {
     }).toList();
     
     final araToplam = pageTotals[startIndex];
+    final ustNakliTutar = startIndex > 0 ? pageTotals[startIndex - 1] : 0.0;
 
     final numuneAciklamaAlt = invoice.numuneAciklamasi.trim();
     final numuneMelbesSatir = numuneAciklamaAlt.toLowerCase().contains('melbes') &&
@@ -194,10 +199,12 @@ class KalibrasyonBaskiOnizleme {
             : invoice.melbesKurumOnEki.trim(),
         'numuneNo': numuneYazi,
         'matrah': (!canliVeri || sonSayfa) ? TurkceFormat.para(invoice.matrah) : (invoice.nakliYekunAktif ? TurkceFormat.para(araToplam) : ''),
-        'kdv': (sonSayfa || !canliVeri) ? TurkceFormat.para(invoice.kdvTutari) : '',
-        'kdvOrani': (sonSayfa || !canliVeri) ? (invoice.isKdvMuaf ? '' : '%${invoice.kdvOrani.toInt()}') : '',
+        'kdv': invoice.isKdvMuaf ? 'MUAF' : ((sonSayfa || !canliVeri) ? TurkceFormat.para(invoice.kdvTutari) : ''),
+        'kdvOrani': invoice.isKdvMuaf ? '' : ((sonSayfa || !canliVeri) ? '%${invoice.kdvOrani.toInt()}' : ''),
         'genelToplam': (sonSayfa || !canliVeri) ? TurkceFormat.para(invoice.genelToplam) : '',
         'yaziylaTutar': (sonSayfa || !canliVeri) ? (yaziyla != null ? yaziyla(invoice.genelToplam) : '') : '',
+        'nakliYekunUstTutar': TurkceFormat.para(ustNakliTutar),
+        'nakliYekunAltTutar': TurkceFormat.para(araToplam),
         'hesapAdi': hesapAdi,
         'iban': iban,
         'ekstraNot_0': invoice.ekstraNotlar.isNotEmpty ? invoice.ekstraNotlar[0] : (canliVeri ? '' : FaturaMatbuConfig.ornekMetinler['ekstraNot_0']!),
@@ -213,6 +220,7 @@ class KalibrasyonBaskiOnizleme {
     required String isletmeVkn,
     required String Function(double) yaziyla,
     int sayfaNo = 1,
+    required int satirLimit,
   }) {
     final ornekFatura = FaturaModel(
       id: 'ornek',
@@ -246,6 +254,7 @@ class KalibrasyonBaskiOnizleme {
       isletmeVkn: isletmeVkn,
       yaziyla: yaziyla,
       canliVeri: false,
+      satirLimit: satirLimit,
       sayfaNo: sayfaNo,
       baslik: 'Örnek şablon (kuyrukta fatura yok)',
     );
