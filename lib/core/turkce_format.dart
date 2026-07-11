@@ -77,13 +77,13 @@ class TurkceFormat {
 
   /// Tutarı yazıyla Türkçe olarak döndürür: `1.800,00` → `BİN SEKİZ YÜZ TÜRK LİRASI SIFIR KURUŞTUR.`
   static String sayiyiYaziyaCevir(double tutar) {
-    if (tutar == 0) return 'SIFIR TÜRK LİRASI SIFIR KURUŞTUR.';
+    if (tutar == 0) return '#SIFIR TÜRK LİRASI SIFIR KURUŞTUR.#';
     final parts = tutar.toStringAsFixed(2).split('.');
     final lira = int.parse(parts[0]);
     final kurus = int.parse(parts[1]);
     final liraYazi = lira == 0 ? 'SIFIR' : _convertNumberToWords(lira);
     final kurusYazi = kurus == 0 ? 'SIFIR' : _convertNumberToWords(kurus);
-    return '$liraYazi TÜRK LİRASI $kurusYazi KURUŞTUR.';
+    return '#$liraYazi TÜRK LİRASI $kurusYazi KURUŞTUR.#';
   }
 
   static String _convertNumberToWords(int number) {

@@ -93,8 +93,8 @@ class KalibrasyonBaskiOnizleme {
         final item = kalemlerHam[currentItemIndex];
         currentPageItems.add(item);
         
-        final fiyat = double.tryParse(item['fiyat'].toString()) ?? 0.0;
-        final miktar = double.tryParse(item['miktar'].toString()) ?? 1.0;
+        final fiyat = TurkceFormat.parseSayi(item['fiyat']);
+        final miktar = TurkceFormat.parseSayi(item['miktar'], fallback: 1.0);
         pageRealTotal += (fiyat * miktar);
         
         currentItemIndex++;
@@ -136,8 +136,8 @@ class KalibrasyonBaskiOnizleme {
         );
       }
       
-      final fiyat = double.tryParse(item['fiyat'].toString()) ?? 0.0;
-      final miktar = double.tryParse(item['miktar'].toString()) ?? 1.0;
+      final fiyat = TurkceFormat.parseSayi(item['fiyat']);
+      final miktar = TurkceFormat.parseSayi(item['miktar'], fallback: 1.0);
       final miktarMetin = miktar == miktar.roundToDouble() ? miktar.toInt().toString() : TurkceFormat.ondalik(miktar);
       return KalibrasyonKalemSatir(
         cinsi: '${item['cinsi']}',
@@ -194,9 +194,8 @@ class KalibrasyonBaskiOnizleme {
         'irsaliyeTarihi': invoice.irsaliyeTarihi,
         'irsaliyeNo': invoice.irsaliyeNo,
         'numuneAciklama': ustAciklamalar,
-        'melbes': melbesYazi.isNotEmpty
-            ? melbesYazi
-            : invoice.melbesKurumOnEki.trim(),
+        'melbesKurum': invoice.melbesKurumOnEki.trim(),
+        'melbes': melbesYazi,
         'numuneNo': numuneYazi,
         'matrah': (!canliVeri || sonSayfa) ? TurkceFormat.para(invoice.matrah) : (invoice.nakliYekunAktif ? TurkceFormat.para(araToplam) : ''),
         'kdv': invoice.isKdvMuaf ? 'MUAF' : ((sonSayfa || !canliVeri) ? TurkceFormat.para(invoice.kdvTutari) : ''),

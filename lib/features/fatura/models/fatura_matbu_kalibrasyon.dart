@@ -110,35 +110,7 @@ class FaturaMatbuKalibrasyon {
       birlesik[entry.key] = entry.value;
     }
 
-    if (surum < guncelSurum) {
-      for (final key in ['tarih', 'irsaliyeTarihi', 'irsaliyeNo']) {
-        birlesik[key] = varsayilan.koordinatlar[key]!;
-      }
-      for (final key in [
-        'numuneAciklama',
-        'melbesKurum',
-        'melbes',
-        'numuneNo',
-        'nakliYekunUstYazi',
-        'nakliYekunUstTutar',
-        'nakliYekunAltYazi',
-        'nakliYekunAltTutar',
-        'matrah',
-        'kdv',
-        'kdvOrani',
-        'genelToplam',
-        'yaziylaTutar',
-        'hesapAdi',
-        'iban',
-        'ekstraNot_0',
-        'ekstraNot_1',
-        'ekstraNot_2',
-        'ekstraNot_3',
-        'ekstraNot_4',
-      ]) {
-        birlesik[key] = varsayilan.koordinatlar[key]!;
-      }
-    }
+
 
     FaturaMatbuKalibrasyon.senkronizeKalemDy(birlesik);
 

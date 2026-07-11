@@ -17,9 +17,7 @@ class VisualEntryScreen extends StatefulWidget {
 }
 
 class _VisualEntryScreenState extends State<VisualEntryScreen> {
-  bool _kalibrasyonModu = false;
   String? _seciliAlan;
-  bool _alanSurukleniyor = false;
   bool _arkaPlanGoster = true;
   
   final ScrollController _horizontalScrollController = ScrollController();
@@ -73,17 +71,6 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
               const SizedBox(width: 8),
             ],
           ),
-          Row(
-            children: [
-              Switch(
-                value: _kalibrasyonModu,
-                activeColor: Colors.amberAccent,
-                onChanged: (v) => setState(() {
-                  _kalibrasyonModu = v;
-                  if (!v) _seciliAlan = null;
-                }),
-              ),
-              const Text('Kalibrasyon', style: TextStyle(color: Colors.white, fontSize: 13)),
               const SizedBox(width: 8),
             ],
           ),
@@ -100,20 +87,19 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
             },
           ),
           const SizedBox(width: 8),
-          if (_kalibrasyonModu)
-            TextButton.icon(
-              icon: const Icon(Icons.save, color: Colors.greenAccent),
-              label: const Text('Kaydet', style: TextStyle(color: Colors.greenAccent)),
-              onPressed: () async {
-                final provider = context.read<BatchFaturaProvider>();
-                await provider.saveMatbuAyarlari();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Kalibrasyon kaydedildi.'), backgroundColor: Colors.green),
-                  );
-                }
-              },
-            ),
+          TextButton.icon(
+            icon: const Icon(Icons.save, color: Colors.greenAccent),
+            label: const Text('Kaydet', style: TextStyle(color: Colors.greenAccent)),
+            onPressed: () async {
+              final provider = context.read<BatchFaturaProvider>();
+              await provider.saveMatbuAyarlari();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Kalibrasyon kaydedildi.'), backgroundColor: Colors.green),
+                );
+              }
+            },
+          ),
           const SizedBox(width: 8),
           TextButton.icon(
             icon: const Icon(Icons.add, color: Colors.white),
@@ -139,12 +125,11 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_kalibrasyonModu)
-            SizedBox(
-              width: 250,
-              child: _buildSidePanel(provider),
-            ),
-          if (_kalibrasyonModu) const VerticalDivider(width: 1),
+          SizedBox(
+            width: 250,
+            child: _buildSidePanel(provider),
+          ),
+          const VerticalDivider(width: 1),
           Expanded(
             child: Scrollbar(
               thumbVisibility: true,
@@ -284,6 +269,9 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       if (FaturaMatbuConfig.altBolgeAlanMi(key) && !sonSayfa) return;
       
       final val = data.$1 as String;
+      if ((key == 'melbes' || key == 'numuneNo') && val.trim().isEmpty) {
+        return;
+      }
       final updateKey = data.$2 as String;
       final maxW = data.$3 as double;
       final lines = data.$4 as int;
@@ -378,12 +366,10 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
           ),
         ),
       );
-
       w.add(Positioned(
         left: adjustedOffset.dx,
         top: adjustedOffset.dy,
-        child: _kalibrasyonModu
-            ? _suruklenebilirAlan(
+        child: _suruklenebilirAlan(
                 provider: provider,
                 alanKey: key,
                 child: _metinKutusu(
@@ -393,8 +379,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
                   maxWidth: maxW,
                   kalin: isBold,
                 ),
-              )
-            : childWidget,
+              ),
       ));
     }); // readOnly.forEach sonu
 
@@ -407,9 +392,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       if (!provider.coordinates.containsKey('ekstraNot_$i')) continue;
       final offset = _konum(provider, 'ekstraNot_$i');
       
-      // Sadece kalibrasyon modundaysak boşları göster (sürüklemek için)
-      // Normal moddaysak sadece var olan notları göster.
-      if (!_kalibrasyonModu && i >= invoice.ekstraNotlar.length) continue;
+      if (i >= invoice.ekstraNotlar.length) continue;
       
       final val = i < invoice.ekstraNotlar.length ? invoice.ekstraNotlar[i] : '';
       
@@ -419,11 +402,9 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
         child: _editableField(
           provider,
           'ekstraNot_$i',
-          val.isEmpty && _kalibrasyonModu ? FaturaMatbuConfig.ornekMetinler['ekstraNot_$i']! : val,
+          val.isEmpty ? FaturaMatbuConfig.ornekMetinler['ekstraNot_$i']! : val,
           (v) {
-            if (!_kalibrasyonModu) {
               provider.updateEkstraNot(widget.invoiceIndex, i, v);
-            }
           },
           provider.matbuFontBoyutu,
           maxWidth: 200,
@@ -602,58 +583,49 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
          w.add(Positioned(
            left: provider.coordinates['tutar']!.dx + provider.globalOffsetDx + 300,
            top: satirTop,
-           child: _kalibrasyonModu
-               ? _suruklenebilirAlan(
+           child: _suruklenebilirAlan(
                    provider: provider,
                    alanKey: 'tutar',
-                   child: _metinKutusu(
-                     metin: metin.isEmpty ? 'Tutar' : metin,
-                     fontBoyutu: provider.matbuFontBoyutu,
-                     secili: _seciliAlan == 'tutar',
-                     maxWidth: 70,
-                     textAlign: TextAlign.right,
-                   ),
-                 )
-               : Row(
-                   mainAxisSize: MainAxisSize.min,
-                   children: [
-                     Container(
-                       width: 70,
-                       alignment: Alignment.centerRight,
-                       child: Text(
-                         metin,
-                         style: TextStyle(fontSize: provider.matbuFontBoyutu, color: Colors.black87),
+                   child: Row(
+                     mainAxisSize: MainAxisSize.min,
+                     children: [
+                       _metinKutusu(
+                         metin: metin.isEmpty ? 'Tutar' : metin,
+                         fontBoyutu: provider.matbuFontBoyutu,
+                         secili: _seciliAlan == 'tutar',
+                         maxWidth: 70,
+                         textAlign: TextAlign.right,
                        ),
-                     ),
-                     const SizedBox(width: 4),
-                      InkWell(
-                        onTap: () async {
-                          final bool? confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Emin misiniz?'),
-                              content: const Text('Bu kalemi silmek istediğinize emin misiniz?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: const Text('İptal'),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                  child: const Text('Sil'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            provider.removeKalem(widget.invoiceIndex, i);
-                            setState(() {});
-                          }
-                        },
-                        child: const Icon(Icons.close, color: Colors.red, size: 16),
-                      ),
-                   ],
+                       const SizedBox(width: 4),
+                       InkWell(
+                         onTap: () async {
+                           final bool? confirm = await showDialog<bool>(
+                             context: context,
+                             builder: (context) => AlertDialog(
+                               title: const Text('Emin misiniz?'),
+                               content: const Text('Bu kalemi silmek istediğinize emin misiniz?'),
+                               actions: [
+                                 TextButton(
+                                   onPressed: () => Navigator.pop(context, false),
+                                   child: const Text('İptal'),
+                                 ),
+                                 TextButton(
+                                   onPressed: () => Navigator.pop(context, true),
+                                   style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                   child: const Text('Sil'),
+                                 ),
+                               ],
+                             ),
+                           );
+                           if (confirm == true) {
+                             provider.removeKalem(widget.invoiceIndex, i);
+                             setState(() {});
+                           }
+                         },
+                         child: const Icon(Icons.close, color: Colors.red, size: 16),
+                       ),
+                     ],
+                   ),
                  ),
          ));
       }
@@ -677,48 +649,17 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     TextAlign textAlign = TextAlign.left,
     String? hint,
   }) {
-    if (_kalibrasyonModu) {
-      return _suruklenebilirAlan(
-        provider: provider,
-        alanKey: key,
-        child: _metinKutusu(
-          metin: initialValue.isEmpty ? (FaturaMatbuConfig.alanEtiketleri[key] ?? key) : initialValue,
-          fontBoyutu: fontSize,
-          secili: _seciliAlan == key,
-          maxWidth: maxWidth,
-          textAlign: textAlign,
-          tekSatir: maxLines == 1,
-        ),
-      );
-    }
-    
-    return Container(
-      width: maxWidth,
-      decoration: BoxDecoration(
-        color: Colors.blue.withValues(alpha: 0.05),
-        border: Border(
-          bottom: BorderSide(color: Colors.blue.withValues(alpha: 0.3), width: 1),
-        ),
-      ),
-      child: TextFormField(
+    return _suruklenebilirAlan(
+      provider: provider,
+      alanKey: key,
+      child: _MatbuEditableField(
         initialValue: initialValue,
         onChanged: onChanged,
+        fontSize: fontSize,
+        maxWidth: maxWidth,
         maxLines: maxLines,
         textAlign: textAlign,
-        style: TextStyle(
-          fontSize: fontSize,
-          height: 1.1,
-          color: Colors.black,
-        ),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey),
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
-          border: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          enabledBorder: InputBorder.none,
-        ),
+        hint: hint,
       ),
     );
   }
@@ -831,31 +772,130 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     required String alanKey,
     required Widget child,
   }) {
-    if (!_kalibrasyonModu) return child;
-
     final secili = _seciliAlan == alanKey;
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: () => setState(() => _seciliAlan = alanKey),
-      onPanStart: (_) => setState(() { _alanSurukleniyor = true; _seciliAlan = alanKey; }),
-      onPanUpdate: (details) {
-        provider.calibrationDragDelta(alanKey, details.delta, notify: false);
-        setState(() {});
-      },
-      onPanEnd: (_) {
-        setState(() => _alanSurukleniyor = false);
-        provider.calibrationUiRefresh();
-      },
-      onPanCancel: () {
-        setState(() => _alanSurukleniyor = false);
-        provider.calibrationUiRefresh();
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          border: secili ? Border.all(color: Colors.blue, width: 2) : Border.all(color: Colors.red.withValues(alpha: 0.5), width: 1),
-          color: secili ? Colors.blue.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.5),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            border: secili ? Border.all(color: Colors.blue.withValues(alpha: 0.5), width: 1) : Border.all(color: Colors.transparent, width: 1),
+          ),
+          child: child,
         ),
-        child: AbsorbPointer(child: child),
+        Positioned(
+          left: -18,
+          top: -2,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _seciliAlan = alanKey),
+            onPanStart: (_) => setState(() { _seciliAlan = alanKey; }),
+            onPanUpdate: (details) {
+              provider.calibrationDragDelta(alanKey, details.delta, notify: false);
+              setState(() {});
+            },
+            onPanEnd: (_) {
+              provider.calibrationUiRefresh();
+            },
+            onPanCancel: () {
+              provider.calibrationUiRefresh();
+            },
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: Colors.blueAccent.withValues(alpha: 0.8),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 2,
+                    offset: const Offset(1, 1),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.open_with, size: 10, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MatbuEditableField extends StatefulWidget {
+  final String initialValue;
+  final Function(String) onChanged;
+  final double fontSize;
+  final double maxWidth;
+  final int maxLines;
+  final TextAlign textAlign;
+  final String? hint;
+
+  const _MatbuEditableField({
+    required this.initialValue,
+    required this.onChanged,
+    required this.fontSize,
+    required this.maxWidth,
+    this.maxLines = 1,
+    this.textAlign = TextAlign.left,
+    this.hint,
+  });
+
+  @override
+  _MatbuEditableFieldState createState() => _MatbuEditableFieldState();
+}
+
+class _MatbuEditableFieldState extends State<_MatbuEditableField> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void didUpdateWidget(_MatbuEditableField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialValue != _controller.text) {
+      _controller.text = widget.initialValue;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: widget.maxWidth,
+      decoration: BoxDecoration(
+        color: Colors.blue.withValues(alpha: 0.05),
+        border: Border(
+          bottom: BorderSide(color: Colors.blue.withValues(alpha: 0.3), width: 1),
+        ),
+      ),
+      child: TextFormField(
+        controller: _controller,
+        onChanged: widget.onChanged,
+        maxLines: widget.maxLines,
+        textAlign: widget.textAlign,
+        style: TextStyle(
+          fontSize: widget.fontSize,
+          height: 1.1,
+          color: Colors.black,
+        ),
+        decoration: InputDecoration(
+          hintText: widget.hint,
+          hintStyle: TextStyle(fontSize: widget.fontSize, color: Colors.grey),
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+          border: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          enabledBorder: InputBorder.none,
+        ),
       ),
     );
   }

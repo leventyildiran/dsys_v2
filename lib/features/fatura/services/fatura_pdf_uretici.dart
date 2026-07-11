@@ -177,8 +177,8 @@ class FaturaPdfUretici {
             final item = kalemler[currentItemIndex];
             currentPageItems.add(item);
             
-            final fiyat = double.tryParse(item['fiyat'].toString()) ?? 0.0;
-            final miktar = double.tryParse(item['miktar'].toString()) ?? 1.0;
+            final fiyat = TurkceFormat.parseSayi(item['fiyat']);
+            final miktar = TurkceFormat.parseSayi(item['miktar'], fallback: 1.0);
             pageRealTotal += (fiyat * miktar);
             
             currentItemIndex++;
@@ -199,8 +199,8 @@ class FaturaPdfUretici {
           final sayfaSatirlari = pages[sayfaIndex];
 
           final araToplam = sayfaSatirlari.fold<double>(0, (acc, item) {
-            final fiyat = double.tryParse(item['fiyat'].toString()) ?? 0.0;
-            final miktar = double.tryParse(item['miktar'].toString()) ?? 1.0;
+            final fiyat = TurkceFormat.parseSayi(item['fiyat']);
+            final miktar = TurkceFormat.parseSayi(item['miktar'], fallback: 1.0);
             return acc + (fiyat * miktar);
           });
           final sonSayfa = sayfaIndex == toplamSayfa - 1;
@@ -283,10 +283,8 @@ class FaturaPdfUretici {
                   final item = entry.value;
                   final currentTop =
                       konum('cinsi').dy + (index * kalemSatirAraligi);
-                  final fiyat =
-                      double.tryParse(item['fiyat'].toString()) ?? 0.0;
-                  final miktar =
-                      double.tryParse(item['miktar'].toString()) ?? 1.0;
+                  final fiyat = TurkceFormat.parseSayi(item['fiyat']);
+                  final miktar = TurkceFormat.parseSayi(item['miktar'], fallback: 1.0);
                   final satirTutar = fiyat * miktar;
 
                   children.addAll([
@@ -302,21 +300,28 @@ class FaturaPdfUretici {
                       top: currentTop,
                       left: konum('miktar').dx,
                       child: pw.Text(
-                        miktar == miktar.roundToDouble()
-                            ? miktar.toInt().toString()
-                            : TurkceFormat.ondalik(miktar),
+                        item['isNakliYekunRow'] == true
+                            ? ''
+                            : (miktar == miktar.roundToDouble()
+                                ? miktar.toInt().toString()
+                                : TurkceFormat.ondalik(miktar)),
                         style: metin(),
                       ),
                     ),
                     pw.Positioned(
                       top: currentTop,
                       left: konum('fiyat').dx,
-                      child: pw.Text(TurkceFormat.para(fiyat), style: metin()),
+                      child: pw.Text(
+                        item['isNakliYekunRow'] == true
+                            ? ''
+                            : TurkceFormat.paraKalem(fiyat),
+                        style: metin(),
+                      ),
                     ),
                     pw.Positioned(
                       top: currentTop,
                       left: konum('tutar').dx,
-                      child: pw.Text(TurkceFormat.para(satirTutar),
+                      child: pw.Text(TurkceFormat.paraKalem(satirTutar),
                           style: metin()),
                     ),
                   ]);
@@ -346,9 +351,20 @@ class FaturaPdfUretici {
                   ));
                 }
 
+                final melbesKurum = invoice.melbesKurumOnEki.trim();
+                if (melbesKurum.isNotEmpty) {
+                  children.add(pw.Positioned(
+                    top: konum('melbesKurum').dy,
+                    left: konum('melbesKurum').dx,
+                    child: pw.SizedBox(
+                      width: 250,
+                      child: pw.Text(melbesKurum, style: metin()),
+                    ),
+                  ));
+                }
+
                 final melbesYazi = FaturaMatbuConfig.formatMelbesMatbu(
                   invoice.melbesNo.trim(),
-                  kurumOnEki: invoice.melbesKurumOnEki.trim().isNotEmpty ? invoice.melbesKurumOnEki.trim() : null,
                 );
 
                 if (melbesYazi.isNotEmpty) {
@@ -356,7 +372,7 @@ class FaturaPdfUretici {
                     top: konum('melbes').dy,
                     left: konum('melbes').dx,
                     child: pw.SizedBox(
-                      width: 500,
+                      width: 200,
                       child: pw.Text(melbesYazi, style: metin()),
                     ),
                   ));
