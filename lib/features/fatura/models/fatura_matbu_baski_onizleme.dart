@@ -201,7 +201,7 @@ class KalibrasyonBaskiOnizleme {
         'kdv': invoice.isKdvMuaf ? 'MUAF' : ((sonSayfa || !canliVeri) ? TurkceFormat.para(invoice.kdvTutari) : ''),
         'kdvOrani': invoice.isKdvMuaf ? '' : ((sonSayfa || !canliVeri) ? '%${invoice.kdvOrani.toInt()}' : ''),
         'genelToplam': (sonSayfa || !canliVeri) ? TurkceFormat.para(invoice.genelToplam) : '',
-        'yaziylaTutar': (sonSayfa || !canliVeri) ? (yaziyla != null ? yaziyla(invoice.genelToplam) : '') : '',
+        'yaziylaTutar': (sonSayfa || !canliVeri) ? (yaziyla != null ? yaziyla(invoice.genelToplam) : '') : (invoice.nakliYekunAktif && yaziyla != null ? yaziyla(araToplam) : ''),
         'nakliYekunUstTutar': TurkceFormat.para(ustNakliTutar),
         'nakliYekunAltTutar': TurkceFormat.para(araToplam),
         'hesapAdi': hesapAdi,
