@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -10,7 +9,6 @@ import 'package:printing/printing.dart';
 import '../../../core/turkce_format.dart';
 import '../models/fatura_matbu_config.dart';
 import '../models/fatura_model.dart';
-import '../models/fatura_prefs_keys.dart';
 
 /// Provider'dan bağımsız, saf PDF üretim motoru.
 /// Tüm girdiler parametre olarak alınır — state'siz çalışır.
@@ -299,30 +297,41 @@ class FaturaPdfUretici {
                     pw.Positioned(
                       top: currentTop,
                       left: konum('miktar').dx,
-                      child: pw.Text(
-                        item['isNakliYekunRow'] == true
-                            ? ''
-                            : (miktar == miktar.roundToDouble()
-                                ? miktar.toInt().toString()
-                                : TurkceFormat.ondalik(miktar)),
-                        style: metin(),
+                      child: pw.SizedBox(
+                        width: 50,
+                        child: pw.Text(
+                          item['isNakliYekunRow'] == true
+                              ? ''
+                              : (miktar == miktar.roundToDouble()
+                                  ? miktar.toInt().toString()
+                                  : TurkceFormat.ondalik(miktar)),
+                          style: metin(),
+                          textAlign: pw.TextAlign.center,
+                        ),
                       ),
                     ),
                     pw.Positioned(
                       top: currentTop,
                       left: konum('fiyat').dx,
-                      child: pw.Text(
-                        item['isNakliYekunRow'] == true
-                            ? ''
-                            : TurkceFormat.paraKalem(fiyat),
-                        style: metin(),
+                      child: pw.SizedBox(
+                        width: 70,
+                        child: pw.Text(
+                          item['isNakliYekunRow'] == true
+                              ? ''
+                              : TurkceFormat.paraKalem(fiyat),
+                          style: metin(),
+                          textAlign: pw.TextAlign.right,
+                        ),
                       ),
                     ),
                     pw.Positioned(
                       top: currentTop,
                       left: konum('tutar').dx,
-                      child: pw.Text(TurkceFormat.paraKalem(satirTutar),
-                          style: metin()),
+                      child: pw.SizedBox(
+                        width: 70,
+                        child: pw.Text(TurkceFormat.paraKalem(satirTutar),
+                            style: metin(), textAlign: pw.TextAlign.right),
+                      ),
                     ),
                   ]);
                 }
@@ -412,8 +421,11 @@ class FaturaPdfUretici {
                     children.add(pw.Positioned(
                       top: konum('matrah').dy,
                       left: konum('matrah').dx,
-                      child: pw.Text(textToShow,
-                          style: metin(weight: pw.FontWeight.bold)),
+                      child: pw.SizedBox(
+                        width: 80,
+                        child: pw.Text(textToShow,
+                            style: metin(weight: pw.FontWeight.bold), textAlign: pw.TextAlign.right),
+                      ),
                     ));
                   }
                 }
@@ -422,7 +434,10 @@ class FaturaPdfUretici {
                   children.add(pw.Positioned(
                     top: konum('kdv').dy,
                     left: konum('kdv').dx,
-                    child: pw.Text('MUAF', style: metin()),
+                    child: pw.SizedBox(
+                      width: 80,
+                      child: pw.Text('MUAF', style: metin(), textAlign: pw.TextAlign.right),
+                    ),
                   ));
                 }
 
@@ -432,21 +447,30 @@ class FaturaPdfUretici {
                       pw.Positioned(
                         top: konum('kdv').dy,
                         left: konum('kdv').dx,
-                        child: pw.Text(TurkceFormat.para(invoice.kdvTutari),
-                            style: metin()),
+                        child: pw.SizedBox(
+                          width: 80,
+                          child: pw.Text(TurkceFormat.para(invoice.kdvTutari),
+                              style: metin(), textAlign: pw.TextAlign.right),
+                        ),
                       ),
                       pw.Positioned(
-                        top: konum('kdvOrani')?.dy ?? konum('kdv').dy,
-                        left: konum('kdvOrani')?.dx ?? (konum('kdv').dx - 30),
-                        child: pw.Text('%${invoice.kdvOrani.toInt()}',
-                            style: metin()),
+                        top: konum('kdvOrani').dy,
+                        left: konum('kdvOrani').dx,
+                        child: pw.SizedBox(
+                          width: 40,
+                          child: pw.Text('%${invoice.kdvOrani.toInt()}',
+                              style: metin(), textAlign: pw.TextAlign.right),
+                        ),
                       ),
                     ],
                     pw.Positioned(
                       top: konum('genelToplam').dy,
                       left: konum('genelToplam').dx,
-                      child: pw.Text(TurkceFormat.para(invoice.genelToplam),
-                          style: metin(weight: pw.FontWeight.bold)),
+                      child: pw.SizedBox(
+                        width: 80,
+                        child: pw.Text(TurkceFormat.para(invoice.genelToplam),
+                            style: metin(weight: pw.FontWeight.bold), textAlign: pw.TextAlign.right),
+                      ),
                     ),
                     pw.Positioned(
                       top: konum('yaziylaTutar').dy,

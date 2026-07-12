@@ -6,19 +6,11 @@ import 'package:printing/printing.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/turkce_format.dart';
-import '../models/fatura_model.dart';
-import '../models/fatura_parse_kaynaklari.dart';
 import '../providers/batch_fatura_provider.dart';
-import '../services/fatura_eslestirme_servisi.dart';
 import '../components/batch_invoice_card.dart';
+import '../components/batch_toolbar.dart';
 
-import 'visual_entry_screen.dart';
 import 'fatura_arsiv_arama_dialog.dart';
-import '../components/firma_secici_dialog.dart';
-import '../components/hizmet_secici_dialog.dart';
-import '../../../core/models/firma_model.dart';
-import '../../../core/models/hizmet_model.dart';
 
 class BatchVerificationScreen extends StatefulWidget {
   const BatchVerificationScreen({super.key});
@@ -208,11 +200,69 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _buildMatbuBanner(provider),
-          const SizedBox(height: 16),
-          _buildUploadBar(context, provider),
-          const SizedBox(height: 16),
-          _buildToolbar(context, provider, gercekKuyruk),
+          BatchToolbar(
+            provider: provider,
+            count: gercekKuyruk,
+            onAddBlankInvoice: () {
+              provider.addBlankInvoice();
+              setState(() {
+                _expandedCards
+                  ..clear()
+                  ..add(provider.pendingInvoices.length - 1);
+              });
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Yeni manuel fatura kuyruğun sonuna eklendi.'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            onUploadDocument: () => _uploadFaturaDocument(context, provider),
+            onUploadExcel: () => _uploadExcel(context, provider),
+            onBatchPreview: () => _showBatchPreview(context, provider),
+            onSearchArchive: () => showFaturaArsivAramaDialog(context),
+            onRawText: () => _showRawTextDialog(context, provider),
+            onClearQueue: () async {
+              final onay = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  icon: Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.red.shade700,
+                  ),
+                  title: const Text('Kuyruk temizlensin mi?'),
+                  content: const Text(
+                    'Kuyruktaki tüm faturalar silinecek. Bu işlem geri alınamaz.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Vazgeç'),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red.shade700,
+                      ),
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Temizle'),
+                    ),
+                  ],
+                ),
+              );
+              if (onay != true) return;
+              await provider.kuyruguTemizle();
+              if (!mounted) return;
+              setState(() {
+                _expandedCards
+                  ..clear()
+                  ..add(0);
+              });
+            },
+            onApproveAll: () => _approveAll(context, provider),
+          ),
           const SizedBox(height: 12),
           if (!formGoster)
             _buildEmptyState(context, provider)
@@ -239,298 +289,6 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                 ),
         ],
       ),
-    );
-  }
-
-  Widget _buildMatbuBanner(BatchFaturaProvider provider) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.indigo.shade800, Colors.indigo.shade600],
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.receipt_long,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Matbu Fatura Doldurma',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Matbu A4 kağıdı yazıcıya takın. Sistem yalnızca boş alanlara metin basar — çizgi ve başlıklar kağıtta zaten var.',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Matbu mod',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  Switch(
-                    value: provider.matbuBaskiModu,
-                    activeThumbColor: Colors.lightGreenAccent,
-                    onChanged: (v) {
-                      provider.setMatbuBaskiModu(v);
-                      provider.saveMatbuAyarlari();
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUploadBar(BuildContext context, BatchFaturaProvider provider) {
-    final tiles = [
-      _uploadTile(
-        icon: Icons.upload_file_rounded,
-        title: 'Evrak Yükle',
-        subtitle: 'PDF, Excel, CSV veya TXT dosyası seç',
-        color: Colors.indigo,
-        onTap: () => _uploadFaturaDocument(context, provider),
-      ),
-      _uploadTile(
-        icon: Icons.table_view_rounded,
-        title: 'Excel / Toplu Liste',
-        subtitle: 'Sadece Excel veya CSV dosyası',
-        color: Colors.green.shade700,
-        onTap: () => _uploadExcel(context, provider),
-      ),
-      _uploadTile(
-        icon: Icons.edit_note,
-        title: 'Manuel Fatura',
-        subtitle: 'Boş fatura ekle, elle doldur',
-        color: Colors.blueGrey.shade700,
-        onTap: () {
-          provider.addBlankInvoice();
-          setState(() {
-            _expandedCards
-              ..clear()
-              ..add(provider.pendingInvoices.length - 1);
-          });
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Yeni manuel fatura kuyruğun sonuna eklendi.'),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-        },
-      ),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 900) {
-          return Column(
-            children: [
-              for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(height: 12),
-                tiles[i],
-              ],
-            ],
-          );
-        }
-        return Row(
-          children: [
-            for (var i = 0; i < tiles.length; i++) ...[
-              if (i > 0) const SizedBox(width: 12),
-              Expanded(child: tiles[i]),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _uploadTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: color,
-                child: Icon(icon, color: Colors.white),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: Colors.grey.shade400),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildToolbar(
-    BuildContext context,
-    BatchFaturaProvider provider,
-    int count,
-  ) {
-    return Row(
-      children: [
-        Text(
-          'Kuyruk: $count fatura',
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.primaryColor,
-          ),
-        ),
-        const Spacer(),
-        FilledButton.icon(
-          key: const ValueKey('toplu_yazdir_btn'),
-          icon: const Icon(Icons.print, size: 18),
-          label: const Text('Toplu Yazdır'),
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.deepOrange.shade700,
-          ),
-          onPressed: count > 0
-              ? () => _showBatchPreview(context, provider)
-              : null,
-        ),
-        const SizedBox(width: 8),
-        OutlinedButton.icon(
-          key: const ValueKey('fatura_arsiv_dialog_ac'),
-          icon: const Icon(Icons.search, size: 18),
-          label: const Text('Fatura Arşivi'),
-          onPressed: () => showFaturaArsivAramaDialog(context),
-        ),
-        const SizedBox(width: 8),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.clear_all, size: 18),
-          label: const Text('Toplu Temizle'),
-          style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade700),
-          onPressed: () async {
-            final onay = await showDialog<bool>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                icon: Icon(
-                  Icons.warning_amber_rounded,
-                  color: Colors.red.shade700,
-                ),
-                title: const Text('Kuyruk temizlensin mi?'),
-                content: const Text(
-                  'Kuyruktaki tüm faturalar silinecek. Bu işlem geri alınamaz.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('Vazgeç'),
-                  ),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.red.shade700,
-                    ),
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text('Temizle'),
-                  ),
-                ],
-              ),
-            );
-            if (onay != true) return;
-            await provider.kuyruguTemizle();
-            if (!mounted) return;
-            setState(() {
-              _expandedCards
-                ..clear()
-                ..add(0);
-            });
-          },
-        ),
-        const SizedBox(width: 8),
-        FilledButton.icon(
-          icon: const Icon(Icons.upload_file, size: 18),
-          label: const Text('Evrak Yükle'),
-          onPressed: () => _uploadFaturaDocument(context, provider),
-        ),
-        const SizedBox(width: 8),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.content_paste, size: 18),
-          label: const Text('Metin Yapıştır'),
-          onPressed: () => _showRawTextDialog(context, provider),
-        ),
-        const SizedBox(width: 8),
-        FilledButton.icon(
-          key: const ValueKey('fatura_tumunu_onayla'),
-          icon: const Icon(Icons.done_all, size: 18),
-          label: const Text('Tümünü Onayla'),
-          style: FilledButton.styleFrom(backgroundColor: Colors.green.shade700),
-          onPressed: () => _approveAll(context, provider),
-        ),
-      ],
     );
   }
 
