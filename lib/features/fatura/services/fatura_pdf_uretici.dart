@@ -430,6 +430,26 @@ class FaturaPdfUretici {
                   }
                 }
 
+                if (konum('yaziylaTutar').dx >= 0) {
+                  final canliVeri = invoice.id != 'ornek';
+                  final sayiToShow = (!canliVeri || sonSayfa)
+                      ? invoice.genelToplam
+                      : (invoice.nakliYekunAktif ? araToplam : 0.0);
+                  
+                  if (sayiToShow > 0) {
+                    children.add(pw.Positioned(
+                      top: konum('yaziylaTutar').dy,
+                      left: konum('yaziylaTutar').dx,
+                      child: pw.SizedBox(
+                        width: 420,
+                        child: pw.Text(
+                            TurkceFormat.sayiyiYaziyaCevir(sayiToShow),
+                            style: metin()),
+                      ),
+                    ));
+                  }
+                }
+
                 if (invoice.isKdvMuaf) {
                   children.add(pw.Positioned(
                     top: konum('kdv').dy,
@@ -470,16 +490,6 @@ class FaturaPdfUretici {
                         width: 80,
                         child: pw.Text(TurkceFormat.para(invoice.genelToplam),
                             style: metin(weight: pw.FontWeight.bold), textAlign: pw.TextAlign.right),
-                      ),
-                    ),
-                    pw.Positioned(
-                      top: konum('yaziylaTutar').dy,
-                      left: konum('yaziylaTutar').dx,
-                      child: pw.SizedBox(
-                        width: 420,
-                        child: pw.Text(
-                            TurkceFormat.sayiyiYaziyaCevir(invoice.genelToplam),
-                            style: metin()),
                       ),
                     ),
                   ]);
