@@ -257,7 +257,7 @@ class _PersonelSeciciDialogState extends State<PersonelSeciciDialog> {
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  value: _seciliUnvan,
+                  initialValue: _seciliUnvan,
                   decoration: const InputDecoration(
                     labelText: 'Unvan',
                     border: OutlineInputBorder(),
@@ -320,7 +320,7 @@ class _PersonelSeciciDialogState extends State<PersonelSeciciDialog> {
                 _birimler == null
                     ? const Center(child: CircularProgressIndicator())
                     : DropdownButtonFormField<String>(
-                        value: _birimler!.any((b) => b.id == _birimController.text)
+                        initialValue: _birimler!.any((b) => b.id == _birimController.text)
                             ? _birimController.text
                             : null,
                         decoration: const InputDecoration(

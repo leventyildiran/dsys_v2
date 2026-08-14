@@ -306,7 +306,7 @@ class _FaturaArsivAramaDialogState extends State<_FaturaArsivAramaDialog> {
 
     return ListView.separated(
       itemCount: _sonuclar.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
+      separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, i) {
         final k = _sonuclar[i];
         final f = k.fatura;

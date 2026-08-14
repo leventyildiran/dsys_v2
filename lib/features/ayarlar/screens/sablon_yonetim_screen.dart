@@ -119,7 +119,7 @@ class _SablonYonetimScreenState extends State<SablonYonetimScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: selectedTur,
+                initialValue: selectedTur,
                 decoration: const InputDecoration(labelText: 'Şablon Türü'),
                 items: const [
                   DropdownMenuItem(value: 'fatura', child: Text('Fatura Şablonu')),
@@ -133,11 +133,11 @@ class _SablonYonetimScreenState extends State<SablonYonetimScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<BirimModel?>(
-                value: selectedBirim,
+                initialValue: selectedBirim,
                 decoration: const InputDecoration(labelText: 'Hangi Birim İçin?'),
                 items: [
                   const DropdownMenuItem<BirimModel?>(value: null, child: Text('Tüm Birimler (Ortak)')),
-                  ..._birimler.map((b) => DropdownMenuItem(value: b, child: Text(b.ad))).toList(),
+                  ..._birimler.map((b) => DropdownMenuItem(value: b, child: Text(b.ad))),
                 ],
                 onChanged: (val) {
                   setDialogState(() => selectedBirim = val);

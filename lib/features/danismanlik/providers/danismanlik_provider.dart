@@ -315,7 +315,7 @@ class DanismanlikProvider extends ChangeNotifier {
   void mevcutDanismanlikYukle(DanismanlikModel model) {
     _mevcutDanismanlikId = model.id;
     _birimId = model.birimId;
-    _firmaId = model.firmaId ?? '';
+    _firmaId = model.firmaId;
     _firmaUnvan = model.firmaUnvan ?? '';
     _birimAd = model.birimKisaAd ?? '';
     _tur = model.danismanlikTuru;

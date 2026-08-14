@@ -1,4 +1,4 @@
-/// Word OOXML (document.xml) ayrıştırma — tablolar ve renkler birebir korunur.
+// Word OOXML (document.xml) ayrıştırma — tablolar ve renkler birebir korunur.
 import '../models/yk_karar_model.dart';
 import 'yk_tablo_kolon_haritasi.dart';
 

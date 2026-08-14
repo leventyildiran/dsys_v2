@@ -157,7 +157,6 @@ class KalibrasyonBaskiOnizleme {
       if (numuneAciklamaAlt.isNotEmpty && !numuneMelbesSatir) numuneAciklamaAlt,
       if (invoice.aciklama != null && invoice.aciklama!.trim().isNotEmpty)
         invoice.aciklama!.trim(),
-      if (invoice.isKdvMuaf) "KDV'den Muaftır (İstisna)",
     ].join(' | ');
 
     final melbesYazi = FaturaMatbuConfig.formatMelbesMatbu(
@@ -178,7 +177,6 @@ class KalibrasyonBaskiOnizleme {
         ? invoice.iban!
         : (sistemIban ?? '');
 
-    final ilkSayfa = sayfaNo == 1;
     final sonSayfa = sayfaNo >= toplamSayfa;
 
     return KalibrasyonBaskiOnizleme(

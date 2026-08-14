@@ -450,8 +450,9 @@ class FaturaKuyrukProvider extends ChangeNotifier {
     if (invoice.firmaAdi.trim().isEmpty) eksik.add('Firma Adı');
     if (invoice.tarih.trim().isEmpty) eksik.add('Tarih');
     if (invoice.iban == null || invoice.iban!.trim().isEmpty) eksik.add('IBAN');
-    if (invoice.hesapAdi == null || invoice.hesapAdi!.trim().isEmpty)
+    if (invoice.hesapAdi == null || invoice.hesapAdi!.trim().isEmpty) {
       eksik.add('Hesap Adı');
+    }
     if (invoice.kalemler.isEmpty) eksik.add('En az 1 kalem');
     if (_ubatamZorunluAlanGecerliMi(invoice)) {
       if (invoice.melbesNo.trim().isEmpty) eksik.add('MELBES No');
@@ -481,8 +482,9 @@ class FaturaKuyrukProvider extends ChangeNotifier {
     if (ad.contains('tömer') || ad.contains('usem')) return 'kurs';
     if (ad.contains('tarım') || ad.contains('tadaum')) return 'tarimsal';
     if (ad.contains('ubatam') || ad.contains('analiz')) return 'analiz';
-    if (ad.contains('dösim') || ad.contains('dts') || ad.contains('deri'))
+    if (ad.contains('dösim') || ad.contains('dts') || ad.contains('deri')) {
       return 'hizmet';
+    }
     if (ad.contains('satın alma')) return 'satin_alma';
     return 'genel';
   }
@@ -556,11 +558,6 @@ class FaturaKuyrukProvider extends ChangeNotifier {
       return 'Sistemdeki Liste Fiyatı: ${sistemHizmeti.fiyat.toStringAsFixed(2)} TL';
     }
     return null;
-  }
-
-  String _isletmeVknFallback(String? sistemVkn) {
-    final vkn = sistemVkn?.trim() ?? '';
-    return vkn.isNotEmpty ? vkn : FaturaMatbuConfig.varsayilanIsletmeVkn;
   }
 
   String? _formatHesapAdi(String? raw, String isletmeVkn) {

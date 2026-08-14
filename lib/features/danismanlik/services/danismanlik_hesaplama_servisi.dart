@@ -1,5 +1,4 @@
 import '../models/dagitim_model.dart';
-import '../models/danismanlik_model.dart';
 
 class DanismanlikHesaplamaServisi {
   /// Memur maaş katsayısı (Şimdilik sabit, normalde veritabanından çekilebilir)

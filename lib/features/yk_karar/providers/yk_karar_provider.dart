@@ -492,7 +492,7 @@ class YkKararProvider extends ChangeNotifier {
           final apiUrl = ayarlar.deepseekApiUrl.isEmpty ? 'https://api.deepseek.com/' : ayarlar.deepseekApiUrl;
           final url = apiUrl.endsWith('/')
               ? '${apiUrl}chat/completions'
-              : '${apiUrl}/chat/completions';
+              : '$apiUrl/chat/completions';
           final modelName = ayarlar.deepseekModel.isEmpty
               ? 'deepseek-chat'
               : ayarlar.deepseekModel;

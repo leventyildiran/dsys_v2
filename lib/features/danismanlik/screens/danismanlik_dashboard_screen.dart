@@ -121,7 +121,7 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                         border: Border.all(color: Colors.blueGrey.shade100),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
+                            color: Colors.black.withValues(alpha: 0.02),
                             blurRadius: 4,
                             offset: const Offset(0, 1),
                           ),
@@ -175,7 +175,7 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                   border: Border.all(color: Colors.blueGrey.shade100),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
+                      color: Colors.black.withValues(alpha: 0.02),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     )
@@ -251,7 +251,7 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
         border: Border.all(color: Colors.blueGrey.shade50),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.04),
+            color: color.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -263,7 +263,7 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 18),
@@ -292,7 +292,7 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
       color: Colors.transparent,
       child: InkWell(
         onTap: () => context.push('/danismanlik/detay/${model.id}'),
-        hoverColor: Colors.blueGrey.shade50.withOpacity(0.5),
+        hoverColor: Colors.blueGrey.shade50.withValues(alpha: 0.5),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(

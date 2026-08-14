@@ -22,14 +22,14 @@ class AIExtractionService {
     Object? sonHata;
     for (final modelName in _geminiModelFallbacks) {
       try {
-        print('Gemini API ($modelName) ile ayrıştırma deneniyor...');
+        debugPrint('Gemini API ($modelName) ile ayrıştırma deneniyor...');
         final model = GenerativeModel(model: modelName, apiKey: apiKey);
         final response = await model.generateContent([Content.multi(parts)]);
         final text = response.text?.trim() ?? '';
         if (text.isNotEmpty) return text;
       } catch (e) {
         sonHata = e;
-        print('$modelName hatası: $e');
+        debugPrint('$modelName hatası: $e');
       }
       await Future.delayed(const Duration(milliseconds: 800));
     }
@@ -73,7 +73,7 @@ class AIExtractionService {
         geminiHata = 'Yapay zeka (Gemini) faturayı anlayamadı, JSON formatı hatalı.';
       } catch (e) {
         geminiHata = e;
-        print('Gemini ayrıştırma hatası: $e');
+        debugPrint('Gemini ayrıştırma hatası: $e');
       }
     }
 
@@ -187,7 +187,7 @@ class AIExtractionService {
     required String parsedByEtiketi,
   }) async {
     try {
-      print('DeepSeek API ile ayrıştırma deneniyor...');
+      debugPrint('DeepSeek API ile ayrıştırma deneniyor...');
       final url = ayarlar.deepseekApiUrl.endsWith('/')
           ? '${ayarlar.deepseekApiUrl}chat/completions'
           : '${ayarlar.deepseekApiUrl}/chat/completions';
@@ -226,12 +226,12 @@ class AIExtractionService {
           return parsed;
         }
       } else {
-        print(
+        debugPrint(
           'DeepSeek API Hatası: ${response.statusCode} - ${response.body}',
         );
       }
     } catch (e) {
-      print('DeepSeek hatası: $e');
+      debugPrint('DeepSeek hatası: $e');
     }
     return null;
   }
@@ -337,7 +337,7 @@ $excelCsvPreview
         final parsed = _parseJsonStrict(text ?? '');
         if (parsed is Map<String, dynamic>) return parsed;
       } catch (e) {
-        print('Mapping hatası: $e');
+        debugPrint('Mapping hatası: $e');
       }
     }
 
@@ -389,7 +389,7 @@ $excelCsvPreview
         return List<Map<String, dynamic>>.from(decodedList);
       }
     } catch (e) {
-      print('JSON Parse hatası: $e');
+      debugPrint('JSON Parse hatası: $e');
     }
     return [];
   }
@@ -415,7 +415,7 @@ $excelCsvPreview
           return parsed;
         }
       } catch (e) {
-        print('Gemini danışmanlık hatası: $e');
+        debugPrint('Gemini danışmanlık hatası: $e');
       }
     }
 
@@ -460,7 +460,7 @@ $excelCsvPreview
           }
         }
       } catch (e) {
-        print('DeepSeek danışmanlık hatası: $e');
+        debugPrint('DeepSeek danışmanlık hatası: $e');
       }
     }
 

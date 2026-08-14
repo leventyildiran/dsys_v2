@@ -62,7 +62,6 @@ class _YkYeniKararEkleScreenState extends State<YkYeniKararEkleScreen> {
 
   // Çalışma alanı için state
   String? _seciliBirimId;
-  String? _seciliKararId;
   List<YkKararModel> _toplantiKararlari = [];
   String? _yukluToplantiId;
   bool _toplantiYukleniyor = false;
@@ -125,15 +124,6 @@ class _YkYeniKararEkleScreenState extends State<YkYeniKararEkleScreen> {
     }
   }
 
-  String _kararSecimEtiketi(YkKararModel karar) {
-    final no = karar.kararNo.trim().isNotEmpty ? karar.kararNo : '—';
-    final baslik = karar.baslik.trim();
-    if (baslik.isNotEmpty) {
-      return '$no · ${karar.birimAd} · $baslik';
-    }
-    return '$no · ${karar.birimAd}';
-  }
-
   Future<void> _anaKarariEditoreAc() async {
     final toplanti = context.read<GundemProvider>().seciliToplanti;
     if (toplanti == null) {
@@ -171,7 +161,6 @@ class _YkYeniKararEkleScreenState extends State<YkYeniKararEkleScreen> {
 
     setState(() {
       _seciliBirimId = _anaKararEditorId;
-      _seciliKararId = null;
       _viewMode = _ViewMode.karar;
     });
   }
@@ -196,7 +185,6 @@ class _YkYeniKararEkleScreenState extends State<YkYeniKararEkleScreen> {
 
   void _yeniKararTaslagiBaslat(String birimId) {
     setState(() {
-      _seciliKararId = null;
       _seciliBirimId = birimId;
       if (!_quillControllers.containsKey(birimId)) {
         _quillControllers[birimId] = quill.QuillController.basic();
@@ -210,7 +198,6 @@ class _YkYeniKararEkleScreenState extends State<YkYeniKararEkleScreen> {
 
   void _kararSec(YkKararModel karar) {
     setState(() {
-      _seciliKararId = karar.id;
       _seciliBirimId = karar.birimId;
       if (!_quillControllers.containsKey(karar.birimId)) {
         _quillControllers[karar.birimId] = quill.QuillController.basic();
@@ -247,7 +234,6 @@ class _YkYeniKararEkleScreenState extends State<YkYeniKararEkleScreen> {
     _pdfKaliteRaporlari.clear();
     _kayitliKararIdleri.clear();
     _seciliBirimId = null;
-    _seciliKararId = null;
     _toplantiKararlari = [];
   }
 
@@ -774,47 +760,6 @@ class _YkYeniKararEkleScreenState extends State<YkYeniKararEkleScreen> {
     }
   }
 
-  Future<void> _showYeniKararDialog() async {
-    final toplanti = context.read<GundemProvider>().seciliToplanti;
-    if (toplanti == null) {
-      await _showToplantiSeciciDialog();
-      return;
-    }
-    if (_birimler.isEmpty) return;
-
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Yeni Karar Taslağı'),
-        content: SizedBox(
-          width: 520,
-          height: 400,
-          child: ListView.separated(
-            itemCount: _birimler.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final birim = _birimler[index];
-              return ListTile(
-                leading: const Icon(Icons.apartment_outlined),
-                title: Text(birim.ad),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _yeniKararTaslagiBaslat(birim.id);
-                },
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Kapat'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _showToplantiSeciciDialog() async {
     final provider = context.read<GundemProvider>();
     if (provider.toplantilar.isEmpty) {
@@ -970,116 +915,6 @@ class _YkYeniKararEkleScreenState extends State<YkYeniKararEkleScreen> {
     }
   }
 
-  Future<void> _gundemMaddeleriniOlustur(ToplantiModel toplanti) async {
-    try {
-      final kararlar = await YkKararService().kararGetByToplanti(toplanti.id);
-      if (kararlar.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Gündem oluşturulacak karar bulunamadı. Lütfen karar ekleyin.',
-              ),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Gündem maddeleri oluşturuluyor... Lütfen bekleyin.'),
-            backgroundColor: Colors.blue,
-          ),
-        );
-      }
-
-      final mevcutGundemler = toplanti.gundemMaddeleri;
-
-      final gundemMaddeleri = kararlar.asMap().entries.map((entry) {
-        final karar = entry.value;
-        final mevcutMadde = _mevcutGundemMaddesiniBul(mevcutGundemler, karar);
-        return GundemMaddesi(
-          siraNo: entry.key + 1,
-          baslik: mevcutMadde?.baslik.trim().isNotEmpty == true
-              ? mevcutMadde!.baslik
-              : karar.baslik,
-          tur: mevcutMadde?.tur ?? GundemTuru.fromString(karar.tur.value),
-          aciklama: mevcutMadde?.aciklama,
-          birimId: karar.birimId,
-          birimAd: karar.birimAd,
-          iliskiliKayitId: karar.id,
-        );
-      }).toList();
-
-      if (mounted) {
-        await context.read<GundemProvider>().toplantiGundemTopluGuncelle(
-          toplanti.id,
-          gundemMaddeleri,
-        );
-      }
-
-      final guncelToplanti = toplanti.copyWith(
-        gundemMaddeleri: gundemMaddeleri,
-      );
-      await BelgeUretimServisi.toplantiGundemWordIndir(guncelToplanti);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Gündem şablonu (Davet) başarıyla oluşturuldu ve indirildi!',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gündem oluşturulurken hata: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  GundemMaddesi? _mevcutGundemMaddesiniBul(
-    List<GundemMaddesi> maddeler,
-    YkKararModel karar,
-  ) {
-    for (final madde in maddeler) {
-      if (madde.iliskiliKayitId != null && madde.iliskiliKayitId == karar.id) {
-        return madde;
-      }
-    }
-
-    for (final madde in maddeler) {
-      if (madde.birimId != null &&
-          madde.birimId == karar.birimId &&
-          karar.birimId.isNotEmpty) {
-        return madde;
-      }
-    }
-
-    for (final madde in maddeler) {
-      final maddeBirim = madde.birimAd?.trim().toLowerCase();
-      final kararBirim = karar.birimAd.trim().toLowerCase();
-      if (maddeBirim != null &&
-          maddeBirim.isNotEmpty &&
-          kararBirim.isNotEmpty &&
-          maddeBirim == kararBirim) {
-        return madde;
-      }
-    }
-
-    return null;
-  }
-
   void _saveKarar(String birimId) => _persistKararTaslak(birimId);
 
   Future<bool> _persistKararTaslak(
@@ -1168,7 +1003,6 @@ class _YkYeniKararEkleScreenState extends State<YkYeniKararEkleScreen> {
         _analyzedKararlar[birimId] =
             YkKararModel.fromMap(kayitliId, karar.toMap());
       }
-      _seciliKararId = kayitliId;
       await _toplantiKararlariniYenile();
 
       if (mounted) {

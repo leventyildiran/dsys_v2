@@ -116,17 +116,19 @@ class _YkEskiKararlarScreenState extends State<YkEskiKararlarScreen> {
         final file = result.files.first;
         if (file.bytes != null) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            final messenger = ScaffoldMessenger.of(context);
+            final provider = context.read<YkKararProvider>();
+            messenger.showSnackBar(
               const SnackBar(content: Text('Dosya yükleniyor ve analiz ediliyor...')),
             );
-            await context.read<YkKararProvider>().uploadExternalKarar(
+            await provider.uploadExternalKarar(
                   file.bytes!,
                   file.name,
                   birimId: seciliBirim!.id,
                   birimAd: seciliBirim!.ad,
                 );
-            await context.read<YkKararProvider>().loadTumKararlar();
-            ScaffoldMessenger.of(context).showSnackBar(
+            await provider.loadTumKararlar();
+            messenger.showSnackBar(
               const SnackBar(content: Text('Karar başarıyla arşive eklendi!')),
             );
           }
@@ -197,7 +199,7 @@ class _YkEskiKararlarScreenState extends State<YkEskiKararlarScreen> {
                   : const Icon(Icons.upload_file),
               label: const Text('Dış Karar Yükle'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white.withOpacity(0.2),
+                backgroundColor: Colors.white.withValues(alpha: 0.2),
                 foregroundColor: Colors.white,
                 elevation: 0,
               ),
@@ -241,7 +243,7 @@ class _YkEskiKararlarScreenState extends State<YkEskiKararlarScreen> {
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                         isDense: true,
                       ),
-                      value: _selectedYear ?? 'Tümü',
+                      initialValue: _selectedYear ?? 'Tümü',
                       items: ['Tümü', ...availableYears]
                           .map((y) => DropdownMenuItem(value: y, child: Text(y)))
                           .toList(),
@@ -279,7 +281,7 @@ class _YkEskiKararlarScreenState extends State<YkEskiKararlarScreen> {
                                     shrinkWrap: true,
                                     physics: const NeverScrollableScrollPhysics(),
                                     itemCount: filteredToplantilar.length,
-                                    separatorBuilder: (_, __) => const Divider(height: 1),
+                                    separatorBuilder: (_, _) => const Divider(height: 1),
                                     itemBuilder: (context, index) {
                                       final t = filteredToplantilar[index];
                                       final kararSayisi = _kararSayisi(t.id, tumKararlar);
@@ -292,7 +294,7 @@ class _YkEskiKararlarScreenState extends State<YkEskiKararlarScreen> {
                                               Container(
                                                 padding: const EdgeInsets.all(12),
                                                 decoration: BoxDecoration(
-                                                  color: AppTheme.primaryColor.withOpacity(0.1),
+                                                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                                                   shape: BoxShape.circle,
                                                 ),
                                                 child: Icon(Icons.event_note, color: AppTheme.primaryColor),
@@ -350,7 +352,7 @@ class _YkEskiKararlarScreenState extends State<YkEskiKararlarScreen> {
                                   shrinkWrap: true,
                                   physics: const NeverScrollableScrollPhysics(),
                                   itemCount: bagimsiz.length,
-                                  separatorBuilder: (_, __) => const Divider(height: 1),
+                                  separatorBuilder: (_, _) => const Divider(height: 1),
                                   itemBuilder: (context, index) {
                                     final karar = bagimsiz[index];
                                     return ListTile(

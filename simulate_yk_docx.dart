@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'dart:io';
 
 String _xmlEscape(String text) {
@@ -27,7 +28,9 @@ bool _isNonIndentedLine(String line) {
       upper.startsWith('PROF. DR.') ||
       upper.startsWith('DOÇ. DR.') ||
       upper.startsWith('DR. ÖĞR. ÜYESİ') ||
-      upper.contains('─')) return true;
+      upper.contains('─')) {
+    return true;
+  }
   return false;
 }
 

@@ -664,9 +664,9 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _LegendItem('Dağıtılabilir', Colors.green.shade500),
-                _LegendItem('Kurum Payı', Colors.orange.shade400),
-                _LegendItem('KDV', Colors.red.shade400),
+                _legendItem('Dağıtılabilir', Colors.green.shade500),
+                _legendItem('Kurum Payı', Colors.orange.shade400),
+                _legendItem('KDV', Colors.red.shade400),
               ],
             ),
             const SizedBox(height: 16),
@@ -713,7 +713,7 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
     );
   }
 
-  Widget _LegendItem(String label, Color color) {
+  Widget _legendItem(String label, Color color) {
     return Row(
       children: [
         Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),

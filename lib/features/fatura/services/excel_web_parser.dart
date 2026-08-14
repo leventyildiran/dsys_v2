@@ -1,6 +1,4 @@
 @JS()
-library excel_web_parser;
-
 import 'dart:js_interop';
 import 'package:flutter/foundation.dart';
 
@@ -11,8 +9,10 @@ external JSAny _readXlsx(JSAny data, JSAny options);
 external JSArray _sheetToJson(JSAny worksheet, JSAny options);
 
 extension type WorkBook._(JSObject _) implements JSObject {
-  external JSArray get SheetNames;
-  external JSObject get Sheets;
+  @JS('SheetNames')
+  external JSArray get sheetNames;
+  @JS('Sheets')
+  external JSObject get sheets;
 }
 
 /// Parses an Excel file using SheetJS (in browser).
@@ -30,10 +30,10 @@ class ExcelWebParser {
 
       final jsWorkbook = _readXlsx(jsData, options as JSAny) as WorkBook;
 
-      final sheetNames = jsWorkbook.SheetNames.dartify() as List;
+      final sheetNames = jsWorkbook.sheetNames.dartify() as List;
       if (sheetNames.isEmpty) return '';
 
-      final sheetsMap = jsWorkbook.Sheets.dartify() as Map?;
+      final sheetsMap = jsWorkbook.sheets.dartify() as Map?;
       if (sheetsMap == null) return '';
 
       final buffer = StringBuffer();

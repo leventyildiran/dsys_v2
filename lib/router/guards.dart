@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import '../features/auth/providers/auth_provider.dart';
 
 /// Guard to allow only admin users to access a route.

@@ -76,7 +76,7 @@ class DanismanlikLayout {
               ],
             ),
           ),
-          if (aksiyon != null) aksiyon,
+          ?aksiyon,
         ],
       ),
     );

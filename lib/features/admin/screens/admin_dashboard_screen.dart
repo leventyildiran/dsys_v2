@@ -87,7 +87,7 @@ class _AdminDashboardContent extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -96,7 +96,7 @@ class _AdminDashboardContent extends StatelessWidget {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
-                  headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
+                  headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
                   columns: const [
                     DataColumn(label: Text('Kurum Adı', style: TextStyle(fontWeight: FontWeight.bold))),
                     DataColumn(label: Text('Durum', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -112,7 +112,7 @@ class _AdminDashboardContent extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: inst.isActive ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                              color: inst.isActive ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
@@ -159,7 +159,7 @@ class _AdminDashboardContent extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -170,7 +170,7 @@ class _AdminDashboardContent extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, size: 32, color: color),
@@ -206,11 +206,12 @@ class _AdminDashboardContent extends StatelessWidget {
 
   Future<void> _uploadMigrationData(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
+    final assetBundle = DefaultAssetBundle.of(context);
     try {
       messenger.showSnackBar(const SnackBar(content: Text('Veri yüklemesi başlatıldı...')));
       
-      final String firmalarString = await DefaultAssetBundle.of(context).loadString('assets/data/firmalar.json');
-      final String hizmetlerString = await DefaultAssetBundle.of(context).loadString('assets/data/hizmetler.json');
+      final String firmalarString = await assetBundle.loadString('assets/data/firmalar.json');
+      final String hizmetlerString = await assetBundle.loadString('assets/data/hizmetler.json');
       
       final List<dynamic> firmalarJson = jsonDecode(firmalarString);
       final List<dynamic> hizmetlerJson = jsonDecode(hizmetlerString);

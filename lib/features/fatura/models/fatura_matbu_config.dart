@@ -247,17 +247,26 @@ class FaturaMatbuConfig {
 
   /// Matbu: yalnızca MELBES numarası — kurum ayrı alanda.
   static String formatMelbesNoMatbu(String raw) {
-    return raw.trim();
+    final m = raw.trim();
+    if (m.isEmpty) return m;
+    if (m.toLowerCase().contains('melbes')) return m;
+    return 'Melbes No: $m';
   }
 
   /// Matbu faturada MELBES alanı — kurum ile birleşik (eski tek satır).
   static String formatMelbesMatbu(String raw, {String? kurumOnEki}) {
-    return raw.trim();
+    final m = raw.trim();
+    if (m.isEmpty) return m;
+    if (m.toLowerCase().contains('melbes')) return m;
+    return 'Melbes No: $m';
   }
 
   /// Matbu faturada Numune No alanı — yalnızca numara girilmişse etiket eklenir.
   static String formatNumuneNoMatbu(String raw) {
-    return raw.trim();
+    final n = raw.trim();
+    if (n.isEmpty) return n;
+    if (n.toLowerCase().contains('numune')) return n;
+    return 'Numune No: $n';
   }
 
   /// Matbu: tek satırda kurum + MELBES + Numune No.

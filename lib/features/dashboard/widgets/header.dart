@@ -14,7 +14,7 @@ class Header extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.white,
         border: Border(
-          bottom: BorderSide(color: Colors.grey.withOpacity(0.2)),
+          bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
         ),
       ),
       child: Row(

@@ -95,6 +95,11 @@ class FaturaMatbuProvider extends ChangeNotifier {
     _kalemSenkronDelta(key, delta, notify: notify);
   }
 
+  void calibrationUiRefresh() {
+    notifyListeners();
+    _scheduleMatbuAyarKaydet();
+  }
+
   void _kalemSenkronDelta(String key, Offset delta, {bool notify = true}) {
     const kalemKeys = FaturaMatbuKalibrasyon.kalemSutunlari;
     if (kalemKeys.contains(key)) {

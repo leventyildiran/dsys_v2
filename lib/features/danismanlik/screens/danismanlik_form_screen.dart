@@ -427,7 +427,7 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
           _birimler == null
               ? const Center(child: CircularProgressIndicator())
               : DropdownButtonFormField<BirimModel>(
-                  value: _birimler!.where((b) => b.id == provider.birimId).firstOrNull,
+                  initialValue: _birimler!.where((b) => b.id == provider.birimId).firstOrNull,
                   decoration: const InputDecoration(
                     labelText: 'Bağlı Birim Seçiniz (Sistem Kaydı)',
                     border: OutlineInputBorder(),
@@ -907,7 +907,7 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                     content: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: DataTable(
-                        headingRowColor: MaterialStateProperty.all(Colors.blueGrey.shade50),
+                        headingRowColor: WidgetStateProperty.all(Colors.blueGrey.shade50),
                         headingTextStyle: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.blueGrey.shade800,

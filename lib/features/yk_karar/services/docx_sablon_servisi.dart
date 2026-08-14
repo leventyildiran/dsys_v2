@@ -27,7 +27,9 @@ class DocxSablonServisi {
     final bytes = await _docxIndir(sablon);
     final documentXml = _documentXmlOku(bytes);
     final bodyInner = DocxOoxmlUtil.extractBodyInner(documentXml);
-    if (bodyInner == null) return [];
+    if (bodyInner == null) {
+      return [];
+    }
 
     final blocks = DocxOoxmlUtil.extractBodyBlocks(bodyInner);
     final sections = gundem
@@ -46,7 +48,9 @@ class DocxSablonServisi {
     bool gundem = false,
   }) async {
     final sections = await bolumleriYukle(sablon, gundem: gundem);
-    if (sections.isEmpty) return [];
+    if (sections.isEmpty) {
+      return [];
+    }
 
     final tablolar = YkKararEslestirmeServisi.tabloVerileriCikar(pdfText);
     final pdfLower = pdfText.toLowerCase();
@@ -86,7 +90,9 @@ class DocxSablonServisi {
       tur: tur,
       gundem: gundem,
     );
-    if (skorlular.isEmpty) return null;
+    if (skorlular.isEmpty) {
+      return null;
+    }
 
     final enIyi = skorlular.first;
     if (enIyi.skor < minGuvenSkoru) {
@@ -128,19 +134,31 @@ class DocxSablonServisi {
       tur: tur,
       gundem: gundem,
     );
-    if (skorlular.isEmpty) return [];
+    if (skorlular.isEmpty) {
+      return [];
+    }
 
     final ana = skorlular.first;
-    if (ana.skor < minGuvenSkoru) return [];
+    if (ana.skor < minGuvenSkoru) {
+      return [];
+    }
 
     final secilen = <SkorluBolum>[ana];
 
     // Yardımcı: aynı tür, skoru ana şablonun en az %70'i, en fazla 1 adet
     for (final aday in skorlular.skip(1)) {
-      if (secilen.length >= 2) break;
-      if (aday.section.baslik == ana.section.baslik) continue;
-      if (aday.skor < (ana.skor * 0.7).round()) break;
-      if (aday.tur != ana.tur) continue;
+      if (secilen.length >= 2) {
+        break;
+      }
+      if (aday.section.baslik == ana.section.baslik) {
+        continue;
+      }
+      if (aday.skor < (ana.skor * 0.7).round()) {
+        break;
+      }
+      if (aday.tur != ana.tur) {
+        continue;
+      }
       secilen.add(aday);
     }
 
@@ -159,27 +177,39 @@ class DocxSablonServisi {
     final bolumTur = _bolumTurunuTespit(section.plainText);
 
     // Karar türü eşleşmesi (en kritik sinyal)
-    if (bolumTur == tur) score += 25;
-    else if (_turEslesir(tur, sectionLower)) score += 12;
+    if (bolumTur == tur) {
+      score += 25;
+    } else if (_turEslesir(tur, sectionLower)) {
+      score += 12;
+    }
 
     // Tablo varlığı
-    if (pdfTabloSatir > 0 && section.tableCount > 0) score += 10;
+    if (pdfTabloSatir > 0 && section.tableCount > 0) {
+      score += 10;
+    }
 
     // Tablo satır sayısı yakınlığı
     if (pdfTabloSatir > 0 && section.tableCount > 0) {
       final tabloSatirlari = _tabloSatirSayisi(section);
       final satirFark = (pdfTabloSatir - tabloSatirlari).abs();
-      if (satirFark == 0) score += 15;
-      else if (satirFark <= 2) score += 10;
-      else if (satirFark <= 5) score += 5;
+      if (satirFark == 0) {
+        score += 15;
+      } else if (satirFark <= 2) {
+        score += 10;
+      } else if (satirFark <= 5) {
+        score += 5;
+      }
     }
 
     // Tablo kolon sayısı yakınlığı
     if (pdfKolonSayisi > 0 && section.tableCount > 0) {
       final kolonSayisi = _tabloKolonSayisi(section);
       final kolonFark = (pdfKolonSayisi - kolonSayisi).abs();
-      if (kolonFark == 0) score += 12;
-      else if (kolonFark <= 1) score += 6;
+      if (kolonFark == 0) {
+        score += 12;
+      } else if (kolonFark <= 1) {
+        score += 6;
+      }
     }
 
     // Anahtar kelime kesişimi
@@ -227,9 +257,15 @@ class DocxSablonServisi {
         lower.contains('gelir getirici')) {
       return YkKararTuru.kursUcreti;
     }
-    if (lower.contains('fiyat tarif')) return YkKararTuru.fiyatTarifesi;
-    if (lower.contains('mal sat') || lower.contains('ürün sat')) return YkKararTuru.malSatis;
-    if (lower.contains('2547') || lower.contains('sanayi işbirli')) return YkKararTuru.sanayiIsbirligi;
+    if (lower.contains('fiyat tarif')) {
+      return YkKararTuru.fiyatTarifesi;
+    }
+    if (lower.contains('mal sat') || lower.contains('ürün sat')) {
+      return YkKararTuru.malSatis;
+    }
+    if (lower.contains('2547') || lower.contains('sanayi işbirli')) {
+      return YkKararTuru.sanayiIsbirligi;
+    }
     return YkKararTuru.diger;
   }
 

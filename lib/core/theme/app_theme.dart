@@ -12,7 +12,7 @@ class AppTheme {
       scaffoldBackgroundColor: backgroundColor,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
-        background: backgroundColor,
+        surface: backgroundColor,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: white,

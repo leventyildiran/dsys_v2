@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/turkce_format.dart';
 import '../../../core/models/firma_model.dart';
 import '../../../core/models/hizmet_model.dart';
@@ -1086,7 +1085,7 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
             border: OutlineInputBorder(),
             isDense: true,
           ),
-          value: fHizmetTipleri.contains(invoice.hizmetTipi)
+          initialValue: fHizmetTipleri.contains(invoice.hizmetTipi)
               ? invoice.hizmetTipi
               : null,
           items: fHizmetTipleri
@@ -1130,7 +1129,7 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
-                  value: fOdemeTipleri.contains(invoice.odemeTipi)
+                  initialValue: fOdemeTipleri.contains(invoice.odemeTipi)
                       ? invoice.odemeTipi
                       : null,
                   items: fOdemeTipleri
@@ -1169,7 +1168,7 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
-                  value: fUrunTurleri.contains(invoice.urunTuru)
+                  initialValue: fUrunTurleri.contains(invoice.urunTuru)
                       ? invoice.urunTuru
                       : null,
                   items: fUrunTurleri
@@ -1199,7 +1198,7 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
               border: OutlineInputBorder(),
               isDense: true,
             ),
-            value: fTedarikYontemleri.contains(invoice.tedarikYontemi)
+            initialValue: fTedarikYontemleri.contains(invoice.tedarikYontemi)
                 ? invoice.tedarikYontemi
                 : null,
             items: fTedarikYontemleri
@@ -1213,7 +1212,7 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
         if (kategori == 'analiz') ...[
           CheckboxListTile(
             title: const Text(
-              'KDV\'den Muaftır (İstisna)',
+              'KDV\'den Muaf',
               style: TextStyle(fontSize: 13),
             ),
             value: invoice.isKdvMuaf,

@@ -166,7 +166,7 @@ class _SablonEditorScreenState extends State<SablonEditorScreen> {
                 Expanded(
                   flex: 1,
                   child: DropdownButtonFormField<String>(
-                    value: _selectedTur,
+                    initialValue: _selectedTur,
                     decoration: const InputDecoration(
                       labelText: 'Şablon Türü',
                       border: OutlineInputBorder(),
@@ -186,7 +186,7 @@ class _SablonEditorScreenState extends State<SablonEditorScreen> {
                 Expanded(
                   flex: 1,
                   child: DropdownButtonFormField<BirimModel?>(
-                    value: _selectedBirim,
+                    initialValue: _selectedBirim,
                     decoration: const InputDecoration(
                       labelText: 'Hangi Birim İçin?',
                       border: OutlineInputBorder(),
@@ -201,7 +201,7 @@ class _SablonEditorScreenState extends State<SablonEditorScreen> {
                           value: birim,
                           child: Text(birim.ad),
                         );
-                      }).toList(),
+                      }),
                     ],
                     onChanged: (val) {
                       setState(() => _selectedBirim = val);
@@ -243,7 +243,7 @@ class _SablonEditorScreenState extends State<SablonEditorScreen> {
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 5),
                     )

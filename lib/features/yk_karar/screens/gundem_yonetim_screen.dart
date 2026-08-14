@@ -1,11 +1,6 @@
-import 'dart:convert';
-
 import 'package:file_picker/file_picker.dart';
-import 'package:file_saver/file_saver.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:printing/printing.dart';
 
 import '../models/gundem_model.dart';
 import '../providers/gundem_provider.dart';
@@ -371,7 +366,7 @@ class _GundemScreenState extends State<GundemScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<GundemTuru>(
-                  value: seciliTur,
+                  initialValue: seciliTur,
                   decoration: const InputDecoration(labelText: 'Gündem Türü'),
                   items: GundemTuru.values
                       .map((t) => DropdownMenuItem(

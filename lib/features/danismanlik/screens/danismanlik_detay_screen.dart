@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/turkce_format.dart';
 import 'danismanlik_form_screen.dart';
 import '../models/danismanlik_model.dart';
@@ -130,7 +129,7 @@ class _DanismanlikDetayBody extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.blueGrey.shade100),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))],
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,7 +306,7 @@ class _DanismanlikDetayBody extends StatelessWidget {
   Widget _buildTaksitCard(BuildContext context, TaksitModel taksit, DanismanlikDetayProvider provider) {
     final d = provider.danismanlik;
     final islemAyi = DanismanlikDetayProvider.guncelIslemAyi();
-    final akis = IsAkisiMotoru.forTur(d!.tur);
+    final akis = IsAkisiMotoru.forTur(d.tur);
 
     final bool isDagitimAsamasi = akis.adimIndeksi(taksit.durum) >= akis.adimIndeksi(TaksitDurum.dagitimHesaplandi);
 
@@ -316,7 +315,7 @@ class _DanismanlikDetayBody extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.blueGrey.shade200),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -381,8 +380,11 @@ class _DanismanlikDetayBody extends StatelessWidget {
                   value: akis.adimIndeksi(taksit.durum) >= akis.adimIndeksi(TaksitDurum.faturaKesildi),
                   isEnabled: taksit.durum == TaksitDurum.taslak || taksit.durum == TaksitDurum.faturaKesildi,
                   onChanged: (val) {
-                    if (val == true) provider.durumIlerlet(taksit);
-                    else provider.durumGeriAl(taksit);
+                    if (val == true) {
+                      provider.durumIlerlet(taksit);
+                    } else {
+                      provider.durumGeriAl(taksit);
+                    }
                   },
                 ),
                 const SizedBox(width: 32),
@@ -391,8 +393,11 @@ class _DanismanlikDetayBody extends StatelessWidget {
                   value: akis.adimIndeksi(taksit.durum) >= akis.adimIndeksi(TaksitDurum.paraGeldi),
                   isEnabled: taksit.durum == TaksitDurum.faturaKesildi || taksit.durum == TaksitDurum.paraGeldi,
                   onChanged: (val) {
-                    if (val == true) provider.durumIlerlet(taksit);
-                    else provider.durumGeriAl(taksit);
+                    if (val == true) {
+                      provider.durumIlerlet(taksit);
+                    } else {
+                      provider.durumGeriAl(taksit);
+                    }
                   },
                 ),
               ],
@@ -404,7 +409,7 @@ class _DanismanlikDetayBody extends StatelessWidget {
           if (isDagitimAsamasi)
             Container(
               padding: const EdgeInsets.all(24),
-              color: Colors.orange.shade50.withOpacity(0.5),
+              color: Colors.orange.shade50.withValues(alpha: 0.5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -605,7 +610,7 @@ class _DanismanlikDetayBody extends StatelessWidget {
 
   Widget _buildBakiyeCari(DanismanlikDetayProvider provider) {
     final d = provider.danismanlik;
-    final toplamTutar = d!.toplamTutar;
+    final toplamTutar = d.toplamTutar;
     final kullanilanTutar = provider.taksitler.fold<double>(0, (sum, t) => sum + t.brutTutar);
     final kalanTutar = toplamTutar - kullanilanTutar;
     final oran = kullanilanTutar / toplamTutar;

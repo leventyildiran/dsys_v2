@@ -113,7 +113,7 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
 
                 return ListView.separated(
                   itemCount: birimler.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     return _BirimKarti(
                       birim: birimler[index],
@@ -175,7 +175,7 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<BirimTuru>(
-                    value: tur,
+                    initialValue: tur,
                     decoration: const InputDecoration(
                       labelText: 'Birim Türü',
                       prefixIcon: Icon(Icons.category),
@@ -246,7 +246,7 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                     );
                     await _birimService.create(birim);
                     if (ctx.mounted) Navigator.pop(ctx);
-                    if (mounted) {
+                    if (context.mounted) {
                       _faturaBirimleriniYenile();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -324,7 +324,7 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<BirimTuru>(
-                    value: tur,
+                    initialValue: tur,
                     decoration: const InputDecoration(
                       labelText: 'Birim Türü',
                       prefixIcon: Icon(Icons.category),
@@ -385,7 +385,7 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                       'hesapAdi': hesapAdi.isNotEmpty ? hesapAdi : null,
                     });
                     if (ctx.mounted) Navigator.pop(ctx);
-                    if (mounted) {
+                    if (context.mounted) {
                       _faturaBirimleriniYenile();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -464,7 +464,7 @@ class _BirimKarti extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           backgroundColor: birim.aktif
-              ? AppTheme.primaryColor.withOpacity(0.1)
+              ? AppTheme.primaryColor.withValues(alpha: 0.1)
               : Colors.grey.shade200,
           child: Icon(
             Icons.business_rounded,
@@ -489,8 +489,8 @@ class _BirimKarti extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: birim.aktif
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.red.withOpacity(0.1),
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(

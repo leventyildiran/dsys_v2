@@ -112,7 +112,7 @@ class _DanismanlikTakipBody extends StatelessWidget {
                                     shape: BoxShape.circle,
                                     border: Border.all(color: Colors.white, width: 2),
                                     boxShadow: [
-                                      BoxShadow(color: _durumRenk(filtered[i].taksit.durum).withOpacity(0.3), blurRadius: 4),
+                                      BoxShadow(color: _durumRenk(filtered[i].taksit.durum).withValues(alpha: 0.3), blurRadius: 4),
                                     ],
                                   ),
                                 ),

@@ -1,4 +1,4 @@
-import 'dart:convert';
+// ignore_for_file: avoid_print
 
 void main() {
   final kalemlerHam = List.generate(12, (i) => {

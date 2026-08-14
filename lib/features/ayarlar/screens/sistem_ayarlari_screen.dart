@@ -247,7 +247,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
     return InkWell(
       onTap: () => setState(() => _selectedIndex = index),
       child: Container(
-        color: isSelected ? AppTheme.primaryColor.withOpacity(0.08) : Colors.transparent,
+        color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.08) : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Row(
           children: [
@@ -476,7 +476,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
               children: [
                 const Icon(Icons.drag_handle, color: Colors.grey),
                 const SizedBox(width: 16),
-                CircleAvatar(backgroundColor: AppTheme.primaryColor.withOpacity(0.1), child: Text('${index + 1}')),
+                CircleAvatar(backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1), child: Text('${index + 1}')),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
@@ -589,7 +589,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
+                color: AppTheme.primaryColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: AppTheme.primaryColor, size: 28),
@@ -614,9 +614,9 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: renk.withOpacity(0.06),
+        color: renk.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: renk.withOpacity(0.25)),
+        border: Border.all(color: renk.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

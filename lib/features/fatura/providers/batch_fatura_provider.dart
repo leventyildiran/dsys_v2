@@ -1,18 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../../core/services/ai_extraction_service.dart';
 import '../../../core/services/sistem_ayarlari_service.dart';
 import '../../../core/models/sistem_ayarlari_model.dart';
 import '../../../core/turkce_format.dart';
 import '../../birim/models/birim_model.dart';
-import '../../../core/models/hizmet_model.dart';
-import '../../../core/services/hizmet_service.dart';
 import '../models/fatura_matbu_baski_onizleme.dart';
 import '../models/fatura_matbu_config.dart';
 import '../models/fatura_arsiv_util.dart';
@@ -51,20 +46,9 @@ class BatchFaturaProvider extends ChangeNotifier {
   FaturaKuyrukProvider get kuyrukProvider => _kuyrukProvider;
   FaturaMatbuProvider get matbuProvider => _matbuProvider;
 
-  // ── PDF Font Cache ───────────────────────────────────────
-  static pw.Font? _pdfFontRegular;
-  static pw.Font? _pdfFontBold;
-
-  Future<(pw.Font regular, pw.Font bold)> _pdfFontlari() async {
-    _pdfFontRegular ??= await PdfGoogleFonts.tinosRegular();
-    _pdfFontBold ??= await PdfGoogleFonts.tinosBold();
-    return (_pdfFontRegular!, _pdfFontBold!);
-  }
-
   // ── AI & Servisler ───────────────────────────────────────
   final AIExtractionService _aiService = AIExtractionService();
   final FaturaService _faturaService = FaturaService();
-  final HizmetService _hizmetService = HizmetService();
   SistemAyarlariModel? sistemAyarlari;
 
   // ── Arşiv State ──────────────────────────────────────────
@@ -105,7 +89,6 @@ class BatchFaturaProvider extends ChangeNotifier {
 
     // Aktif fatura değiştiğinde veya birimi değiştiğinde kalibrasyonu yükle
     if (currentIndex >= 0 && currentIndex < pendingInvoices.length) {
-      final fatura = pendingInvoices[currentIndex];
       final birimId = seciliBirimFor(currentIndex);
       if (birimId != _matbuProvider.aktifBirimId) {
         _matbuProvider.loadMatbuAyarlari(birimId);
@@ -173,8 +156,6 @@ class BatchFaturaProvider extends ChangeNotifier {
   // DELEGASYON: Coordinate Helpers
   // ─────────────────────────────────────────────────────────
 
-  Offset _konum(String key) => _matbuProvider.konum(key);
-
   void updateCoordinate(String key, Offset newOffset, {bool notify = true}) {
     _matbuProvider.updateCoordinate(key, newOffset, notify: notify);
   }
@@ -232,6 +213,7 @@ class BatchFaturaProvider extends ChangeNotifier {
   }
 
   void calibrationUiRefresh() {
+    _matbuProvider.calibrationUiRefresh();
     notifyListeners();
   }
 

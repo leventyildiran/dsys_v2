@@ -349,7 +349,6 @@ class FaturaPdfUretici {
                   if (invoice.aciklama != null &&
                       invoice.aciklama!.trim().isNotEmpty)
                     invoice.aciklama!,
-                  if (invoice.isKdvMuaf) 'KDV\'den Muaftır (İstisna)',
                 ].join(' | ');
 
                 if (ustAciklamalar.isNotEmpty) {
@@ -407,6 +406,36 @@ class FaturaPdfUretici {
                       top: konum('ekstraNot_$i').dy,
                       left: konum('ekstraNot_$i').dx,
                       child: pw.Text(not, style: metin()),
+                    ));
+                  }
+                }
+
+                // Makas (sayfayiBol) ile kesilen sayfada ALT Nakli Yekün: üsttekilerin
+                // kümülatif toplamı, görsel ekrandaki nakliYekunAltYazi/nakliYekunAltTutar
+                // alanlarıyla birebir aynı konumda basılır (yalnızca ara sayfalar).
+                if (invoice.nakliYekunAktif && !sonSayfa) {
+                  if (nakliYekunAltMetin.trim().isNotEmpty &&
+                      konum('nakliYekunAltYazi').dx >= 0) {
+                    children.add(pw.Positioned(
+                      top: konum('nakliYekunAltYazi').dy,
+                      left: konum('nakliYekunAltYazi').dx,
+                      child: pw.SizedBox(
+                        width: 255,
+                        child: pw.Text(nakliYekunAltMetin,
+                            style: metin(weight: pw.FontWeight.bold)),
+                      ),
+                    ));
+                  }
+                  if (konum('nakliYekunAltTutar').dx >= 0) {
+                    children.add(pw.Positioned(
+                      top: konum('nakliYekunAltTutar').dy,
+                      left: konum('nakliYekunAltTutar').dx,
+                      child: pw.SizedBox(
+                        width: 80,
+                        child: pw.Text(TurkceFormat.para(araToplam),
+                            style: metin(weight: pw.FontWeight.bold),
+                            textAlign: pw.TextAlign.right),
+                      ),
                     ));
                   }
                 }

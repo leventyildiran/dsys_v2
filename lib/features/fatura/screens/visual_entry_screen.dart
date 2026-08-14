@@ -10,7 +10,7 @@ import '../../../core/turkce_format.dart';
 class VisualEntryScreen extends StatefulWidget {
   final int invoiceIndex;
 
-  const VisualEntryScreen({Key? key, required this.invoiceIndex}) : super(key: key);
+  const VisualEntryScreen({super.key, required this.invoiceIndex});
 
   @override
   State<VisualEntryScreen> createState() => _VisualEntryScreenState();
@@ -19,6 +19,9 @@ class VisualEntryScreen extends StatefulWidget {
 class _VisualEntryScreenState extends State<VisualEntryScreen> {
   String? _seciliAlan;
   bool _arkaPlanGoster = true;
+
+  /// Tutamaç sürüklemesi sırasında sayfa kaydırmasını geçici olarak kapatır.
+  bool _surukleAktif = false;
   
   final ScrollController _horizontalScrollController = ScrollController();
 
@@ -49,7 +52,6 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     
     final sayfaHesabi = _hesaplaSayfalar(provider, invoice);
     final pagesOfIndices = sayfaHesabi['pages'] as List<List<int>>;
-    final nakliTutarlar = sayfaHesabi['nakliTutarlar'] as List<double>;
     final toplamSayfa = pagesOfIndices.length;
     
     provider.currentIndex = widget.invoiceIndex;
@@ -64,13 +66,10 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
             children: [
               Switch(
                 value: _arkaPlanGoster,
-                activeColor: Colors.blueAccent,
+                activeThumbColor: Colors.blueAccent,
                 onChanged: (v) => setState(() => _arkaPlanGoster = v),
               ),
               const Text('Arka Plan', style: TextStyle(color: Colors.white, fontSize: 13)),
-              const SizedBox(width: 8),
-            ],
-          ),
               const SizedBox(width: 8),
             ],
           ),
@@ -135,6 +134,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
               thumbVisibility: true,
               child: SingleChildScrollView(
                 scrollDirection: Axis.vertical,
+                physics: _surukleAktif ? const NeverScrollableScrollPhysics() : null,
                 child: Scrollbar(
                   controller: _horizontalScrollController,
                   thumbVisibility: true,
@@ -142,17 +142,16 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
                   child: SingleChildScrollView(
                     controller: _horizontalScrollController,
                     scrollDirection: Axis.horizontal,
+                    physics: _surukleAktif ? const NeverScrollableScrollPhysics() : null,
                     child: Padding(
                       padding: const EdgeInsets.only(top: 40, bottom: 40, right: 40, left: 10),
                       child: Column(
                         children: List.generate(toplamSayfa, (sayfaIndex) {
                           final pageIndices = pagesOfIndices[sayfaIndex];
                           final pageOnizleme = provider.kalibrasyonBaskiOnizlemesi(sayfaIndex + 1);
-                          // Nakli yekün tutarı: bu sayfanın sonundaki kümülatif
-                          // Sayfa 2+ üst nakli yekünü için önceki sayfanın tutarı kullanılır
-                          final nakliTutar = sayfaIndex > 0 
-                              ? nakliTutarlar[sayfaIndex - 1]  // Önceki sayfadan gelen tutar (üst nakli yekün)
-                              : (nakliTutarlar.isNotEmpty ? nakliTutarlar[sayfaIndex] : 0.0); // İlk sayfanın alt nakli yekünü
+                          // Nakli yekün üst/alt tutarları KalibrasyonBaskiOnizleme'nin
+                          // 'nakliYekunUstTutar' / 'nakliYekunAltTutar' alanlarından gelir;
+                          // burada ayrıca hesaplanmasına gerek yoktur.
                           
                           return Container(
                   width: FaturaMatbuConfig.a4Genislik + 600,
@@ -203,7 +202,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
                         ..._buildEkstraNotlar(provider, invoice),
 
                       // Kalemler
-                      ..._buildKalemler(provider, invoice, pageOnizleme, pageIndices, nakliYekunTutari: nakliTutar),
+                      ..._buildKalemler(provider, invoice, pageOnizleme, pageIndices),
                     ],
                   ),
                 );
@@ -272,9 +271,9 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       if ((key == 'melbes' || key == 'numuneNo') && val.trim().isEmpty) {
         return;
       }
-      final updateKey = data.$2 as String;
-      final maxW = data.$3 as double;
-      final lines = data.$4 as int;
+      final updateKey = data.$2;
+      final maxW = data.$3;
+      final lines = data.$4;
       
       final offset = _konum(provider, key);
       
@@ -297,6 +296,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
           provider.matbuFontBoyutu,
           maxWidth: maxW,
           maxLines: lines,
+          hint: FaturaMatbuConfig.alanEtiketleri[key] ?? key,
         ),
       ));
     });
@@ -334,44 +334,31 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       Offset adjustedOffset = offset;
       final isBold = key.toLowerCase().contains('toplam') || key.toLowerCase().contains('yekun');
 
-      // Alan genişliği ve satır sayısı
+      // Alan genişliği
       double maxW;
-      int maxLines;
       if (key == 'yaziylaTutar') {
-        maxW = 420; maxLines = 3;
+        maxW = 420;
       } else if (key == 'numuneAciklama') {
-        maxW = 220; maxLines = 1;
+        maxW = 220;
       } else if (key == 'melbesKurum') {
-        maxW = 245; maxLines = 2;
+        maxW = 245;
       } else if (key == 'melbes' || key == 'numuneNo') {
-        maxW = key == 'melbes' ? 155 : 140; maxLines = 1;
+        maxW = key == 'melbes' ? 155 : 140;
       } else if (key == 'kdvOrani') {
-        maxW = 40; maxLines = 1;
+        maxW = 40;
       } else if (key == 'matrah' || key == 'kdv' || key == 'genelToplam' || key.contains('Tutar')) {
-        maxW = 80; maxLines = 1;
+        maxW = 80;
       } else {
-        maxW = 150; maxLines = 2;
+        maxW = 150;
       }
       
-      final childWidget = Container(
-        constraints: BoxConstraints(maxWidth: maxW),
-        child: Text(
-          finalVal,
-          maxLines: maxLines,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: provider.matbuFontBoyutu,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            color: Colors.black87,
-          ),
-        ),
-      );
       w.add(Positioned(
         left: adjustedOffset.dx,
         top: adjustedOffset.dy,
         child: _suruklenebilirAlan(
                 provider: provider,
                 alanKey: key,
+                readOnly: true,
                 child: _metinKutusu(
                   metin: finalVal,
                   fontBoyutu: provider.matbuFontBoyutu,
@@ -417,8 +404,9 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
   }
 
   /// Her sayfanın kalem index listesi + nakli yekün tutarlarını hesaplar.
-  /// Index -1 = Nakli Yekün satırı (top veya bottom).
-  /// Döndürülen Map: 'pages' → List<List<int>>, 'nakliTutarlar' → List<double> (her sayfa sonundaki kümülatif)
+  /// Nakli Yekün satırları kalem index listesine girmez; üst/alt tutar metinleri
+  /// KalibrasyonBaskiOnizleme'nin 'nakliYekunUstTutar' / 'nakliYekunAltTutar' alanlarından gelir.
+  /// Döndürülen Map: 'pages' → `List<List<int>>`, 'nakliTutarlar' → `List<double>` (her sayfa sonundaki kümülatif)
   Map<String, dynamic> _hesaplaSayfalar(BatchFaturaProvider provider, var invoice) {
     final kalemler = invoice.kalemler;
     final satirLimit = 9999;
@@ -481,12 +469,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     
     while (currentItemIndex < kalemler.length) {
        if (pagesOfIndices.isNotEmpty) {
-           final lastPage = pagesOfIndices.last;
-           if (lastPage.isNotEmpty && lastPage.last == -1) {
-              lastPage.insert(lastPage.length - 1, currentItemIndex);
-           } else {
-              lastPage.add(currentItemIndex);
-           }
+           pagesOfIndices.last.add(currentItemIndex);
            // Son sayfadaki ek kalemleri de toplama ekle
            if (isGercekList[currentItemIndex]) {
              final m = TurkceFormat.parseSayi(kalemler[currentItemIndex]['miktar'], fallback: 1.0);
@@ -503,7 +486,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     };
   }
 
-  List<Widget> _buildKalemler(BatchFaturaProvider provider, var invoice, KalibrasyonBaskiOnizleme onizleme, List<int> pageIndices, {double nakliYekunTutari = 0.0}) {
+  List<Widget> _buildKalemler(BatchFaturaProvider provider, var invoice, KalibrasyonBaskiOnizleme onizleme, List<int> pageIndices) {
     final w = <Widget>[];
     final kalemler = invoice.kalemler;
     if (kalemler.isEmpty) return w;
@@ -523,7 +506,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       // Cinsi
       if (provider.coordinates.containsKey('cinsi')) {
           w.add(Positioned(
-            left: provider.coordinates['cinsi']!.dx + provider.globalOffsetDx + 300,
+            left: provider.coordinates['cinsi']!.dx + provider.globalOffsetDx + 276,
             top: satirTop,
            child: _editableField(
              provider,
@@ -540,7 +523,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       // Miktar
       if (provider.coordinates.containsKey('miktar')) {
           w.add(Positioned(
-            left: provider.coordinates['miktar']!.dx + provider.globalOffsetDx + 300,
+            left: provider.coordinates['miktar']!.dx + provider.globalOffsetDx + 276,
             top: satirTop,
            child: _editableField(
              provider,
@@ -558,7 +541,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       // Fiyat
       if (provider.coordinates.containsKey('fiyat')) {
           w.add(Positioned(
-            left: provider.coordinates['fiyat']!.dx + provider.globalOffsetDx + 300,
+            left: provider.coordinates['fiyat']!.dx + provider.globalOffsetDx + 276,
             top: satirTop,
            child: _editableField(
              provider,
@@ -581,11 +564,12 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
          
          final metin = t > 0 ? TurkceFormat.paraKalem(t) : '';
          w.add(Positioned(
-           left: provider.coordinates['tutar']!.dx + provider.globalOffsetDx + 300,
+           left: provider.coordinates['tutar']!.dx + provider.globalOffsetDx + 276,
            top: satirTop,
            child: _suruklenebilirAlan(
                    provider: provider,
                    alanKey: 'tutar',
+                   readOnly: true,
                    child: Row(
                      mainAxisSize: MainAxisSize.min,
                      children: [
@@ -635,7 +619,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
 
   Offset _konum(BatchFaturaProvider provider, String key) {
     final base = provider.coordinates[key] ?? Offset.zero;
-    return Offset(base.dx + provider.globalOffsetDx + 300, base.dy + provider.globalOffsetDy + 200);
+    return Offset(base.dx + provider.globalOffsetDx + 276, base.dy + provider.globalOffsetDy + 200);
   }
 
   Widget _editableField(
@@ -771,53 +755,103 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     required BatchFaturaProvider provider,
     required String alanKey,
     required Widget child,
+    bool readOnly = false,
   }) {
     final secili = _seciliAlan == alanKey;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
+    
+    final handle = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onPanStart: (_) {
+        setState(() {
+          _surukleAktif = true;
+          _seciliAlan = alanKey;
+        });
+      },
+      onPanUpdate: (details) {
+        provider.calibrationDragDelta(alanKey, details.delta, notify: false);
+        setState(() {});
+      },
+      onPanEnd: (_) {
+        _surukleBitir(provider);
+      },
+      onPanCancel: () {
+        _surukleBitir(provider);
+      },
+      child: MouseRegion(
+        cursor: SystemMouseCursors.move,
+        child: Container(
+          width: 20,
+          height: 20,
+          margin: const EdgeInsets.only(right: 4),
+          alignment: Alignment.center,
           decoration: BoxDecoration(
-            border: secili ? Border.all(color: Colors.blue.withValues(alpha: 0.5), width: 1) : Border.all(color: Colors.transparent, width: 1),
-          ),
-          child: child,
-        ),
-        Positioned(
-          left: -18,
-          top: -2,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() => _seciliAlan = alanKey),
-            onPanStart: (_) => setState(() { _seciliAlan = alanKey; }),
-            onPanUpdate: (details) {
-              provider.calibrationDragDelta(alanKey, details.delta, notify: false);
-              setState(() {});
-            },
-            onPanEnd: (_) {
-              provider.calibrationUiRefresh();
-            },
-            onPanCancel: () {
-              provider.calibrationUiRefresh();
-            },
-            child: Container(
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                color: Colors.blueAccent.withValues(alpha: 0.8),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 2,
-                    offset: const Offset(1, 1),
-                  ),
-                ],
+            color: secili ? Colors.blue.shade700 : Colors.blueAccent.withValues(alpha: 0.9),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 3,
+                offset: const Offset(1, 1),
               ),
-              child: const Icon(Icons.open_with, size: 10, color: Colors.white),
+            ],
+          ),
+          child: const Icon(Icons.open_with, size: 12, color: Colors.white),
+        ),
+      ),
+    );
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        handle,
+        GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () {
+            setState(() => _seciliAlan = alanKey);
+          },
+          onPanStart: !readOnly
+              ? (_) {
+                  setState(() {
+                    _surukleAktif = true;
+                    _seciliAlan = alanKey;
+                  });
+                }
+              : null,
+          onPanUpdate: !readOnly
+              ? (details) {
+                  provider.calibrationDragDelta(alanKey, details.delta, notify: false);
+                  setState(() {});
+                }
+              : null,
+          onPanEnd: !readOnly
+              ? (_) {
+                  _surukleBitir(provider);
+                }
+              : null,
+          onPanCancel: !readOnly
+              ? () {
+                  _surukleBitir(provider);
+                }
+              : null,
+          child: Container(
+            decoration: BoxDecoration(
+              border: secili
+                  ? Border.all(color: Colors.blue.shade700, width: 1.5)
+                  : Border.all(color: Colors.transparent, width: 1.5),
             ),
+            child: child,
           ),
         ),
       ],
     );
+  }
+
+  void _surukleBitir(BatchFaturaProvider provider) {
+    setState(() {
+      _surukleAktif = false;
+    });
+    provider.calibrationUiRefresh();
   }
 }
 

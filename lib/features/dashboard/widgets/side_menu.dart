@@ -153,7 +153,7 @@ class _MenuButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          color: isActive ? Colors.white.withOpacity(0.1) : Colors.transparent,
+          color: isActive ? Colors.white.withValues(alpha: 0.1) : Colors.transparent,
           height: 50,
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(

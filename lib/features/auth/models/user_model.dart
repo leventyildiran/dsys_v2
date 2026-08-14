@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 enum UserRole {
   superAdmin('super_admin', 'Süper Admin'),
   ykSekreteri('yk_sekreteri', 'YK Sekreteri'),

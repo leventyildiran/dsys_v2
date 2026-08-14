@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:flutter_quill_delta_from_html/flutter_quill_delta_from_html.dart';
-import '../../../core/theme/app_theme.dart';
 
 class OnlineWordEditor extends StatefulWidget {
   final String initialHtmlOrText;
@@ -106,7 +105,7 @@ class _OnlineWordEditorState extends State<OnlineWordEditor> {
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 10,
                         spreadRadius: 2,
                       )
