@@ -723,7 +723,7 @@ class BatchFaturaProvider extends ChangeNotifier {
       mappingResult = await _aiService.extractExcelMapping(previewLines);
     } catch (e) {
       debugPrint('AI Excel eşleme başarısız, çevrimdışı parser deneniyor: $e');
-      mappingResult = {'isBatchList': false};
+      mappingResult = _fallbackOfflineMapping(lines);
     }
 
     if (mappingResult['isBatchList'] == true) {
@@ -734,6 +734,10 @@ class BatchFaturaProvider extends ChangeNotifier {
       final firmaIdx = mapData['firmaAdi'] as int?;
       final tcIdx = mapData['tcVkn'] as int?;
       final matrahIdx = mapData['matrah'] as int?;
+      final kdvOraniIdx = mapData['kdvOrani'] as int?;
+      final miktarIdx = mapData['miktar'] as int?;
+      final fiyatIdx = mapData['fiyat'] as int?;
+      final cinsiIdx = mapData['cinsi'] as int?;
 
       for (int i = startRow; i < lines.length; i++) {
         final line = lines[i].trim();
@@ -743,6 +747,10 @@ class BatchFaturaProvider extends ChangeNotifier {
         String firma = '';
         String tc = '';
         double matrah = 0.0;
+        double kdvOrani = 20.0;
+        int miktar = 1;
+        double fiyat = 0.0;
+        String cinsi = 'Hizmet Bedeli';
 
         if (firmaIdx != null && firmaIdx >= 0 && firmaIdx < cells.length) {
           firma = cells[firmaIdx].trim();
@@ -753,8 +761,29 @@ class BatchFaturaProvider extends ChangeNotifier {
         if (matrahIdx != null && matrahIdx >= 0 && matrahIdx < cells.length) {
           matrah = parseTurkceSayi(cells[matrahIdx], fallback: 0.0);
         }
+        if (kdvOraniIdx != null && kdvOraniIdx >= 0 && kdvOraniIdx < cells.length) {
+          final kdvStr = cells[kdvOraniIdx].trim().replaceAll('%', '');
+          kdvOrani = parseTurkceSayi(kdvStr, fallback: 20.0);
+        }
+        if (miktarIdx != null && miktarIdx >= 0 && miktarIdx < cells.length) {
+          miktar = parseTurkceSayi(cells[miktarIdx], fallback: 1.0).toInt();
+        }
+        if (fiyatIdx != null && fiyatIdx >= 0 && fiyatIdx < cells.length) {
+          fiyat = parseTurkceSayi(cells[fiyatIdx], fallback: 0.0);
+        }
+        if (cinsiIdx != null && cinsiIdx >= 0 && cinsiIdx < cells.length) {
+          final cns = cells[cinsiIdx].trim();
+          if (cns.isNotEmpty) cinsi = cns;
+        }
+
+        if (fiyat == 0 && matrah > 0) {
+           fiyat = matrah / (miktar > 0 ? miktar : 1);
+        } else if (matrah == 0 && fiyat > 0) {
+           matrah = fiyat * (miktar > 0 ? miktar : 1);
+        }
 
         if (firma.isNotEmpty && matrah > 0) {
+          final isMuaf = kdvOrani <= 0;
           final inv = FaturaModel(
             id: '${DateTime.now().millisecondsSinceEpoch}$i',
             firmaAdi: firma,
@@ -767,12 +796,13 @@ class BatchFaturaProvider extends ChangeNotifier {
             melbesNo: '',
             numuneNo: '',
             numuneAciklamasi: '',
+            urunTuru: cinsi.toLowerCase().contains('yumurta') ? 'YUMURTA' : 'DİĞER',
             kalemler: [
-              {'cinsi': 'Hizmet Bedeli', 'miktar': 1, 'fiyat': matrah},
+              {'cinsi': cinsi, 'miktar': miktar, 'fiyat': fiyat},
             ],
             matrah: matrah,
-            kdvOrani: 20.0,
-            isKdvMuaf: false,
+            kdvOrani: isMuaf ? 0.0 : kdvOrani,
+            isKdvMuaf: isMuaf,
             kdvTutari: 0.0,
             genelToplam: 0.0,
             parsedBy: FaturaParseKaynaklari.excelToplu,
@@ -793,6 +823,48 @@ class BatchFaturaProvider extends ChangeNotifier {
     } else {
       await loadBatch(csvText);
     }
+  }
+
+  Map<String, dynamic> _fallbackOfflineMapping(List<String> lines) {
+    for (int i = 0; i < lines.length && i < 15; i++) {
+      final line = lines[i].toLowerCase();
+      if (line.contains('ad-soyad') || line.contains('ad soyad') || line.contains('firma')) {
+        final cells = line.split(' | ');
+        int firmaIdx = -1;
+        int tcIdx = -1;
+        int matrahIdx = -1;
+        int kdvOraniIdx = -1;
+        int miktarIdx = -1;
+        int fiyatIdx = -1;
+        int cinsiIdx = -1;
+        for (int c = 0; c < cells.length; c++) {
+          final cell = cells[c].trim();
+          if (cell.contains('ad-soyad') || cell.contains('ad soyad') || cell.contains('firma ad')) firmaIdx = c;
+          if (cell.contains('tc') || cell.contains('vkn') || cell.contains('vergi')) tcIdx = c;
+          if (cell.contains('kdv dahil') || cell.contains('toplam tutar')) matrahIdx = c;
+          if (cell.contains('kdv (%') || (cell.contains('kdv') && cell.contains('oran'))) kdvOraniIdx = c;
+          if (cell.contains('adet') || cell.contains('miktar')) miktarIdx = c;
+          if (cell.contains('birim fiyat')) fiyatIdx = c;
+          if (cell.contains('cinsi') || cell.contains('ürün ad')) cinsiIdx = c;
+        }
+        if (firmaIdx != -1 && matrahIdx != -1) {
+          return {
+            'isBatchList': true,
+            'startRowIndex': i + 1,
+            'mapping': {
+              'firmaAdi': firmaIdx,
+              'tcVkn': tcIdx,
+              'matrah': matrahIdx,
+              'kdvOrani': kdvOraniIdx,
+              'miktar': miktarIdx,
+              'fiyat': fiyatIdx,
+              'cinsi': cinsiIdx,
+            }
+          };
+        }
+      }
+    }
+    return {'isBatchList': false};
   }
 
   // ─────────────────────────────────────────────────────────

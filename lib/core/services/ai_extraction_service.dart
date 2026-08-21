@@ -318,7 +318,11 @@ Sütun endeksleri 0'dan başlar (Yani ilk sütun 0'dır).
   "mapping": {
     "firmaAdi": 0,    // Müşteri Adı / Firma Adının olduğu sütun numarası
     "tcVkn": 1,       // TC Kimlik / VKN'nin olduğu sütun numarası (yoksa -1)
-    "matrah": 4       // KDV hariç tutarın (veya ödenen toplam tutarın) olduğu sütun numarası
+    "matrah": 4,      // KDV hariç tutarın (veya ödenen toplam tutarın) olduğu sütun numarası
+    "kdvOrani": 6,    // KDV oranının (%10 vb.) olduğu sütun numarası (yoksa -1)
+    "miktar": 4,      // Ürün miktarı/adet sütun numarası (yoksa -1)
+    "fiyat": 3,       // Birim fiyatın olduğu sütun numarası (yoksa -1)
+    "cinsi": -1       // Ürün veya hizmet adının (örn: Yumurta) olduğu sütun numarası (yoksa -1)
   }
 }
 
