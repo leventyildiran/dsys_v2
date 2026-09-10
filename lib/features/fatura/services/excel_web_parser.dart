@@ -5,8 +5,11 @@ import 'package:flutter/foundation.dart';
 @JS('XLSX.read')
 external JSAny _readXlsx(JSAny data, JSAny options);
 
-@JS('XLSX.utils.sheet_to_json')
-external JSArray _sheetToJson(JSAny worksheet, JSAny options);
+@JS('XLSX.utils.sheet_to_csv')
+external JSString _sheetToCsv(JSAny worksheet);
+
+@JS('Reflect.get')
+external JSAny? _jsGet(JSObject target, JSAny propertyKey);
 
 extension type WorkBook._(JSObject _) implements JSObject {
   @JS('SheetNames')
@@ -16,12 +19,10 @@ extension type WorkBook._(JSObject _) implements JSObject {
 }
 
 /// Parses an Excel file using SheetJS (in browser).
-/// Returns a CSV-like text or JSON representation of the first sheet.
+/// Returns a CSV-like text representation of sheets.
 class ExcelWebParser {
   static Future<String> extractTextFromExcel(Uint8List bytes) async {
-    if (!kIsWeb) {
-      throw UnsupportedError('ExcelWebParser sadece Web platformunda çalışır.');
-    }
+    if (!kIsWeb) return '';
 
     try {
       // Create Uint8Array for JS
@@ -33,32 +34,24 @@ class ExcelWebParser {
       final sheetNames = jsWorkbook.sheetNames.dartify() as List;
       if (sheetNames.isEmpty) return '';
 
-      final sheetsMap = jsWorkbook.sheets.dartify() as Map?;
-      if (sheetsMap == null) return '';
-
       final buffer = StringBuffer();
-      final jsonOptions = {'header': 1}.jsify();
+      final sheetsObj = jsWorkbook.sheets;
 
       for (final sName in sheetNames) {
-        final sheetName = sName.toString();
-        final sheet = sheetsMap[sheetName];
+        final sheetNameStr = sName.toString();
+        final sheet = _jsGet(sheetsObj, sheetNameStr.toJS);
         if (sheet == null) continue;
 
-        final rowArray = _sheetToJson(sheet as JSAny, jsonOptions as JSAny);
-        final rowsList = rowArray.dartify() as List?;
-        if (rowsList == null) continue;
+        buffer.writeln('--- SHEET: $sheetNameStr ---');
+        final csvJsString = _sheetToCsv(sheet);
+        final csvDartString = csvJsString.toDart;
+        final lines = csvDartString.split('\n');
 
-        buffer.writeln('--- SHEET: $sheetName ---');
-
-        for (final row in rowsList) {
-          if (row == null) continue;
-          final cellList = row as List;
-          final rowValues = <String>[];
-          for (final cell in cellList) {
-            rowValues.add(cell?.toString() ?? '');
-          }
-          if (rowValues.any((element) => element.trim().isNotEmpty)) {
-            buffer.writeln(rowValues.join(' | '));
+        for (final line in lines) {
+          if (line.trim().isEmpty) continue;
+          final cells = line.split(',').map((c) => c.trim().replaceAll('"', '')).toList();
+          if (cells.any((c) => c.isNotEmpty)) {
+            buffer.writeln(cells.join(' | '));
           }
         }
         buffer.writeln();
@@ -67,9 +60,7 @@ class ExcelWebParser {
       return buffer.toString();
     } catch (e) {
       debugPrint('ExcelWebParser Hatası: $e');
-      throw Exception(
-        'Excel okuma hatası. Lütfen SheetJS yüklü olduğundan emin olun.',
-      );
+      return '';
     }
   }
 }

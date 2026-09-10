@@ -45,6 +45,16 @@ class _DanismanlikTakipBody extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 OutlinedButton.icon(
+                  onPressed: () => context.go('/danismanlik/manuel-hesapla'),
+                  icon: const Icon(Icons.calculate_outlined, size: 16),
+                  label: const Text('Manuel Hesaplama'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF107C41),
+                    side: const BorderSide(color: Color(0xFF107C41)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
                   onPressed: () => context.go('/danismanlik'),
                   icon: const Icon(Icons.list_alt, size: 16),
                   label: const Text('Liste'),

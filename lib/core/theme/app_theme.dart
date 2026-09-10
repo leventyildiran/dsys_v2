@@ -9,6 +9,8 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
+      fontFamily: 'Inter',
+      fontFamilyFallback: const ['Roboto', 'Segoe UI', 'Arial', 'sans-serif'],
       scaffoldBackgroundColor: backgroundColor,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,

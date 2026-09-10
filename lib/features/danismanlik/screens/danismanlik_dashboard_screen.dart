@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/danismanlik_layout.dart';
+import '../widgets/hesaplama_masalari_kolon_grubu.dart';
 import '../../../core/turkce_format.dart';
 import '../models/danismanlik_model.dart';
 import '../services/danismanlik_service.dart';
@@ -24,8 +25,8 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           DanismanlikLayout.kompaktBaslik(
-            baslik: 'Danışmanlık Takibi',
-            altBaslik: 'Sözleşme, taksit ve gelir dağıtımı',
+            baslik: 'Danışmanlık & Gelir Dağıtım Merkezi',
+            altBaslik: 'Resmi Excel Dağıtım Masaları · Sözleşme ve Taksit Takibi',
             aksiyon: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -33,12 +34,16 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                   onPressed: () => context.go('/danismanlik/takip'),
                   icon: const Icon(Icons.timeline, size: 16),
                   label: const Text('Ödeme Takibi'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF475569),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
                   onPressed: () => context.go('/danismanlik/yeni'),
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Yeni'),
+                  label: const Text('Yeni Sözleşme'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6366F1),
                     foregroundColor: Colors.white,
@@ -93,6 +98,43 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // 1. RESMİ EXCEL GELİR DAĞITIM MASALARI (KOLON GRUBU)
+              const HesaplamaMasalariKolonGrubu(),
+              const SizedBox(height: 28),
+
+              // 2. SÖZLEŞMELİ DANIŞMANLIK & TAKSİT TAKİBİ BÖLÜMÜ
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.assignment_outlined, color: Color(0xFF6366F1), size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Sözleşmeli Danışmanlık ve Taksit Takibi',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      Text(
+                        'Kayıtlı sözleşmeler, tahsilat vadeleri ve faturalama süreçleri',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
               // KPI CARDS
               Row(
                 children: [
@@ -414,8 +456,8 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.table_view, color: Colors.green),
-                      tooltip: 'Excel Görünümü',
+                      icon: const Icon(Icons.calculate_outlined, color: Colors.green),
+                      tooltip: 'Hesaplama & Dağıtım Masası',
                       onPressed: () {
                         context.push(
                           '/danismanlik/dagitim',

@@ -29,6 +29,10 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final provider = context.read<BatchFaturaProvider>();
+      final birimId = provider.seciliBirimFor(widget.invoiceIndex);
+      provider.loadMatbuAyarlari(birimId);
       if (_horizontalScrollController.hasClients) {
         _horizontalScrollController.jumpTo(260.0); // A4 kağıdını sola yaklaştırmak için boşluğu atla
       }

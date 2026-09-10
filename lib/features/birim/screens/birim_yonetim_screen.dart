@@ -139,6 +139,7 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
     String mudurAd = '';
     String hesapAdi = '';
     String iban = '';
+    String vkn = '';
 
     await showDialog(
       context: context,
@@ -220,6 +221,15 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                     ),
                     onSaved: (v) => iban = v?.trim() ?? '',
                   ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'VKN (Vergi Kimlik No)',
+                      prefixIcon: Icon(Icons.numbers),
+                      border: OutlineInputBorder(),
+                    ),
+                    onSaved: (v) => vkn = v?.trim() ?? '',
+                  ),
                 ],
               ),
             ),
@@ -242,6 +252,7 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                       mudurAd: mudurAd.isNotEmpty ? mudurAd : null,
                       iban: iban.isNotEmpty ? iban : null,
                       hesapAdi: hesapAdi.isNotEmpty ? hesapAdi : null,
+                      vkn: vkn.isNotEmpty ? vkn : null,
                       aktif: true,
                     );
                     await _birimService.create(birim);
@@ -286,6 +297,7 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
     String mudurAd = birim.mudurAd ?? '';
     String iban = birim.iban ?? '';
     String hesapAdi = birim.hesapAdi ?? '';
+    String vkn = birim.vkn ?? '';
 
     await showDialog(
       context: context,
@@ -362,6 +374,16 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                     ),
                     onSaved: (v) => iban = v?.trim() ?? '',
                   ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    initialValue: vkn,
+                    decoration: const InputDecoration(
+                      labelText: 'VKN (Vergi Kimlik No)',
+                      prefixIcon: Icon(Icons.numbers),
+                      border: OutlineInputBorder(),
+                    ),
+                    onSaved: (v) => vkn = v?.trim() ?? '',
+                  ),
                 ],
               ),
             ),
@@ -383,6 +405,7 @@ class _BirimYonetimScreenState extends State<BirimYonetimScreen> {
                       'mudurAd': mudurAd.isNotEmpty ? mudurAd : null,
                       'iban': iban.isNotEmpty ? iban : null,
                       'hesapAdi': hesapAdi.isNotEmpty ? hesapAdi : null,
+                      'vkn': vkn.isNotEmpty ? vkn : null,
                     });
                     if (ctx.mounted) Navigator.pop(ctx);
                     if (context.mounted) {

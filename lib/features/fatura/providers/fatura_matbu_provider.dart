@@ -27,8 +27,8 @@ class FaturaMatbuProvider extends ChangeNotifier {
   double kalemSatirAraligi = FaturaMatbuConfig.varsayilanKalemSatirAraligi;
   double matbuFontBoyutu = FaturaMatbuConfig.varsayilanFontBoyutu;
   int satirLimit = FaturaMatbuConfig.varsayilanSatirLimit;
-  double globalOffsetDx = 0;
-  double globalOffsetDy = 0;
+  double globalOffsetDx = 14;
+  double globalOffsetDy = -3;
   String nakliYekunUstMetin = 'Nakli Yekün (Devreden)';
   String nakliYekunAltMetin = 'Nakli Yekün (Devreden)';
 

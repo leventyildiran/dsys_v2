@@ -230,9 +230,9 @@ class FaturaKuyrukProvider extends ChangeNotifier {
     _queueChanged();
   }
 
-  Future<FaturaOnaySonucu> approveAll() async {
+  Future<FaturaOnaySonucu> approveAll({bool forceAll = true}) async {
     final hatalar = <String>[];
-    final kaydedilenIdler = <String>[];
+    final kaydedilecekler = <FaturaModel>[];
 
     for (var i = 0; i < pendingInvoices.length; i++) {
       final invoice = pendingInvoices[i];
@@ -241,25 +241,39 @@ class FaturaKuyrukProvider extends ChangeNotifier {
           ? 'Fatura #${i + 1}'
           : invoice.firmaAdi;
       try {
-        _validateInvoice(invoice);
-        await _faturaService.saveFatura(invoice);
-        kaydedilenIdler.add(invoice.id);
+        if (!forceAll) {
+          _validateInvoice(invoice);
+        } else {
+          // Asgari kontrol: firma adı ve en az 1 kalem
+          if (invoice.firmaAdi.trim().isEmpty) {
+            throw Exception('Firma adı boş');
+          }
+          if (invoice.tarih.trim().isEmpty) {
+            invoice.tarih = TurkceFormat.tarih(DateTime.now());
+          }
+        }
+        kaydedilecekler.add(invoice);
       } catch (e) {
         hatalar.add('$etiket: $e');
       }
     }
 
-    pendingInvoices.removeWhere((inv) {
-      if (kaydedilenIdler.contains(inv.id)) {
-        seciliBirimByFaturaId.remove(inv.id);
-        return true;
-      }
-      return false;
-    });
-    if (pendingInvoices.isEmpty) _initializeEmpty();
-    _queueChanged();
+    if (kaydedilecekler.isNotEmpty) {
+      await _faturaService.saveBatchFaturalar(kaydedilecekler);
+      final kaydedilenIdler = kaydedilecekler.map((e) => e.id).toSet();
+      pendingInvoices.removeWhere((inv) {
+        if (kaydedilenIdler.contains(inv.id)) {
+          seciliBirimByFaturaId.remove(inv.id);
+          return true;
+        }
+        return false;
+      });
+      if (pendingInvoices.isEmpty) _initializeEmpty();
+      _queueChanged();
+    }
+
     return FaturaOnaySonucu(
-      kaydedilen: kaydedilenIdler.length,
+      kaydedilen: kaydedilecekler.length,
       hatalar: hatalar,
     );
   }
@@ -493,12 +507,23 @@ class FaturaKuyrukProvider extends ChangeNotifier {
     if (key == null || key.isEmpty) return null;
     if (_birimlerById.containsKey(key)) return _birimlerById[key];
     if (_birimlerCache.containsKey(key)) return _birimlerCache[key];
-    final norm = key.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+
+    String norm(String s) => s
+        .toLowerCase()
+        .replaceAll('ı', 'i')
+        .replaceAll('ğ', 'g')
+        .replaceAll('ü', 'u')
+        .replaceAll('ş', 's')
+        .replaceAll('ö', 'o')
+        .replaceAll('ç', 'c')
+        .replaceAll(RegExp(r'\s+'), '');
+
+    final normKey = norm(key);
     for (final b in _birimlerList) {
-      final adNorm = b.ad.toLowerCase().replaceAll(RegExp(r'\s+'), '');
-      final kisa = b.kisaAd.toLowerCase();
-      if (adNorm == norm || kisa == norm) return b;
-      if (adNorm.contains(norm) || norm.contains(kisa)) return b;
+      final adNorm = norm(b.ad);
+      final kisa = norm(b.kisaAd);
+      if (adNorm == normKey || kisa == normKey) return b;
+      if (adNorm.contains(normKey) || normKey.contains(kisa)) return b;
     }
     return null;
   }
@@ -695,8 +720,10 @@ class FaturaKuyrukProvider extends ChangeNotifier {
   /// AI/parse sonrası kuyruğu toplu güncelle.
   /// Her fatura için: toplamları yeniden hesapla, IBAN güncelle,
   /// tahmini birim varsa bul ve uygula.
-  void setInvoicesFromParse(List<FaturaModel> invoices) {
-    seciliBirimByFaturaId.clear();
+  void setInvoicesFromParse(List<FaturaModel> invoices, {bool append = false}) {
+    if (!append) {
+      seciliBirimByFaturaId.clear();
+    }
     for (final inv in invoices) {
       _recalculateTotals(inv);
       _updateIbanForInvoice(inv);
@@ -708,8 +735,13 @@ class FaturaKuyrukProvider extends ChangeNotifier {
         }
       }
     }
-    pendingInvoices = invoices;
-    currentIndex = 0;
+    if (append) {
+      final gercekKuyruk = pendingInvoices.where((f) => !yerTutucuMu(f)).toList();
+      pendingInvoices = [...gercekKuyruk, ...invoices];
+    } else {
+      pendingInvoices = invoices;
+    }
+    currentIndex = pendingInvoices.isEmpty ? 0 : pendingInvoices.length - 1;
     _queueChanged();
   }
 

@@ -325,58 +325,73 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
     BuildContext context,
     BatchFaturaProvider provider,
   ) async {
+    final count = provider.pendingInvoices.length;
+    if (count == 0) return;
+
     final onay = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Tümünü onayla'),
-        content: const Text(
-          'Eksik alanı olan faturalar atlanır. IBAN, hesap adı, MELBES, numune ve tarih zorunludur.',
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Tümünü Kaydet ve Onayla'),
+          ],
+        ),
+        content: Text(
+          'Kuyruktaki $count faturanın tamamı geçici arşive kaydedilecek. Devam etmek istiyor musunuz?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('İptal'),
           ),
-          FilledButton(
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: Colors.green.shade700),
+            icon: const Icon(Icons.check),
+            label: Text('$count Faturayı Kaydet'),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Onayla'),
           ),
         ],
       ),
     );
     if (onay != true || !context.mounted) return;
 
-    final sonuc = await provider.approveAll();
-    if (!context.mounted) return;
-
-    final mesaj = sonuc.kaydedilen > 0
-        ? '${sonuc.kaydedilen} fatura kaydedildi.'
-        : 'Kaydedilen fatura yok.';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          sonuc.hatalar.isEmpty
-              ? mesaj
-              : '$mesaj ${sonuc.hatalar.length} hata.',
-        ),
-        backgroundColor: sonuc.hatalar.isEmpty ? Colors.green : Colors.orange,
-        duration: const Duration(seconds: 4),
-      ),
-    );
-    if (sonuc.hatalar.isNotEmpty) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Atlanan faturalar'),
-          content: SingleChildScrollView(child: Text(sonuc.hatalar.join('\n'))),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Tamam'),
-            ),
+    // Yükleme göstergesi
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Expanded(child: Text('Faturalar kaydediliyor…')),
           ],
         ),
-      );
+      ),
+    );
+
+    try {
+      final sonuc = await provider.approveAll();
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop(); // Progress dialogu kapat
+        final mesaj = '${sonuc.kaydedilen} fatura başarıyla geçici arşive kaydedildi.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mesaj),
+            backgroundColor: Colors.green.shade700,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -585,24 +600,6 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       progressDialogContext = null;
     }
 
-    if (!context.mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) {
-        progressDialogContext = dialogCtx;
-        return const AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Expanded(child: Text('Excel seçiliyor…')),
-            ],
-          ),
-        );
-      },
-    );
-
     try {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
@@ -611,8 +608,6 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       );
 
       if (!context.mounted) return;
-      closeProgressDialog(); // yükleme dialogunu kapat
-
       if (result == null || result.files.isEmpty) return;
       final file = result.files.first;
       if (file.bytes == null) return;
@@ -674,82 +669,99 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       progressDialogContext = null;
     }
 
-    if (!context.mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) {
-        progressDialogContext = dialogCtx;
-        return const AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Expanded(child: Text('Dosya seçiliyor…')),
-            ],
-          ),
-        );
-      },
-    );
-
     try {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'txt', 'csv', 'xls', 'xlsx'],
+        allowMultiple: true,
         withData: true,
       );
 
       if (!context.mounted) return;
-      closeProgressDialog(); // seçim dialogunu kapat
-
       if (result == null || result.files.isEmpty) return;
-      final file = result.files.first;
-      final bytes = file.bytes;
-      if (bytes == null) return;
 
-      if (!context.mounted) return;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogCtx) {
-          progressDialogContext = dialogCtx;
-          return AlertDialog(
-            content: Row(
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(width: 16),
-                Expanded(child: Text('${file.name} okunuyor…')),
-              ],
-            ),
-          );
-        },
-      );
+      final totalFiles = result.files.length;
+      int basariliDosya = 0;
+      final baslangicAdet = provider.pendingInvoices
+          .where((f) => !BatchFaturaProvider.yerTutucuMu(f))
+          .length;
 
-      final extension = (file.extension ?? '').toLowerCase();
-      if (extension == 'xls' || extension == 'xlsx') {
-        await provider.loadExcelFile(bytes, file.name);
-      } else {
-        final text = await _extractTextFromFile(bytes, extension);
-        // Eğer text boşsa ve PDF ise (Görsel/Taranmış PDF), byte'ları Gemini Vision'a yolla
-        if (text.isEmpty && extension == 'pdf') {
-          await provider.loadBatch(text, pdfBytes: bytes);
-        } else {
-          // Metin varsa (veya PDF değilse) byte yollama, text yeterli!
-          await provider.loadBatch(text, pdfBytes: null);
+      for (var i = 0; i < totalFiles; i++) {
+        final file = result.files[i];
+        final bytes = file.bytes;
+        if (bytes == null) continue;
+
+        if (!context.mounted) return;
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogCtx) {
+            progressDialogContext = dialogCtx;
+            final progressLabel = totalFiles > 1
+                ? '(${i + 1}/$totalFiles) ${file.name} işleniyor…'
+                : '${file.name} okunuyor…';
+            return AlertDialog(
+              content: Row(
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(width: 16),
+                  Expanded(child: Text(progressLabel)),
+                ],
+              ),
+            );
+          },
+        );
+
+        final extension = (file.extension ?? '').toLowerCase();
+        final shouldAppend = baslangicAdet > 0 || basariliDosya > 0;
+
+        try {
+          if (extension == 'xls' || extension == 'xlsx') {
+            await provider.loadExcelFile(bytes, file.name, append: shouldAppend);
+          } else {
+            final text = await _extractTextFromFile(bytes, extension);
+            if (text.isEmpty && extension == 'pdf') {
+              await provider.loadBatch(text, pdfBytes: bytes, append: shouldAppend);
+            } else {
+              await provider.loadBatch(text, pdfBytes: null, append: shouldAppend);
+            }
+          }
+          basariliDosya++;
+        } catch (e) {
+          debugPrint('${file.name} ayrıştırılırken hata: $e');
+        } finally {
+          closeProgressDialog();
         }
       }
 
       if (!context.mounted) return;
-      closeProgressDialog();
       setState(() => _expandedCards.add(0));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${provider.pendingInvoices.length} fatura oluşturuldu.',
+
+      final sonAdet = provider.pendingInvoices
+          .where((f) => !BatchFaturaProvider.yerTutucuMu(f))
+          .length;
+      final yeniEklenen = sonAdet - baslangicAdet;
+
+      if (basariliDosya > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              totalFiles > 1
+                  ? '$basariliDosya dosya başarıyla işlendi (Kuyrukta toplam $sonAdet fatura hazır).'
+                  : '$yeniEklenen fatura başarıyla oluşturuldu (Kuyrukta: $sonAdet).',
+            ),
+            backgroundColor: Colors.green.shade700,
+            duration: const Duration(seconds: 4),
           ),
-          backgroundColor: Colors.green,
-        ),
-      );
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Seçilen dosyalardan geçerli fatura verisi çıkarılamadı.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     } catch (e) {
       closeProgressDialog();
       if (context.mounted) {

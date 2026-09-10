@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../providers/batch_fatura_provider.dart';
-import '../../../core/theme/app_theme.dart';
 
 class BatchToolbar extends StatelessWidget {
   final BatchFaturaProvider provider;
@@ -42,13 +41,21 @@ class BatchToolbar extends StatelessWidget {
   }
 
   Widget _buildMatbuBanner() {
+    final isMatbu = provider.matbuBaskiModu;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.indigo.shade800, Colors.indigo.shade600],
+          colors: [Colors.indigo.shade900, Colors.indigo.shade700],
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.indigo.shade900.withValues(alpha: 0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -56,7 +63,7 @@ class BatchToolbar extends StatelessWidget {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
               Icons.receipt_long,
@@ -70,7 +77,7 @@ class BatchToolbar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Toplu Fatura Do rulama',
+                  'Toplu Fatura Doğrulama',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -79,7 +86,7 @@ class BatchToolbar extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Y klenen faturalar n do rulu unu kontrol edip onaylay n.',
+                  'Yüklenen faturaların doğruluğunu kontrol edip onaylayın.',
                   style: TextStyle(
                     color: Colors.indigo.shade100,
                     fontSize: 14,
@@ -88,20 +95,53 @@ class BatchToolbar extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Row(
+          const SizedBox(width: 16),
+          Tooltip(
+            message: isMatbu
+                ? 'Hazır Matbu Kağıt: Resmi basılı matbu kağıda yazdırılır (çerçeve ve antet basılmaz).'
+                : 'Beyaz A4 Kağıt: Boş A4 kağıda çerçeve, logo ve antetle birlikte tam fatura basılır.',
+            preferBelow: false,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Matbu mod',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Baskı Şablonu Modu',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        isMatbu ? 'Resmi Matbu Kağıt' : 'Beyaz A4 (Tam Şablon)',
+                        style: TextStyle(
+                          color: isMatbu
+                              ? Colors.lightGreenAccent
+                              : Colors.cyanAccent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(width: 10),
                   Switch(
-                    value: provider.matbuBaskiModu,
+                    value: isMatbu,
                     activeThumbColor: Colors.lightGreenAccent,
+                    activeTrackColor: Colors.lightGreen.withValues(alpha: 0.4),
                     onChanged: (v) {
                       provider.setMatbuBaskiModu(v);
                       provider.saveMatbuAyarlari();
@@ -109,7 +149,7 @@ class BatchToolbar extends StatelessWidget {
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -117,55 +157,142 @@ class BatchToolbar extends StatelessWidget {
   }
 
   Widget _buildUploadBar(BuildContext context) {
-    final tiles = [
-      _uploadTile(
-        icon: Icons.upload_file_rounded,
-        title: 'Evrak Y kle',
-        subtitle: 'PDF, Excel, CSV veya TXT',
-        color: Colors.indigo,
-        onTap: onUploadDocument,
-      ),
-      _uploadTile(
-        icon: Icons.table_view_rounded,
-        title: 'Excel / Toplu Liste',
-        subtitle: 'Sadece Excel veya CSV',
-        color: Colors.green.shade700,
-        onTap: onUploadExcel,
-      ),
-      _uploadTile(
-        icon: Icons.edit_note,
-        title: 'Manuel Fatura',
-        subtitle: 'Bo  fatura ekle',
-        color: Colors.blueGrey.shade700,
-        onTap: onAddBlankInvoice,
-      ),
-    ];
-
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 900) {
+        final isNarrow = constraints.maxWidth < 900;
+
+        final primaryUploadCard = _buildPrimaryUploadCard();
+        final manualInvoiceCard = _buildSecondaryCard(
+          icon: Icons.add_circle_outline_rounded,
+          title: 'Manuel Fatura',
+          subtitle: 'Boş taslak oluştur',
+          color: Colors.blueGrey.shade700,
+          onTap: onAddBlankInvoice,
+        );
+        final pasteTextCard = _buildSecondaryCard(
+          icon: Icons.content_paste_rounded,
+          title: 'Metin / Pano Yapıştır',
+          subtitle: 'Kopyalanan metni ayrıştır',
+          color: Colors.teal.shade700,
+          onTap: onRawText,
+        );
+
+        if (isNarrow) {
           return Column(
             children: [
-              for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(height: 12),
-                tiles[i],
-              ],
+              primaryUploadCard,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: manualInvoiceCard),
+                  const SizedBox(width: 12),
+                  Expanded(child: pasteTextCard),
+                ],
+              ),
             ],
           );
         }
+
         return Row(
           children: [
-            for (var i = 0; i < tiles.length; i++) ...[
-              if (i > 0) const SizedBox(width: 12),
-              Expanded(child: tiles[i]),
-            ],
+            Expanded(flex: 3, child: primaryUploadCard),
+            const SizedBox(width: 12),
+            Expanded(flex: 2, child: manualInvoiceCard),
+            const SizedBox(width: 12),
+            Expanded(flex: 2, child: pasteTextCard),
           ],
         );
       },
     );
   }
 
-  Widget _uploadTile({
+  Widget _buildPrimaryUploadCard() {
+    return Material(
+      color: Colors.white,
+      elevation: 1,
+      shadowColor: Colors.black.withValues(alpha: 0.05),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onUploadDocument,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.indigo.shade200, width: 1.5),
+            color: Colors.indigo.shade50.withValues(alpha: 0.3),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.indigo.shade600,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.cloud_upload_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'Akıllı Evrak & Belge Yükle',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.indigo.shade100,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'Çoklu Seçim',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.indigo.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'PDF, Excel (.xlsx, .xls), CSV veya TXT dosyalarını seçin',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios_rounded,
+                  size: 16, color: Colors.indigo.shade400),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSecondaryCard({
     required IconData icon,
     required String title,
     required String subtitle,
@@ -174,19 +301,26 @@ class BatchToolbar extends StatelessWidget {
   }) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(10),
+      elevation: 1,
+      shadowColor: Colors.black.withValues(alpha: 0.05),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
-        child: Padding(
+        child: Container(
           padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: color,
-                child: Icon(icon, color: Colors.white),
+                radius: 20,
+                backgroundColor: color.withValues(alpha: 0.12),
+                child: Icon(icon, color: color, size: 22),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,19 +330,21 @@ class BatchToolbar extends StatelessWidget {
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
+                        color: Colors.black87,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade600,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.grey.shade400),
             ],
           ),
         ),
@@ -219,57 +355,80 @@ class BatchToolbar extends StatelessWidget {
   Widget _buildToolbar(BuildContext context) {
     return Row(
       children: [
-        Text(
-          'Kuyruk: \$count fatura',
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.primaryColor,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: count > 0 ? Colors.indigo.shade50 : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: count > 0 ? Colors.indigo.shade200 : Colors.grey.shade300,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.receipt_long_rounded,
+                size: 18,
+                color: count > 0 ? Colors.indigo.shade700 : Colors.grey.shade600,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Kuyruk: $count fatura',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color:
+                      count > 0 ? Colors.indigo.shade900 : Colors.grey.shade700,
+                ),
+              ),
+            ],
           ),
         ),
         const Spacer(),
         FilledButton.icon(
           key: const ValueKey('toplu_yazdir_btn'),
-          icon: const Icon(Icons.print, size: 18),
-          label: const Text('Toplu Yazd r'),
+          icon: const Icon(Icons.print_rounded, size: 18),
+          label: const Text('Toplu Yazdır'),
           style: FilledButton.styleFrom(
             backgroundColor: Colors.deepOrange.shade700,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
           onPressed: count > 0 ? onBatchPreview : null,
         ),
         const SizedBox(width: 8),
         OutlinedButton.icon(
           key: const ValueKey('fatura_arsiv_dialog_ac'),
-          icon: const Icon(Icons.search, size: 18),
-          label: const Text('Fatura Ar ivi'),
+          icon: const Icon(Icons.search_rounded, size: 18),
+          label: const Text('Fatura Arşivi'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
           onPressed: onSearchArchive,
         ),
-        const SizedBox(width: 8),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.clear_all, size: 18),
-          label: const Text('Toplu Temizle'),
-          style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade700),
-          onPressed: onClearQueue,
-        ),
-        const SizedBox(width: 8),
-        FilledButton.icon(
-          icon: const Icon(Icons.upload_file, size: 18),
-          label: const Text('Evrak Y kle'),
-          onPressed: onUploadDocument,
-        ),
-        const SizedBox(width: 8),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.content_paste, size: 18),
-          label: const Text('Metin Yap t r'),
-          onPressed: onRawText,
-        ),
+        if (count > 0) ...[
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.clear_all_rounded, size: 18),
+            label: const Text('Kuyruğu Temizle'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red.shade700,
+              side: BorderSide(color: Colors.red.shade300),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+            onPressed: onClearQueue,
+          ),
+        ],
         const SizedBox(width: 8),
         FilledButton.icon(
           key: const ValueKey('fatura_tumunu_onayla'),
-          icon: const Icon(Icons.done_all, size: 18),
-          label: const Text('T m n  Onayla'),
-          style: FilledButton.styleFrom(backgroundColor: Colors.green.shade700),
-          onPressed: onApproveAll,
+          icon: const Icon(Icons.done_all_rounded, size: 18),
+          label: const Text('Tümünü Onayla'),
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.green.shade700,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          ),
+          onPressed: count > 0 ? onApproveAll : null,
         ),
       ],
     );

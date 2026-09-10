@@ -11,27 +11,38 @@ class AIExtractionService {
   final GoogleVisionOcrService _visionOcr = GoogleVisionOcrService();
   static const List<String> _geminiModelFallbacks = [
     'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-flash-latest',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
   ];
 
   Future<String?> _runGeminiWithFallback({
     required String apiKey,
     required List<Part> parts,
+    String? preferredModel,
   }) async {
+    final modelOrder = <String>[];
+    if (preferredModel != null && preferredModel.trim().isNotEmpty) {
+      modelOrder.add(preferredModel.trim());
+    }
+    for (final m in _geminiModelFallbacks) {
+      if (!modelOrder.contains(m)) modelOrder.add(m);
+    }
+
     Object? sonHata;
-    for (final modelName in _geminiModelFallbacks) {
+    for (final modelName in modelOrder) {
       try {
         debugPrint('Gemini API ($modelName) ile ayrıştırma deneniyor...');
         final model = GenerativeModel(model: modelName, apiKey: apiKey);
-        final response = await model.generateContent([Content.multi(parts)]);
+        final response = await model
+            .generateContent([Content.multi(parts)])
+            .timeout(const Duration(seconds: 8));
         final text = response.text?.trim() ?? '';
         if (text.isNotEmpty) return text;
       } catch (e) {
         sonHata = e;
         debugPrint('$modelName hatası: $e');
       }
-      await Future.delayed(const Duration(milliseconds: 800));
+      await Future.delayed(const Duration(milliseconds: 200));
     }
     if (sonHata != null) {
       throw Exception(sonHata.toString());
@@ -58,6 +69,7 @@ class AIExtractionService {
         contentParts.add(TextPart(prompt));
         final text = await _runGeminiWithFallback(
           apiKey: ayarlar.geminiApiKey,
+          preferredModel: ayarlar.geminiModel,
           parts: contentParts,
         );
         final parsed = _parseJson(text ?? '');
@@ -152,6 +164,7 @@ class AIExtractionService {
         try {
           final text = await _runGeminiWithFallback(
             apiKey: ayarlar.geminiApiKey,
+            preferredModel: ayarlar.geminiModel,
             parts: [TextPart(ocrPrompt)],
           );
           final parsed = _parseJson(text ?? '');
@@ -336,6 +349,7 @@ $excelCsvPreview
       try {
         final text = await _runGeminiWithFallback(
           apiKey: ayarlar.geminiApiKey,
+          preferredModel: ayarlar.geminiModel,
           parts: [TextPart(prompt)],
         );
         final parsed = _parseJsonStrict(text ?? '');
@@ -384,13 +398,25 @@ $excelCsvPreview
 
       cleanText = cleanText.trim();
 
+      // 1. Durum: JSON Listesi [...]
       int startIndex = cleanText.indexOf('[');
       int endIndex = cleanText.lastIndexOf(']');
 
       if (startIndex != -1 && endIndex != -1 && endIndex >= startIndex) {
-        cleanText = cleanText.substring(startIndex, endIndex + 1);
-        final List<dynamic> decodedList = jsonDecode(cleanText);
+        final listStr = cleanText.substring(startIndex, endIndex + 1);
+        final List<dynamic> decodedList = jsonDecode(listStr);
         return List<Map<String, dynamic>>.from(decodedList);
+      }
+
+      // 2. Durum: Tekil JSON Objesi {...}
+      int objStart = cleanText.indexOf('{');
+      int objEnd = cleanText.lastIndexOf('}');
+      if (objStart != -1 && objEnd != -1 && objEnd >= objStart) {
+        final objStr = cleanText.substring(objStart, objEnd + 1);
+        final dynamic decodedObj = jsonDecode(objStr);
+        if (decodedObj is Map<String, dynamic>) {
+          return [decodedObj];
+        }
       }
     } catch (e) {
       debugPrint('JSON Parse hatası: $e');
@@ -412,6 +438,7 @@ $excelCsvPreview
       try {
         final text = await _runGeminiWithFallback(
           apiKey: ayarlar.geminiApiKey,
+          preferredModel: ayarlar.geminiModel,
           parts: [TextPart(prompt)],
         );
         final parsed = _parseJson(text ?? '');

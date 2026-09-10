@@ -389,16 +389,33 @@ class YkKararProvider extends ChangeNotifier {
       List<Map<String, dynamic>> parsedKararlar = [];
 
       if (ayarlar.geminiApiKey.isNotEmpty) {
-        try {
-          final model = GenerativeModel(
-            model: 'gemini-2.0-flash',
-            apiKey: ayarlar.geminiApiKey,
-          );
-          final response = await model.generateContent([Content.text(prompt)]);
-          final text = response.text?.trim() ?? '';
-          parsedKararlar = _parseJson(text);
-        } catch (e) {
-          debugPrint('Gemini hatası: $e');
+        final modelOrder = <String>[];
+        if (ayarlar.geminiModel.isNotEmpty) modelOrder.add(ayarlar.geminiModel);
+        for (final m in const [
+          'gemini-2.5-flash',
+          'gemini-2.0-flash',
+          'gemini-2.5-flash-lite',
+          'gemini-flash-latest',
+        ]) {
+          if (!modelOrder.contains(m)) modelOrder.add(m);
+        }
+
+        for (final mName in modelOrder) {
+          try {
+            final model = GenerativeModel(
+              model: mName,
+              apiKey: ayarlar.geminiApiKey,
+            );
+            final response = await model.generateContent([Content.text(prompt)]);
+            final text = response.text?.trim() ?? '';
+            final parsed = _parseJson(text);
+            if (parsed.isNotEmpty) {
+              parsedKararlar = parsed;
+              break;
+            }
+          } catch (e) {
+            debugPrint('Gemini hatası ($mName): $e');
+          }
         }
       }
 
@@ -473,16 +490,33 @@ class YkKararProvider extends ChangeNotifier {
 
       // 1. GEMINI DENEMESİ
       if (ayarlar.geminiApiKey.isNotEmpty) {
-        try {
-          final model = GenerativeModel(
-            model: 'gemini-2.0-flash',
-            apiKey: ayarlar.geminiApiKey,
-          );
-          final response = await model.generateContent([Content.text(prompt)]);
-          final text = response.text?.trim() ?? '';
-          parsedKararlar = _parseJson(text);
-        } catch (e) {
-          debugPrint('Gemini hatası: $e');
+        final modelOrder = <String>[];
+        if (ayarlar.geminiModel.isNotEmpty) modelOrder.add(ayarlar.geminiModel);
+        for (final m in const [
+          'gemini-2.5-flash',
+          'gemini-2.0-flash',
+          'gemini-2.5-flash-lite',
+          'gemini-flash-latest',
+        ]) {
+          if (!modelOrder.contains(m)) modelOrder.add(m);
+        }
+
+        for (final mName in modelOrder) {
+          try {
+            final model = GenerativeModel(
+              model: mName,
+              apiKey: ayarlar.geminiApiKey,
+            );
+            final response = await model.generateContent([Content.text(prompt)]);
+            final text = response.text?.trim() ?? '';
+            final parsed = _parseJson(text);
+            if (parsed.isNotEmpty) {
+              parsedKararlar = parsed;
+              break;
+            }
+          } catch (e) {
+            debugPrint('Gemini hatası ($mName): $e');
+          }
         }
       }
 

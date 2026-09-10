@@ -46,6 +46,7 @@ class PersonelDagitimSonucu {
     this.dersSaati = 0,
     this.saatlikUcret = 0,
     this.havuzTutari = 0,
+    this.payOrani = 100,
   });
 
   final String personelId;
@@ -59,6 +60,7 @@ class PersonelDagitimSonucu {
   final double dersSaati;
   final double saatlikUcret;
   final double havuzTutari;
+  final int payOrani;
 }
 
 class DanismanlikProvider extends ChangeNotifier {
@@ -523,25 +525,23 @@ class DanismanlikProvider extends ChangeNotifier {
     final kdvDahilTutar = DanismanlikExcelHesaplama.genelToplam(_brutTaksitTutari, _kdvOrani);
 
     final ExcelKesintiSonuc k;
-    if (_tur == DanismanlikTuru.standart) {
-      k = DanismanlikExcelHesaplama.kesintiler(
-        kdvHaricGelir: _brutTaksitTutari,
-        hazineOrani: _hazinePayiOrani,
-        bapOrani: _bapPayiOrani,
-        aracGerecOrani: _aracGerecPayiOrani / 100,
-      );
-    } else {
-      // YÖK 58/k kesintileri (Araç Gereç %15 vb.)
-      // Note: Bu kısım HesaplamaMotoru'ndan da alınabilir, şimdilik basitçe:
+    if (_tur == DanismanlikTuru.sanayiIsbirligi58k) {
       final dagitilabilir = _brutTaksitTutari * 0.85;
       k = ExcelKesintiSonuc(
         kdvHaricGelir: _brutTaksitTutari,
         hazinePayi: 0,
         bapPayi: 0,
-        aracGerecPayi: 0,
+        aracGerecPayi: _brutTaksitTutari * 0.15,
         katkiPayi: dagitilabilir,
-        dagMaksAkademikPay: _brutTaksitTutari * 0.85,
+        dagMaksAkademikPay: dagitilabilir,
         toplam: dagitilabilir,
+      );
+    } else {
+      k = DanismanlikExcelHesaplama.kesintiler(
+        kdvHaricGelir: _brutTaksitTutari,
+        hazineOrani: _hazinePayiOrani,
+        bapOrani: _bapPayiOrani,
+        aracGerecOrani: _aracGerecPayiOrani / 100,
       );
     }
 
@@ -553,54 +553,82 @@ class DanismanlikProvider extends ChangeNotifier {
       dagitilabilirTutar: k.katkiPayi,
     );
 
-    final personelPuanlar = _personeller
-        .where((p) => p.faaliyetPuani > 0)
-        .map(
-          (p) => PersonelPuanModel(
-            personelId: p.personel.id,
-            faaliyetPuani: p.faaliyetPuani,
-            unvanKatsayisi: p.personel.unvanKatsayisi,
-          ),
-        )
-        .toList();
-
-    double toplamPuan = 0;
-    for (final p in personelPuanlar) {
-      toplamPuan += p.bireyselPuan;
-    }
-
+    final List<PersonelDagitimSonucu> dagitimlar;
     double katsayi = 0;
     double artikBakiye = 0;
-    if (toplamPuan > 0 && kesinti.dagitilabilirTutar > 0) {
-      katsayi = HesaplamaMotoru.katsayiSimulasyonu(
-        kesinti.dagitilabilirTutar,
-        toplamPuan,
-        personelPuanlar,
-      );
-      artikBakiye = HesaplamaMotoru.artikBakiyeHesapla(
-        kesinti.dagitilabilirTutar,
-        katsayi,
-        personelPuanlar,
-      );
+
+    if (_tur == DanismanlikTuru.sanayiIsbirligi58k) {
+      katsayi = 1.0;
+      artikBakiye = 0.0;
+      final int toplamPay = _personeller.fold(0, (sum, p) => sum + (p.payOrani > 0 ? p.payOrani : 100));
+      dagitimlar = _personeller.map((p) {
+        final int pay = p.payOrani > 0 ? p.payOrani : 100;
+        final double oran = (toplamPay > 0 && _personeller.length > 1)
+            ? (pay / toplamPay)
+            : 1.0;
+        final double brutHakedis = double.parse((kesinti.dagitilabilirTutar * oran).toStringAsFixed(2));
+
+        return PersonelDagitimSonucu(
+          personelId: p.personel.id,
+          adSoyad: p.personel.adSoyad,
+          unvan: p.personel.unvan,
+          unvanKatsayisi: p.personel.unvanKatsayisi,
+          faaliyetPuani: 0,
+          bireyselPuan: 0,
+          brutHakedis: brutHakedis,
+          tavanAsimi: false,
+          payOrani: pay,
+        );
+      }).toList();
+    } else {
+      final personelPuanlar = _personeller
+          .where((p) => p.faaliyetPuani > 0)
+          .map(
+            (p) => PersonelPuanModel(
+              personelId: p.personel.id,
+              faaliyetPuani: p.faaliyetPuani,
+              unvanKatsayisi: p.personel.unvanKatsayisi,
+            ),
+          )
+          .toList();
+
+      double toplamPuan = 0;
+      for (final p in personelPuanlar) {
+        toplamPuan += p.bireyselPuan;
+      }
+
+      if (toplamPuan > 0 && kesinti.dagitilabilirTutar > 0) {
+        katsayi = HesaplamaMotoru.katsayiSimulasyonu(
+          kesinti.dagitilabilirTutar,
+          toplamPuan,
+          personelPuanlar,
+        );
+        artikBakiye = HesaplamaMotoru.artikBakiyeHesapla(
+          kesinti.dagitilabilirTutar,
+          katsayi,
+          personelPuanlar,
+        );
+      }
+
+      dagitimlar = _personeller.map((p) {
+        final bireyselPuan = p.faaliyetPuani * p.personel.unvanKatsayisi;
+        final brutHakedis = toplamPuan > 0
+            ? double.parse((bireyselPuan * katsayi).toStringAsFixed(2))
+            : 0.0;
+
+        return PersonelDagitimSonucu(
+          personelId: p.personel.id,
+          adSoyad: p.personel.adSoyad,
+          unvan: p.personel.unvan,
+          unvanKatsayisi: p.personel.unvanKatsayisi,
+          faaliyetPuani: p.faaliyetPuani,
+          bireyselPuan: bireyselPuan,
+          brutHakedis: brutHakedis,
+          tavanAsimi: false,
+          payOrani: p.payOrani,
+        );
+      }).toList();
     }
-
-    final dagitimlar = _personeller.map((p) {
-      final bireyselPuan = p.faaliyetPuani * p.personel.unvanKatsayisi;
-      final brutHakedis = toplamPuan > 0
-          ? double.parse((bireyselPuan * katsayi).toStringAsFixed(2))
-          : 0.0;
-
-      return PersonelDagitimSonucu(
-        personelId: p.personel.id,
-        adSoyad: p.personel.adSoyad,
-        unvan: p.personel.unvan,
-        unvanKatsayisi: p.personel.unvanKatsayisi,
-        faaliyetPuani: p.faaliyetPuani,
-        bireyselPuan: bireyselPuan,
-        brutHakedis: brutHakedis,
-        tavanAsimi: false,
-      );
-    }).toList();
 
     final isStandart = _tur == DanismanlikTuru.standart;
     final veriler = _kararMetniVerileriHazirla(katsayi);

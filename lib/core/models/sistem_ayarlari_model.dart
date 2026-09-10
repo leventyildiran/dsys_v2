@@ -32,11 +32,16 @@ const _defaultUnvanlar = <String, double>{
 };
 
 class SistemAyarlariModel {
+  final String kurumAdi;
   final String hesapAdi;
   final String iban;
   /// Döner sermaye işletme VKN — fatura hesap adı alt satırı için.
   final String isletmeVkn;
+  final double varsayilanKdvOrani;
+  final String ebysDomain;
   final String geminiApiKey;
+  /// Tercih edilen Gemini modeli (örn. 'gemini-2.5-flash', 'gemini-2.0-flash').
+  final String geminiModel;
   /// Taranmış PDF için Gemini düşünce devreye giren Google Cloud Vision OCR anahtarı.
   final String visionApiKey;
   final String deepseekApiUrl;
@@ -46,10 +51,14 @@ class SistemAyarlariModel {
   final Map<String, double> unvanKatsayilari;
 
   SistemAyarlariModel({
+    this.kurumAdi = 'Uşak Üniversitesi',
     required this.hesapAdi,
     required this.iban,
     this.isletmeVkn = '',
+    this.varsayilanKdvOrani = 20.0,
+    this.ebysDomain = 'usak.local',
     required this.geminiApiKey,
+    this.geminiModel = 'gemini-2.5-flash',
     this.visionApiKey = '',
     required this.deepseekApiUrl,
     required this.deepseekApiKey,
@@ -59,11 +68,18 @@ class SistemAyarlariModel {
   });
 
   factory SistemAyarlariModel.fromJson(Map<String, dynamic> json) {
+    final rawGeminiModel = json['geminiModel']?.toString().trim() ?? '';
+    final rawKurumAdi = json['kurumAdi']?.toString().trim() ?? '';
+    final rawEbysDomain = json['ebysDomain']?.toString().trim() ?? '';
     return SistemAyarlariModel(
+      kurumAdi: rawKurumAdi.isNotEmpty ? rawKurumAdi : 'Uşak Üniversitesi',
       hesapAdi: json['hesapAdi'] ?? '',
       iban: json['iban'] ?? '',
       isletmeVkn: json['isletmeVkn']?.toString() ?? '',
+      varsayilanKdvOrani: (json['varsayilanKdvOrani'] as num?)?.toDouble() ?? 20.0,
+      ebysDomain: rawEbysDomain.isNotEmpty ? rawEbysDomain : 'usak.local',
       geminiApiKey: json['geminiApiKey'] ?? '',
+      geminiModel: rawGeminiModel.isNotEmpty ? rawGeminiModel : 'gemini-2.5-flash',
       visionApiKey: json['visionApiKey']?.toString() ?? '',
       deepseekApiUrl: json['deepseekApiUrl'] ?? '',
       deepseekApiKey: json['deepseekApiKey'] ?? '',
@@ -84,10 +100,14 @@ class SistemAyarlariModel {
 
   Map<String, dynamic> toJson() {
     return {
+      'kurumAdi': kurumAdi,
       'hesapAdi': hesapAdi,
       'iban': iban,
       'isletmeVkn': isletmeVkn,
+      'varsayilanKdvOrani': varsayilanKdvOrani,
+      'ebysDomain': ebysDomain,
       'geminiApiKey': geminiApiKey,
+      'geminiModel': geminiModel,
       'visionApiKey': visionApiKey,
       'deepseekApiUrl': deepseekApiUrl,
       'deepseekApiKey': deepseekApiKey,
@@ -99,10 +119,14 @@ class SistemAyarlariModel {
 
   factory SistemAyarlariModel.empty() {
     return SistemAyarlariModel(
+      kurumAdi: 'Uşak Üniversitesi',
       hesapAdi: '',
       iban: '',
       isletmeVkn: '',
+      varsayilanKdvOrani: 20.0,
+      ebysDomain: 'usak.local',
       geminiApiKey: '',
+      geminiModel: 'gemini-2.5-flash',
       visionApiKey: '',
       deepseekApiUrl: '',
       deepseekApiKey: '',

@@ -20,9 +20,13 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
   bool _isSaving = false;
   int _selectedIndex = 1;
 
+  late TextEditingController _kurumAdiController;
+  late TextEditingController _varsayilanKdvController;
+  late TextEditingController _ebysDomainController;
   late TextEditingController _hesapAdiController;
   late TextEditingController _ibanController;
   late TextEditingController _geminiKeyController;
+  String _selectedGeminiModel = 'gemini-2.5-flash';
   late TextEditingController _visionKeyController;
   late TextEditingController _deepseekUrlController;
   late TextEditingController _deepseekKeyController;
@@ -38,6 +42,9 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
   @override
   void initState() {
     super.initState();
+    _kurumAdiController = TextEditingController();
+    _varsayilanKdvController = TextEditingController();
+    _ebysDomainController = TextEditingController();
     _hesapAdiController = TextEditingController();
     _ibanController = TextEditingController();
     _geminiKeyController = TextEditingController();
@@ -51,9 +58,13 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
   Future<void> _loadAyarlar() async {
     final ayarlar = await _service.getAyarlar();
     setState(() {
+      _kurumAdiController.text = ayarlar.kurumAdi;
+      _varsayilanKdvController.text = ayarlar.varsayilanKdvOrani.toString();
+      _ebysDomainController.text = ayarlar.ebysDomain;
       _hesapAdiController.text = ayarlar.hesapAdi;
       _ibanController.text = ayarlar.iban;
       _geminiKeyController.text = ayarlar.geminiApiKey;
+      _selectedGeminiModel = ayarlar.geminiModel.isNotEmpty ? ayarlar.geminiModel : 'gemini-2.5-flash';
       _visionKeyController.text = ayarlar.visionApiKey;
       _deepseekUrlController.text = ayarlar.deepseekApiUrl;
       _deepseekKeyController.text = ayarlar.deepseekApiKey;
@@ -74,10 +85,14 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
 
     try {
       final ayarlar = SistemAyarlariModel(
-        hesapAdi: _hesapAdiController.text,
-        iban: _ibanController.text,
+        kurumAdi: _kurumAdiController.text.trim(),
+        hesapAdi: _hesapAdiController.text.trim(),
+        iban: _ibanController.text.trim(),
         isletmeVkn: _isletmeVkn,
+        varsayilanKdvOrani: double.tryParse(_varsayilanKdvController.text.replaceAll(',', '.')) ?? 20.0,
+        ebysDomain: _ebysDomainController.text.trim(),
         geminiApiKey: _geminiKeyController.text.trim(),
+        geminiModel: _selectedGeminiModel,
         visionApiKey: _visionKeyController.text.trim(),
         deepseekApiUrl: _deepseekUrlController.text.trim(),
         deepseekApiKey: _deepseekKeyController.text.trim(),
@@ -108,6 +123,9 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
 
   @override
   void dispose() {
+    _kurumAdiController.dispose();
+    _varsayilanKdvController.dispose();
+    _ebysDomainController.dispose();
     _hesapAdiController.dispose();
     _ibanController.dispose();
     _geminiKeyController.dispose();
@@ -150,6 +168,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
                   ),
                 ),
+                _buildMenuItem(0, Icons.account_balance, 'Kurum & Genel Bilgiler'),
                 _buildMenuItem(1, Icons.api, 'Yapay Zeka & API'),
                 _buildMenuItem(2, Icons.admin_panel_settings, 'Sistem Yönetimi'),
                 _buildMenuItem(3, Icons.people, 'Yürütme Kurulu'),
@@ -185,6 +204,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            if (_selectedIndex == 0) ..._buildKurumGenelBilgileri(),
                             if (_selectedIndex == 1) ...[
                               ..._buildApiKurumsalBilgi(),
                               const SizedBox(height: 28),
@@ -267,6 +287,80 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildKurumGenelBilgileri() {
+    return [
+      _buildSectionHeader(
+        Icons.account_balance,
+        'Kurum & Genel Sistem Yapılandırması',
+        'Sistemin ait olduğu üniversite/kurum bilgileri ve fatura/karar modüllerinin kurumsal varsayılanları.',
+      ),
+      const SizedBox(height: 24),
+      TextFormField(
+        controller: _kurumAdiController,
+        decoration: const InputDecoration(
+          labelText: 'Kurum / Üniversite Tam Adı',
+          hintText: 'Örn: Uşak Üniversitesi',
+          helperText: 'Tüm fatura, tutanak, Yürütme Kurulu kararı ve resmi evraklarda ana başlık olarak kullanılır.',
+          border: OutlineInputBorder(),
+          prefixIcon: Icon(Icons.school_outlined),
+        ),
+      ),
+      const SizedBox(height: 20),
+      Row(
+        children: [
+          Expanded(
+            child: TextFormField(
+              controller: _ebysDomainController,
+              decoration: const InputDecoration(
+                labelText: 'EBYS / İntranet Alan Adı (Domain)',
+                hintText: 'Örn: usak.local',
+                helperText: 'Giriş ekranında personel hesapları için varsayılan alan adı.',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.domain_verification_outlined),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: TextFormField(
+              controller: _varsayilanKdvController,
+              decoration: const InputDecoration(
+                labelText: 'Varsayılan KDV Oranı (%)',
+                hintText: '20',
+                helperText: 'Fatura ve hizmet eklemelerinde varsayılan uygulanan oran.',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.percent_rounded),
+              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 20),
+      TextFormField(
+        controller: _hesapAdiController,
+        decoration: const InputDecoration(
+          labelText: 'Döner Sermaye Ana Hesap Adı',
+          hintText: 'Örn: Uşak Üniversitesi Döner Sermaye İşletme Müdürlüğü',
+          helperText: 'Banka dekontu ve faturalarda görünen resmi hesap unvanı.',
+          border: OutlineInputBorder(),
+          prefixIcon: Icon(Icons.account_circle_outlined),
+        ),
+      ),
+      const SizedBox(height: 20),
+      TextFormField(
+        controller: _ibanController,
+        decoration: const InputDecoration(
+          labelText: 'Döner Sermaye Ana Hesap IBAN',
+          hintText: 'TR...',
+          helperText: 'Alt birim hesabı atanmamış faturalarda kullanılan merkezi tahsilat IBAN\'ı.',
+          border: OutlineInputBorder(),
+          prefixIcon: Icon(Icons.credit_card_outlined),
+        ),
+      ),
+    ];
   }
 
   List<Widget> _buildUnvanKatsayilariAyarlari() {
@@ -367,6 +461,51 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
         onToggleGizlilik: () => setState(() => _geminiKeyGizli = !_geminiKeyGizli),
         yardim:
             'Zorunlu önerilir. Boş bırakılırsa fatura PDF\'leri yapay zeka ile okunamaz (yalnızca çevrimdışı kural devreye girer).',
+      ),
+      const SizedBox(height: 16),
+      DropdownButtonFormField<String>(
+        value: [
+          'gemini-2.5-flash',
+          'gemini-2.0-flash',
+          'gemini-2.5-flash-lite',
+          'gemini-flash-latest',
+          'gemini-1.5-flash',
+        ].contains(_selectedGeminiModel)
+            ? _selectedGeminiModel
+            : 'gemini-2.5-flash',
+        decoration: const InputDecoration(
+          labelText: 'Gemini Modeli',
+          prefixIcon: Icon(Icons.psychology),
+          border: OutlineInputBorder(),
+          helperText: 'Varsayılan: gemini-2.5-flash (En güncel ve hızlı Google modeli)',
+        ),
+        items: const [
+          DropdownMenuItem(
+            value: 'gemini-2.5-flash',
+            child: Text('gemini-2.5-flash (Önerilen · En Güncel)'),
+          ),
+          DropdownMenuItem(
+            value: 'gemini-2.0-flash',
+            child: Text('gemini-2.0-flash (Kararlı · Hızlı)'),
+          ),
+          DropdownMenuItem(
+            value: 'gemini-2.5-flash-lite',
+            child: Text('gemini-2.5-flash-lite (Hafif · Yüksek Hız)'),
+          ),
+          DropdownMenuItem(
+            value: 'gemini-flash-latest',
+            child: Text('gemini-flash-latest (Daima En Son Flash)'),
+          ),
+          DropdownMenuItem(
+            value: 'gemini-1.5-flash',
+            child: Text('gemini-1.5-flash (Eski Sürüm)'),
+          ),
+        ],
+        onChanged: (val) {
+          if (val != null) {
+            setState(() => _selectedGeminiModel = val);
+          }
+        },
       ),
     ];
   }

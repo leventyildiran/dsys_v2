@@ -13,6 +13,7 @@ import 'features/auth/providers/user_provider.dart';
 import 'features/danismanlik/providers/danismanlik_provider.dart';
 import 'features/yk_karar/providers/yk_karar_provider.dart';
 import 'features/yk_karar/providers/gundem_provider.dart';
+import 'features/beyanname/providers/beyanname_provider.dart';
 
 late final GoRouter _router;
 
@@ -42,6 +43,7 @@ class DsysApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DanismanlikProvider()),
         ChangeNotifierProvider(create: (_) => YkKararProvider()),
         ChangeNotifierProvider(create: (_) => GundemProvider()),
+        ChangeNotifierProvider(create: (_) => BeyannameProvider()),
       ],
       child: MaterialApp.router(
         title: 'DSYS v2',

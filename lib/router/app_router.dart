@@ -11,6 +11,7 @@ import '../features/yk_karar/screens/gundem_yonetim_screen.dart';
 import '../features/danismanlik/screens/danismanlik_detay_screen.dart';
 import '../features/danismanlik/screens/danismanlik_dagitim_screen.dart';
 import '../features/danismanlik/screens/danismanlik_takip_screen.dart';
+import '../features/danismanlik/screens/danismanlik_manuel_hesapla_screen.dart';
 import '../features/beyanname/screens/beyanname_hesapla_screen.dart';
 import '../features/fatura/screens/batch_verification_screen.dart';
 import '../features/auth/screens/login_screen.dart';
@@ -139,13 +140,16 @@ class AppRouter {
                       builder: (context, state) {
                         if (state.extra is DanismanlikRouteExtra) {
                           final e = state.extra as DanismanlikRouteExtra;
-                          return DanismanlikDagitimScreen(
+                          return DanismanlikManuelHesaplaScreen(
                             danismanlik: e.model,
                             taksit: e.taksit,
                           );
                         }
-                        final model = state.extra as DanismanlikModel;
-                        return DanismanlikDagitimScreen(danismanlik: model);
+                        if (state.extra is DanismanlikModel) {
+                          final model = state.extra as DanismanlikModel;
+                          return DanismanlikManuelHesaplaScreen(danismanlik: model);
+                        }
+                        return const DanismanlikManuelHesaplaScreen();
                       },
                     ),
                     GoRoute(
@@ -158,6 +162,14 @@ class AppRouter {
                       builder: (context, state) {
                         final ykKarar = state.extra as YkKararModel?;
                         return DanismanlikFormScreen(ykKarar: ykKarar);
+                      },
+                    ),
+                    GoRoute(
+                      path: 'manuel-hesapla',
+                      builder: (context, state) {
+                        final sablon = state.uri.queryParameters['sablon'] ??
+                            (state.extra is String ? state.extra as String : null);
+                        return DanismanlikManuelHesaplaScreen(initialSablon: sablon);
                       },
                     ),
                   ],

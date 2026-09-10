@@ -20,7 +20,7 @@ String simulatePdfParsing(List<int> bytes) {
 /// 2. Gemini Fallback (Yedekleme) ve Hata Fırlatma Simülasyonu
 /// Tüm modeller başarısız olduğunda sistemin hatayı yutup yutmadığını test eder.
 Future<String> simulateGeminiFallback(bool hasValidKey, bool isScannedPdf) async {
-  final denemeModelleri = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash-8b'];
+  final denemeModelleri = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite'];
   int deneme = 0;
   Object? sonHata;
 

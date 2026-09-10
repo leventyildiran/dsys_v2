@@ -149,15 +149,33 @@ $pdfText
     String jsonText = '';
 
     if (ayarlar.geminiApiKey.isNotEmpty) {
-      try {
-        final model = GenerativeModel(
-          model: 'gemini-1.5-flash',
-          apiKey: ayarlar.geminiApiKey,
-        );
-        final response = await model.generateContent([Content.text(prompt)]);
-        jsonText = response.text?.trim() ?? '';
-      } catch (e) {
-        debugPrint('Gemini Analiz Hatası: $e');
+      final modelOrder = <String>[];
+      if (ayarlar.geminiModel.isNotEmpty) modelOrder.add(ayarlar.geminiModel);
+      for (final m in const [
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-flash-latest',
+        'gemini-1.5-flash',
+      ]) {
+        if (!modelOrder.contains(m)) modelOrder.add(m);
+      }
+
+      for (final mName in modelOrder) {
+        try {
+          final model = GenerativeModel(
+            model: mName,
+            apiKey: ayarlar.geminiApiKey,
+          );
+          final response = await model.generateContent([Content.text(prompt)]);
+          final resText = response.text?.trim() ?? '';
+          if (resText.isNotEmpty) {
+            jsonText = resText;
+            break;
+          }
+        } catch (e) {
+          debugPrint('Gemini Analiz Hatası ($mName): $e');
+        }
       }
     }
 

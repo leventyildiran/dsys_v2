@@ -19,7 +19,7 @@ import '../services/fatura_offline_parser.dart';
 import '../services/fatura_eslestirme_servisi.dart';
 import '../services/fatura_arsiv_export_servisi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/excel_web_parser.dart';
+import '../services/excel_universal_parser.dart';
 import '../services/fatura_pdf_uretici.dart';
 import 'fatura_kuyruk_provider.dart';
 import 'fatura_matbu_provider.dart';
@@ -70,7 +70,13 @@ class BatchFaturaProvider extends ChangeNotifier {
   }
 
   int get currentIndex => _kuyrukProvider.currentIndex;
-  set currentIndex(int v) => _kuyrukProvider.currentIndex = v;
+  set currentIndex(int v) {
+    _kuyrukProvider.currentIndex = v;
+    final birimId = seciliBirimFor(v);
+    if (birimId != _matbuProvider.aktifBirimId) {
+      _matbuProvider.loadMatbuAyarlari(birimId);
+    }
+  }
 
   int dialogUpdateCounter = 0;
   Map<String, String> seciliBirimByFaturaId = {};
@@ -207,6 +213,8 @@ class BatchFaturaProvider extends ChangeNotifier {
   Future<void> saveMatbuAyarlari() => _matbuProvider.saveMatbuAyarlari();
   Future<void> saveCoordinates() => _matbuProvider.saveCoordinates();
   Future<void> resetCoordinates() => _matbuProvider.resetCoordinates();
+  Future<void> loadMatbuAyarlari(String? birimId) =>
+      _matbuProvider.loadMatbuAyarlari(birimId);
 
   void toggleNakliYekunGlobal(bool value) {
     _matbuProvider.toggleNakliYekunGlobal(value);
@@ -442,6 +450,7 @@ class BatchFaturaProvider extends ChangeNotifier {
 
   void setSeciliBirim(int index, String birimId) {
     _kuyrukProvider.setSeciliBirim(index, birimId);
+    _matbuProvider.loadMatbuAyarlari(birimId);
   }
 
   void applyBirimToInvoice(int invoiceIndex, String birimIdOrAd) {
@@ -488,9 +497,14 @@ class BatchFaturaProvider extends ChangeNotifier {
     arsivYukleniyor = true;
     notifyListeners();
     try {
-      arsivUyarisi = await _faturaService.eskiArsivOzetiniGetir();
-      arsivYilSayilari = await _faturaService.tumYilSayilari();
-      mevcutYilArsivSayisi = await _faturaService.mevcutYilArsivSayisi();
+      final tumSayilar = await _faturaService.tumYilSayilari();
+      arsivYilSayilari = tumSayilar;
+      arsivUyarisi = await _faturaService.eskiArsivOzetiniGetir(
+        cacheYilSayilari: tumSayilar,
+      );
+      mevcutYilArsivSayisi = await _faturaService.mevcutYilArsivSayisi(
+        cacheYilSayilari: tumSayilar,
+      );
     } catch (e) {
       debugPrint('Arşiv durumu yüklenemedi: $e');
     } finally {
@@ -575,6 +589,10 @@ class BatchFaturaProvider extends ChangeNotifier {
   // ─────────────────────────────────────────────────────────
 
   Future<void> matbuYazdir(FaturaModel invoice) async {
+    final birimId = seciliBirimByFaturaId[invoice.id];
+    if (birimId != null && birimId != _matbuProvider.aktifBirimId) {
+      await _matbuProvider.loadMatbuAyarlari(birimId);
+    }
     final bytes = await FaturaPdfUretici.generatePdf(
       invoice: invoice,
       includeBackground: false,
@@ -598,6 +616,10 @@ class BatchFaturaProvider extends ChangeNotifier {
     FaturaModel invoice, {
     bool? includeBackground,
   }) async {
+    final birimId = seciliBirimByFaturaId[invoice.id];
+    if (birimId != null && birimId != _matbuProvider.aktifBirimId) {
+      await _matbuProvider.loadMatbuAyarlari(birimId);
+    }
     return FaturaPdfUretici.generatePdf(
       invoice: invoice,
       includeBackground: includeBackground,
@@ -646,39 +668,57 @@ class BatchFaturaProvider extends ChangeNotifier {
     String text, {
     bool cevrimdisi = false,
     Uint8List? pdfBytes,
+    bool append = false,
   }) async {
     List<FaturaModel> sonuc = [];
 
     if (!cevrimdisi) {
-      // Katman 1 — Arşiv eşleştirme
-      try {
-        final arsivKayitlar = await _faturaService.araFaturalar(
-          FaturaArsivAramaFiltre(metin: ''),
-        );
-        final gecmis = arsivKayitlar.map((e) => e.fatura).toList();
-        final eslesmeSonuc = FaturaEslestirmeServisi.eslestir(
-          rawText: text,
-          gecmisFaturalar: gecmis,
-        );
-        if (eslesmeSonuc != null) {
-          sonuc = [eslesmeSonuc.fatura];
-          final skor = eslesmeSonuc.skor;
-          final dusukSkor = skor < FaturaEslestirmeServisi.yuksekGuvenSkoru;
-          sonAyristirmaBilgisi = dusukSkor
-              ? 'Arşiv şablonundan dolduruldu (eşleşme skoru: $skor — kontrol edin)'
-              : 'Arşiv şablonundan dolduruldu (eşleşme skoru: $skor)';
+      // Hızlı Çevrimdışı Yol: Yapısal veri giriş veya sayfa formatı içeriyorsa AI/Arşiv beklemeden hemen parse et
+      final lowerText = text.toLowerCase();
+      if (lowerText.contains('veri giriş') ||
+          lowerText.contains('veri giris') ||
+          (lowerText.contains('--- sheet:') && lowerText.contains('fatura'))) {
+        final hizliSonuc = FaturaOfflineParser.parse(text);
+        if (hizliSonuc.isNotEmpty && hizliSonuc.first.kalemler.isNotEmpty) {
+          sonuc = hizliSonuc;
+          sonAyristirmaBilgisi = hizliSonuc.first.parsedBy;
         }
-      } catch (e) {
-        debugPrint('Eşleştirme servisi hatası: $e');
       }
 
-      // Katman 2 — AI
+      // Katman 1 — Arşiv eşleştirme (Maks 3s zaman aşımı)
+      if (sonuc.isEmpty) {
+        try {
+          final arsivKayitlar = await _faturaService.araFaturalar(
+            FaturaArsivAramaFiltre(metin: ''),
+          ).timeout(const Duration(seconds: 3), onTimeout: () => []);
+          final gecmis = arsivKayitlar.map((e) => e.fatura).toList();
+          final eslesmeSonuc = FaturaEslestirmeServisi.eslestir(
+            rawText: text,
+            gecmisFaturalar: gecmis,
+          );
+          if (eslesmeSonuc != null) {
+            sonuc = [eslesmeSonuc.fatura];
+            final skor = eslesmeSonuc.skor;
+            final dusukSkor = skor < FaturaEslestirmeServisi.yuksekGuvenSkoru;
+            sonAyristirmaBilgisi = dusukSkor
+                ? 'Arşiv şablonundan dolduruldu (eşleşme skoru: $skor — kontrol edin)'
+                : 'Arşiv şablonundan dolduruldu (eşleşme skoru: $skor)';
+          }
+        } catch (e) {
+          debugPrint('Eşleştirme servisi hatası: $e');
+        }
+      }
+
+      // Katman 2 — AI (Maks 12s zaman aşımı)
       if (sonuc.isEmpty) {
         try {
           final extractedData = await _aiService.extractBatchData(
             text,
             pdfBytes: pdfBytes,
-          );
+          ).timeout(const Duration(seconds: 12), onTimeout: () {
+            debugPrint('AI ayrıştırma zaman aşımına uğradı (12s).');
+            return [];
+          });
           sonuc = extractedData.map(FaturaModel.fromJson).toList();
           if (sonuc.isNotEmpty) {
             sonAyristirmaBilgisi = sonuc.first.parsedBy;
@@ -705,167 +745,294 @@ class BatchFaturaProvider extends ChangeNotifier {
       );
     }
 
-    _kuyrukProvider.setInvoicesFromParse(sonuc);
+    _kuyrukProvider.setInvoicesFromParse(sonuc, append: append);
   }
+
+  // ─────────────────────────────────────────────────────────
+  // Excel / Toplu Liste — TAM OFFLINE (AI kullanılmaz)
+  // ─────────────────────────────────────────────────────────
+
+  Future<void> loadExcelFile(
+    Uint8List bytes,
+    String fileName, {
+    bool append = false,
+  }) async {
+    final csvText = await ExcelUniversalParser.extractText(bytes, fileName: fileName);
+    if (csvText.isEmpty) throw Exception('Excel dosyası boş veya okunamadı.');
+
+    final lines = csvText
+        .split('\n')
+        .map((l) => l.replaceAll('\r', ''))
+        .where((l) => l.isNotEmpty)
+        .toList();
+
+    // Dosya yumurtayla mı ilgili?
+    final isYumurta = fileName.toLowerCase().contains('yumurt') ||
+        csvText.toLowerCase().contains('yumurt');
+
+    // Başlık satırını bul
+    final baslikSonucu = _excelBasliklariBul(lines, isYumurta: isYumurta);
+
+    if (baslikSonucu == null) {
+      throw Exception(
+        'Excel başlık satırı bulunamadı.\n'
+        'Dosyada "Ad-Soyad", "TC No", "Tutar" veya benzeri sütun başlıkları olmalıdır.',
+      );
+    }
+
+    // Başlık satırından sonraki satırları faturaya çevir
+    final faturalar = <FaturaModel>[];
+    for (int i = baslikSonucu.startRow; i < lines.length; i++) {
+      final line = lines[i].trim();
+      if (line.isEmpty || line.startsWith('---')) continue;
+
+      final fatura = _satirFaturayaDonustur(
+        satirIndex: i,
+        line: line,
+        kolonlar: baslikSonucu.kolonlar,
+        isYumurta: isYumurta,
+      );
+      if (fatura != null) faturalar.add(fatura);
+    }
+
+    if (faturalar.isEmpty) {
+      throw Exception(
+        'Excel dosyasından hiç fatura oluşturulamadı.\n'
+        'Başlıklar bulundu (satır ${baslikSonucu.startRow}) '
+        'ancak geçerli veri satırı yok. '
+        'Firma adı ve tutar dolu satırlar gereklidir.',
+      );
+    }
+
+    _kuyrukProvider.setInvoicesFromParse(faturalar, append: append);
+  }
+
+  // ─── Başlık tespiti ───────────────────────────────────────
+
+  _ExcelBaslikSonucu? _excelBasliklariBul(
+    List<String> lines, {
+    required bool isYumurta,
+  }) {
+    for (int i = 0; i < lines.length && i < 25; i++) {
+      final line = lines[i];
+      if (line.startsWith('---')) continue; // SHEET: satırı
+
+      final cells = line.split(' | ');
+      final normCells = cells.map(_norm).toList();
+
+      // Başlık satırı için asgari: firma/isim sütunu VE tutar sütunu olmalı
+      int firmaIdx = -1;
+      int tcIdx = -1;
+      int matrahIdx = -1;     // KDV dahil / toplam / genel tutar
+      int kdvHaricIdx = -1;   // KDV hariç / matrah
+      int kdvTutarIdx = -1;   // KDV tutarı (oran değil)
+      int miktarIdx = -1;
+      int birimFiyatIdx = -1;
+      int adresIdx = -1;
+
+      for (int c = 0; c < normCells.length; c++) {
+        final n = normCells[c];
+
+        // Firma / İsim / Cari
+        if (_icerir(n, [
+          'ad-soyad', 'ad soyad', 'adi soyadi', 'isim', 'musteri',
+          'alici', 'unvan', 'firma adi', 'firma ad', 'cari', 'cari unvan',
+          'kurum', 'ad ve soyad', 'ilgili', 'ad / soyad'
+        ])) {
+          firmaIdx = c;
+        }
+
+        // TC / VKN / Kimlik
+        if (_icerir(n, [
+          'tc no', 'tc.no', 'tc kimlik', 'vkn', 'vergi no',
+          'kimlik no', 'vergi/tc', 'v.no'
+        ]) || n == 'tc' || n == 'vkn' || n == 'kimlik') {
+          tcIdx = c;
+        }
+
+        // KDV Dahil (toplam / genel toplam / tutar) — öncelikli tutar
+        if (_icerir(n, [
+          'kdv dahil', 'kdv dahil fiyat', 'kdvli tutar',
+          'genel toplam', 'toplam tutar', 'fatura tutari',
+          'odenecek tutar', 'odenecek', 'odenen tutar',
+          'net tutar', 'toplam', 'tutar', 'bedel', 'yekun'
+        ])) {
+          matrahIdx = c;
+        }
+
+        // KDV Hariç (matrah)
+        if (_icerir(n, [
+          'kdv haric', 'kdv hariç fiyat', 'kdvsiz',
+          'matrah', 'kdv haric fiyat', 'kdvsiz tutar', 'vergisiz'
+        ])) {
+          kdvHaricIdx = c;
+        }
+
+        // KDV tutarı (para değeri, oran değil)
+        if (_icerir(n, ['kdv (%', 'kdv%', 'kdv tutari', 'kdv miktar', 'kdv degeri']) ||
+            (n.contains('kdv') && !n.contains('dahil') &&
+             !n.contains('haric') && !n.contains('oran'))) {
+          kdvTutarIdx = c;
+        }
+
+        // Miktar / Adet
+        if (_icerir(n, [
+          'adet', 'miktar', 'sayi', 'yumurta adet',
+          'yumurta / adet', 'koli', 'kg'
+        ])) {
+          miktarIdx = c;
+        }
+
+        // Birim Fiyat
+        if (_icerir(n, [
+          'birim fiyat', 'b.fiyat', 'birim fiyati',
+          'fiyat', 'birim', 'ucret'
+        ])) {
+          birimFiyatIdx = c;
+        }
+
+        // Adres
+        if (_icerir(n, ['adres', 'il', 'ilce', 'sehir'])) {
+          adresIdx = c;
+        }
+      }
+
+      // Firma ve en az bir tutar sütunu zorunlu
+      if (firmaIdx == -1) continue;
+      if (matrahIdx == -1 && kdvHaricIdx == -1 && birimFiyatIdx == -1) continue;
+
+      // matrahIdx yoksa kdvHaricIdx'i kullan, o da yoksa birimFiyatIdx
+      if (matrahIdx == -1) {
+        matrahIdx = kdvHaricIdx != -1 ? kdvHaricIdx : birimFiyatIdx;
+      }
+
+      return _ExcelBaslikSonucu(
+        startRow: i + 1,
+        kolonlar: _ExcelKolonlar(
+          firmaIdx: firmaIdx,
+          tcIdx: tcIdx,
+          matrahIdx: matrahIdx,
+          kdvHaricIdx: kdvHaricIdx,
+          kdvTutarIdx: kdvTutarIdx,
+          miktarIdx: miktarIdx,
+          birimFiyatIdx: birimFiyatIdx,
+          adresIdx: adresIdx,
+        ),
+      );
+    }
+    return null;
+  }
+
+  // ─── Satırdan fatura üretimi ──────────────────────────────
+
+  FaturaModel? _satirFaturayaDonustur({
+    required int satirIndex,
+    required String line,
+    required _ExcelKolonlar kolonlar,
+    required bool isYumurta,
+  }) {
+    final cells = line.split(' | ');
+
+    String cell(int idx) =>
+        (idx >= 0 && idx < cells.length) ? cells[idx].trim() : '';
+
+    final firma = cell(kolonlar.firmaIdx);
+    if (firma.isEmpty) return null;
+
+    final tc = cell(kolonlar.tcIdx);
+    final adres = cell(kolonlar.adresIdx);
+
+    // Tutar: önce KDV dahil, sonra KDV hariç, sonra birim fiyat
+    double matrahBrut = parseTurkceSayi(cell(kolonlar.matrahIdx), fallback: 0);
+    double matrahNet = kolonlar.kdvHaricIdx >= 0
+        ? parseTurkceSayi(cell(kolonlar.kdvHaricIdx), fallback: 0)
+        : 0;
+    double birimFiyat = kolonlar.birimFiyatIdx >= 0
+        ? parseTurkceSayi(cell(kolonlar.birimFiyatIdx), fallback: 0)
+        : 0;
+    int miktar = kolonlar.miktarIdx >= 0
+        ? parseTurkceSayi(cell(kolonlar.miktarIdx), fallback: 1).toInt()
+        : 1;
+    if (miktar <= 0) miktar = 1;
+
+    // KDV oranı ve tutarı — Yumurta için varsayılan %10
+    final varsayilanKdvOrani = isYumurta ? 10.0 : 20.0;
+    double kdvOrani = varsayilanKdvOrani;
+
+    double genelToplam;
+    double matrah; // KDV hariç matrah (fatura modeli)
+
+    if (matrahBrut > 0 && matrahNet > 0) {
+      // Her ikisi de doluysa gerçek KDV oranını hesapla
+      genelToplam = matrahBrut;
+      matrah = matrahNet;
+      final kdvTutar = genelToplam - matrah;
+      if (matrah > 0) kdvOrani = (kdvTutar / matrah * 100).roundToDouble();
+    } else if (matrahBrut > 0) {
+      // Sadece KDV dahil tutar var
+      genelToplam = matrahBrut;
+      matrah = genelToplam / (1 + kdvOrani / 100);
+    } else if (matrahNet > 0) {
+      // Sadece KDV hariç var
+      matrah = matrahNet;
+      genelToplam = matrah * (1 + kdvOrani / 100);
+    } else if (birimFiyat > 0) {
+      // Sadece birim fiyat var
+      matrah = birimFiyat * miktar;
+      genelToplam = matrah * (1 + kdvOrani / 100);
+    } else {
+      return null; // Tutar yok, atla
+    }
+
+    final kdvTutari = genelToplam - matrah;
+    final cinsi = isYumurta ? 'Yumurta' : 'Hizmet Bedeli';
+
+    return FaturaModel(
+      id: '${DateTime.now().millisecondsSinceEpoch}_$satirIndex',
+      firmaAdi: firma,
+      adres: adres,
+      vergiDairesi: '',
+      vergiNo: tc,
+      tarih: TurkceFormat.tarih(DateTime.now()),
+      irsaliyeTarihi: '',
+      irsaliyeNo: '',
+      melbesNo: '',
+      numuneNo: '',
+      numuneAciklamasi: '',
+      urunTuru: isYumurta ? 'YUMURTA' : 'DİĞER',
+      kalemler: [
+        {'cinsi': cinsi, 'miktar': miktar, 'fiyat': birimFiyat > 0 ? birimFiyat : (matrah / miktar)},
+      ],
+      matrah: double.parse(matrah.toStringAsFixed(2)),
+      kdvOrani: kdvOrani,
+      isKdvMuaf: false,
+      kdvTutari: double.parse(kdvTutari.toStringAsFixed(2)),
+      genelToplam: double.parse(genelToplam.toStringAsFixed(2)),
+      parsedBy: FaturaParseKaynaklari.excelToplu,
+    );
+  }
+
+  // ─── Yardımcı: Normalize + İçerik kontrolü ───────────────
+
+  static String _norm(String s) => s
+      .toLowerCase()
+      .replaceAll('ı', 'i')
+      .replaceAll('ğ', 'g')
+      .replaceAll('ü', 'u')
+      .replaceAll('ş', 's')
+      .replaceAll('ö', 'o')
+      .replaceAll('ç', 'c')
+      .trim();
+
+  static bool _icerir(String normStr, List<String> anahtar) =>
+      anahtar.any((k) => normStr.contains(k));
+
+  // ─────────────────────────────────────────────────────────
+  // Çevrimdışı metin yükleme (Offline Batch)
+  // ─────────────────────────────────────────────────────────
 
   Future<void> loadBatchOffline(String text) =>
       loadBatch(text, cevrimdisi: true);
-
-  Future<void> loadExcelFile(Uint8List bytes, String fileName) async {
-    final csvText = await ExcelWebParser.extractTextFromExcel(bytes);
-    if (csvText.isEmpty) throw Exception('Excel dosyası boş veya okunamadı.');
-
-    final lines = csvText.split('\n');
-    final previewLines = lines.take(15).join('\n');
-
-    Map<String, dynamic> mappingResult;
-    try {
-      mappingResult = await _aiService.extractExcelMapping(previewLines);
-    } catch (e) {
-      debugPrint('AI Excel eşleme başarısız, çevrimdışı parser deneniyor: $e');
-      mappingResult = _fallbackOfflineMapping(lines);
-    }
-
-    if (mappingResult['isBatchList'] == true) {
-      final mapData = mappingResult['mapping'] as Map<String, dynamic>;
-      final startRow = (mappingResult['startRowIndex'] as int?) ?? 1;
-      final newInvoices = <FaturaModel>[];
-
-      final firmaIdx = mapData['firmaAdi'] as int?;
-      final tcIdx = mapData['tcVkn'] as int?;
-      final matrahIdx = mapData['matrah'] as int?;
-      final kdvOraniIdx = mapData['kdvOrani'] as int?;
-      final miktarIdx = mapData['miktar'] as int?;
-      final fiyatIdx = mapData['fiyat'] as int?;
-      final cinsiIdx = mapData['cinsi'] as int?;
-
-      for (int i = startRow; i < lines.length; i++) {
-        final line = lines[i].trim();
-        if (line.isEmpty) continue;
-
-        final cells = line.split(' | ');
-        String firma = '';
-        String tc = '';
-        double matrah = 0.0;
-        double kdvOrani = 20.0;
-        int miktar = 1;
-        double fiyat = 0.0;
-        String cinsi = 'Hizmet Bedeli';
-
-        if (firmaIdx != null && firmaIdx >= 0 && firmaIdx < cells.length) {
-          firma = cells[firmaIdx].trim();
-        }
-        if (tcIdx != null && tcIdx >= 0 && tcIdx < cells.length) {
-          tc = cells[tcIdx].trim();
-        }
-        if (matrahIdx != null && matrahIdx >= 0 && matrahIdx < cells.length) {
-          matrah = parseTurkceSayi(cells[matrahIdx], fallback: 0.0);
-        }
-        if (kdvOraniIdx != null && kdvOraniIdx >= 0 && kdvOraniIdx < cells.length) {
-          final kdvStr = cells[kdvOraniIdx].trim().replaceAll('%', '');
-          kdvOrani = parseTurkceSayi(kdvStr, fallback: 20.0);
-        }
-        if (miktarIdx != null && miktarIdx >= 0 && miktarIdx < cells.length) {
-          miktar = parseTurkceSayi(cells[miktarIdx], fallback: 1.0).toInt();
-        }
-        if (fiyatIdx != null && fiyatIdx >= 0 && fiyatIdx < cells.length) {
-          fiyat = parseTurkceSayi(cells[fiyatIdx], fallback: 0.0);
-        }
-        if (cinsiIdx != null && cinsiIdx >= 0 && cinsiIdx < cells.length) {
-          final cns = cells[cinsiIdx].trim();
-          if (cns.isNotEmpty) cinsi = cns;
-        }
-
-        if (fiyat == 0 && matrah > 0) {
-           fiyat = matrah / (miktar > 0 ? miktar : 1);
-        } else if (matrah == 0 && fiyat > 0) {
-           matrah = fiyat * (miktar > 0 ? miktar : 1);
-        }
-
-        if (firma.isNotEmpty && matrah > 0) {
-          final isMuaf = kdvOrani <= 0;
-          final inv = FaturaModel(
-            id: '${DateTime.now().millisecondsSinceEpoch}$i',
-            firmaAdi: firma,
-            adres: '',
-            vergiDairesi: '',
-            vergiNo: tc,
-            tarih: '',
-            irsaliyeTarihi: '',
-            irsaliyeNo: '',
-            melbesNo: '',
-            numuneNo: '',
-            numuneAciklamasi: '',
-            urunTuru: cinsi.toLowerCase().contains('yumurta') ? 'YUMURTA' : 'DİĞER',
-            kalemler: [
-              {'cinsi': cinsi, 'miktar': miktar, 'fiyat': fiyat},
-            ],
-            matrah: matrah,
-            kdvOrani: isMuaf ? 0.0 : kdvOrani,
-            isKdvMuaf: isMuaf,
-            kdvTutari: 0.0,
-            genelToplam: 0.0,
-            parsedBy: FaturaParseKaynaklari.excelToplu,
-          );
-          _kuyrukProvider.recalculateTotalsForInvoice(inv);
-          newInvoices.add(inv);
-        }
-      }
-
-      if (newInvoices.isEmpty) {
-        throw Exception('Eşleşen satır bulunamadı veya veriler okunamadı.');
-      }
-      _kuyrukProvider.pendingInvoices = newInvoices;
-      _kuyrukProvider.currentIndex = 0;
-      _kuyrukProvider.seciliBirimByFaturaId.clear();
-      _kuyrukProvider.notifyListeners();
-      _kuyrukProvider.scheduleKuyrukKaydetExternal();
-    } else {
-      await loadBatch(csvText);
-    }
-  }
-
-  Map<String, dynamic> _fallbackOfflineMapping(List<String> lines) {
-    for (int i = 0; i < lines.length && i < 15; i++) {
-      final line = lines[i].toLowerCase();
-      if (line.contains('ad-soyad') || line.contains('ad soyad') || line.contains('firma')) {
-        final cells = line.split(' | ');
-        int firmaIdx = -1;
-        int tcIdx = -1;
-        int matrahIdx = -1;
-        int kdvOraniIdx = -1;
-        int miktarIdx = -1;
-        int fiyatIdx = -1;
-        int cinsiIdx = -1;
-        for (int c = 0; c < cells.length; c++) {
-          final cell = cells[c].trim();
-          if (cell.contains('ad-soyad') || cell.contains('ad soyad') || cell.contains('firma ad')) firmaIdx = c;
-          if (cell.contains('tc') || cell.contains('vkn') || cell.contains('vergi')) tcIdx = c;
-          if (cell.contains('kdv dahil') || cell.contains('toplam tutar')) matrahIdx = c;
-          if (cell.contains('kdv (%') || (cell.contains('kdv') && cell.contains('oran'))) kdvOraniIdx = c;
-          if (cell.contains('adet') || cell.contains('miktar')) miktarIdx = c;
-          if (cell.contains('birim fiyat')) fiyatIdx = c;
-          if (cell.contains('cinsi') || cell.contains('ürün ad')) cinsiIdx = c;
-        }
-        if (firmaIdx != -1 && matrahIdx != -1) {
-          return {
-            'isBatchList': true,
-            'startRowIndex': i + 1,
-            'mapping': {
-              'firmaAdi': firmaIdx,
-              'tcVkn': tcIdx,
-              'matrah': matrahIdx,
-              'kdvOrani': kdvOraniIdx,
-              'miktar': miktarIdx,
-              'fiyat': fiyatIdx,
-              'cinsi': cinsiIdx,
-            }
-          };
-        }
-      }
-    }
-    return {'isBatchList': false};
-  }
 
   // ─────────────────────────────────────────────────────────
   // Dispose
@@ -879,4 +1046,37 @@ class BatchFaturaProvider extends ChangeNotifier {
     _matbuProvider.dispose();
     super.dispose();
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Yardımcı veri sınıfları — Excel başlık tespiti için
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ExcelKolonlar {
+  final int firmaIdx;
+  final int tcIdx;
+  final int matrahIdx;
+  final int kdvHaricIdx;
+  final int kdvTutarIdx;
+  final int miktarIdx;
+  final int birimFiyatIdx;
+  final int adresIdx;
+
+  const _ExcelKolonlar({
+    required this.firmaIdx,
+    required this.tcIdx,
+    required this.matrahIdx,
+    required this.kdvHaricIdx,
+    required this.kdvTutarIdx,
+    required this.miktarIdx,
+    required this.birimFiyatIdx,
+    required this.adresIdx,
+  });
+}
+
+class _ExcelBaslikSonucu {
+  final int startRow;
+  final _ExcelKolonlar kolonlar;
+
+  const _ExcelBaslikSonucu({required this.startRow, required this.kolonlar});
 }

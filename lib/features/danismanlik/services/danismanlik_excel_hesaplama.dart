@@ -16,16 +16,20 @@ import '../models/danismanlik_model.dart';
 enum DanismanlikExcelProfili {
   dtsDanismanlik(
     katkiSekmeAdi: 'Katkı Payı',
+    varsayilanMemurMaasKatsayisi: 1.387871,
   ),
   usemSurekliEgitim(
     katkiSekmeAdi: 'Dönem Ek Katsayı',
+    varsayilanMemurMaasKatsayisi: 0.907796,
   );
 
   const DanismanlikExcelProfili({
     required this.katkiSekmeAdi,
+    required this.varsayilanMemurMaasKatsayisi,
   });
 
   final String katkiSekmeAdi;
+  final double varsayilanMemurMaasKatsayisi;
 }
 
 /// DTS / USEM Excel şablonu formüllerinin birebir Dart karşılığı.
@@ -78,9 +82,14 @@ class DanismanlikExcelHesaplama {
   };
 
   static int ekGosterge(String unvan) {
+    if (ekGostergeler.containsKey(unvan)) return ekGostergeler[unvan]!;
+    final clean = unvan.replaceAll(' ', '').replaceAll('.', '').toLowerCase();
     for (final e in ekGostergeler.entries) {
-      if (unvan.contains(e.key.replaceAll('.', '')) ||
-          unvan.startsWith(e.key)) {
+      final keyClean = e.key.replaceAll(' ', '').replaceAll('.', '').toLowerCase();
+      if (clean == keyClean) return e.value;
+    }
+    for (final e in ekGostergeler.entries) {
+      if (unvan.startsWith(e.key) || unvan.contains(e.key.replaceAll('.', ''))) {
         return e.value;
       }
     }
@@ -88,9 +97,17 @@ class DanismanlikExcelHesaplama {
   }
 
   static double unvanKatsayisi(String unvan, [double? kayitli]) {
+    if (unvanKatsayilari.containsKey(unvan)) {
+      return unvanKatsayilari[unvan]!;
+    }
+    final clean = unvan.replaceAll(' ', '').replaceAll('.', '').toLowerCase();
+    for (final e in unvanKatsayilari.entries) {
+      final keyClean = e.key.replaceAll(' ', '').replaceAll('.', '').toLowerCase();
+      if (clean == keyClean) return e.value;
+    }
     if (kayitli != null && kayitli > 0 && kayitli <= 3.5) return kayitli;
     for (final e in unvanKatsayilari.entries) {
-      if (unvan.contains(e.key.split('.').first)) return e.value;
+      if (unvan.startsWith(e.key)) return e.value;
     }
     return unvanKatsayilari[unvan] ?? kayitli ?? 2.0;
   }
@@ -106,8 +123,10 @@ class DanismanlikExcelHesaplama {
     final bap = _round(kdvHaricGelir * (bapOrani / 100), 2);
     final aracGerec = _round(kdvHaricGelir * aracGerecOrani, 2);
     // G18 = B11-(G15+G16+G17) — Excel birebir
-    final katkiPayi = kdvHaricGelir - hazine - bap - aracGerec;
-    final dagMaksAkademikPay = _round(kdvHaricGelir * 0.49, 2);
+    final katkiPayi = _round(kdvHaricGelir - hazine - bap - aracGerec, 2);
+    final dagMaksAkademikPay = (hazineOrani == 0 && bapOrani == 0)
+        ? katkiPayi
+        : _round(kdvHaricGelir * 0.49, 2);
 
     return ExcelKesintiSonuc(
       kdvHaricGelir: kdvHaricGelir,
@@ -198,6 +217,8 @@ class DanismanlikExcelHesaplama {
     required ExcelKesintiSonuc kesinti,
     required List<ExcelPersonelGirdi> personeller,
     double? manualDonemKatsayi,
+    double? memurMaasKatsayisi,
+    bool tavanUygula = false,
     DanismanlikExcelProfili profil = DanismanlikExcelProfili.dtsDanismanlik,
   }) {
     if (personeller.isEmpty) {
@@ -233,6 +254,9 @@ class DanismanlikExcelHesaplama {
     double havuzToplam = 0;
     final dagitimlar = <DagitimModel>[];
 
+    final aktifMemurKatsayisi =
+        memurMaasKatsayisi ?? profil.varsayilanMemurMaasKatsayisi;
+
     for (var i = 0; i < satirlar.length; i++) {
       final s = satirlar[i];
       final p = s.girdi;
@@ -246,15 +270,15 @@ class DanismanlikExcelHesaplama {
           : 0.0;
 
       // C32 = A32*B32*2, D32 = C32*1.6  → mesai dışı = A*B*3.2
-      final bazSaatlik = p.ekGosterge * memurMaasKatsayisiGuncel;
+      final bazSaatlik = p.ekGosterge * aktifMemurKatsayisi;
       final tavanSaatlik = p.mesaiIci ? bazSaatlik * 2 : bazSaatlik * 3.2;
 
-      final tavanAsildi = profil == DanismanlikExcelProfili.usemSurekliEgitim && kursSaatlik > tavanSaatlik;
+      final tavanAsildi = kursSaatlik > tavanSaatlik && tavanSaatlik > 0;
       
       double odenebilir = brutHakedis;
       double havuz = 0.0;
 
-      if (tavanAsildi) {
+      if (tavanAsildi && tavanUygula) {
         odenebilir = _round(tavanSaatlik * p.dersSaati, 2);
         havuz = _round(brutHakedis - odenebilir, 2);
       }
@@ -303,18 +327,106 @@ class DanismanlikExcelHesaplama {
       saglama: saglama,
       personelSatirlari: satirlar,
       dagitimlar: dagitimlar,
-      netOdemeToplam: netOdemeToplam,
-      havuzToplam: havuzToplam + artikBakiye,
+      netOdemeToplam: _round(netOdemeToplam, 2),
+      havuzToplam: _round(havuzToplam + artikBakiye, 2),
       artikBakiye: artikBakiye,
+    );
+  }
+
+  /// 2547 Sayılı Kanun Madde 58/k — Puan ve saat tavanı YOKTUR.
+  /// Kalan %85 pay doğrudan sözleşme ve taksit esaslarına göre personele ödenir.
+  static DanismanlikExcelSonuc hesapla58k({
+    required ExcelKesintiSonuc kesinti,
+    required List<ExcelPersonelGirdi> personeller,
+    required double odenecekTutar,
+    double kalanBakiye = 0.0,
+  }) {
+    if (personeller.isEmpty) {
+      return DanismanlikExcelSonuc(
+        kesinti: kesinti,
+        toplamPuan: 0,
+        donemKatsayi: 1.0,
+        saglama: 0,
+        personelSatirlari: const [],
+        artikBakiye: kesinti.katkiPayi,
+      );
+    }
+
+    final satirlar = <ExcelPersonelSonuc>[];
+    final dagitimlar = <DagitimModel>[];
+
+    final n = personeller.length;
+    // Eğer personel listesinde puan alanı girilmişse bunu sözleşme yüzdesi (%) kabul et
+    double toplamOran = 0.0;
+    for (final p in personeller) {
+      toplamOran += (p.puan > 0 ? p.puan : (100.0 / n));
+    }
+    if (toplamOran <= 0) toplamOran = 100.0;
+
+    double netOdemeToplam = 0;
+
+    for (var i = 0; i < personeller.length; i++) {
+      final p = personeller[i];
+      final personelOrani = (p.puan > 0 ? p.puan : (100.0 / n)) / toplamOran;
+      final brutHakedis = _round(odenecekTutar * personelOrani, 2);
+
+      netOdemeToplam += brutHakedis;
+
+      satirlar.add(
+        ExcelPersonelSonuc(
+          girdi: p,
+          bireyselNetKatkiPuani: 0,
+          donemKatsayi: 1.0,
+          kursSaatlikUcreti: 0,
+          tavanSaatlikUcreti: 0,
+          brutHakedis: brutHakedis,
+          odenebilirHakedis: brutHakedis,
+          havuzTutari: 0,
+        ),
+      );
+
+      dagitimlar.add(
+        DagitimModel(
+          personelId: p.personelId,
+          adSoyad: p.adSoyad,
+          unvan: p.unvan,
+          unvanKatsayisi: 1.0,
+          ekGosterge: p.ekGosterge,
+          faaliyetTuru: '2547 Sayılı Kanun Madde 58/k Sözleşmeli Danışmanlık',
+          faaliyetAdeti: 1,
+          faaliyetTabanPuani: p.puan,
+          mesaiIci: false,
+          toplamPuan: 0,
+          bireyselPuan: 0,
+          brutHakedis: brutHakedis,
+          tavanKontrol: false,
+          tavanLimitTutari: brutHakedis,
+          odenebilirHakedis: brutHakedis,
+          fazlalikHavuzTutari: 0,
+        ),
+      );
+    }
+
+    return DanismanlikExcelSonuc(
+      kesinti: kesinti,
+      toplamPuan: 0,
+      donemKatsayi: 1.0,
+      saglama: _round(netOdemeToplam, 2),
+      personelSatirlari: satirlar,
+      dagitimlar: dagitimlar,
+      netOdemeToplam: _round(netOdemeToplam, 2),
+      havuzToplam: 0,
+      artikBakiye: kalanBakiye,
     );
   }
 
   static DanismanlikExcelSonuc hesaplaDanismanlik({
     required DanismanlikModel danismanlik,
-    required double brutTaksitTutari, // Note: This now represents KDV Hariç Tutar conceptually
+    required double brutTaksitTutari,
   }) {
-    final kesinti = kesintiler(
-      kdvHaricGelir: brutTaksitTutari,
+    final kesinti = kesintilerBrutten(
+      brutTutar: brutTaksitTutari,
+      kdvOrani: danismanlik.kdvOrani,
       hazineOrani: danismanlik.hazinePayiOrani,
       bapOrani: danismanlik.bapPayiOrani,
       aracGerecOrani: danismanlik.aracGerecPayiOrani / 100,
@@ -410,6 +522,8 @@ class ExcelPersonelGirdi {
   final String faaliyetTuru;
 
   ExcelPersonelGirdi copyWith({
+    String? adSoyad,
+    String? unvan,
     double? puan,
     double? unvanKatsayisi,
     int? ekGosterge,
@@ -419,8 +533,8 @@ class ExcelPersonelGirdi {
   }) {
     return ExcelPersonelGirdi(
       personelId: personelId,
-      adSoyad: adSoyad,
-      unvan: unvan,
+      adSoyad: adSoyad ?? this.adSoyad,
+      unvan: unvan ?? this.unvan,
       puan: puan ?? this.puan,
       unvanKatsayisi: unvanKatsayisi ?? this.unvanKatsayisi,
       ekGosterge: ekGosterge ?? this.ekGosterge,
@@ -429,6 +543,30 @@ class ExcelPersonelGirdi {
       faaliyetTuru: faaliyetTuru ?? this.faaliyetTuru,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+    'personelId': personelId,
+    'adSoyad': adSoyad,
+    'unvan': unvan,
+    'puan': puan,
+    'unvanKatsayisi': unvanKatsayisi,
+    'ekGosterge': ekGosterge,
+    'dersSaati': dersSaati,
+    'mesaiIci': mesaiIci,
+    'faaliyetTuru': faaliyetTuru,
+  };
+
+  factory ExcelPersonelGirdi.fromMap(Map<String, dynamic> map) => ExcelPersonelGirdi(
+    personelId: map['personelId'] as String? ?? '',
+    adSoyad: map['adSoyad'] as String? ?? '',
+    unvan: map['unvan'] as String? ?? '',
+    puan: (map['puan'] as num?)?.toDouble() ?? 20.0,
+    unvanKatsayisi: (map['unvanKatsayisi'] as num?)?.toDouble() ?? 2.0,
+    ekGosterge: (map['ekGosterge'] as num?)?.toInt() ?? 160,
+    dersSaati: (map['dersSaati'] as num?)?.toDouble() ?? 5.0,
+    mesaiIci: map['mesaiIci'] as bool? ?? false,
+    faaliyetTuru: map['faaliyetTuru'] as String? ?? 'Danışmanlık',
+  );
 }
 
 class ExcelPersonelSonuc {
@@ -497,4 +635,17 @@ class DanismanlikExcelSonuc {
   final double artikBakiye;
 
   String get donemKatsayiMetin => TurkceFormat.katsayi(donemKatsayi);
+
+  bool get herhangiBirTavanAsildi => personelSatirlari.any(
+        (s) => s.kursSaatlikUcreti > s.tavanSaatlikUcreti && s.tavanSaatlikUcreti > 0,
+      );
+
+  double get maksimumTavanSaatlik => personelSatirlari.isEmpty
+      ? 0.0
+      : personelSatirlari.map((s) => s.tavanSaatlikUcreti).reduce((a, b) => a > b ? a : b);
+
+  double get toplamTavanKesintisi => personelSatirlari.fold<double>(
+        0.0,
+        (sum, s) => sum + s.havuzTutari,
+      );
 }

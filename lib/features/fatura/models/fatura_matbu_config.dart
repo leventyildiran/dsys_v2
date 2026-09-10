@@ -8,7 +8,7 @@ class FaturaMatbuConfig {
   static const double a4Genislik = 595;
   static const double a4Yukseklik = 842;
   static const double varsayilanFontBoyutu = 10.0;
-  static const double varsayilanKalemSatirAraligi = 16.0;
+  static const double varsayilanKalemSatirAraligi = 19.0;
   static const int varsayilanSatirLimit = 10;
 
   /// KDV muaf matbu faturada basılacak kısa metin (yalnızca son sayfa).
@@ -301,36 +301,36 @@ class FaturaMatbuConfig {
   }
 
   static Map<String, Offset> varsayilanKoordinatlar() => {
-    'firmaAdi': const Offset(45, 135),
-    'adres': const Offset(45, 155),
-    'vergiDairesi': const Offset(145, 275),
-    'vkn': const Offset(145, 295),
-    'tarih': const Offset(470, 270),
-    'irsaliyeTarihi': const Offset(470, 285),
-    'irsaliyeNo': const Offset(470, 300),
-    'cinsi': const Offset(42, 332),
-    'miktar': const Offset(318, 332),
-    'fiyat': const Offset(378, 332),
-    'tutar': const Offset(508, 332),
-    'numuneAciklama': const Offset(50, 578),
-    'melbesKurum': const Offset(42, 598),
-    'melbes': const Offset(295, 598),
-    'numuneNo': const Offset(455, 598),
-    'nakliYekunUstYazi': const Offset(42, 310),
-    'nakliYekunUstTutar': const Offset(508, 310),
-    'nakliYekunAltYazi': const Offset(42, 560),
-    'nakliYekunAltTutar': const Offset(508, 560),
-    'matrah': const Offset(470, 672),
-    'kdv': const Offset(470, 692),
-    'kdvOrani': const Offset(440, 692),
-    'genelToplam': const Offset(470, 712),
-    'yaziylaTutar': const Offset(90, 738),
-    'hesapAdi': const Offset(90, 758),
-    'iban': const Offset(90, 778),
-    'ekstraNot_0': const Offset(50, 618),
-    'ekstraNot_1': const Offset(50, 636),
-    'ekstraNot_2': const Offset(50, 654),
-    'ekstraNot_3': const Offset(50, 672),
-    'ekstraNot_4': const Offset(50, 690),
+    'firmaAdi': const Offset(33, 233),
+    'adres': const Offset(29, 261),
+    'vergiDairesi': const Offset(148, 313),
+    'vkn': const Offset(147, 340),
+    'tarih': const Offset(404, 304),
+    'irsaliyeTarihi': const Offset(403, 318),
+    'irsaliyeNo': const Offset(403, 334),
+    'cinsi': const Offset(36.08, 398.62),
+    'miktar': const Offset(293, 398.62),
+    'fiyat': const Offset(344.43, 398.62),
+    'tutar': const Offset(447.14, 398.62),
+    'numuneAciklama': const Offset(38, 561),
+    'melbesKurum': const Offset(39, 606),
+    'melbes': const Offset(295, 607),
+    'numuneNo': const Offset(40, 585),
+    'nakliYekunUstYazi': const Offset(34, 382),
+    'nakliYekunUstTutar': const Offset(470, 380),
+    'nakliYekunAltYazi': const Offset(33, 568),
+    'nakliYekunAltTutar': const Offset(447, 567),
+    'matrah': const Offset(459, 640),
+    'kdv': const Offset(460, 667),
+    'kdvOrani': const Offset(387, 664),
+    'genelToplam': const Offset(461, 694),
+    'yaziylaTutar': const Offset(81, 727),
+    'hesapAdi': const Offset(41, 773),
+    'iban': const Offset(344, 779),
+    'ekstraNot_0': const Offset(-253, 613),
+    'ekstraNot_1': const Offset(-246, 637),
+    'ekstraNot_2': const Offset(-247, 658),
+    'ekstraNot_3': const Offset(-246, 679),
+    'ekstraNot_4': const Offset(-242, 697),
   };
 }

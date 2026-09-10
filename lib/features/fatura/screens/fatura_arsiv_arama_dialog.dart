@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/turkce_format.dart';
 import '../models/fatura_arsiv_util.dart';
 import '../providers/batch_fatura_provider.dart';
+import 'visual_entry_screen.dart';
 
 /// Geçici fatura arşivinde tarih ve içeriğe göre arama paneli.
 Future<void> showFaturaArsivAramaDialog(BuildContext context) {
@@ -48,8 +50,9 @@ class _FaturaArsivAramaDialogState extends State<_FaturaArsivAramaDialog> {
       setState(() {
         _yilSayilari = provider.arsivYilSayilari;
         _ozetYuklendi = true;
-        _yukleniyor = false;
       });
+      // Arşiv açılır açılmaz en son faturaları anında getir
+      await _ara();
     } catch (e) {
       if (mounted) setState(() { _hata = '$e'; _yukleniyor = false; });
     }
@@ -304,48 +307,140 @@ class _FaturaArsivAramaDialogState extends State<_FaturaArsivAramaDialog> {
       return const Center(child: Text('Eşleşen fatura bulunamadı.'));
     }
 
+    final provider = context.read<BatchFaturaProvider>();
+
     return ListView.separated(
       itemCount: _sonuclar.length,
       separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, i) {
         final k = _sonuclar[i];
         final f = k.fatura;
-        return ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 8),
-          title: Text(
-            f.firmaAdi.isEmpty ? 'İsimsiz firma' : f.firmaAdi,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        return Card(
+          elevation: 0.5,
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(color: Colors.grey.shade200),
           ),
-          subtitle: Text(
-            '${f.tarih.isNotEmpty ? f.tarih : "—"} • MELBES: ${f.melbesNo.isEmpty ? "—" : f.melbesNo} • ${TurkceFormat.para(f.genelToplam)}',
-            style: const TextStyle(fontSize: 12),
-          ),
-          trailing: Text('${k.kayitYili}', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _satir('Numune', f.numuneNo),
-                  _satir('Açıklama', f.numuneAciklamasi),
-                  _satir('Vergi No', f.vergiNo),
-                  _satir('Matrah', TurkceFormat.para(f.matrah)),
-                  _satir('Toplam', TurkceFormat.para(f.genelToplam)),
-                  if (f.kalemler.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text('Kalemler (${f.kalemler.length})', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-                    ...f.kalemler.take(5).map(
-                          (km) => Text(
-                            '• ${km['aciklama'] ?? km['hizmetAdi'] ?? km.values.join(' / ')}',
-                            style: const TextStyle(fontSize: 11),
+          child: ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            leading: CircleAvatar(
+              backgroundColor: Colors.indigo.shade50,
+              child: const Icon(Icons.receipt_long, color: Colors.indigo, size: 20),
+            ),
+            title: Text(
+              f.firmaAdi.isEmpty ? 'İsimsiz firma' : f.firmaAdi,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+            subtitle: Text(
+              '${f.tarih.isNotEmpty ? f.tarih : "—"} • ${TurkceFormat.para(f.genelToplam)}'
+              '${f.numuneNo.isNotEmpty ? " • Numune: ${f.numuneNo}" : ""}',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+            trailing: Chip(
+              label: Text('${k.kayitYili}', style: const TextStyle(fontSize: 11)),
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+            ),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Divider(),
+                    _satir('Vergi/TC No', f.vergiNo),
+                    _satir('Adres', f.adres),
+                    _satir('Vergi Dairesi', f.vergiDairesi),
+                    _satir('MELBES No', f.melbesNo),
+                    _satir('Numune No', f.numuneNo),
+                    _satir('Açıklama', f.numuneAciklamasi),
+                    _satir('IBAN', f.iban ?? ''),
+                    _satir('Hesap Adı', f.hesapAdi ?? ''),
+                    _satir('Matrah', TurkceFormat.para(f.matrah)),
+                    _satir('KDV', '${f.kdvOrani.toStringAsFixed(0)}% (${TurkceFormat.para(f.kdvTutari)})'),
+                    _satir('Genel Toplam', TurkceFormat.para(f.genelToplam)),
+                    if (f.kalemler.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Kalemler (${f.kalemler.length}):',
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                      ),
+                      const SizedBox(height: 4),
+                      ...f.kalemler.map(
+                        (km) => Padding(
+                          padding: const EdgeInsets.only(left: 8, bottom: 2),
+                          child: Text(
+                            '• ${km['cinsi'] ?? km['aciklama'] ?? km['hizmetAdi'] ?? 'Kalem'} — ${km['miktar'] ?? 1} Adet x ${TurkceFormat.para((km['fiyat'] as num?)?.toDouble() ?? 0)}',
+                            style: const TextStyle(fontSize: 12),
                           ),
                         ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    // Eylem Butonları (Yazdır, Kuyruğa Al & Düzenle, Görsel Mod)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.print, size: 16),
+                          label: const Text('Yazdır (Matbu)'),
+                          onPressed: () {
+                            Printing.layoutPdf(
+                              onLayout: (format) => provider.generatePdf(
+                                f,
+                                includeBackground: !provider.matbuBaskiModu,
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.aspect_ratio, size: 16),
+                          label: const Text('Görsel Mod'),
+                          onPressed: () {
+                            var idx = provider.pendingInvoices.indexWhere((p) => p.id == f.id);
+                            if (idx == -1) {
+                              provider.pendingInvoices.insert(0, f);
+                              provider.notifyListeners();
+                              idx = 0;
+                            }
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => VisualEntryScreen(invoiceIndex: idx),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(backgroundColor: Colors.indigo),
+                          icon: const Icon(Icons.edit_note, size: 16),
+                          label: const Text('Kuyruğa Al / Düzenle'),
+                          onPressed: () {
+                            final exists = provider.pendingInvoices.any((p) => p.id == f.id);
+                            if (!exists) {
+                              provider.pendingInvoices.insert(0, f);
+                              provider.notifyListeners();
+                            }
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('${f.firmaAdi.isNotEmpty ? f.firmaAdi : "Fatura"} ana ekrana yüklendi, düzenleyebilir ve tekrar kaydedebilirsiniz.'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
