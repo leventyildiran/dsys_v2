@@ -155,11 +155,11 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
         if (provider.isAutoSaving)
           Container(
             height: 30,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: AppColors.infoLight,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+              color: const Color(0xFFE0F2FE),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFBAE6FD)),
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
@@ -167,12 +167,12 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 SizedBox(
                   width: 12,
                   height: 12,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.info),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0284C7)),
                 ),
                 SizedBox(width: 6),
                 Text(
-                  'Anlık kaydediliyor...',
-                  style: TextStyle(fontSize: 11, color: AppColors.info, fontWeight: FontWeight.w600),
+                  'Taslak Kaydediliyor...',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF0369A1), fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -180,36 +180,55 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
         else if (provider.sonTaslakZamani != null)
           Container(
             height: 30,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: AppColors.successLight,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+              color: const Color(0xFFDCFCE7),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF86EFAC)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.cloud_done_rounded, size: 14, color: AppColors.success),
+                const Icon(Icons.cloud_done_rounded, size: 14, color: Color(0xFF16A34A)),
                 const SizedBox(width: 5),
                 Text(
-                  'Anlık kaydedildi (${provider.sonTaslakZamani!.hour.toString().padLeft(2, '0')}:${provider.sonTaslakZamani!.minute.toString().padLeft(2, '0')})',
-                  style: const TextStyle(fontSize: 11, color: AppColors.success, fontWeight: FontWeight.w600),
+                  'Taslak Korunuyor (${provider.sonTaslakZamani!.hour.toString().padLeft(2, '0')}:${provider.sonTaslakZamani!.minute.toString().padLeft(2, '0')})',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF15803D), fontWeight: FontWeight.w600),
                 ),
               ],
             ),
           ),
         const SizedBox(width: 8),
 
-        // Arama Butonu (Geriye Dönük Vergi & Birim Arama)
+        // Temizle Butonu
         SizedBox(
           height: 30,
           child: OutlinedButton.icon(
-            onPressed: () => VergiAramaDialog.goster(context, provider),
-            icon: const Icon(Icons.search_rounded, size: 14),
-            label: const Text('Vergi & Birim Ara', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            onPressed: () async {
+              final onay = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Dönemi Sıfırla / Temizle'),
+                  content: const Text('Bu aya ait girilmiş tüm veriler ve yerel taslak temizlenecektir. Devam edilsin mi?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç')),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Evet, Temizle'),
+                    ),
+                  ],
+                ),
+              );
+              if (onay == true) {
+                await provider.donemiSifirla();
+              }
+            },
+            icon: const Icon(Icons.delete_outline_rounded, size: 14),
+            label: const Text('Temizle', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF475569),
-              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              foregroundColor: const Color(0xFFB91C1C),
+              side: const BorderSide(color: Color(0xFFFCA5A5)),
               padding: const EdgeInsets.symmetric(horizontal: 10),
             ),
           ),
@@ -219,29 +238,29 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
         // Hızlı Veri Girişi Butonu
         SizedBox(
           height: 30,
-          child: OutlinedButton.icon(
+          child: ElevatedButton.icon(
             onPressed: () => HizliVeriGirisiDialog.goster(context, provider),
             icon: const Icon(Icons.flash_on_rounded, size: 14),
             label: const Text('Hızlı Veri Girişi', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF0284C7),
-              side: const BorderSide(color: Color(0xFF0284C7)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEA580C),
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 10),
             ),
           ),
         ),
         const SizedBox(width: 8),
 
-        // Raporlama (PDF İcmal) Butonu
+        // Vergi Arama Butonu
         SizedBox(
           height: 30,
-          child: OutlinedButton.icon(
-            onPressed: () => BeyannameRaporServisi.aylikRaporuYazdir(context, provider),
-            icon: const Icon(Icons.picture_as_pdf_rounded, size: 14),
-            label: const Text('Raporlama (PDF)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFFDC2626),
-              side: const BorderSide(color: Color(0xFFDC2626)),
+          child: ElevatedButton.icon(
+            onPressed: () => VergiAramaDialog.goster(context, provider),
+            icon: const Icon(Icons.search_rounded, size: 14),
+            label: const Text('Vergi Arama', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E293B),
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 10),
             ),
           ),
@@ -267,6 +286,22 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF107C41),
               side: const BorderSide(color: Color(0xFF107C41)),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // Aylık Rapor (PDF) Butonu
+        SizedBox(
+          height: 30,
+          child: ElevatedButton.icon(
+            onPressed: () => BeyannameRaporServisi.aylikRaporuYazdir(context, provider),
+            icon: const Icon(Icons.picture_as_pdf_rounded, size: 14),
+            label: const Text('Aylık Rapor (PDF)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F766E),
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 10),
             ),
           ),
@@ -815,10 +850,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               return TableRow(
                 decoration: BoxDecoration(color: idx.isEven ? Colors.white : const Color(0xFFFAFAFA)),
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Text(s.birimAdi, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                  ),
+                  _buildBirimCell(s.birimAdi),
                   EditableCell(
                     value: s.hesaplananKdv10,
                     onSubmitted: (v) {
@@ -1077,7 +1109,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               return TableRow(
                 decoration: BoxDecoration(color: idx.isEven ? Colors.white : const Color(0xFFFAFAFA)),
                 children: [
-                  _cellText(d.birimAdi, isBold: true, align: TextAlign.left),
+                  _buildBirimCell(d.birimAdi),
                   EditableCell(
                     value: d.damgaVergisi,
                     onSubmitted: (v) => provider.updateDamgaSatir(idx, v),
@@ -1214,7 +1246,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               return TableRow(
                 decoration: BoxDecoration(color: idx.isEven ? Colors.white : const Color(0xFFFAFAFA)),
                 children: [
-                  _cellText(h.birimAdi, isBold: true, align: TextAlign.left),
+                  _buildBirimCell(h.birimAdi),
                   EditableCell(
                     value: h.oncekiAylarHasilat600,
                     textColor: const Color(0xFF475569),
@@ -1327,7 +1359,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               return TableRow(
                 decoration: BoxDecoration(color: bgRow),
                 children: [
-                  _cellText(b.birimAdi, isBold: true, align: TextAlign.left),
+                  _buildBirimCell(b.birimAdi),
                   _cellText(
                     b.kdv1Tutari < 0 ? '(-) ${TurkceFormat.para(b.kdv1Tutari.abs())}' : TurkceFormat.para(b.kdv1Tutari),
                     color: b.kdv1Tutari < 0 ? const Color(0xFFDC2626) : null,
@@ -1348,7 +1380,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             TableRow(
               decoration: const BoxDecoration(color: Color(0xFFF0FDF4)),
               children: [
-                _cellText('DİŞ SÖZLEŞMEYE DAİR', isBold: true, align: TextAlign.left),
+                _buildBirimCell('DİŞ SÖZLEŞMEYE DAİR'),
                 _cellText('₺0,00'),
                 _cellText('₺0,00'),
                 _cellText('₺0,00'),
@@ -1360,7 +1392,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             TableRow(
               decoration: const BoxDecoration(color: Color(0xFFF0FDF4)),
               children: [
-                _cellText('DİŞ DAMGA-KARAR PULU', isBold: true, align: TextAlign.left),
+                _buildBirimCell('DİŞ DAMGA-KARAR PULU'),
                 _cellText('₺0,00'),
                 _cellText('₺0,00'),
                 _cellText('₺0,00'),
@@ -1420,7 +1452,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                   color: isDis ? const Color(0xFFFEF08A).withValues(alpha: 0.3) : Colors.white,
                 ),
                 children: [
-                  _cellText(b.birimAdi, isBold: true, align: TextAlign.left),
+                  _buildBirimCell(b.birimAdi),
                   _cellText(TurkceFormat.para(b.kdv2DokuzBoluOn)),
                   _cellText(TurkceFormat.para(b.kdv2YediBoluOn)),
                   _cellText(TurkceFormat.para(b.kdv2BesBoluOn)),
@@ -1637,6 +1669,40 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
       ),
     );
   }
+
+  Widget _buildBirimCell(String birimAdi) {
+    final kisa = BirimAdlandirma.kisaAdGetir(birimAdi);
+    final tam = BirimAdlandirma.tamAdGetir(birimAdi);
+    final hasDifference = kisa.trim() != tam.trim();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              kisa,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0F172A)),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (hasDifference) ...[
+            const SizedBox(width: 4),
+            Tooltip(
+              message: tam,
+              child: const Icon(
+                Icons.info_outline_rounded,
+                size: 13,
+                color: Color(0xFF94A3B8),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
 
   // ==================== DİYALOGLAR (EKLEME İŞLEMLERİ) ====================
 
