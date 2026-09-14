@@ -927,14 +927,15 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           ],
           borderColor: const Color(0xFFCBD5E1),
           gridColor: const Color(0xFFF1F5F9),
+          minWidth: 920,
           columnWidths: const {
-            0: FlexColumnWidth(2.8),
+            0: FlexColumnWidth(2.6),
             1: FlexColumnWidth(1.1),
             2: FlexColumnWidth(1.1),
             3: FlexColumnWidth(1.1),
             4: FlexColumnWidth(1.1),
             5: FlexColumnWidth(1.2),
-            6: FixedColumnWidth(36),
+            6: FixedColumnWidth(55),
           },
         ),
       ],
@@ -998,6 +999,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           ],
           borderColor: const Color(0xFFFDE68A),
           gridColor: const Color(0xFFFFFBEB),
+          minWidth: 920,
           columnWidths: const {
             0: FlexColumnWidth(2.4),
             1: FlexColumnWidth(1.1),
@@ -1005,7 +1007,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             3: FlexColumnWidth(1.1),
             4: FlexColumnWidth(1.1),
             5: FlexColumnWidth(1.2),
-            6: FixedColumnWidth(36),
+            6: FixedColumnWidth(55),
           },
         ),
       ],
@@ -1048,7 +1050,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               return TableRow(
                 decoration: BoxDecoration(color: idx.isEven ? Colors.white : const Color(0xFFFAFAFA)),
                 children: [
-                  _cellText(m.birimAdi, isBold: true, align: TextAlign.left),
+                  _buildBirimCell(m.birimAdi),
                   _cellText(m.adSoyad, align: TextAlign.left),
                   _cellText('${m.kisiSayisi}', align: TextAlign.center),
                   _cellText(TurkceFormat.para(m.brutUcret)),
@@ -1071,16 +1073,17 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           ],
           borderColor: const Color(0xFFA7F3D0),
           gridColor: const Color(0xFFF0FDF4),
+          minWidth: 980,
           columnWidths: const {
-            0: FlexColumnWidth(2.6),
-            1: FlexColumnWidth(1.6),
-            2: FixedColumnWidth(45),
-            3: FlexColumnWidth(1.0),
+            0: FlexColumnWidth(1.3),
+            1: FlexColumnWidth(2.2),
+            2: FixedColumnWidth(44),
+            3: FlexColumnWidth(1.1),
             4: FlexColumnWidth(1.0),
             5: FlexColumnWidth(1.0),
-            6: FlexColumnWidth(1.0),
-            7: FlexColumnWidth(1.0),
-            8: FixedColumnWidth(36),
+            6: FlexColumnWidth(1.1),
+            7: FlexColumnWidth(1.1),
+            8: FixedColumnWidth(55),
           },
         ),
       ],
@@ -1212,17 +1215,56 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildSheetTitle('600 Hasılat & 123 Kredi Kartı (Geçmiş Aylar Kümülatif Takibi)', accentColor: const Color(0xFF0284C7)),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0284C7).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.3)),
-              ),
-              child: const Text(
-                'Kümülatif = Önceki Aylar + Cari Ay',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
-              ),
+            Row(
+              children: [
+                if (provider.seciliAy > 1)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: SizedBox(
+                      height: 28,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final ozet = await provider.gecmisAylariSenkronizeEt();
+                          if (context.mounted) {
+                            if (ozet.bosMu) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Bu yıl için sisteme kaydedilmiş önceki ay kaydı bulunamadı.'),
+                                  backgroundColor: Color(0xFFD97706),
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
+                            } else {
+                              final aylarStr = ozet.bulunanAylar.map((a) => _aylar[a - 1]).join(', ');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('✓ ${provider.seciliYil} yılı ($aylarStr) aylarından toplam ${TurkceFormat.para(ozet.toplamHasilat)} hasılat birimlere aktarıldı (Mizan mutabakatı sağlandı).'),
+                                  backgroundColor: const Color(0xFF10B981),
+                                  duration: const Duration(seconds: 4),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.sync_rounded, size: 14),
+                        label: const Text('Geçmiş Aylardan Çek (Mizan)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7), foregroundColor: Colors.white),
+                      ),
+                    ),
+                  ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0284C7).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.3)),
+                  ),
+                  child: const Text(
+                    'Kümülatif = Önceki Aylar + Cari Ay',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1284,11 +1326,12 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           ],
           borderColor: const Color(0xFFBAE6FD),
           gridColor: const Color(0xFFF0F9FF),
+          minWidth: 920,
           columnWidths: const {
-            0: FlexColumnWidth(2.8),
-            1: FlexColumnWidth(1.3),
-            2: FlexColumnWidth(1.3),
-            3: FlexColumnWidth(1.4),
+            0: FlexColumnWidth(2.6),
+            1: FlexColumnWidth(1.4),
+            2: FlexColumnWidth(1.4),
+            3: FlexColumnWidth(1.5),
             4: FlexColumnWidth(1.3),
           },
         ),
@@ -1300,9 +1343,9 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             borderRadius: BorderRadius.circular(4),
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          child: const Text(
-            '💡 İpucu: Bu Ay Aylık Hasılatı girdiğinizde Kümülatif otomatik hesaplanır. Dilerseniz Kümülatif tutarı doğrudan girerek aylık hasılatı ters formülle de bulabilirsiniz.',
-            style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+          child: Text(
+            '💡 Mizan Güvencesi: \'Önceki Dönemler\' tutarları, ${provider.seciliYil} yılının sisteme kaydedilmiş önceki aylarından birim bazında otomatik toplanır. \'Bu Ay Aylık Hasılat\'ı girdiğinizde oluşan Kümülatif tutarı doğrudan Kümülatif Mizan 600 bakiyenizle karşılaştırıp mutabakat sağlayabilirsiniz.',
+            style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
           ),
         ),
       ],
@@ -1417,6 +1460,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           ],
           borderColor: const Color(0xFF86EFAC),
           gridColor: const Color(0xFFBBF7D0),
+          minWidth: 920,
           columnWidths: const {
             0: FlexColumnWidth(2.6),
             1: FlexColumnWidth(1.2),
@@ -1518,18 +1562,34 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     Color borderColor = const Color(0xFFBAE6FD),
     Color gridColor = const Color(0xFFE0F2FE),
     Map<int, TableColumnWidth>? columnWidths,
+    double minWidth = 850,
   }) {
+    final table = Table(
+      columnWidths: columnWidths,
+      border: TableBorder.all(color: gridColor, width: 1),
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      children: rows,
+    );
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: borderColor),
       ),
-      child: Table(
-        columnWidths: columnWidths,
-        border: TableBorder.all(color: gridColor, width: 1),
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        children: rows,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < minWidth) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: minWidth,
+                child: table,
+              ),
+            );
+          }
+          return table;
+        },
       ),
     );
   }

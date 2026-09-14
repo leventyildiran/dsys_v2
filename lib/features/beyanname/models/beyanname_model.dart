@@ -531,3 +531,26 @@ class BirimGecmisVergiKaydi {
       muhtasarDamgaVergisi +
       damgaVergisi360;
 }
+
+/// Geçmiş ayların kümülatif hasılat ve devir özeti (Mizan Mutabakatı Modeli)
+class GecmisDonemHasilatOzeti {
+  final int yil;
+  final int hedefAy;
+  final List<int> bulunanAylar; // Örn: [1, 2, 3, 4, 5, 6, 7, 8]
+  final Map<String, double> birimHasilatToplami; // canonicalKey -> toplam hasılat
+  final Map<String, double> birimKrediKartiToplami; // canonicalKey -> toplam 123
+  final double toplamHasilat;
+  final double? sonAydanDevredenKdv; // hedefAy - 1 ayından devreden KDV
+
+  const GecmisDonemHasilatOzeti({
+    required this.yil,
+    required this.hedefAy,
+    required this.bulunanAylar,
+    required this.birimHasilatToplami,
+    required this.birimKrediKartiToplami,
+    required this.toplamHasilat,
+    this.sonAydanDevredenKdv,
+  });
+
+  bool get bosMu => bulunanAylar.isEmpty;
+}

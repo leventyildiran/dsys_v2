@@ -371,11 +371,21 @@ class BeyannameProvider with ChangeNotifier {
         _sonTaslakZamani = firestoreModel.guncellenmeTarihi;
       } else {
         _varsayilanSatirlariOlustur();
+        if (ay > 1) {
+          try {
+            await gecmisAylariSenkronizeEt(sessiz: true);
+          } catch (_) {}
+        }
       }
       _guncelleDamga301();
     } catch (e) {
       _errorMessage = 'Dönem yüklenirken hata: $e';
       _varsayilanSatirlariOlustur();
+      if (ay > 1) {
+        try {
+          await gecmisAylariSenkronizeEt(sessiz: true);
+        } catch (_) {}
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -737,6 +747,116 @@ class BeyannameProvider with ChangeNotifier {
       debugPrint('Geçmiş dönemler yüklenirken hata: $e');
       return [];
     }
+  }
+
+  /// Belirli bir yılın hedef ayından önceki (1..hedefAy-1) kayıtlı aylarını toplayarak
+  /// Mizan Mutabakatı özetini oluşturur.
+  Future<GecmisDonemHasilatOzeti> gecmisAylariHesapla(int yil, int hedefAy) async {
+    if (hedefAy <= 1) {
+      return GecmisDonemHasilatOzeti(
+        yil: yil,
+        hedefAy: hedefAy,
+        bulunanAylar: const [],
+        birimHasilatToplami: const {},
+        birimKrediKartiToplami: const {},
+        toplamHasilat: 0.0,
+      );
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final List<int> bulunanAylar = [];
+    final Map<String, double> birimHasilatToplami = {};
+    final Map<String, double> birimKrediKartiToplami = {};
+    double? sonAydanDevredenKdv;
+
+    for (int ay = 1; ay < hedefAy; ay++) {
+      final docKey = _docId(yil, ay);
+      BeyannameDonemModel? model;
+
+      // 1. Önce yerel taslaktan oku (en güncel çalışma olabilir)
+      try {
+        final draftJson = prefs.getString('beyanname_draft_$docKey');
+        if (draftJson != null && draftJson.isNotEmpty) {
+          model = BeyannameDonemModel.fromMap(jsonDecode(draftJson));
+        }
+      } catch (_) {}
+
+      // 2. Firestore'dan oku
+      try {
+        final doc = await _firestore.collection('beyannameler').doc(docKey).get();
+        if (doc.exists && doc.data() != null) {
+          final fModel = BeyannameDonemModel.fromMap(doc.data()!);
+          if (model == null || fModel.guncellenmeTarihi.isAfter(model.guncellenmeTarihi)) {
+            model = fModel;
+          }
+        }
+      } catch (_) {}
+
+      if (model != null) {
+        bulunanAylar.add(ay);
+        for (final h in model.hasiat600Satirlari) {
+          final key = BirimAdlandirma.canonicalKey(h.birimAdi);
+          if (key.isNotEmpty) {
+            birimHasilatToplami[key] = (birimHasilatToplami[key] ?? 0.0) + h.aylikHasilat600;
+            birimKrediKartiToplami[key] = (birimKrediKartiToplami[key] ?? 0.0) + h.krediKarti123;
+          }
+        }
+
+        // Eğer hedef ayın hemen bir önceki ayı ise, devreden KDV'yi de al
+        if (ay == hedefAy - 1) {
+          final k1Sonuc = BeyannameHesaplamaMotoru.hesaplaKdv1(
+            model.kdv1Satirlari,
+            oncekiDonemdenDevredenKdv: model.oncekiAydanDevredenKdv,
+          );
+          if (k1Sonuc.sonrakiDonemeDevredenKdv > 0) {
+            sonAydanDevredenKdv = k1Sonuc.sonrakiDonemeDevredenKdv;
+          }
+        }
+      }
+    }
+
+    final double toplam = birimHasilatToplami.values.fold(0.0, (s, v) => s + v);
+
+    return GecmisDonemHasilatOzeti(
+      yil: yil,
+      hedefAy: hedefAy,
+      bulunanAylar: bulunanAylar,
+      birimHasilatToplami: birimHasilatToplami,
+      birimKrediKartiToplami: birimKrediKartiToplami,
+      toplamHasilat: toplam,
+      sonAydanDevredenKdv: sonAydanDevredenKdv,
+    );
+  }
+
+  /// Geçmiş aylardan hasılatı otomatik çekip 600 Masası ve Devreden KDV'ye yansıtır
+  Future<GecmisDonemHasilatOzeti> gecmisAylariSenkronizeEt({bool sessiz = false}) async {
+    final ozet = await gecmisAylariHesapla(_seciliYil, _seciliAy);
+    if (ozet.bosMu) {
+      return ozet;
+    }
+
+    // 1. 600 Hasılat satırlarını güncelle
+    for (int i = 0; i < _hasiat600Satirlari.length; i++) {
+      final h = _hasiat600Satirlari[i];
+      final key = BirimAdlandirma.canonicalKey(h.birimAdi);
+      final gecmisHasilat = ozet.birimHasilatToplami[key] ?? 0.0;
+      final yeniKumulatif = BeyannameHesaplamaMotoru.round(gecmisHasilat + h.aylikHasilat600);
+
+      _hasiat600Satirlari[i] = h.copyWith(
+        oncekiAylarHasilat600: gecmisHasilat,
+        kumulatifHasilat600: yeniKumulatif,
+      );
+    }
+
+    // 2. Bir önceki aydan devreden KDV varsa ve cari KDV 1 devri sıfırsa otomatik doldur
+    if (_oncekiAydanDevredenKdv == 0 && (ozet.sonAydanDevredenKdv ?? 0) > 0) {
+      _oncekiAydanDevredenKdv = ozet.sonAydanDevredenKdv!;
+    }
+
+    _degisiklikYapildi = true;
+    _scheduleAutoSave();
+    notifyListeners();
+    return ozet;
   }
 
   List<BirimGecmisVergiKaydi> birimGecmisiFiltrele(
