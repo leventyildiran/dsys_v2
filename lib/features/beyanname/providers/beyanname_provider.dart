@@ -99,6 +99,23 @@ class BeyannameProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // --- Kayıtlı Dönem ve Düzenleme Kilidi (Resmi Kayıt Koruma Mekanizması) ---
+  bool _isDonemKayitli = false;
+  bool get isDonemKayitli => _isDonemKayitli;
+
+  bool _duzenlemeKilidiAcik = true;
+  bool get duzenlemeKilidiAcik => _duzenlemeKilidiAcik;
+
+  void kilidiAc() {
+    _duzenlemeKilidiAcik = true;
+    notifyListeners();
+  }
+
+  void kilitle() {
+    _duzenlemeKilidiAcik = false;
+    notifyListeners();
+  }
+
   // --- Otomatik Taslak Kaydetme (Auto-Save / Elektrik & İnternet Kesintisi Koruması) ---
   bool _isAutoSaving = false;
   bool get isAutoSaving => _isAutoSaving;
@@ -353,6 +370,14 @@ class BeyannameProvider with ChangeNotifier {
         }
       } catch (e) {
         debugPrint('Firestore okuma hatası: $e');
+      }
+
+      if (firestoreModel != null) {
+        _isDonemKayitli = true;
+        _duzenlemeKilidiAcik = false;
+      } else {
+        _isDonemKayitli = false;
+        _duzenlemeKilidiAcik = true;
       }
 
       if (draftModel != null && firestoreModel != null) {
@@ -690,6 +715,9 @@ class BeyannameProvider with ChangeNotifier {
           .collection('beyannameler')
           .doc(model.id)
           .set(model.toMap());
+
+      _isDonemKayitli = true;
+      _duzenlemeKilidiAcik = false;
 
       // Yerel taslağı da güncelle ve senkronize et
       final prefs = await SharedPreferences.getInstance();

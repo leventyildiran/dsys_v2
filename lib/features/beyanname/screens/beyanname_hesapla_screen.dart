@@ -6,6 +6,7 @@ import '../providers/beyanname_provider.dart';
 import '../models/beyanname_model.dart';
 import '../services/beyanname_hesaplama_motoru.dart';
 import '../services/beyanname_rapor_servisi.dart';
+import '../services/beyanname_excel_servisi.dart';
 import '../widgets/editable_cell.dart';
 import '../../birim/models/birim_model.dart';
 import 'hizli_veri_girisi_dialog.dart';
@@ -65,6 +66,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           : Column(
               children: [
                 _buildSummaryKpiBanner(provider),
+                if (provider.isDonemKayitli) _buildKilitDurumBari(context, provider),
                 _buildExcelTabs(),
                 Expanded(
                   child: Scrollbar(
@@ -82,6 +84,119 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               ],
             ),
     );
+  }
+
+  // ==================== KAYITLI DÖNEM KORUMA / KİLİT UYARISI ====================
+  Widget _buildKilitDurumBari(BuildContext context, BeyannameProvider provider) {
+    final ayAd = _aylar[provider.seciliAy - 1];
+    final isLocked = !provider.duzenlemeKilidiAcik;
+
+    if (isLocked) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.warningSubtle,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: AppColors.warning),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.lock_rounded, size: 16, color: AppColors.warning),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '⚠️ Bu beyanname ($ayAd ${provider.seciliYil}) sisteme resmi olarak kaydedilmiştir. Veriler korumalı moddadır.',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.warning),
+              ),
+            ),
+            SizedBox(
+              height: 26,
+              child: ElevatedButton.icon(
+                onPressed: () => _showKilidiAcDialog(context, provider),
+                icon: const Icon(Icons.lock_open_rounded, size: 13),
+                label: const Text('Kilidi Aç ve Düzenle', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.warning,
+                  foregroundColor: AppColors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.infoSubtle,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: AppColors.info),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.lock_open_rounded, size: 16, color: AppColors.info),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '🔓 Düzenleme Modu Açık: Kayıtlı $ayAd ${provider.seciliYil} beyannamesi üzerinde değişiklik yapıyorsunuz. Değişiklikleri kalıcı kılmak için "Kaydet"e basınız.',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.info),
+              ),
+            ),
+            SizedBox(
+              height: 26,
+              child: OutlinedButton.icon(
+                onPressed: () => provider.kilitle(),
+                icon: const Icon(Icons.lock_outline_rounded, size: 13),
+                label: const Text('Tekrar Kilitle', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.info,
+                  side: const BorderSide(color: AppColors.info),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Future<void> _showKilidiAcDialog(BuildContext context, BeyannameProvider provider) async {
+    final ayAd = _aylar[provider.seciliAy - 1];
+    final onay = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+            SizedBox(width: 8),
+            Text('Kayıtlı Beyannameyi Düzenle'),
+          ],
+        ),
+        content: Text(
+          '$ayAd ${provider.seciliYil} beyannamesi daha önce sisteme kaydedilmiştir.\n\nYine de bu dönem üzerinde değişiklik yapmak istiyor musunuz?',
+          style: const TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hayır, Korumada Kalsın'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: AppColors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Evet, Kilidi Aç ve Düzenle'),
+          ),
+        ],
+      ),
+    );
+    if (onay == true) {
+      provider.kilidiAc();
+    }
   }
 
   // ==================== APP BAR / EXCEL TOOLBAR ====================
@@ -301,6 +416,44 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0F766E),
               foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // Defterdarlık Exceli Butonu (.xlsx)
+        SizedBox(
+          height: 30,
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              try {
+                await BeyannameExcelServisi.defterdarlikExceliniIndir(provider);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('✓ ${_aylar[provider.seciliAy - 1]} ${provider.seciliYil} Defterdarlık Exceli (.xlsx) başarıyla indirildi.'),
+                      backgroundColor: AppColors.success,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Excel üretilirken hata: $e'),
+                      backgroundColor: AppColors.danger,
+                    ),
+                  );
+                }
+              }
+            },
+            icon: const Icon(Icons.table_view_rounded, size: 14),
+            label: const Text('Defterdarlık Exceli (.xlsx)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+              foregroundColor: AppColors.white,
               padding: const EdgeInsets.symmetric(horizontal: 10),
             ),
           ),

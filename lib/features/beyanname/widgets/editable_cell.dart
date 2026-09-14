@@ -15,6 +15,7 @@ class EditableCell extends StatefulWidget {
   final TextAlign textAlign;
   final double height;
   final double fontSize;
+  final bool readOnly;
 
   const EditableCell({
     super.key,
@@ -26,6 +27,7 @@ class EditableCell extends StatefulWidget {
     this.textAlign = TextAlign.right,
     this.height = 24,
     this.fontSize = 11,
+    this.readOnly = false,
   });
 
   @override
@@ -121,6 +123,7 @@ class _EditableCellState extends State<EditableCell> {
           child: TextField(
             controller: _controller,
             focusNode: _focusNode,
+            readOnly: widget.readOnly,
             textAlign: widget.textAlign,
             style: TextStyle(
               fontSize: widget.fontSize,
