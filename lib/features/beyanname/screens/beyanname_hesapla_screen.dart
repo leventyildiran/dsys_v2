@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/turkce_format.dart';
 import '../providers/beyanname_provider.dart';
 import '../models/beyanname_model.dart';
 import '../services/beyanname_hesaplama_motoru.dart';
+import '../services/beyanname_rapor_servisi.dart';
 import '../widgets/editable_cell.dart';
 import '../../birim/models/birim_model.dart';
+import 'hizli_veri_girisi_dialog.dart';
+import 'vergi_arama_dialog.dart';
 
 class BeyannameHesaplaScreen extends StatefulWidget {
   const BeyannameHesaplaScreen({super.key});
@@ -147,6 +151,103 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
         ],
       ),
       actions: [
+        // Otomatik / Anlık Taslak Kayıt Göstergesi
+        if (provider.isAutoSaving)
+          Container(
+            height: 30,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: AppColors.infoLight,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.info),
+                ),
+                SizedBox(width: 6),
+                Text(
+                  'Anlık kaydediliyor...',
+                  style: TextStyle(fontSize: 11, color: AppColors.info, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          )
+        else if (provider.sonTaslakZamani != null)
+          Container(
+            height: 30,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: AppColors.successLight,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cloud_done_rounded, size: 14, color: AppColors.success),
+                const SizedBox(width: 5),
+                Text(
+                  'Anlık kaydedildi (${provider.sonTaslakZamani!.hour.toString().padLeft(2, '0')}:${provider.sonTaslakZamani!.minute.toString().padLeft(2, '0')})',
+                  style: const TextStyle(fontSize: 11, color: AppColors.success, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(width: 8),
+
+        // Arama Butonu (Geriye Dönük Vergi & Birim Arama)
+        SizedBox(
+          height: 30,
+          child: OutlinedButton.icon(
+            onPressed: () => VergiAramaDialog.goster(context, provider),
+            icon: const Icon(Icons.search_rounded, size: 14),
+            label: const Text('Vergi & Birim Ara', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // Hızlı Veri Girişi Butonu
+        SizedBox(
+          height: 30,
+          child: OutlinedButton.icon(
+            onPressed: () => HizliVeriGirisiDialog.goster(context, provider),
+            icon: const Icon(Icons.flash_on_rounded, size: 14),
+            label: const Text('Hızlı Veri Girişi', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF0284C7),
+              side: const BorderSide(color: Color(0xFF0284C7)),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // Raporlama (PDF İcmal) Butonu
+        SizedBox(
+          height: 30,
+          child: OutlinedButton.icon(
+            onPressed: () => BeyannameRaporServisi.aylikRaporuYazdir(context, provider),
+            icon: const Icon(Icons.picture_as_pdf_rounded, size: 14),
+            label: const Text('Raporlama (PDF)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFFDC2626),
+              side: const BorderSide(color: Color(0xFFDC2626)),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+
         // Örnek Veri Yükle Butonu
         SizedBox(
           height: 30,
