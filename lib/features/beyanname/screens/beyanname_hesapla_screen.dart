@@ -65,7 +65,6 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           : Column(
               children: [
                 _buildSummaryKpiBanner(provider),
-                _buildAssistantGuideStrip(provider),
                 _buildExcelTabs(),
                 Expanded(
                   child: Scrollbar(
@@ -401,91 +400,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     );
   }
 
-  Widget _buildAssistantGuideStrip(BeyannameProvider provider) {
-    int totalCells = 0;
-    int filledCells = 0;
 
-    for (final s in provider.kdv1Satirlari) {
-      totalCells += 4;
-      if (s.hesaplananKdv10 > 0) filledCells++;
-      if (s.hesaplananKdv20 > 0) filledCells++;
-      if (s.indirilecekKdv10 > 0) filledCells++;
-      if (s.indirilecekKdv20 > 0) filledCells++;
-    }
-    for (final d in provider.damgaSatirlari) {
-      totalCells++;
-      if (d.damgaVergisi > 0) filledCells++;
-    }
-    for (final h in provider.hasiat600Satirlari) {
-      totalCells += 3;
-      if (h.kumulatifHasilat600 > 0) filledCells++;
-      if (h.aylikHasilat600 > 0) filledCells++;
-      if (h.krediKarti123 > 0) filledCells++;
-    }
-
-    final int emptyCells = totalCells - filledCells;
-
-    return Container(
-      color: const Color(0xFFF8FAFC),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: const Color(0xFFDCFCE7),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: const Color(0xFF86EFAC)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF15803D)),
-                const SizedBox(width: 4),
-                Text(
-                  'Girilen: $filledCells hücre',
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFFBEB),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: const Color(0xFFFDE68A)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.pending_outlined, size: 12, color: Color(0xFFD97706)),
-                const SizedBox(width: 4),
-                Text(
-                  'Boş / Bekleyen: $emptyCells hücre',
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Icon(Icons.keyboard_outlined, size: 13, color: Color(0xFF64748B)),
-          const SizedBox(width: 4),
-          const Text(
-            'Hücreye tıklayıp sayıyı yazın; Enter veya Tab ile bir sonraki hücreye seri geçiş yapabilirsiniz.',
-            style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
-          ),
-          const Spacer(),
-          const Text(
-            '💡 Hücreye tıklayarak doğrudan düzenleyebilirsiniz',
-            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ==================== SEKME BUTONLARI (EXCEL SHEET TABLARI) ====================
   Widget _buildExcelTabs() {

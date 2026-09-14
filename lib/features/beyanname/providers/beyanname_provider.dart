@@ -853,8 +853,7 @@ class BeyannameProvider with ChangeNotifier {
       _oncekiAydanDevredenKdv = ozet.sonAydanDevredenKdv!;
     }
 
-    _degisiklikYapildi = true;
-    _scheduleAutoSave();
+    _tetikleYerelTaslakKaydi();
     notifyListeners();
     return ozet;
   }
