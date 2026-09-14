@@ -24,7 +24,7 @@ class EditableCell extends StatefulWidget {
     this.isBold = false,
     this.textColor,
     this.textAlign = TextAlign.right,
-    this.height = 28,
+    this.height = 24,
     this.fontSize = 11,
   });
 
@@ -108,7 +108,7 @@ class _EditableCellState extends State<EditableCell> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         height: widget.height,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
         decoration: BoxDecoration(
           color: bgColor,
           border: Border.all(

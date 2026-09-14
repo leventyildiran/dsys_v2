@@ -1546,12 +1546,12 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             ? alignments[i]
             : (i == 0 ? TextAlign.left : TextAlign.right);
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           child: Text(
             t,
             textAlign: align,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: FontWeight.w800,
               color: textColor ?? const Color(0xFF0369A1),
               letterSpacing: 0.2,
@@ -1567,10 +1567,10 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
       decoration: bg != null ? BoxDecoration(color: bg) : null,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           child: Text(
             label,
-            style: TextStyle(fontSize: 11, fontWeight: isBold ? FontWeight.bold : FontWeight.w600, color: const Color(0xFF1E293B)),
+            style: TextStyle(fontSize: 10.5, fontWeight: isBold ? FontWeight.bold : FontWeight.w600, color: const Color(0xFF1E293B)),
           ),
         ),
         ...values.asMap().entries.map((entry) {
@@ -1580,12 +1580,12 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               ? alignments[i]
               : (v.contains('%') || v.contains('/') ? TextAlign.center : TextAlign.right);
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             child: Text(
               v,
               textAlign: align,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
                 color: const Color(0xFF0F172A),
               ),
@@ -1603,10 +1603,10 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
       ),
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           child: Text(
             title,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: textColor ?? const Color(0xFF0369A1)),
+            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: textColor ?? const Color(0xFF0369A1)),
           ),
         ),
         ...List.generate(colSpan - 1, (_) => const SizedBox.shrink()),
@@ -1617,10 +1617,10 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
   TableRow _highlightRow(String title, String value, Color color, {required int colSpan}) {
     final List<Widget> cells = [
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Text(
           title,
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: color),
         ),
       ),
     ];
@@ -1629,11 +1629,11 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     }
     cells.add(
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Text(
           value,
           textAlign: TextAlign.right,
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: color),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: color),
         ),
       ),
     );
@@ -1647,8 +1647,8 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     return TableRow(
       children: [
         Padding(
-          padding: const EdgeInsets.all(12),
-          child: Text(text, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Text(text, style: const TextStyle(fontSize: 10.5, color: Colors.grey)),
         ),
         ...List.generate(colSpan - 1, (_) => const SizedBox.shrink()),
       ],
@@ -1657,12 +1657,12 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
 
   Widget _cellText(String text, {bool isBold = false, TextAlign align = TextAlign.right, Color? color}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       child: Text(
         text,
         textAlign: align,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 10.5,
           fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
           color: color ?? const Color(0xFF0F172A),
         ),
@@ -1676,14 +1676,14 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     final hasDifference = kisa.trim() != tam.trim();
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Flexible(
             child: Text(
               kisa,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0F172A)),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10.5, color: Color(0xFF0F172A)),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -1693,7 +1693,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               message: tam,
               child: const Icon(
                 Icons.info_outline_rounded,
-                size: 13,
+                size: 12,
                 color: Color(0xFF94A3B8),
               ),
             ),
@@ -1704,40 +1704,141 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
   }
 
 
+
   // ==================== DİYALOGLAR (EKLEME İŞLEMLERİ) ====================
 
   void _showAddBirimDialog(BuildContext context, BeyannameProvider provider) {
-    final controller = TextEditingController();
+    // 1. Sistem birimlerini topla
+    final Map<String, String> sistemSecenekleri = {};
+    for (final b in BirimModel.varsayilanBirimler) {
+      sistemSecenekleri[b.ad] = b.kisaAd;
+    }
+    for (final b in provider.sistemBirimleri) {
+      if (b.ad.isNotEmpty) {
+        sistemSecenekleri[b.ad] = b.kisaAd.isNotEmpty ? b.kisaAd : b.ad;
+      }
+    }
+
+    // 2. Halihazırda tabloda olan birimleri tespit et
+    final Set<String> mevcutKanonik = provider.kdv1Satirlari
+        .map((s) => BirimAdlandirma.canonicalKey(s.birimAdi))
+        .toSet();
+
+    // 3. Tabloda henüz olmayan sistem birimleri listesi
+    final List<String> eklenebilirSistemBirimleri = sistemSecenekleri.keys.where((ad) {
+      final key = BirimAdlandirma.canonicalKey(ad);
+      return !mevcutKanonik.contains(key);
+    }).toList()..sort();
+
+    // Özel manuel giriş modu kontrolü
+    const String digerOzelBirim = '__DIGER_OZEL__';
+    String? seciliBirim = eklenebilirSistemBirimleri.isNotEmpty ? eklenebilirSistemBirimleri.first : digerOzelBirim;
+    final manuelCtrl = TextEditingController();
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Yeni Birim Ekle', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Birim Adı (Resmi Tam Ad veya Kısaltma)',
-            hintText: 'örn: UBATAM, DÖSİM, USEM veya tam adı...',
-            border: OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          title: const Row(
+            children: [
+              Icon(Icons.add_business_rounded, color: Color(0xFF1D4ED8), size: 20),
+              SizedBox(width: 8),
+              Text('Yeni Birim Ekle (Sistemden Seç)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            ],
           ),
-          autofocus: true,
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Sistemde tanımlı üniversite birimlerinden seçebilir veya yeni bir özel birim girebilirsiniz:',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: seciliBirim,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Sistem Birimi Seçimi',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    prefixIcon: Icon(Icons.apartment_rounded, size: 18),
+                  ),
+                  items: [
+                    ...eklenebilirSistemBirimleri.map((ad) {
+                      final kisa = sistemSecenekleri[ad] ?? BirimAdlandirma.kisaAdGetir(ad);
+                      return DropdownMenuItem<String>(
+                        value: ad,
+                        child: Text(
+                          '$kisa — $ad',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }),
+                    const DropdownMenuItem<String>(
+                      value: digerOzelBirim,
+                      child: Text(
+                        '➕ Diğer / Yeni Özel Birim Yaz...',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8)),
+                      ),
+                    ),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() => seciliBirim = val);
+                    }
+                  },
+                ),
+                if (seciliBirim == digerOzelBirim) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: manuelCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Yeni Birim Adı veya Kısaltması',
+                      hintText: 'örn: Yabancı Diller Yüksekokulu...',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                    autofocus: true,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1D4ED8),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
+              onPressed: () {
+                String hedefBirim = '';
+                if (seciliBirim == digerOzelBirim) {
+                  hedefBirim = manuelCtrl.text.trim();
+                } else if (seciliBirim != null) {
+                  hedefBirim = seciliBirim!;
+                }
+
+                if (hedefBirim.isNotEmpty) {
+                  final std = BirimAdlandirma.tamAdGetir(hedefBirim);
+                  provider.addKdv1Birim(std);
+                }
+                Navigator.pop(ctx);
+              },
+              child: const Text('Masaya Ekle'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-          ElevatedButton(
-            onPressed: () {
-              final raw = controller.text.trim();
-              if (raw.isNotEmpty) {
-                final std = BirimAdlandirma.tamAdGetir(raw);
-                provider.addKdv1Birim(std);
-              }
-              Navigator.pop(ctx);
-            },
-            child: const Text('Ekle'),
-          ),
-        ],
       ),
     );
   }
+
 
   void _showAddTevkifatDialog(BuildContext context, BeyannameProvider provider) {
     final firmaCtrl = TextEditingController();
