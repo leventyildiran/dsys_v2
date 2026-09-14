@@ -751,7 +751,7 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
                   hintText: '0,00',
                   isDense: true,
                   border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.attach_money_rounded, size: 16),
+                  prefixIcon: Icon(Icons.currency_lira_rounded, size: 16),
                 ),
               ),
             ),
