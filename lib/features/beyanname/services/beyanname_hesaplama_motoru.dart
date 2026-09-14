@@ -1,4 +1,5 @@
 import '../models/beyanname_model.dart';
+import '../models/beyanname_konfigurasyonu.dart';
 
 /// 2025/2026 Yılı Aylık Asgari Ücret Vergi İstisnası Değerleri
 class AsgariUcretIstisnasi {
@@ -52,13 +53,15 @@ class Kdv1KonsolideSonuc {
 
 /// KDV 2 Tevkifat Konsolide Özeti
 class Kdv2KonsolideSonuc {
-  final Map<TevkifatTuru, Map<int, double>> matrahlar; // [Tür][Oran] -> Matrah
-  final Map<TevkifatTuru, Map<int, double>> kdvler; // [Tür][Oran] -> KDV
-  final Map<TevkifatTuru, Map<int, double>> tevkifatlar; // [Tür][Oran] -> Tevkifat
+  // Etiket (örn. '9/10') anahtarlıdır; böylece kurum kendi tevkifat
+  // türlerini tanımlayabilir (sabit enum'a bağımlılık kalkar).
+  final Map<String, Map<int, double>> matrahlar; // [Etiket][Oran] -> Matrah
+  final Map<String, Map<int, double>> kdvler; // [Etiket][Oran] -> KDV
+  final Map<String, Map<int, double>> tevkifatlar; // [Etiket][Oran]
 
-  final Map<TevkifatTuru, double> turKdvToplam;
-  final Map<TevkifatTuru, double> turMatrahToplam;
-  final Map<TevkifatTuru, double> turTevkifatToplam;
+  final Map<String, double> turKdvToplam;
+  final Map<String, double> turMatrahToplam;
+  final Map<String, double> turTevkifatToplam;
 
   final double butunKdvlerToplami;
   final double butunMatrahlarToplami;
@@ -132,11 +135,40 @@ class BeyannameHesaplamaMotoru {
     12: const AsgariUcretIstisnasi(gelirVergisiIstisnasi: 4420.93, damgaVergisiIstisnasi: 197.38),
   };
 
-  static AsgariUcretIstisnasi getIstisna(int yil, int ay) {
-    if (istisnalar2025.containsKey(ay)) {
-      return istisnalar2025[ay]!;
+  /// Yıl bazlı istisna tabloları. Yeni bir yıl eklendiğinde (örn. 2026)
+  /// buraya kayıt eklenmelidir. Bilinmeyen yıl için en güncel bilinen
+  /// tabloya (2025) düşülür.
+  static final Map<int, Map<int, AsgariUcretIstisnasi>> _istisnaTablolari = {
+    2025: istisnalar2025,
+  };
+
+  static const AsgariUcretIstisnasi _varsayilanIstisna =
+      AsgariUcretIstisnasi(gelirVergisiIstisnasi: 4420.93, damgaVergisiIstisnasi: 197.38);
+
+  static AsgariUcretIstisnasi getIstisna(
+    int yil,
+    int ay, {
+    BeyannameKonfigurasyonu? konfig,
+  }) {
+    // Kurum yıllık istisna tablosu tanımladıysa (örn. 2026) önce ona bakılır.
+    // Tanımlı değilse yerleşik tabloya düşülür — mevcut davranış korunur.
+    if (konfig != null) {
+      for (final t in konfig.asgariUcretTablolari) {
+        if (t.yil != yil) continue;
+        final gv = t.aylikGelirVergisi[ay];
+        final dv = t.aylikDamgaVergisi[ay];
+        if (gv != null || dv != null) {
+          return AsgariUcretIstisnasi(
+            gelirVergisiIstisnasi:
+                gv ?? _varsayilanIstisna.gelirVergisiIstisnasi,
+            damgaVergisiIstisnasi:
+                dv ?? _varsayilanIstisna.damgaVergisiIstisnasi,
+          );
+        }
+      }
     }
-    return const AsgariUcretIstisnasi(gelirVergisiIstisnasi: 4420.93, damgaVergisiIstisnasi: 197.38);
+    final tablo = _istisnaTablolari[yil] ?? istisnalar2025;
+    return tablo[ay] ?? _varsayilanIstisna;
   }
 
   /// KDV 1 Konsolide Hesaplama
@@ -202,48 +234,58 @@ class BeyannameHesaplamaMotoru {
   }
 
   /// KDV 2 Tevkifat Konsolide Hesaplama
-  static Kdv2KonsolideSonuc hesaplaKdv2(List<TevkifatFirmaKaydi> kayitlar) {
-    final matrahlar = <TevkifatTuru, Map<int, double>>{};
-    final kdvler = <TevkifatTuru, Map<int, double>>{};
-    final tevkifatlar = <TevkifatTuru, Map<int, double>>{};
+  static Kdv2KonsolideSonuc hesaplaKdv2(
+    List<TevkifatFirmaKaydi> kayitlar, {
+    BeyannameKonfigurasyonu konfig = BeyannameKonfigurasyonu.varsayilan,
+  }) {
+    // Oran kovaları: kurum KDV oranları + kayıtlarda geçen oranlar
+    // (geriye dönük uyum). Böylece özel oranlar (örn. %1) da raporlanır.
+    final oranSet = <int>{for (final o in konfig.kdvOranlari) o.oran};
+    for (final k in kayitlar) {
+      oranSet.add(k.kdvOrani);
+    }
+    final oranlar = oranSet.toList()..sort();
 
-    for (final tur in TevkifatTuru.values) {
-      matrahlar[tur] = {8: 0.0, 10: 0.0, 18: 0.0, 20: 0.0};
-      kdvler[tur] = {8: 0.0, 10: 0.0, 18: 0.0, 20: 0.0};
-      tevkifatlar[tur] = {8: 0.0, 10: 0.0, 18: 0.0, 20: 0.0};
+    // Tür etiketleri: kurum tevkifat listesi + kayıtlarda geçen serbest
+    // etiketler (kurum listesi dışında kayıt varsa kaybolmaz).
+    final etiketler = <String>[for (final t in konfig.tevkifatTurleri) t.etiket];
+    for (final k in kayitlar) {
+      if (!etiketler.contains(k.etiket)) etiketler.add(k.etiket);
     }
 
-    final turKdvToplam = <TevkifatTuru, double>{
-      TevkifatTuru.dokuzBoluOn: 0.0,
-      TevkifatTuru.yediBoluOn: 0.0,
-      TevkifatTuru.besBoluOn: 0.0,
-    };
-    final turMatrahToplam = <TevkifatTuru, double>{
-      TevkifatTuru.dokuzBoluOn: 0.0,
-      TevkifatTuru.yediBoluOn: 0.0,
-      TevkifatTuru.besBoluOn: 0.0,
-    };
-    final turTevkifatToplam = <TevkifatTuru, double>{
-      TevkifatTuru.dokuzBoluOn: 0.0,
-      TevkifatTuru.yediBoluOn: 0.0,
-      TevkifatTuru.besBoluOn: 0.0,
-    };
+    final matrahlar = <String, Map<int, double>>{};
+    final kdvler = <String, Map<int, double>>{};
+    final tevkifatlar = <String, Map<int, double>>{};
+    final turKdvToplam = <String, double>{};
+    final turMatrahToplam = <String, double>{};
+    final turTevkifatToplam = <String, double>{};
+
+    for (final e in etiketler) {
+      matrahlar[e] = {for (final o in oranlar) o: 0.0};
+      kdvler[e] = {for (final o in oranlar) o: 0.0};
+      tevkifatlar[e] = {for (final o in oranlar) o: 0.0};
+      turKdvToplam[e] = 0.0;
+      turMatrahToplam[e] = 0.0;
+      turTevkifatToplam[e] = 0.0;
+    }
 
     double butunKdv = 0;
     double butunMatrah = 0;
     double butunTevkifat = 0;
 
     for (final k in kayitlar) {
+      final e = k.etiket;
       final oran = k.kdvOrani;
-      final tur = k.tevkifatTuru;
 
-      matrahlar[tur]![oran] = round((matrahlar[tur]![oran] ?? 0.0) + k.matrahTutari);
-      kdvler[tur]![oran] = round((kdvler[tur]![oran] ?? 0.0) + k.kdvTutari);
-      tevkifatlar[tur]![oran] = round((tevkifatlar[tur]![oran] ?? 0.0) + k.tevkifatTutari);
+      matrahlar[e]?[oran] = round(((matrahlar[e]?[oran]) ?? 0.0) + k.matrahTutari);
+      kdvler[e]?[oran] = round(((kdvler[e]?[oran]) ?? 0.0) + k.kdvTutari);
+      tevkifatlar[e]?[oran] =
+          round(((tevkifatlar[e]?[oran]) ?? 0.0) + k.tevkifatTutari);
 
-      turMatrahToplam[tur] = round(turMatrahToplam[tur]! + k.matrahTutari);
-      turKdvToplam[tur] = round(turKdvToplam[tur]! + k.kdvTutari);
-      turTevkifatToplam[tur] = round(turTevkifatToplam[tur]! + k.tevkifatTutari);
+      turMatrahToplam[e] = round((turMatrahToplam[e] ?? 0.0) + k.matrahTutari);
+      turKdvToplam[e] = round((turKdvToplam[e] ?? 0.0) + k.kdvTutari);
+      turTevkifatToplam[e] =
+          round((turTevkifatToplam[e] ?? 0.0) + k.tevkifatTutari);
 
       butunMatrah += k.matrahTutari;
       butunKdv += k.kdvTutari;
@@ -269,6 +311,7 @@ class BeyannameHesaplamaMotoru {
     required double muhtasarKesilenDamgaVergisi301,
     required int yil,
     required int ay,
+    BeyannameKonfigurasyonu konfig = BeyannameKonfigurasyonu.varsayilan,
   }) {
     int topKisi = 0;
     double topBrut = 0;
@@ -286,7 +329,7 @@ class BeyannameHesaplamaMotoru {
       topMatrah += s.aylikGelirVergisiMatrahi;
     }
 
-    final istisna = getIstisna(yil, ay);
+    final istisna = getIstisna(yil, ay, konfig: konfig);
     final topGvIstisna = round(topKisi * istisna.gelirVergisiIstisnasi);
     final topDvIstisna = round(topKisi * istisna.damgaVergisiIstisnasi);
 
@@ -308,16 +351,22 @@ class BeyannameHesaplamaMotoru {
     );
   }
 
-  /// Damga Vergisi (Mizan 360.03.05 - Binde 9,48) Matrah Hesabı
-  /// Excel Formülü: A4 = B4*1000/9.48
-  static double matrahFromDamga(double damgaTutari) {
+  /// Damga Vergisi (Mizan 360.03.05) Matrah Hesabı
+  /// Excel Formülü: A4 = B4*1000/binde  (varsayılan binde 9,48)
+  ///
+  /// [binde] verilmezse kurum yapılandırmasının varsayılanı kullanılır.
+  /// Böylece sabit oran tek kaynaktan yönetilir; kurum bazlı override
+  /// beklenmedik şekilde mevcut davranışı değiştirmez.
+  static double matrahFromDamga(double damgaTutari, {double? binde}) {
     if (damgaTutari <= 0) return 0.0;
-    return round(damgaTutari * 1000 / 9.48);
+    final b = binde ?? BeyannameKonfigurasyonu.varsayilanDamgaBinde;
+    return round(damgaTutari * 1000 / b);
   }
 
-  /// Matrahtan Binde 9,48 Damga Vergisi Hesabı
-  static double damgaFromMatrah(double matrah) {
+  /// Matrahtan Damga Vergisi Hesabı (varsayılan binde 9,48).
+  static double damgaFromMatrah(double matrah, {double? binde}) {
     if (matrah <= 0) return 0.0;
-    return round(matrah * 0.00948);
+    final b = binde ?? BeyannameKonfigurasyonu.varsayilanDamgaBinde;
+    return round(matrah * b / 1000);
   }
 }

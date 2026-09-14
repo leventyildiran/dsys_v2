@@ -575,7 +575,7 @@ class TabKatkiPayi extends StatelessWidget {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: excelSonuc.personelSatirlari.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, thickness: 0.5),
+                    separatorBuilder: (_, _) => const Divider(height: 1, thickness: 0.5),
                     itemBuilder: (context, index) {
                       final s = excelSonuc.personelSatirlari[index];
                       final p = s.girdi;
@@ -1203,7 +1203,7 @@ class TabKatkiPayi extends StatelessWidget {
                             const Text('Sözleşme Süresi (Ay / Taksit):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 4),
                             DropdownButtonFormField<int>(
-                              value: toplamTaksitSayisi,
+                              initialValue: toplamTaksitSayisi,
                               decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
                               items: [2, 3, 4, 5, 6, 8, 10, 12, 18, 24].map((ay) {
                                 return DropdownMenuItem(value: ay, child: Text('$ay Ay ($ay Taksit)'));
@@ -1223,7 +1223,7 @@ class TabKatkiPayi extends StatelessWidget {
                             const Text('Ödenen Taksit Sırası:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 4),
                             DropdownButtonFormField<int>(
-                              value: aktifTaksitNo > toplamTaksitSayisi ? 1 : aktifTaksitNo,
+                              initialValue: aktifTaksitNo > toplamTaksitSayisi ? 1 : aktifTaksitNo,
                               decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
                               items: List.generate(toplamTaksitSayisi, (i) => i + 1).map((no) {
                                 return DropdownMenuItem(value: no, child: Text('$no. Taksit'));
@@ -1338,7 +1338,7 @@ class TabKatkiPayi extends StatelessWidget {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: personeller.length,
-                      separatorBuilder: (_, __) => const Divider(height: 16),
+                      separatorBuilder: (_, _) => const Divider(height: 16),
                       itemBuilder: (context, index) {
                         final p = personeller[index];
                         final sonuc = excelSonuc.personelSatirlari.length > index
@@ -1362,7 +1362,7 @@ class TabKatkiPayi extends StatelessWidget {
                             SizedBox(
                               width: 140,
                               child: DropdownButtonFormField<String>(
-                                value: unvanListesi.contains(p.unvan) ? p.unvan : 'Dr. Öğr. Üyesi',
+                                initialValue: unvanListesi.contains(p.unvan) ? p.unvan : 'Dr. Öğr. Üyesi',
                                 decoration: const InputDecoration(isDense: true, labelText: 'Unvan', border: OutlineInputBorder()),
                                 items: unvanListesi.map((u) => DropdownMenuItem(value: u, child: Text(u, style: const TextStyle(fontSize: 12)))).toList(),
                                 onChanged: (val) {

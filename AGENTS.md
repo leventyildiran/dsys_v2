@@ -147,3 +147,18 @@ Gelecekteki ajanlar ve düzenlemeler için kesin kurallar:
 10. **Yazıyla Rakam (Yazıyla Tutar) Nakli Yekün Gösterimi:** "Yazıyla Tutar" alanı ilk (devreden) sayfalarda gizlenmemelidir. Eğer Nakli Yekün aktifse, ilk sayfalarda o anki **Ara Toplamı** okuyacak şekilde `TurkceFormat.sayiyiYaziyaCevir(araToplam)` dönmelidir. Sadece son sayfada `genelToplam`ı yazıya çevirmelidir.
 11. **Satır Limiti ve Otomatik Sayfalama İptali:** Fatura sayfalama motorlarında (`visual_entry_screen.dart`, `fatura_matbu_baski_onizleme.dart`, `fatura_pdf_uretici.dart`) otomatik satır limiti sınırlaması tamamen iptal edilmiştir (hesaplamalarda limit 9999 olarak sabitlenmiştir). Sayfalar sadece ve sadece kullanıcının makasla kestiği yerlerde (`sayfayiBol == true`) bölünmelidir. Gelen hiçbir ajan otomatik satır limiti sınırlamasını geri getirmemeli, bu yapıyı bozmamalıdır.
 12. **Dosya Büyüklüğü ve Monolitik Yapı Engeli:** Gelecekte eklenecek yeni özellikler sırasında hiçbir dosyanın devasa boyutlara (örn. 2000 satır) ulaşmasına izin verilmemelidir. Özellik eklerken UI bileşenleri parçalanmalı (component extraction), iş mantığı ayrı servislere taşınmalı (separation of concerns) ve kod her zaman temiz ve okunabilir kalmalıdır. Geçici veya "kısa yol" çözümlerle kodun şişirilmesi (spaghetti code) kesinlikle yasaktır.
+
+## Renk ve Tasarım Sistemi (ZORUNLU)
+
+**İlke:** "Renk süs değildir; kullanıcıyı yönlendirir." Bir renk ekranda görünüyorsa bir anlamı olmalı. Aynı anlam her yerde **aynı renk**, farklı anlam **farklı renk**.
+
+Tam kural seti ve katalog: [`RENK_SISTEMI.md`](RENK_SISTEMI.md:1).
+
+Kesin kurallar:
+1. **Tek kaynak:** Tüm renkler [`lib/core/theme/app_colors.dart`](lib/core/theme/app_colors.dart:1) içindedir. Ekranlarda `Colors.red`, `Color(0xFF...)`, `Colors.blueGrey` gibi **ham renk yazmak yasaktır**. Ekran kodu `AppColors.<token>` kullanır.
+2. **Tek anlam = tek renk:** `success`=onaylandı/tamamlandı, `warning`=dikkat/onay bekliyor/eksik, `danger`=hata/reddedildi/gecikmiş, `info`=nötr bilgi, `neutral`=pasif. Yeşil başka amaçla (süs) kullanılmaz.
+3. **Rozet/etiket (birim, rol) nötr renkle yapılır.** Birimleri renkle ayırt etme; metinle ayırt et. Yalnızca gerçek durum bilgisi varsa durum rengi kullanılır.
+4. **Eylem rengi = buton işlevi:** birincil eylem `primary`, yıkıcı eylem (`Sil`/`Reddet`) `danger` (`actionDestructive`). Yıkıcı işlem asla marka renginde olmaz.
+5. **Bir ekranda en fazla bir vurgu rengi** (primary) + gerekiyorsa durum renkleri. Gökkuşağı yasak.
+6. **Yeni renk gerekirse** önce "hangi anlam?" sorusuna cevap ver; ancak gerçek yeni bir anlamsa ve yalnızca [`app_colors.dart`](lib/core/theme/app_colors.dart:1) içine eklenir — ekranda değil.
+7. Tema bağlantısı [`lib/core/theme/app_theme.dart`](lib/core/theme/app_theme.dart:1) içinde yapılır; buton/input/tablo/çip/snackbar rengi otomatik alır, elle renk verme.

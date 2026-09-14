@@ -343,8 +343,8 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           ),
           const Spacer(),
           const Text(
-            '🟢 Dolu  🟡 Bekliyor  🔵 Aktif',
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+            '💡 Hücreye tıklayarak doğrudan düzenleyebilirsiniz',
+            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
           ),
         ],
       ),
@@ -510,22 +510,22 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               textColor: const Color(0xFF92400E),
             ),
             _dataRow('9 / 10 Tevkifatlar', [
-              TurkceFormat.para(k2.turMatrahToplam[TevkifatTuru.dokuzBoluOn] ?? 0),
-              TurkceFormat.para(k2.turKdvToplam[TevkifatTuru.dokuzBoluOn] ?? 0),
+              TurkceFormat.para(k2.turMatrahToplam[TevkifatTuru.dokuzBoluOn.etiket] ?? 0),
+              TurkceFormat.para(k2.turKdvToplam[TevkifatTuru.dokuzBoluOn.etiket] ?? 0),
               '9 / 10 (%90)',
-              TurkceFormat.para(k2.turTevkifatToplam[TevkifatTuru.dokuzBoluOn] ?? 0),
+              TurkceFormat.para(k2.turTevkifatToplam[TevkifatTuru.dokuzBoluOn.etiket] ?? 0),
             ]),
             _dataRow('7 / 10 Tevkifatlar', [
-              TurkceFormat.para(k2.turMatrahToplam[TevkifatTuru.yediBoluOn] ?? 0),
-              TurkceFormat.para(k2.turKdvToplam[TevkifatTuru.yediBoluOn] ?? 0),
+              TurkceFormat.para(k2.turMatrahToplam[TevkifatTuru.yediBoluOn.etiket] ?? 0),
+              TurkceFormat.para(k2.turKdvToplam[TevkifatTuru.yediBoluOn.etiket] ?? 0),
               '7 / 10 (%70)',
-              TurkceFormat.para(k2.turTevkifatToplam[TevkifatTuru.yediBoluOn] ?? 0),
+              TurkceFormat.para(k2.turTevkifatToplam[TevkifatTuru.yediBoluOn.etiket] ?? 0),
             ]),
             _dataRow('5 / 10 Tevkifatlar', [
-              TurkceFormat.para(k2.turMatrahToplam[TevkifatTuru.besBoluOn] ?? 0),
-              TurkceFormat.para(k2.turKdvToplam[TevkifatTuru.besBoluOn] ?? 0),
+              TurkceFormat.para(k2.turMatrahToplam[TevkifatTuru.besBoluOn.etiket] ?? 0),
+              TurkceFormat.para(k2.turKdvToplam[TevkifatTuru.besBoluOn.etiket] ?? 0),
               '5 / 10 (%50)',
-              TurkceFormat.para(k2.turTevkifatToplam[TevkifatTuru.besBoluOn] ?? 0),
+              TurkceFormat.para(k2.turTevkifatToplam[TevkifatTuru.besBoluOn.etiket] ?? 0),
             ]),
             _highlightRow(
               'BÜTÜN TEVKİFAT TÜRLERİNİN (9/10+7/10+5/10) TEVKİFAT TOPLAMI',
@@ -622,8 +622,8 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                       _dataRow('302 (Muhtasar Ücret Damga Vergisi)', [TurkceFormat.para(m.muhtasarDamgaVergisi302)]),
                       _highlightRow('301 + 302 TOPLAM DAMGA', TurkceFormat.para(m.toplamDamgaVergisi301Ve302), const Color(0xFF059669), colSpan: 2),
                       _dataRow('360.03.05 Matrahı (Binde 9,48)', [TurkceFormat.para(provider.damgaToplamMatrah)]),
-                      _dataRow('Diş Hekimliği Aylık 600 Hasılatı', [TurkceFormat.para(provider.hasiat600Satirlari.where((s) => BirimAdlandirma.canonicalKey(s.birimAdi) == 'dis').fold(0.0, (sum, s) => sum + s.aylikHasilat600))]),
-                      _dataRow('Diş Hekimliği 123 Kredi Kartı Tutarı', [TurkceFormat.para(provider.hasiat600Satirlari.where((s) => BirimAdlandirma.canonicalKey(s.birimAdi) == 'dis').fold(0.0, (sum, s) => sum + s.krediKarti123))]),
+                      _dataRow('Bu Ay Toplam 600 Aylık Hasılat', [TurkceFormat.para(provider.hasiat600ToplamAylik)]),
+                      _dataRow('123 Kredi Kartı Toplam Tutarı', [TurkceFormat.para(provider.krediKarti123Toplam)]),
                       _highlightRow('600 KÜMÜLATİF HASILAT', TurkceFormat.para(provider.hasiat600ToplamKumulatif), const Color(0xFF0284C7), colSpan: 2),
                     ],
                     borderColor: const Color(0xFFDDD6FE),
@@ -674,8 +674,8 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 'NET ÖDENECEK KDV',
                 'İŞLEM',
               ],
-              bg: const Color(0xFFDBEAFE),
-              textColor: const Color(0xFF1E3A8A),
+              bg: const Color(0xFFF1F5F9),
+              textColor: const Color(0xFF1E293B),
             ),
             ...provider.kdv1Satirlari.asMap().entries.map((entry) {
               final idx = entry.key;
@@ -761,8 +761,8 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               );
             }),
           ],
-          borderColor: const Color(0xFFBFDBFE),
-          gridColor: const Color(0xFFEFF6FF),
+          borderColor: const Color(0xFFCBD5E1),
+          gridColor: const Color(0xFFF1F5F9),
           columnWidths: const {
             0: FlexColumnWidth(2.8),
             1: FlexColumnWidth(1.1),
@@ -1493,7 +1493,21 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
   }
 
   void _showAddMuhtasarDialog(BuildContext context, BeyannameProvider provider) {
-    final birimCtrl = TextEditingController(text: 'DTS');
+    // Mevcut birim listesinden seçenekleri oluştur (varsayılan birimler + KDV 1 satırlarındaki birimler)
+    final Set<String> mevcutBirimler = {};
+    for (final b in BirimModel.varsayilanBirimler) {
+      mevcutBirimler.add(b.ad);
+    }
+    for (final s in provider.kdv1Satirlari) {
+      if (s.birimAdi.isNotEmpty) mevcutBirimler.add(s.birimAdi);
+    }
+    final birimListesi = mevcutBirimler.toList()..sort();
+
+    String seciliBirim = birimListesi.firstWhere(
+      (b) => BirimAdlandirma.canonicalKey(b) == 'dts',
+      orElse: () => birimListesi.isNotEmpty ? birimListesi.first : 'DTS',
+    );
+
     final adCtrl = TextEditingController();
     final brutCtrl = TextEditingController();
     final gvCtrl = TextEditingController();
@@ -1502,54 +1516,80 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Muhtasar Personel Satırı Ekle', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: birimCtrl, decoration: const InputDecoration(labelText: 'Birim Adı')),
-              const SizedBox(height: 8),
-              TextField(controller: adCtrl, decoration: const InputDecoration(labelText: 'Personel Ad Soyad')),
-              const SizedBox(height: 8),
-              TextField(controller: brutCtrl, decoration: const InputDecoration(labelText: 'Brüt Ücret (TL)')),
-              const SizedBox(height: 8),
-              TextField(controller: gvCtrl, decoration: const InputDecoration(labelText: 'Gelir Vergisi (TL)')),
-              const SizedBox(height: 8),
-              TextField(controller: dvCtrl, decoration: const InputDecoration(labelText: 'Damga Vergisi (TL)')),
-              const SizedBox(height: 8),
-              TextField(controller: matrahCtrl, decoration: const InputDecoration(labelText: 'Aylık GV Matrahı (TL)')),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-          ElevatedButton(
-            onPressed: () {
-              final brut = double.tryParse(brutCtrl.text.replaceAll(',', '.')) ?? 0;
-              final gv = double.tryParse(gvCtrl.text.replaceAll(',', '.')) ?? 0;
-              final dv = double.tryParse(dvCtrl.text.replaceAll(',', '.')) ?? 0;
-              final matrah = double.tryParse(matrahCtrl.text.replaceAll(',', '.')) ?? 0;
-              final net = BeyannameHesaplamaMotoru.round(brut - gv - dv);
-
-              provider.addMuhtasarSatir(
-                MuhtasarSatiri(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  birimAdi: BirimAdlandirma.tamAdGetir(birimCtrl.text),
-                  adSoyad: adCtrl.text.trim(),
-                  kisiSayisi: 1,
-                  brutUcret: brut,
-                  gelirVergisi: gv,
-                  damgaVergisi: dv,
-                  netOdenen: net,
-                  aylikGelirVergisiMatrahi: matrah,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Muhtasar Personel Satırı Ekle', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: seciliBirim,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Birim Seçimi',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
+                  items: birimListesi.map((b) {
+                    final kisa = BirimAdlandirma.kisaAdGetir(b);
+                    return DropdownMenuItem(
+                      value: b,
+                      child: Text(
+                        '$kisa - $b',
+                        style: const TextStyle(fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() => seciliBirim = val);
+                    }
+                  },
                 ),
-              );
-              Navigator.pop(ctx);
-            },
-            child: const Text('Ekle'),
+                const SizedBox(height: 8),
+                TextField(controller: adCtrl, decoration: const InputDecoration(labelText: 'Personel Ad Soyad')),
+                const SizedBox(height: 8),
+                TextField(controller: brutCtrl, decoration: const InputDecoration(labelText: 'Brüt Ücret (TL)')),
+                const SizedBox(height: 8),
+                TextField(controller: gvCtrl, decoration: const InputDecoration(labelText: 'Gelir Vergisi (TL)')),
+                const SizedBox(height: 8),
+                TextField(controller: dvCtrl, decoration: const InputDecoration(labelText: 'Damga Vergisi (TL)')),
+                const SizedBox(height: 8),
+                TextField(controller: matrahCtrl, decoration: const InputDecoration(labelText: 'Aylık GV Matrahı (TL)')),
+              ],
+            ),
           ),
-        ],
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
+            ElevatedButton(
+              onPressed: () {
+                final brut = double.tryParse(brutCtrl.text.replaceAll(',', '.')) ?? 0;
+                final gv = double.tryParse(gvCtrl.text.replaceAll(',', '.')) ?? 0;
+                final dv = double.tryParse(dvCtrl.text.replaceAll(',', '.')) ?? 0;
+                final matrah = double.tryParse(matrahCtrl.text.replaceAll(',', '.')) ?? 0;
+                final net = BeyannameHesaplamaMotoru.round(brut - gv - dv);
+
+                provider.addMuhtasarSatir(
+                  MuhtasarSatiri(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    birimAdi: BirimAdlandirma.tamAdGetir(seciliBirim),
+                    adSoyad: adCtrl.text.trim(),
+                    kisiSayisi: 1,
+                    brutUcret: brut,
+                    gelirVergisi: gv,
+                    damgaVergisi: dv,
+                    netOdenen: net,
+                    aylikGelirVergisiMatrahi: matrah,
+                  ),
+                );
+                Navigator.pop(ctx);
+              },
+              child: const Text('Ekle'),
+            ),
+          ],
+        ),
       ),
     );
   }

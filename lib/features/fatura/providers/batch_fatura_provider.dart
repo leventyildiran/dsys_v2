@@ -356,6 +356,11 @@ class BatchFaturaProvider extends ChangeNotifier {
     _kuyrukProvider.addBlankInvoice();
   }
 
+  /// Arşivdeki bir faturayı kuyruğa alır ve kuyruk index'ini döner.
+  /// Zaten kuyrukta ise tekrar eklemez (mevcut index döner).
+  int arsivFaturasiniKuyrugaAl(FaturaModel fatura) =>
+      _kuyrukProvider.arsivFaturasiniEkle(fatura);
+
   void duplicateInvoice(int index) {
     _kuyrukProvider.duplicateInvoice(index);
   }

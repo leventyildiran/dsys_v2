@@ -129,9 +129,9 @@ void main() {
 
       final sonuc = BeyannameHesaplamaMotoru.hesaplaKdv2(firmalar);
 
-      expect(sonuc.turTevkifatToplam[TevkifatTuru.dokuzBoluOn], closeTo(76252.58, 0.01));
-      expect(sonuc.turTevkifatToplam[TevkifatTuru.yediBoluOn], closeTo(8280.02, 0.01));
-      expect(sonuc.turTevkifatToplam[TevkifatTuru.besBoluOn], 0.0);
+      expect(sonuc.turTevkifatToplam[TevkifatTuru.dokuzBoluOn.etiket], closeTo(76252.58, 0.01));
+      expect(sonuc.turTevkifatToplam[TevkifatTuru.yediBoluOn.etiket], closeTo(8280.02, 0.01));
+      expect(sonuc.turTevkifatToplam[TevkifatTuru.besBoluOn.etiket], 0.0);
 
       expect(sonuc.butunTevkifatlarToplami, closeTo(84532.60, 0.01));
       expect(sonuc.butunMatrahlarToplami, closeTo(752768.44, 0.01));

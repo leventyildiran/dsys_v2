@@ -321,7 +321,7 @@ class _CokluPersonelEkleDialogState extends State<CokluPersonelEkleDialog>
                 )
               : ListView.separated(
                   itemCount: filtreli.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final p = filtreli[index];
                     final secili = _secilenPersonelIdleri.contains(p.id);

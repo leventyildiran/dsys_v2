@@ -1,4 +1,4 @@
-import 'dart:convert';
+import '../../birim/models/birim_model.dart';
 
 /// Tevkifat Türleri: 9/10, 7/10, 5/10
 enum TevkifatTuru {
@@ -118,8 +118,15 @@ class TevkifatFirmaKaydi {
   final String id;
   final String firmaAdi;
   final String vergiTcNo;
+
+  /// Eski kayıtlarla uyumluluk için korunur; [etiket] tek gerçek kaynaktır.
   final TevkifatTuru tevkifatTuru;
-  final int kdvOrani; // %8, %10, %18, %20
+
+  /// Kurum tanımlı tevkifat etiketi (örn. '4/10'). Boşsa [tevkifatTuru]
+  /// etiketi kullanılır — eski kayıtlar sorunsuz okunur.
+  final String? tevkifatEtiketi;
+
+  final int kdvOrani; // %1, %8, %10, %18, %20
   final double matrahTutari;
   final double kdvTutari;
   final double tevkifatTutari;
@@ -130,12 +137,19 @@ class TevkifatFirmaKaydi {
     required this.firmaAdi,
     required this.vergiTcNo,
     required this.tevkifatTuru,
+    this.tevkifatEtiketi,
     required this.kdvOrani,
     required this.matrahTutari,
     required this.kdvTutari,
     required this.tevkifatTutari,
     this.birimAdi,
   });
+
+  /// Toplama/raporlamada kullanılan kanonik tevkifat etiketi.
+  String get etiket =>
+      (tevkifatEtiketi != null && tevkifatEtiketi!.isNotEmpty)
+          ? tevkifatEtiketi!
+          : tevkifatTuru.etiket;
 
   double get toplamTutar => matrahTutari + kdvTutari;
 
@@ -144,6 +158,7 @@ class TevkifatFirmaKaydi {
     String? firmaAdi,
     String? vergiTcNo,
     TevkifatTuru? tevkifatTuru,
+    String? tevkifatEtiketi,
     int? kdvOrani,
     double? matrahTutari,
     double? kdvTutari,
@@ -155,6 +170,7 @@ class TevkifatFirmaKaydi {
       firmaAdi: firmaAdi ?? this.firmaAdi,
       vergiTcNo: vergiTcNo ?? this.vergiTcNo,
       tevkifatTuru: tevkifatTuru ?? this.tevkifatTuru,
+      tevkifatEtiketi: tevkifatEtiketi ?? this.tevkifatEtiketi,
       kdvOrani: kdvOrani ?? this.kdvOrani,
       matrahTutari: matrahTutari ?? this.matrahTutari,
       kdvTutari: kdvTutari ?? this.kdvTutari,
@@ -168,6 +184,7 @@ class TevkifatFirmaKaydi {
         'firmaAdi': firmaAdi,
         'vergiTcNo': vergiTcNo,
         'tevkifatTuru': tevkifatTuru.etiket,
+        'tevkifatEtiketi': etiket,
         'kdvOrani': kdvOrani,
         'matrahTutari': matrahTutari,
         'kdvTutari': kdvTutari,
@@ -180,6 +197,7 @@ class TevkifatFirmaKaydi {
         firmaAdi: map['firmaAdi'] as String? ?? '',
         vergiTcNo: map['vergiTcNo'] as String? ?? '',
         tevkifatTuru: TevkifatTuru.fromString(map['tevkifatTuru'] as String? ?? '9/10'),
+        tevkifatEtiketi: map['tevkifatEtiketi'] as String?,
         kdvOrani: (map['kdvOrani'] as num?)?.toInt() ?? 20,
         matrahTutari: (map['matrahTutari'] as num?)?.toDouble() ?? 0.0,
         kdvTutari: (map['kdvTutari'] as num?)?.toDouble() ?? 0.0,
@@ -359,9 +377,10 @@ class BirimVergiIcmalSatiri {
   final double muhtasarGelir;
   final double muhtasarDamga;
   final double muhtasarKesilenDamga;
-  final double kdv2DokuzBoluOn;
-  final double kdv2YediBoluOn;
-  final double kdv2BesBoluOn;
+
+  /// Tevkifat etiketi ('9/10', '7/10', '5/10' veya kurum tanımlı serbest
+  /// türler) -> tutar. Tek kaynaktır; eski sabit alanlar bu haritadan türetilir.
+  final Map<String, double> kdv2TevkifatTutar;
 
   const BirimVergiIcmalSatiri({
     required this.birimAdi,
@@ -370,17 +389,32 @@ class BirimVergiIcmalSatiri {
     this.muhtasarGelir = 0.0,
     this.muhtasarDamga = 0.0,
     this.muhtasarKesilenDamga = 0.0,
-    this.kdv2DokuzBoluOn = 0.0,
-    this.kdv2YediBoluOn = 0.0,
-    this.kdv2BesBoluOn = 0.0,
+    this.kdv2TevkifatTutar = const {},
   });
 
-  double get muhtasarToplam =>
-      muhtasarGelir + muhtasarDamga + muhtasarKesilenDamga;
+  /// Belirtilen tevkifat etiketine ait tutar.
+  double kdv2Tutar(String etiket) => kdv2TevkifatTutar[etiket] ?? 0.0;
+
+  // Geriye dönük uyum: bilinen üç tür için kısayol getter'lar.
+  double get kdv2DokuzBoluOn => kdv2Tutar('9/10');
+  double get kdv2YediBoluOn => kdv2Tutar('7/10');
+  double get kdv2BesBoluOn => kdv2Tutar('5/10');
+
+  /// Excel "Birim Bazlı Vergiler" sayfasındaki "MUHTASAR TOPLAM ÖDENECEK"
+  /// formülü: MUHTASAR DAMGA + MUHTASAR ÖDEMELERİNDE KESİLEN DAMGA.
+  /// MUHTASAR GELİR ayrı kolonda raporlanır, bu toplama dahil edilmez
+  /// (örn. TÖMER: 26,64 + 331,75 = 358,39; DÖSİM: 0 + 417,35 = 417,35).
+  double get muhtasarToplam => muhtasarDamga + muhtasarKesilenDamga;
   double get kdv2Toplam =>
-      kdv2DokuzBoluOn + kdv2YediBoluOn + kdv2BesBoluOn;
+      kdv2TevkifatTutar.values.fold(0.0, (s, v) => s + v);
   double get genelToplamOdenecek =>
       kdv1Tutari + damgaVb + muhtasarToplam + kdv2Toplam;
+
+  /// Birimin merkezi kısa adı (ör: DÖSİM, UBATAM, DTS, USEM, Diş Hekimliği...)
+  String get kisaAd => BirimAdlandirma.kisaAdGetir(birimAdi);
+
+  /// Birimin resmi tam adı
+  String get tamAd => BirimAdlandirma.tamAdGetir(birimAdi);
 }
 
 /// Aylık Konsolide Beyanname Paketi (Kaydedilebilir Belge)
@@ -391,6 +425,7 @@ class BeyannameDonemModel {
   final String baslik;
   final DateTime guncellenmeTarihi;
 
+  final double oncekiAydanDevredenKdv;
   final List<Kdv1BirimSatiri> kdv1Satirlari;
   final List<TevkifatFirmaKaydi> tevkifatKayitlari;
   final List<MuhtasarSatiri> muhtasarSatirlari;
@@ -403,6 +438,7 @@ class BeyannameDonemModel {
     required this.ay,
     required this.baslik,
     required this.guncellenmeTarihi,
+    this.oncekiAydanDevredenKdv = 0.0,
     this.kdv1Satirlari = const [],
     this.tevkifatKayitlari = const [],
     this.muhtasarSatirlari = const [],
@@ -416,6 +452,7 @@ class BeyannameDonemModel {
         'ay': ay,
         'baslik': baslik,
         'guncellenmeTarihi': guncellenmeTarihi.toIso8601String(),
+        'oncekiAydanDevredenKdv': oncekiAydanDevredenKdv,
         'kdv1Satirlari': kdv1Satirlari.map((e) => e.toMap()).toList(),
         'tevkifatKayitlari': tevkifatKayitlari.map((e) => e.toMap()).toList(),
         'muhtasarSatirlari': muhtasarSatirlari.map((e) => e.toMap()).toList(),
@@ -432,6 +469,8 @@ class BeyannameDonemModel {
         guncellenmeTarihi: map['guncellenmeTarihi'] != null
             ? DateTime.parse(map['guncellenmeTarihi'] as String)
             : DateTime.now(),
+        oncekiAydanDevredenKdv:
+            (map['oncekiAydanDevredenKdv'] as num?)?.toDouble() ?? 0.0,
         kdv1Satirlari: (map['kdv1Satirlari'] as List<dynamic>?)
                 ?.map((e) => Kdv1BirimSatiri.fromMap(e as Map<String, dynamic>))
                 .toList() ??
@@ -455,4 +494,40 @@ class BeyannameDonemModel {
                 .toList() ??
             const [],
       );
+}
+
+/// Geriye Dönük Birim Vergi Arama / Geçmiş İnceleme Kaydı
+class BirimGecmisVergiKaydi {
+  final int yil;
+  final int ay;
+  final String donemBaslik;
+  final String birimAdi;
+  final double kdv1NetOdenecek;
+  final double kdv2Tevkifat;
+  final double muhtasarGelirVergisi;
+  final double muhtasarDamgaVergisi;
+  final double damgaVergisi360;
+  final double hasilat600Aylik;
+  final double krediKarti123;
+
+  const BirimGecmisVergiKaydi({
+    required this.yil,
+    required this.ay,
+    required this.donemBaslik,
+    required this.birimAdi,
+    required this.kdv1NetOdenecek,
+    required this.kdv2Tevkifat,
+    required this.muhtasarGelirVergisi,
+    required this.muhtasarDamgaVergisi,
+    required this.damgaVergisi360,
+    required this.hasilat600Aylik,
+    required this.krediKarti123,
+  });
+
+  double get toplamOdenecekVergi =>
+      kdv1NetOdenecek +
+      kdv2Tevkifat +
+      muhtasarGelirVergisi +
+      muhtasarDamgaVergisi +
+      damgaVergisi360;
 }

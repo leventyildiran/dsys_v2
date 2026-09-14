@@ -77,7 +77,7 @@ XYZ A.Ş.;9876543210;12000,00;2400,00
 </worksheet>''';
       archive.addFile(ArchiveFile('xl/worksheets/sheet1.xml', sheetXml.length, utf8.encode(sheetXml)));
 
-      final zipBytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+      final zipBytes = Uint8List.fromList(ZipEncoder().encode(archive));
       final result = await ExcelUniversalParser.extractText(zipBytes, fileName: 'test.xlsx');
 
       expect(result.contains('TÖMER Kursiyer | 11111111111 | 3500.00'), true);

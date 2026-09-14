@@ -9,7 +9,6 @@ import '../features/yk_karar/screens/yk_toplanti_arsiv_detay_screen.dart';
 import '../features/yk_karar/models/yk_karar_model.dart';
 import '../features/yk_karar/screens/gundem_yonetim_screen.dart';
 import '../features/danismanlik/screens/danismanlik_detay_screen.dart';
-import '../features/danismanlik/screens/danismanlik_dagitim_screen.dart';
 import '../features/danismanlik/screens/danismanlik_takip_screen.dart';
 import '../features/danismanlik/screens/danismanlik_manuel_hesapla_screen.dart';
 import '../features/beyanname/screens/beyanname_hesapla_screen.dart';

@@ -3,6 +3,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/models/sistem_ayarlari_model.dart';
 import '../../../core/services/sistem_ayarlari_service.dart';
 import '../../admin/screens/admin_dashboard_screen.dart';
+import '../../beyanname/screens/beyanname_konfigurasyon_screen.dart';
 import '../../birim/screens/birim_yonetim_screen.dart';
 import 'sablon_yonetim_screen.dart';
 
@@ -175,17 +176,20 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
                 _buildMenuItem(4, Icons.business, 'Döner Sermaye Birimleri'),
                 _buildMenuItem(5, Icons.folder_copy, 'Şablon ve Form Havuzu'),
                 _buildMenuItem(6, Icons.functions, 'Unvan Katsayıları'),
+                _buildMenuItem(7, Icons.receipt_long, 'Beyanname Yapılandırması'),
               ],
             ),
           ),
 
           // SAĞ İÇERİK
           Expanded(
-            child: _selectedIndex == 4 
+            child: _selectedIndex == 4
               ? const BirimYonetimScreen()
               : _selectedIndex == 5
                 ? const SablonYonetimScreen()
-                : SingleChildScrollView(
+                : _selectedIndex == 7
+                  ? const BeyannameKonfigurasyonScreen()
+                  : SingleChildScrollView(
               padding: const EdgeInsets.all(32.0),
               child: Form(
                 key: _formKey,
@@ -227,7 +231,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
                         ),
                       ),
                     ),
-                    if (_selectedIndex != 2 && _selectedIndex != 4 && _selectedIndex != 5) ...[
+                    if (_selectedIndex != 2 && _selectedIndex != 4 && _selectedIndex != 5 && _selectedIndex != 7) ...[
                       const SizedBox(height: 24),
                       // KAYDET BUTONU
                       Align(
@@ -464,7 +468,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
       ),
       const SizedBox(height: 16),
       DropdownButtonFormField<String>(
-        value: [
+        initialValue: [
           'gemini-2.5-flash',
           'gemini-2.0-flash',
           'gemini-2.5-flash-lite',

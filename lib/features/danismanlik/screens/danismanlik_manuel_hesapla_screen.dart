@@ -17,6 +17,10 @@ import 'manuel_hesapla/tab_katki_payi.dart';
 import 'manuel_hesapla/tab_liste.dart';
 import 'manuel_hesapla/tab_ozet_icmal.dart';
 
+// 2547 sayılı Kanun 58/k alan adları bilinçli olarak `_58k` ön ekiyle tutulur;
+// bu, iş teriminin okunabilirliğini korur ve alt çizgi-dijit uyarısını giderir.
+// ignore_for_file: non_constant_identifier_names
+
 /// Danışmanlık ve Kurs Gelirleri için Excel benzeri sekmeli Manuel Hesaplama Ekranı.
 class DanismanlikManuelHesaplaScreen extends StatefulWidget {
   const DanismanlikManuelHesaplaScreen({
@@ -341,7 +345,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                   )
                 : ListView.separated(
                     itemCount: kayitlar.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final k = kayitlar[index];
                       final tarihStr = '${k.olusturmaTarihi.day}.${k.olusturmaTarihi.month}.${k.olusturmaTarihi.year} ${k.olusturmaTarihi.hour}:${k.olusturmaTarihi.minute.toString().padLeft(2, '0')}';

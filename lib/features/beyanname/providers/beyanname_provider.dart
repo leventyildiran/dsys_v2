@@ -1,13 +1,61 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/beyanname_model.dart';
 import '../services/beyanname_hesaplama_motoru.dart';
 import '../../birim/services/birim_service.dart';
 import '../../birim/models/birim_model.dart';
+import '../models/beyanname_konfigurasyonu.dart';
+import '../services/beyanname_konfigurasyon_servisi.dart';
 
 class BeyannameProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final BirimService _birimService = BirimService();
+  final BeyannameKonfigurasyonServisi _konfigServisi =
+      BeyannameKonfigurasyonServisi();
+
+  /// Yapılandırma dışarıdan (constructor) verildiyse Firestore'dan ezilmez.
+  bool _konfigHarici = false;
+
+  /// Kurum bazlı yapılandırma. Varsayılan değer mevcut tek-kurum
+  /// davranışıyla birebir aynıdır (bkz. [BeyannameKonfigurasyonu.varsayilan]).
+  /// Faz 1'de Firestore'dan kurum bazında yüklenip değiştirilecektir.
+  BeyannameKonfigurasyonu _konfig = BeyannameKonfigurasyonu.varsayilan;
+  BeyannameKonfigurasyonu get konfig => _konfig;
+
+  /// Yapılandırmayı dışarıdan (örn. test veya anlık güncelleme) uygular.
+  /// Bu çağrı yapıldıktan sonra başlangıçtaki Firestore okuması ezmez.
+  void konfigAyarla(BeyannameKonfigurasyonu yeni) {
+    _konfig = yeni;
+    _konfigHarici = true;
+    notifyListeners();
+  }
+
+  /// Kurum yapılandırmasını Firestore'dan yeniden okur.
+  Future<void> konfigYenile() async {
+    if (_konfigHarici) return;
+    final yeni = await _konfigServisi.getir();
+    _konfig = yeni;
+    notifyListeners();
+  }
+
+  /// Kurum yapılandırmasını kaydeder ve bellekteki değeri günceller.
+  Future<void> konfigKaydet(BeyannameKonfigurasyonu yeni) async {
+    await _konfigServisi.kaydet(yeni);
+    _konfig = yeni;
+    _konfigHarici = true;
+    notifyListeners();
+  }
+
+  /// Kuruma özel kaydı silip varsayılan yapılandırmaya döner.
+  Future<void> konfigVarsayilanaDon() async {
+    await _konfigServisi.varsayilanaDon();
+    _konfig = BeyannameKonfigurasyonu.varsayilan;
+    _konfigHarici = false;
+    notifyListeners();
+  }
 
   int _seciliYil = DateTime.now().year;
   int _seciliAy = DateTime.now().month;
@@ -47,7 +95,72 @@ class BeyannameProvider with ChangeNotifier {
 
   void setOncekiAydanDevredenKdv(double val) {
     _oncekiAydanDevredenKdv = val;
+    _tetikleYerelTaslakKaydi();
     notifyListeners();
+  }
+
+  // --- Otomatik Taslak Kaydetme (Auto-Save / Elektrik & İnternet Kesintisi Koruması) ---
+  bool _isAutoSaving = false;
+  bool get isAutoSaving => _isAutoSaving;
+
+  DateTime? _sonTaslakZamani;
+  DateTime? get sonTaslakZamani => _sonTaslakZamani;
+
+  Timer? _autoSaveDebounceTimer;
+
+  void _tetikleYerelTaslakKaydi() {
+    _autoSaveDebounceTimer?.cancel();
+    _autoSaveDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _yerelTaslagiKaydet();
+    });
+  }
+
+  Future<void> _yerelTaslagiKaydet() async {
+    try {
+      _isAutoSaving = true;
+      notifyListeners();
+      final prefs = await SharedPreferences.getInstance();
+      final model = BeyannameDonemModel(
+        id: _docId(_seciliYil, _seciliAy),
+        yil: _seciliYil,
+        ay: _seciliAy,
+        baslik: '$_seciliYil / ${_seciliAy.toString().padLeft(2, '0')} Beyannamesi',
+        guncellenmeTarihi: DateTime.now(),
+        oncekiAydanDevredenKdv: _oncekiAydanDevredenKdv,
+        kdv1Satirlari: _kdv1Satirlari,
+        tevkifatKayitlari: _tevkifatKayitlari,
+        muhtasarSatirlari: _muhtasarSatirlari,
+        damgaSatirlari: _damgaSatirlari,
+        hasiat600Satirlari: _hasiat600Satirlari,
+      );
+      await prefs.setString('beyanname_draft_${model.id}', jsonEncode(model.toMap()));
+      _sonTaslakZamani = model.guncellenmeTarihi;
+    } catch (e) {
+      debugPrint('Yerel taslak kaydetme hatası: $e');
+    } finally {
+      _isAutoSaving = false;
+      notifyListeners();
+    }
+  }
+
+  /// Toplu Temizle / Sıfırla (Mevcut dönemin verilerini ve yerel taslağını sıfırlar)
+  Future<void> donemiSifirla() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      _autoSaveDebounceTimer?.cancel();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('beyanname_draft_${_docId(_seciliYil, _seciliAy)}');
+      _sonTaslakZamani = null;
+      _oncekiAydanDevredenKdv = 0.0;
+      _varsayilanSatirlariOlustur();
+      _guncelleDamga301();
+    } catch (e) {
+      _errorMessage = 'Sıfırlama hatası: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // Canlı Hesaplama Sonuçları
@@ -58,7 +171,10 @@ class BeyannameProvider with ChangeNotifier {
       );
 
   Kdv2KonsolideSonuc get kdv2Sonuc =>
-      BeyannameHesaplamaMotoru.hesaplaKdv2(_tevkifatKayitlari);
+      BeyannameHesaplamaMotoru.hesaplaKdv2(
+        _tevkifatKayitlari,
+        konfig: _konfig,
+      );
 
   MuhtasarKonsolideSonuc get muhtasarSonuc =>
       BeyannameHesaplamaMotoru.hesaplaMuhtasar(
@@ -66,6 +182,7 @@ class BeyannameProvider with ChangeNotifier {
         muhtasarKesilenDamgaVergisi301: _muhtasarKesilenDamgaVergisi301,
         yil: _seciliYil,
         ay: _seciliAy,
+        konfig: _konfig,
       );
 
   double get damgaToplamMatrah =>
@@ -80,74 +197,104 @@ class BeyannameProvider with ChangeNotifier {
   double get krediKarti123Toplam =>
       _hasiat600Satirlari.fold(0.0, (s, x) => s + x.krediKarti123);
 
-  // Birim İcmal Tablosu
+  // Birim İcmal Tablosu (Kanonik Tekilleştirilmiş)
   List<BirimVergiIcmalSatiri> get birimIcmalListesi {
-    final birimSet = <String>{};
+    final Map<String, String> keyToTamAd = {};
+
     for (final k in _kdv1Satirlari) {
-      final tam = BirimAdlandirma.tamAdGetir(k.birimAdi);
-      if (tam.isNotEmpty) birimSet.add(tam);
+      final key = BirimAdlandirma.canonicalKey(k.birimAdi);
+      if (key.isNotEmpty && !keyToTamAd.containsKey(key)) {
+        keyToTamAd[key] = BirimAdlandirma.tamAdGetir(k.birimAdi);
+      }
     }
     for (final t in _tevkifatKayitlari) {
       if (t.birimAdi != null && t.birimAdi!.isNotEmpty) {
-        final tam = BirimAdlandirma.tamAdGetir(t.birimAdi!);
-        if (tam.isNotEmpty) birimSet.add(tam);
+        final key = BirimAdlandirma.canonicalKey(t.birimAdi);
+        if (key.isNotEmpty && !keyToTamAd.containsKey(key)) {
+          keyToTamAd[key] = BirimAdlandirma.tamAdGetir(t.birimAdi);
+        }
       }
     }
     for (final m in _muhtasarSatirlari) {
-      final tam = BirimAdlandirma.tamAdGetir(m.birimAdi);
-      if (tam.isNotEmpty) birimSet.add(tam);
+      final key = BirimAdlandirma.canonicalKey(m.birimAdi);
+      if (key.isNotEmpty && !keyToTamAd.containsKey(key)) {
+        keyToTamAd[key] = BirimAdlandirma.tamAdGetir(m.birimAdi);
+      }
     }
     for (final d in _damgaSatirlari) {
-      final tam = BirimAdlandirma.tamAdGetir(d.birimAdi);
-      if (tam.isNotEmpty) birimSet.add(tam);
+      final key = BirimAdlandirma.canonicalKey(d.birimAdi);
+      if (key.isNotEmpty && !keyToTamAd.containsKey(key)) {
+        keyToTamAd[key] = BirimAdlandirma.tamAdGetir(d.birimAdi);
+      }
     }
 
-    final sortedBirimler = birimSet.toList()..sort();
+    final sortedKeys = keyToTamAd.keys.toList()..sort((a, b) => keyToTamAd[a]!.compareTo(keyToTamAd[b]!));
     final list = <BirimVergiIcmalSatiri>[];
 
-    for (final b in sortedBirimler) {
+    for (final key in sortedKeys) {
+      final tamAd = keyToTamAd[key]!;
+
       final kdv1 = _kdv1Satirlari
-          .where((x) => BirimAdlandirma.tamAdGetir(x.birimAdi) == b)
+          .where((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == key)
           .fold(0.0, (s, x) => s + x.netOdenecekKdv);
       final damga = _damgaSatirlari
-          .where((x) => BirimAdlandirma.tamAdGetir(x.birimAdi) == b)
+          .where((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == key)
           .fold(0.0, (s, x) => s + x.damgaVergisi);
       final mGelir = _muhtasarSatirlari
-          .where((x) => BirimAdlandirma.tamAdGetir(x.birimAdi) == b)
+          .where((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == key)
           .fold(0.0, (s, x) => s + x.gelirVergisi);
       final mDamga = _muhtasarSatirlari
-          .where((x) => BirimAdlandirma.tamAdGetir(x.birimAdi) == b)
+          .where((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == key)
           .fold(0.0, (s, x) => s + x.damgaVergisi);
 
-      // Tevkifatlar
-      final dokuzOn = _tevkifatKayitlari
-          .where((x) => x.birimAdi != null && BirimAdlandirma.tamAdGetir(x.birimAdi!) == b && x.tevkifatTuru == TevkifatTuru.dokuzBoluOn)
-          .fold(0.0, (s, x) => s + x.tevkifatTutari);
-      final yediOn = _tevkifatKayitlari
-          .where((x) => x.birimAdi != null && BirimAdlandirma.tamAdGetir(x.birimAdi!) == b && x.tevkifatTuru == TevkifatTuru.yediBoluOn)
-          .fold(0.0, (s, x) => s + x.tevkifatTutari);
-      final besOn = _tevkifatKayitlari
-          .where((x) => x.birimAdi != null && BirimAdlandirma.tamAdGetir(x.birimAdi!) == b && x.tevkifatTuru == TevkifatTuru.besBoluOn)
-          .fold(0.0, (s, x) => s + x.tevkifatTutari);
+      // Tevkifatlar — kovalar konfigürasyondaki tevkifat tanımlarından
+      // dinamik üretilir (etiket bazlı). Kayıtta özel etiket varsa o da
+      // listeye eklenir; böylece kurum kendi tevkifat türünü tanımlayabilir.
+      final tevkifatEtiketleri = <String>[
+        for (final t in _konfig.tevkifatTurleri) t.etiket,
+      ];
+      for (final x in _tevkifatKayitlari) {
+        if (x.birimAdi != null &&
+            BirimAdlandirma.canonicalKey(x.birimAdi!) == key &&
+            !tevkifatEtiketleri.contains(x.etiket)) {
+          tevkifatEtiketleri.add(x.etiket);
+        }
+      }
+      final kdv2TevkifatTutar = <String, double>{};
+      for (final e in tevkifatEtiketleri) {
+        final toplam = _tevkifatKayitlari
+            .where((x) =>
+                x.birimAdi != null &&
+                BirimAdlandirma.canonicalKey(x.birimAdi!) == key &&
+                x.etiket == e)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+        kdv2TevkifatTutar[e] = BeyannameHesaplamaMotoru.round(toplam);
+      }
 
       list.add(
         BirimVergiIcmalSatiri(
-          birimAdi: b,
+          birimAdi: tamAd,
           kdv1Tutari: BeyannameHesaplamaMotoru.round(kdv1),
-          damgaVb: BeyannameHesaplamaMotoru.round(damga),
+          // Excel "Birim Bazlı Vergiler" sayfasında "DAMGA V.B." kolonu
+          // boş/0'dır; 301 damgası yalnızca "MUHTASAR ÖDEMELERİNDE KESİLEN
+          // DAMGA" kolonunda yer alır. Buraya 0 yazılmazsa aynı damga hem
+          // damgaVb hem muhtasarKesilenDamga alanına düşüp çift sayılır.
+          damgaVb: 0.0,
           muhtasarGelir: BeyannameHesaplamaMotoru.round(mGelir),
           muhtasarDamga: BeyannameHesaplamaMotoru.round(mDamga),
           muhtasarKesilenDamga: BeyannameHesaplamaMotoru.round(damga),
-          kdv2DokuzBoluOn: BeyannameHesaplamaMotoru.round(dokuzOn),
-          kdv2YediBoluOn: BeyannameHesaplamaMotoru.round(yediOn),
-          kdv2BesBoluOn: BeyannameHesaplamaMotoru.round(besOn),
+          kdv2TevkifatTutar: kdv2TevkifatTutar,
         ),
       );
     }
     return list;
   }
 
-  BeyannameProvider() {
+  BeyannameProvider({BeyannameKonfigurasyonu? konfig}) {
+    if (konfig != null) {
+      _konfig = konfig;
+      _konfigHarici = true;
+    }
     _init();
   }
 
@@ -155,6 +302,11 @@ class BeyannameProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
+      // Kurum yapılandırmasını yükle (dışarıdan verilmediyse).
+      // Hata olsa bile varsayılan ile devam edilir; uygulama bloke olmaz.
+      if (!_konfigHarici) {
+        _konfig = await _konfigServisi.getir();
+      }
       _sistemBirimleri = await _birimService.getAll();
       await donemYukle(_seciliYil, _seciliAy);
     } catch (e) {
@@ -179,80 +331,45 @@ class BeyannameProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final doc = await _firestore
-          .collection('beyannameler')
-          .doc(_docId(yil, ay))
-          .get();
-
-      if (doc.exists && doc.data() != null) {
-        final model = BeyannameDonemModel.fromMap(doc.data()!);
-
-        // Eski veya mükerrer kayıtları standartlaştır ve tekilleştir
-        final Map<String, Kdv1BirimSatiri> kdv1Map = {};
-        for (final k in model.kdv1Satirlari) {
-          final tamAd = BirimAdlandirma.tamAdGetir(k.birimAdi);
-          final key = BirimAdlandirma.canonicalKey(tamAd);
-          if (kdv1Map.containsKey(key)) {
-            final ex = kdv1Map[key]!;
-            kdv1Map[key] = ex.copyWith(
-              hesaplananKdv10: ex.hesaplananKdv10 + k.hesaplananKdv10,
-              hesaplananMatrah10: ex.hesaplananMatrah10 + k.hesaplananMatrah10,
-              hesaplananKdv20: ex.hesaplananKdv20 + k.hesaplananKdv20,
-              hesaplananMatrah20: ex.hesaplananMatrah20 + k.hesaplananMatrah20,
-              indirilecekKdv10: ex.indirilecekKdv10 + k.indirilecekKdv10,
-              indirilecekMatrah10: ex.indirilecekMatrah10 + k.indirilecekMatrah10,
-              indirilecekKdv20: ex.indirilecekKdv20 + k.indirilecekKdv20,
-              indirilecekMatrah20: ex.indirilecekMatrah20 + k.indirilecekMatrah20,
-            );
-          } else {
-            kdv1Map[key] = k.copyWith(birimAdi: tamAd);
-          }
+      BeyannameDonemModel? draftModel;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final draftJson = prefs.getString('beyanname_draft_${_docId(yil, ay)}');
+        if (draftJson != null && draftJson.isNotEmpty) {
+          draftModel = BeyannameDonemModel.fromMap(jsonDecode(draftJson));
         }
-        _kdv1Satirlari = kdv1Map.values.toList();
+      } catch (e) {
+        debugPrint('Taslak okuma hatası: $e');
+      }
 
-        _tevkifatKayitlari = model.tevkifatKayitlari.map((t) => t.copyWith(
-          birimAdi: t.birimAdi != null ? BirimAdlandirma.tamAdGetir(t.birimAdi!) : null,
-        )).toList();
-
-        _muhtasarSatirlari = model.muhtasarSatirlari.map((m) => m.copyWith(
-          birimAdi: BirimAdlandirma.tamAdGetir(m.birimAdi),
-        )).toList();
-
-        final Map<String, DamgaVergisiBirimSatiri> damgaMap = {};
-        for (final d in model.damgaSatirlari) {
-          final tamAd = BirimAdlandirma.tamAdGetir(d.birimAdi);
-          final key = BirimAdlandirma.canonicalKey(tamAd);
-          if (damgaMap.containsKey(key)) {
-            final ex = damgaMap[key]!;
-            damgaMap[key] = ex.copyWith(
-              damgaVergisi: ex.damgaVergisi + d.damgaVergisi,
-              matrah: ex.matrah + d.matrah,
-            );
-          } else {
-            damgaMap[key] = d.copyWith(birimAdi: tamAd);
-          }
+      BeyannameDonemModel? firestoreModel;
+      try {
+        final doc = await _firestore
+            .collection('beyannameler')
+            .doc(_docId(yil, ay))
+            .get();
+        if (doc.exists && doc.data() != null) {
+          firestoreModel = BeyannameDonemModel.fromMap(doc.data()!);
         }
-        _damgaSatirlari = damgaMap.values.toList();
+      } catch (e) {
+        debugPrint('Firestore okuma hatası: $e');
+      }
 
-        final Map<String, Hasiat600BirimSatiri> hasiatMap = {};
-        for (final h in model.hasiat600Satirlari) {
-          final tamAd = BirimAdlandirma.tamAdGetir(h.birimAdi);
-          final key = BirimAdlandirma.canonicalKey(tamAd);
-          if (hasiatMap.containsKey(key)) {
-            final ex = hasiatMap[key]!;
-            hasiatMap[key] = ex.copyWith(
-              oncekiAylarHasilat600: ex.oncekiAylarHasilat600 + h.oncekiAylarHasilat600,
-              aylikHasilat600: ex.aylikHasilat600 + h.aylikHasilat600,
-              kumulatifHasilat600: ex.kumulatifHasilat600 + h.kumulatifHasilat600,
-              krediKarti123: ex.krediKarti123 + h.krediKarti123,
-            );
-          } else {
-            hasiatMap[key] = h.copyWith(birimAdi: tamAd);
-          }
+      if (draftModel != null && firestoreModel != null) {
+        if (draftModel.guncellenmeTarihi.isAfter(firestoreModel.guncellenmeTarihi)) {
+          _applyModel(draftModel);
+          _sonTaslakZamani = draftModel.guncellenmeTarihi;
+        } else {
+          _applyModel(firestoreModel);
+          _sonTaslakZamani = firestoreModel.guncellenmeTarihi;
         }
-        _hasiat600Satirlari = hasiatMap.values.toList();
+      } else if (draftModel != null) {
+        _applyModel(draftModel);
+        _sonTaslakZamani = draftModel.guncellenmeTarihi;
+      } else if (firestoreModel != null) {
+        _applyModel(firestoreModel);
+        _sonTaslakZamani = firestoreModel.guncellenmeTarihi;
       } else {
-        // İlk kez açılıyorsa sistem birimleriyle varsayılan satırları başlat
         _varsayilanSatirlariOlustur();
       }
       _guncelleDamga301();
@@ -265,20 +382,100 @@ class BeyannameProvider with ChangeNotifier {
     }
   }
 
+  void _applyModel(BeyannameDonemModel model) {
+    _oncekiAydanDevredenKdv = model.oncekiAydanDevredenKdv;
+
+    // KDV 1 Satırlarını kanonik tekilleştir
+    final Map<String, Kdv1BirimSatiri> kdv1Map = {};
+    for (final k in model.kdv1Satirlari) {
+      final tamAd = BirimAdlandirma.tamAdGetir(k.birimAdi);
+      final key = BirimAdlandirma.canonicalKey(tamAd);
+      if (kdv1Map.containsKey(key)) {
+        final ex = kdv1Map[key]!;
+        kdv1Map[key] = ex.copyWith(
+          hesaplananKdv10: ex.hesaplananKdv10 + k.hesaplananKdv10,
+          hesaplananMatrah10: ex.hesaplananMatrah10 + k.hesaplananMatrah10,
+          hesaplananKdv20: ex.hesaplananKdv20 + k.hesaplananKdv20,
+          hesaplananMatrah20: ex.hesaplananMatrah20 + k.hesaplananMatrah20,
+          indirilecekKdv10: ex.indirilecekKdv10 + k.indirilecekKdv10,
+          indirilecekMatrah10: ex.indirilecekMatrah10 + k.indirilecekMatrah10,
+          indirilecekKdv20: ex.indirilecekKdv20 + k.indirilecekKdv20,
+          indirilecekMatrah20: ex.indirilecekMatrah20 + k.indirilecekMatrah20,
+        );
+      } else {
+        kdv1Map[key] = k.copyWith(birimAdi: tamAd);
+      }
+    }
+    _kdv1Satirlari = kdv1Map.values.toList();
+
+    _tevkifatKayitlari = model.tevkifatKayitlari.map((t) => t.copyWith(
+      birimAdi: t.birimAdi != null ? BirimAdlandirma.tamAdGetir(t.birimAdi!) : null,
+    )).toList();
+
+    _muhtasarSatirlari = model.muhtasarSatirlari.map((m) => m.copyWith(
+      birimAdi: BirimAdlandirma.tamAdGetir(m.birimAdi),
+    )).toList();
+
+    final Map<String, DamgaVergisiBirimSatiri> damgaMap = {};
+    for (final d in model.damgaSatirlari) {
+      final tamAd = BirimAdlandirma.tamAdGetir(d.birimAdi);
+      final key = BirimAdlandirma.canonicalKey(tamAd);
+      if (damgaMap.containsKey(key)) {
+        final ex = damgaMap[key]!;
+        damgaMap[key] = ex.copyWith(
+          damgaVergisi: ex.damgaVergisi + d.damgaVergisi,
+          matrah: ex.matrah + d.matrah,
+        );
+      } else {
+        damgaMap[key] = d.copyWith(birimAdi: tamAd);
+      }
+    }
+    _damgaSatirlari = damgaMap.values.toList();
+
+    final Map<String, Hasiat600BirimSatiri> hasiatMap = {};
+    for (final h in model.hasiat600Satirlari) {
+      final tamAd = BirimAdlandirma.tamAdGetir(h.birimAdi);
+      final key = BirimAdlandirma.canonicalKey(tamAd);
+      if (hasiatMap.containsKey(key)) {
+        final ex = hasiatMap[key]!;
+        hasiatMap[key] = ex.copyWith(
+          oncekiAylarHasilat600: ex.oncekiAylarHasilat600 + h.oncekiAylarHasilat600,
+          aylikHasilat600: ex.aylikHasilat600 + h.aylikHasilat600,
+          kumulatifHasilat600: ex.kumulatifHasilat600 + h.kumulatifHasilat600,
+          krediKarti123: ex.krediKarti123 + h.krediKarti123,
+        );
+      } else {
+        hasiatMap[key] = h.copyWith(birimAdi: tamAd);
+      }
+    }
+    _hasiat600Satirlari = hasiatMap.values.toList();
+  }
+
   void _varsayilanSatirlariOlustur() {
-    final Set<String> uniqueUnits = {};
+    final Map<String, String> canonicalUnits = {};
     if (_sistemBirimleri.isNotEmpty) {
       for (final b in _sistemBirimleri) {
-        final tamAd = BirimAdlandirma.tamAdGetir(b.ad.isNotEmpty ? b.ad : b.kisaAd);
-        if (tamAd.isNotEmpty) uniqueUnits.add(tamAd);
+        final rawName = b.ad.isNotEmpty ? b.ad : b.kisaAd;
+        final key = BirimAdlandirma.canonicalKey(rawName);
+        final tamAd = BirimAdlandirma.tamAdGetir(rawName);
+        if (key.isNotEmpty && tamAd.isNotEmpty) {
+          canonicalUnits[key] = tamAd;
+        }
       }
-    } else {
+    }
+    // Kurumun `birimler` koleksiyonundan birim geldiyse onu esas al; yalnızca
+    // hiç birim tanımlı değilse (boş sistem) sabit varsayılanlara düş.
+    // Böylece her kurum kendi birim listesiyle çalışır (çok kiracılı).
+    if (canonicalUnits.isEmpty) {
       for (final b in BirimModel.varsayilanBirimler) {
-        uniqueUnits.add(b.ad);
+        final key = BirimAdlandirma.canonicalKey(b.ad);
+        if (!canonicalUnits.containsKey(key)) {
+          canonicalUnits[key] = b.ad;
+        }
       }
     }
 
-    final varsayilanBirimler = uniqueUnits.toList()..sort();
+    final varsayilanBirimler = canonicalUnits.values.toList()..sort();
 
     _kdv1Satirlari = varsayilanBirimler
         .map((b) => Kdv1BirimSatiri(
@@ -300,42 +497,78 @@ class BeyannameProvider with ChangeNotifier {
   }
 
   void _guncelleDamga301() {
+    // 301 (ödemelerden kesilen damga) tüm damga satırlarını kapsar; masalar
+    // her birimi eksiksiz hesaplar (ayrıştırma yalnızca özet görünümündedir).
     _muhtasarKesilenDamgaVergisi301 =
         _damgaSatirlari.fold(0.0, (s, x) => s + x.damgaVergisi);
+  }
+
+  // --- Birim Ekleme & Çıkarma (Silme) ---
+  void addBirim(String birimAdi) {
+    final tamAd = BirimAdlandirma.tamAdGetir(birimAdi);
+    final key = BirimAdlandirma.canonicalKey(tamAd);
+    if (key.isEmpty) return;
+
+    // Eğer zaten varsa ekleme
+    final exists = _kdv1Satirlari.any((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == key);
+    if (!exists) {
+      _kdv1Satirlari.add(Kdv1BirimSatiri(birimId: key, birimAdi: tamAd));
+    }
+    if (!_damgaSatirlari.any((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == key)) {
+      _damgaSatirlari.add(DamgaVergisiBirimSatiri(birimAdi: tamAd, damgaVergisi: 0, matrah: 0));
+    }
+    if (!_hasiat600Satirlari.any((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == key)) {
+      _hasiat600Satirlari.add(Hasiat600BirimSatiri(birimAdi: tamAd));
+    }
+
+    _tetikleYerelTaslakKaydi();
+    notifyListeners();
+  }
+
+  void removeBirim(String birimAdi) {
+    final key = BirimAdlandirma.canonicalKey(birimAdi);
+    if (key.isEmpty) return;
+
+    _kdv1Satirlari.removeWhere((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == key);
+    _damgaSatirlari.removeWhere((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == key);
+    _hasiat600Satirlari.removeWhere((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == key);
+    _tevkifatKayitlari.removeWhere((x) => x.birimAdi != null && BirimAdlandirma.canonicalKey(x.birimAdi!) == key);
+    _muhtasarSatirlari.removeWhere((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == key);
+
+    _guncelleDamga301();
+    _tetikleYerelTaslakKaydi();
+    notifyListeners();
   }
 
   // --- KDV 1 Metotları ---
   void updateKdv1Satir(int index, Kdv1BirimSatiri satir) {
     if (index >= 0 && index < _kdv1Satirlari.length) {
       _kdv1Satirlari[index] = satir;
+      _tetikleYerelTaslakKaydi();
       notifyListeners();
     }
   }
 
-  void addKdv1Birim(String birimAdi) {
-    _kdv1Satirlari.add(Kdv1BirimSatiri(
-      birimId: birimAdi.toLowerCase(),
-      birimAdi: birimAdi,
-    ));
-    notifyListeners();
-  }
+  void addKdv1Birim(String birimAdi) => addBirim(birimAdi);
 
   void removeKdv1Satir(int index) {
     if (index >= 0 && index < _kdv1Satirlari.length) {
-      _kdv1Satirlari.removeAt(index);
-      notifyListeners();
+      final s = _kdv1Satirlari[index];
+      removeBirim(s.birimAdi);
     }
   }
 
   // --- KDV 2 Tevkifat Metotları ---
   void addTevkifatKaydi(TevkifatFirmaKaydi kayit) {
     _tevkifatKayitlari.add(kayit);
+    _tetikleYerelTaslakKaydi();
     notifyListeners();
   }
 
   void updateTevkifatKaydi(int index, TevkifatFirmaKaydi kayit) {
     if (index >= 0 && index < _tevkifatKayitlari.length) {
       _tevkifatKayitlari[index] = kayit;
+      _tetikleYerelTaslakKaydi();
       notifyListeners();
     }
   }
@@ -343,6 +576,7 @@ class BeyannameProvider with ChangeNotifier {
   void removeTevkifatKaydi(int index) {
     if (index >= 0 && index < _tevkifatKayitlari.length) {
       _tevkifatKayitlari.removeAt(index);
+      _tetikleYerelTaslakKaydi();
       notifyListeners();
     }
   }
@@ -350,12 +584,14 @@ class BeyannameProvider with ChangeNotifier {
   // --- Muhtasar Metotları ---
   void addMuhtasarSatir(MuhtasarSatiri satir) {
     _muhtasarSatirlari.add(satir);
+    _tetikleYerelTaslakKaydi();
     notifyListeners();
   }
 
   void updateMuhtasarSatir(int index, MuhtasarSatiri satir) {
     if (index >= 0 && index < _muhtasarSatirlari.length) {
       _muhtasarSatirlari[index] = satir;
+      _tetikleYerelTaslakKaydi();
       notifyListeners();
     }
   }
@@ -363,6 +599,7 @@ class BeyannameProvider with ChangeNotifier {
   void removeMuhtasarSatir(int index) {
     if (index >= 0 && index < _muhtasarSatirlari.length) {
       _muhtasarSatirlari.removeAt(index);
+      _tetikleYerelTaslakKaydi();
       notifyListeners();
     }
   }
@@ -378,6 +615,7 @@ class BeyannameProvider with ChangeNotifier {
         matrah: matrah,
       );
       _guncelleDamga301();
+      _tetikleYerelTaslakKaydi();
       notifyListeners();
     }
   }
@@ -413,6 +651,7 @@ class BeyannameProvider with ChangeNotifier {
         kumulatifHasilat600: newKumulatif,
         krediKarti123: krediKarti ?? cur.krediKarti123,
       );
+      _tetikleYerelTaslakKaydi();
       notifyListeners();
     }
   }
@@ -429,6 +668,7 @@ class BeyannameProvider with ChangeNotifier {
         ay: _seciliAy,
         baslik: '$_seciliYil / ${_seciliAy.toString().padLeft(2, '0')} Beyannamesi',
         guncellenmeTarihi: DateTime.now(),
+        oncekiAydanDevredenKdv: _oncekiAydanDevredenKdv,
         kdv1Satirlari: _kdv1Satirlari,
         tevkifatKayitlari: _tevkifatKayitlari,
         muhtasarSatirlari: _muhtasarSatirlari,
@@ -441,6 +681,11 @@ class BeyannameProvider with ChangeNotifier {
           .doc(model.id)
           .set(model.toMap());
 
+      // Yerel taslağı da güncelle ve senkronize et
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('beyanname_draft_${model.id}', jsonEncode(model.toMap()));
+      _sonTaslakZamani = model.guncellenmeTarihi;
+
       return true;
     } catch (e) {
       _errorMessage = 'Kaydedilirken hata oluştu: $e';
@@ -449,6 +694,121 @@ class BeyannameProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  // --- Geriye Dönük Vergi & Birim Arama Servisleri ---
+  Future<List<BeyannameDonemModel>> tumGecmisDonemleriYukle() async {
+    try {
+      final snapshot = await _firestore.collection('beyannameler').get();
+      final list = <BeyannameDonemModel>[];
+      for (final doc in snapshot.docs) {
+        try {
+          list.add(BeyannameDonemModel.fromMap(doc.data()));
+        } catch (_) {}
+      }
+      // Cari (açık olan) dönemi de ekle (eğer henüz veritabanına kaydedilmediyse bile aramada çıksın)
+      final cariId = _docId(_seciliYil, _seciliAy);
+      final alreadyInList = list.any((d) => d.id == cariId);
+      if (!alreadyInList) {
+        list.add(
+          BeyannameDonemModel(
+            id: cariId,
+            yil: _seciliYil,
+            ay: _seciliAy,
+            baslik: '$_seciliYil / ${_seciliAy.toString().padLeft(2, '0')} (Cari Dönem)',
+            guncellenmeTarihi: DateTime.now(),
+            oncekiAydanDevredenKdv: _oncekiAydanDevredenKdv,
+            kdv1Satirlari: _kdv1Satirlari,
+            tevkifatKayitlari: _tevkifatKayitlari,
+            muhtasarSatirlari: _muhtasarSatirlari,
+            damgaSatirlari: _damgaSatirlari,
+            hasiat600Satirlari: _hasiat600Satirlari,
+          ),
+        );
+      }
+
+      // Yıl ve aya göre azalan sırala
+      list.sort((a, b) {
+        if (a.yil != b.yil) return b.yil.compareTo(a.yil);
+        return b.ay.compareTo(a.ay);
+      });
+      return list;
+    } catch (e) {
+      debugPrint('Geçmiş dönemler yüklenirken hata: $e');
+      return [];
+    }
+  }
+
+  List<BirimGecmisVergiKaydi> birimGecmisiFiltrele(
+    List<BeyannameDonemModel> donemler, {
+    String? seciliBirimAdi,
+    int? seciliYil,
+  }) {
+    final sonuclar = <BirimGecmisVergiKaydi>[];
+    final targetKey = seciliBirimAdi != null && seciliBirimAdi.isNotEmpty
+        ? BirimAdlandirma.canonicalKey(seciliBirimAdi)
+        : null;
+
+    for (final donem in donemler) {
+      if (seciliYil != null && donem.yil != seciliYil) continue;
+
+      // O dönemin birimlerini bul
+      final birimKeys = <String>{};
+      for (final k in donem.kdv1Satirlari) {
+        final key = BirimAdlandirma.canonicalKey(k.birimAdi);
+        if (key.isNotEmpty) birimKeys.add(key);
+      }
+      for (final d in donem.damgaSatirlari) {
+        final key = BirimAdlandirma.canonicalKey(d.birimAdi);
+        if (key.isNotEmpty) birimKeys.add(key);
+      }
+
+      for (final bKey in birimKeys) {
+        if (targetKey != null && targetKey != bKey) continue;
+
+        final kdv1Satiri = donem.kdv1Satirlari
+            .where((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == bKey);
+        final kdv1Tutar = kdv1Satiri.fold(0.0, (s, x) => s + x.netOdenecekKdv);
+
+        final tevkifat = donem.tevkifatKayitlari
+            .where((x) => x.birimAdi != null && BirimAdlandirma.canonicalKey(x.birimAdi!) == bKey)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+
+        final muhtasarGelir = donem.muhtasarSatirlari
+            .where((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == bKey)
+            .fold(0.0, (s, x) => s + x.gelirVergisi);
+
+        final muhtasarDamga = donem.muhtasarSatirlari
+            .where((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == bKey)
+            .fold(0.0, (s, x) => s + x.damgaVergisi);
+
+        final damga360 = donem.damgaSatirlari
+            .where((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == bKey)
+            .fold(0.0, (s, x) => s + x.damgaVergisi);
+
+        final hasiatSatiri = donem.hasiat600Satirlari
+            .where((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == bKey);
+        final aylikHasilat = hasiatSatiri.fold(0.0, (s, x) => s + x.aylikHasilat600);
+        final krediKarti = hasiatSatiri.fold(0.0, (s, x) => s + x.krediKarti123);
+
+        sonuclar.add(
+          BirimGecmisVergiKaydi(
+            yil: donem.yil,
+            ay: donem.ay,
+            donemBaslik: donem.baslik,
+            birimAdi: BirimAdlandirma.tamAdGetir(bKey),
+            kdv1NetOdenecek: BeyannameHesaplamaMotoru.round(kdv1Tutar),
+            kdv2Tevkifat: BeyannameHesaplamaMotoru.round(tevkifat),
+            muhtasarGelirVergisi: BeyannameHesaplamaMotoru.round(muhtasarGelir),
+            muhtasarDamgaVergisi: BeyannameHesaplamaMotoru.round(muhtasarDamga),
+            damgaVergisi360: BeyannameHesaplamaMotoru.round(damga360),
+            hasilat600Aylik: BeyannameHesaplamaMotoru.round(aylikHasilat),
+            krediKarti123: BeyannameHesaplamaMotoru.round(krediKarti),
+          ),
+        );
+      }
+    }
+    return sonuclar;
   }
 
   /// Örnek Excel Verilerini Tek Tıkla Yükle (Eylül 2025 Test/Demo Verisi)
@@ -761,6 +1121,13 @@ class BeyannameProvider with ChangeNotifier {
     ];
 
     _guncelleDamga301();
+    _tetikleYerelTaslakKaydi();
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _autoSaveDebounceTimer?.cancel();
+    super.dispose();
   }
 }

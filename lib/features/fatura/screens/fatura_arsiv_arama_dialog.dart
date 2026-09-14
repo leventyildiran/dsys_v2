@@ -399,12 +399,7 @@ class _FaturaArsivAramaDialogState extends State<_FaturaArsivAramaDialog> {
                           icon: const Icon(Icons.aspect_ratio, size: 16),
                           label: const Text('Görsel Mod'),
                           onPressed: () {
-                            var idx = provider.pendingInvoices.indexWhere((p) => p.id == f.id);
-                            if (idx == -1) {
-                              provider.pendingInvoices.insert(0, f);
-                              provider.notifyListeners();
-                              idx = 0;
-                            }
+                            final idx = provider.arsivFaturasiniKuyrugaAl(f);
                             Navigator.pop(context);
                             Navigator.push(
                               context,
@@ -420,11 +415,7 @@ class _FaturaArsivAramaDialogState extends State<_FaturaArsivAramaDialog> {
                           icon: const Icon(Icons.edit_note, size: 16),
                           label: const Text('Kuyruğa Al / Düzenle'),
                           onPressed: () {
-                            final exists = provider.pendingInvoices.any((p) => p.id == f.id);
-                            if (!exists) {
-                              provider.pendingInvoices.insert(0, f);
-                              provider.notifyListeners();
-                            }
+                            provider.arsivFaturasiniKuyrugaAl(f);
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(

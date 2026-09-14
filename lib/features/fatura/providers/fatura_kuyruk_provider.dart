@@ -191,6 +191,22 @@ class FaturaKuyrukProvider extends ChangeNotifier {
     _queueChanged();
   }
 
+  /// Arşivden gelen faturayı kuyruğa alır ve index'ini döner.
+  /// Fatura zaten kuyrukta ise tekrar eklemez; mevcut index'i döner.
+  int arsivFaturasiniEkle(FaturaModel fatura) {
+    final mevcut = pendingInvoices.indexWhere((p) => p.id == fatura.id);
+    if (mevcut != -1) return mevcut;
+    if (pendingInvoices.isNotEmpty && pendingInvoices.every(yerTutucuMu)) {
+      // Yalnızca boş yer tutucu varsa onun yerine geç.
+      pendingInvoices = [fatura];
+    } else {
+      pendingInvoices.insert(0, fatura);
+    }
+    currentIndex = 0;
+    _queueChanged();
+    return 0;
+  }
+
   void duplicateInvoice(int index) {
     if (index < 0 || index >= pendingInvoices.length) return;
     final src = pendingInvoices[index];

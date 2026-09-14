@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/theme/app_colors.dart';
 
 /// Excel/Google Sheets stili, sıfır donma garantili, yerel odaklı giriş hücresi.
 /// Her tuş vuruşunda üst widget ağacını yeniden çizmez (rebuild yapmaz).
@@ -87,33 +88,25 @@ class _EditableCellState extends State<EditableCell> {
   Widget build(BuildContext context) {
     final bool isFilled = widget.value > 0;
 
-    // Arka plan:
-    // Odaklanmışsa: Beyaz
-    // Girilmişse (Dolu): Yumuşak pastel nane yeşili (#F0FDF4)
-    // Girilmemişse (Boş / 0): Dikkat çeken sıcak sarı/kehribar (#FFFBEB)
+    // Excel/Google Sheets stili: Boş ve dolu hücreler tablo satırıyla kusursuz bütünleşir.
+    // Odaklanıldığında temiz mavi çerçeve belirir, hover edildiğinde hafif ton değişir.
     final Color bgColor = _focusNode.hasFocus
-        ? Colors.white
-        : (_isHovered
-            ? (isFilled ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7))
-            : (isFilled ? const Color(0xFFF0FDF4) : const Color(0xFFFFFBEB)));
+        ? AppColors.surface
+        : (_isHovered ? AppColors.surfaceVariant.withValues(alpha: 0.5) : AppColors.transparent);
 
-    // Kenarlık:
-    // Odaklanmışsa: Canlı Excel Mavisi (#2563EB)
-    // Girilmişse (Dolu): Sakin yeşil kenarlık (#86EFAC)
-    // Girilmemişse (Boş): Yumuşak sarı kenarlık (#FDE68A)
     final Color borderColor = _focusNode.hasFocus
-        ? const Color(0xFF2563EB)
-        : (_isHovered
-            ? (isFilled ? const Color(0xFF4ADE80) : const Color(0xFFF59E0B))
-            : (isFilled ? const Color(0xFFBBF7D0) : const Color(0xFFFDE68A)));
+        ? AppColors.primary
+        : (_isHovered ? AppColors.borderStrong : AppColors.transparent);
+
+    final String displayHint = widget.hintText;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: const Duration(milliseconds: 120),
         height: widget.height,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
           color: bgColor,
           border: Border.all(
@@ -129,15 +122,21 @@ class _EditableCellState extends State<EditableCell> {
             textAlign: widget.textAlign,
             style: TextStyle(
               fontSize: widget.fontSize,
-              fontWeight: isFilled ? FontWeight.bold : FontWeight.normal,
-              color: isFilled ? const Color(0xFF166534) : const Color(0xFF0F172A),
+              fontWeight: isFilled ? (widget.isBold ? FontWeight.bold : FontWeight.w600) : (widget.isBold ? FontWeight.bold : FontWeight.normal),
+              color: isFilled
+                  ? (widget.textColor ?? const Color(0xFF0F172A))
+                  : (widget.textColor ?? AppColors.textMuted),
             ),
             decoration: InputDecoration(
               isDense: true,
               border: InputBorder.none,
               contentPadding: EdgeInsets.zero,
-              hintText: widget.hintText,
-              hintStyle: const TextStyle(fontSize: 10, color: Color(0xFFD97706), fontWeight: FontWeight.w500),
+              hintText: displayHint,
+              hintStyle: TextStyle(
+                fontSize: widget.fontSize,
+                color: AppColors.textMuted.withValues(alpha: 0.7),
+                fontWeight: FontWeight.normal,
+              ),
             ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
