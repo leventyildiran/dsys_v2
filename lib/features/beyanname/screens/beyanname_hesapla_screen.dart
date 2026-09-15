@@ -197,15 +197,78 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     if (onay == true) {
       provider.kilidiAc();
     }
+  Future<void> _donemiTemizleDialog(BuildContext context, BeyannameProvider provider) async {
+    final onay = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.danger),
+            SizedBox(width: 8),
+            Text('Dönemi Sıfırla / Temizle'),
+          ],
+        ),
+        content: const Text('Bu aya ait girilmiş tüm veriler ve yerel taslak temizlenecektir. Devam edilsin mi?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: AppColors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Evet, Temizle'),
+          ),
+        ],
+      ),
+    );
+    if (onay == true) {
+      await provider.donemiSifirla();
+    }
+  }
+
+  Future<void> _defterdarlikExcelIndir(BuildContext context, BeyannameProvider provider) async {
+    try {
+      await BeyannameExcelServisi.defterdarlikExceliniIndir(provider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✓ ${_aylar[provider.seciliAy - 1]} ${provider.seciliYil} Defterdarlık Exceli (.xlsx) başarıyla indirildi.'),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Excel üretilirken hata: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _beyannameKaydet(BuildContext context, BeyannameProvider provider) async {
+    final ok = await provider.kaydet();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? 'Beyanname başarıyla kaydedildi.' : 'Kayıt sırasında hata oluştu!'),
+          backgroundColor: ok ? AppColors.success : AppColors.danger,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   // ==================== APP BAR / EXCEL TOOLBAR ====================
   PreferredSizeWidget _buildExcelHeader(BuildContext context, BeyannameProvider provider) {
     return AppBar(
       elevation: 0.5,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       titleSpacing: 12,
       title: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -214,6 +277,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               borderRadius: BorderRadius.circular(4),
             ),
             child: const Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.table_chart_rounded, color: Colors.white, size: 16),
                 SizedBox(width: 6),
@@ -224,22 +288,22 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           // Yıl Seçici
           Container(
             height: 30,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: const Color(0xFFCBD5E1)),
+              border: Border.all(color: AppColors.border),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<int>(
                 value: provider.seciliYil,
                 items: [2024, 2025, 2026, 2027].map((y) => DropdownMenuItem(value: y, child: Text('$y'))).toList(),
                 onChanged: (y) => provider.donemDegistir(y!, provider.seciliAy),
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
               ),
             ),
           ),
@@ -249,16 +313,16 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             height: 30,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: const Color(0xFFCBD5E1)),
+              border: Border.all(color: AppColors.border),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<int>(
                 value: provider.seciliAy,
                 items: List.generate(12, (i) => DropdownMenuItem(value: i + 1, child: Text(_aylar[i]))),
                 onChanged: (m) => provider.donemDegistir(provider.seciliYil, m!),
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
               ),
             ),
           ),
@@ -269,11 +333,11 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
         if (provider.isAutoSaving)
           Container(
             height: 30,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFFE0F2FE),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFBAE6FD)),
+              color: AppColors.infoSubtle,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: AppColors.info),
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
@@ -281,206 +345,244 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 SizedBox(
                   width: 12,
                   height: 12,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0284C7)),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.info),
                 ),
                 SizedBox(width: 6),
                 Text(
-                  'Taslak Kaydediliyor...',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF0369A1), fontWeight: FontWeight.w600),
+                  'Kaydediliyor...',
+                  style: TextStyle(fontSize: 11, color: AppColors.info, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
           )
         else if (provider.sonTaslakZamani != null)
-          Container(
+          Tooltip(
+            message: 'Yerel taslak hafızada güvende',
+            child: Container(
+              height: 30,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: AppColors.successSubtle,
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: AppColors.success),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.cloud_done_rounded, size: 14, color: AppColors.success),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Taslak: ${provider.sonTaslakZamani!.hour.toString().padLeft(2, '0')}:${provider.sonTaslakZamani!.minute.toString().padLeft(2, '0')}',
+                    style: const TextStyle(fontSize: 11, color: AppColors.success, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        const SizedBox(width: 8),
+
+        // 1) VERİ & ARAÇLAR AÇILIR MENÜSÜ
+        PopupMenuButton<String>(
+          tooltip: 'Veri Girişi ve Araçlar Menüsü',
+          offset: const Offset(0, 36),
+          onSelected: (val) async {
+            switch (val) {
+              case 'hizli_giris':
+                HizliVeriGirisiDialog.goster(context, provider);
+                break;
+              case 'vergi_arama':
+                VergiAramaDialog.goster(context, provider);
+                break;
+              case 'ornek_veri':
+                provider.ornekEylulVerisiniYukle();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Eylül 2025 Excel verileri masaya yüklendi.'),
+                      duration: Duration(seconds: 2),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                }
+                break;
+              case 'temizle':
+                _donemiTemizleDialog(context, provider);
+                break;
+            }
+          },
+          itemBuilder: (ctx) => [
+            const PopupMenuItem(
+              value: 'hizli_giris',
+              child: Row(
+                children: [
+                  Icon(Icons.flash_on_rounded, size: 18, color: Color(0xFFEA580C)),
+                  SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Hızlı Veri Girişi', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text('Toplu matrah ve KDV masası', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'vergi_arama',
+              child: Row(
+                children: [
+                  Icon(Icons.search_rounded, size: 18, color: AppColors.primary),
+                  SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Vergi Arama', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text('Tevkifat ve vergi kod rehberi', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'ornek_veri',
+              child: Row(
+                children: [
+                  Icon(Icons.download_rounded, size: 18, color: AppColors.info),
+                  SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Örnek Veri Yükle', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text('Eylül 2025 şablonunu masaya aktar', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(
+              value: 'temizle',
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.danger),
+                  SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Dönemi Sıfırla / Temizle', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.danger)),
+                      Text('Masayı ve taslağı sıfırlar', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+          child: Container(
             height: 30,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFDCFCE7),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF86EFAC)),
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: AppColors.border),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.cloud_done_rounded, size: 14, color: Color(0xFF16A34A)),
-                const SizedBox(width: 5),
-                Text(
-                  'Taslak Korunuyor (${provider.sonTaslakZamani!.hour.toString().padLeft(2, '0')}:${provider.sonTaslakZamani!.minute.toString().padLeft(2, '0')})',
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF15803D), fontWeight: FontWeight.w600),
-                ),
+                Icon(Icons.tune_rounded, size: 14, color: AppColors.textPrimary),
+                SizedBox(width: 6),
+                Text('Veri & Araçlar', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                SizedBox(width: 4),
+                Icon(Icons.arrow_drop_down, size: 16, color: AppColors.textSecondary),
               ],
             ),
           ),
-        const SizedBox(width: 8),
-
-        // Temizle Butonu
-        SizedBox(
-          height: 30,
-          child: OutlinedButton.icon(
-            onPressed: () async {
-              final onay = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Dönemi Sıfırla / Temizle'),
-                  content: const Text('Bu aya ait girilmiş tüm veriler ve yerel taslak temizlenecektir. Devam edilsin mi?'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç')),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
-                      onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Evet, Temizle'),
-                    ),
-                  ],
-                ),
-              );
-              if (onay == true) {
-                await provider.donemiSifirla();
-              }
-            },
-            icon: const Icon(Icons.delete_outline_rounded, size: 14),
-            label: const Text('Temizle', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFFB91C1C),
-              side: const BorderSide(color: Color(0xFFFCA5A5)),
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-            ),
-          ),
         ),
         const SizedBox(width: 8),
 
-        // Hızlı Veri Girişi Butonu
-        SizedBox(
-          height: 30,
-          child: ElevatedButton.icon(
-            onPressed: () => HizliVeriGirisiDialog.goster(context, provider),
-            icon: const Icon(Icons.flash_on_rounded, size: 14),
-            label: const Text('Hızlı Veri Girişi', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEA580C),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-
-        // Vergi Arama Butonu
-        SizedBox(
-          height: 30,
-          child: ElevatedButton.icon(
-            onPressed: () => VergiAramaDialog.goster(context, provider),
-            icon: const Icon(Icons.search_rounded, size: 14),
-            label: const Text('Vergi Arama', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1E293B),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-
-        // Örnek Veri Yükle Butonu
-        SizedBox(
-          height: 30,
-          child: OutlinedButton.icon(
-            onPressed: () {
-              provider.ornekEylulVerisiniYukle();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Eylül 2025 Excel verileri masaya yüklendi.'),
-                  duration: Duration(seconds: 2),
-                  backgroundColor: Color(0xFF107C41),
-                ),
-              );
-            },
-            icon: const Icon(Icons.download_rounded, size: 14),
-            label: const Text('Örnek Veri (Eylül 2025)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF107C41),
-              side: const BorderSide(color: Color(0xFF107C41)),
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-
-        // Aylık Rapor (PDF) Butonu
-        SizedBox(
-          height: 30,
-          child: ElevatedButton.icon(
-            onPressed: () => BeyannameRaporServisi.aylikRaporuYazdir(context, provider),
-            icon: const Icon(Icons.picture_as_pdf_rounded, size: 14),
-            label: const Text('Aylık Rapor (PDF)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0F766E),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-
-        // Defterdarlık Exceli Butonu (.xlsx)
-        SizedBox(
-          height: 30,
-          child: ElevatedButton.icon(
-            onPressed: () async {
-              try {
-                await BeyannameExcelServisi.defterdarlikExceliniIndir(provider);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('✓ ${_aylar[provider.seciliAy - 1]} ${provider.seciliYil} Defterdarlık Exceli (.xlsx) başarıyla indirildi.'),
-                      backgroundColor: AppColors.success,
-                      duration: const Duration(seconds: 3),
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Excel üretilirken hata: $e'),
-                      backgroundColor: AppColors.danger,
-                    ),
-                  );
-                }
-              }
-            },
-            icon: const Icon(Icons.table_view_rounded, size: 14),
-            label: const Text('Defterdarlık Exceli (.xlsx)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success,
-              foregroundColor: AppColors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-
-        // Kaydet Butonu
-        SizedBox(
-          height: 30,
-          child: ElevatedButton.icon(
-            onPressed: () async {
-              final ok = await provider.kaydet();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(ok ? 'Beyanname başarıyla kaydedildi.' : 'Kayıt sırasında hata oluştu!'),
-                    backgroundColor: ok ? const Color(0xFF10B981) : Colors.red,
-                    duration: const Duration(seconds: 2),
+        // 2) RAPORLAR & ÇIKTI AÇILIR MENÜSÜ
+        PopupMenuButton<String>(
+          tooltip: 'Raporlar ve Dışa Aktarım',
+          offset: const Offset(0, 36),
+          onSelected: (val) async {
+            if (val == 'excel') {
+              _defterdarlikExcelIndir(context, provider);
+            } else if (val == 'pdf') {
+              BeyannameRaporServisi.aylikRaporuYazdir(context, provider);
+            }
+          },
+          itemBuilder: (ctx) => [
+            const PopupMenuItem(
+              value: 'excel',
+              child: Row(
+                children: [
+                  Icon(Icons.table_view_rounded, size: 18, color: AppColors.success),
+                  SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Defterdarlık Exceli (.xlsx)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text('Birim bazlı detaylı inceleme cetveli', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                    ],
                   ),
-                );
-              }
-            },
+                ],
+              ),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(
+              value: 'pdf',
+              child: Row(
+                children: [
+                  Icon(Icons.picture_as_pdf_rounded, size: 18, color: Color(0xFF0F766E)),
+                  SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Aylık Rapor (PDF)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text('Resmi döküm ve yazdırma formatı', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+          child: Container(
+            height: 30,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.description_outlined, size: 14, color: AppColors.textPrimary),
+                SizedBox(width: 6),
+                Text('Raporlar & Excel', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                SizedBox(width: 4),
+                Icon(Icons.arrow_drop_down, size: 16, color: AppColors.textSecondary),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // 3) KAYDET BUTONU
+        SizedBox(
+          height: 30,
+          child: ElevatedButton.icon(
+            onPressed: () => _beyannameKaydet(context, provider),
             icon: const Icon(Icons.save_rounded, size: 14),
             label: const Text('Kaydet', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0F172A),
-              foregroundColor: Colors.white,
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.white,
               padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
           ),
