@@ -2,8 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xlsio;
 import 'package:file_saver/file_saver.dart';
-import '../../../core/turkce_format.dart';
-import '../models/beyanname_model.dart';
+import '../../birim/models/birim_model.dart';
 import '../providers/beyanname_provider.dart';
 
 /// Defterdarlık ve Vergi Dairesi İncelemesine Uygun Birebir Excel (.xlsx) Üretim Servisi
@@ -19,12 +18,11 @@ class BeyannameExcelServisi {
   static Future<void> defterdarlikExceliniIndir(BeyannameProvider provider) async {
     final bytes = await excelUret(provider);
     final ayAd = _ayAdlari[provider.seciliAy - 1].toUpperCase();
-    final dosyaAdi = 'DEFTERDARLIK_BEYANNAME_${provider.seciliYil}_$ayAd';
+    final dosyaAdi = 'DEFTERDARLIK_BEYANNAME_${provider.seciliYil}_$ayAd.xlsx';
 
     await FileSaver.instance.saveFile(
       name: dosyaAdi,
       bytes: bytes,
-      ext: 'xlsx',
       mimeType: MimeType.microsoftExcel,
     );
   }
@@ -40,7 +38,6 @@ class BeyannameExcelServisi {
     // =========================================================================
     final xlsio.Worksheet sheet1 = workbook.worksheets[0];
     sheet1.name = 'Birim Bazlı Vergiler';
-    sheet1.showGridLines = true;
 
     // Başlık
     sheet1.getRangeByName('A1:H1').merge();
@@ -264,7 +261,6 @@ class BeyannameExcelServisi {
     // =========================================================================
     final xlsio.Worksheet sheet2 = workbook.worksheets[1];
     sheet2.name = 'Ana Sayfa (Mizan)';
-    sheet2.showGridLines = true;
 
     sheet2.getRangeByName('A1:F1').merge();
     sheet2.getRangeByName('A1').setText('KONSOLİDE BEYANNAME VE MİZAN MUTABAKAT ÖZETİ');
@@ -404,7 +400,6 @@ class BeyannameExcelServisi {
     // =========================================================================
     final xlsio.Worksheet sheet3 = workbook.worksheets[2];
     sheet3.name = '600 Hasılat & Mizan';
-    sheet3.showGridLines = true;
 
     sheet3.getRangeByName('A1:E1').merge();
     sheet3.getRangeByName('A1').setText('600 HASILAT & 123 KREDİ KARTI (MİZAN MUTABAKAT VE KÜMÜLATİF CETVELİ)');

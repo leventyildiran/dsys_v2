@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../core/theme/app_colors.dart';
 
 /// Excel/Google Sheets stili, sıfır donma garantili, yerel odaklı giriş hücresi.
 /// Her tuş vuruşunda üst widget ağacını yeniden çizmez (rebuild yapmaz).
