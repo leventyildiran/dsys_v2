@@ -197,6 +197,8 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     if (onay == true) {
       provider.kilidiAc();
     }
+  }
+
   Future<void> _donemiTemizleDialog(BuildContext context, BeyannameProvider provider) async {
     final onay = await showDialog<bool>(
       context: context,
