@@ -74,14 +74,20 @@ class _BeyannameKonfigurasyonScreenState
   }
 
   BeyannameKonfigurasyonu _topla() {
+    final duzeltilmisTablolar = _asgariUcretTablolari.map((t) {
+      if (t.yil <= 0) {
+        return t.copyWith(yil: DateTime.now().year);
+      }
+      return t;
+    }).toList();
+
     return BeyannameKonfigurasyonu(
       kurumId: _kurumId,
       kdvOranlari: _kdvOranlari.where((e) => e.oran > 0).toList(),
       tevkifatTurleri: _tevkifatlar.where((e) => e.payda > 0).toList(),
       damgaBinde: _bindeOku(_damgaController.text),
       bloklar: _bloklar,
-      asgariUcretTablolari:
-          _asgariUcretTablolari.where((t) => t.yil > 0).toList(),
+      asgariUcretTablolari: duzeltilmisTablolar,
     );
   }
 

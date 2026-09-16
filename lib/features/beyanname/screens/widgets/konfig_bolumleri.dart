@@ -588,7 +588,11 @@ class _AsgariUcretYilSatiriState extends State<_AsgariUcretYilSatiri> {
   @override
   void initState() {
     super.initState();
-    _yilController = TextEditingController(text: widget.tablo.yil.toString());
+    int baslangicYili = widget.tablo.yil;
+    if (baslangicYili <= 0) {
+      baslangicYili = DateTime.now().year;
+    }
+    _yilController = TextEditingController(text: baslangicYili.toString());
     for (var ay = 1; ay <= 12; ay++) {
       _matrahControllers[ay] =
           TextEditingController(text: _metin(widget.tablo.aylikMatrah[ay]));
@@ -611,21 +615,23 @@ class _AsgariUcretYilSatiriState extends State<_AsgariUcretYilSatiri> {
   @override
   void didUpdateWidget(covariant _AsgariUcretYilSatiri oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final yilMetni = widget.tablo.yil.toString();
-    if (_yilController.text != yilMetni) {
-      _yilController.text = yilMetni;
+    if (widget.tablo.yil > 0) {
+      final yilMetni = widget.tablo.yil.toString();
+      if (_yilController.text != yilMetni && _yilController.text == '0') {
+        _yilController.text = yilMetni;
+      }
     }
     for (var ay = 1; ay <= 12; ay++) {
       final mVal = widget.tablo.aylikMatrah[ay] ?? 0.0;
-      if (_oku(_matrahControllers[ay]!.text) != mVal) {
+      if (_oku(_matrahControllers[ay]!.text) != mVal && !_matrahControllers[ay]!.text.isNotEmpty) {
         _matrahControllers[ay]!.text = _metin(mVal);
       }
       final gVal = widget.tablo.aylikGelirVergisi[ay] ?? 0.0;
-      if (_oku(_gelirControllers[ay]!.text) != gVal) {
+      if (_oku(_gelirControllers[ay]!.text) != gVal && !_gelirControllers[ay]!.text.isNotEmpty) {
         _gelirControllers[ay]!.text = _metin(gVal);
       }
       final dVal = widget.tablo.aylikDamgaVergisi[ay] ?? 0.0;
-      if (_oku(_damgaControllers[ay]!.text) != dVal) {
+      if (_oku(_damgaControllers[ay]!.text) != dVal && !_damgaControllers[ay]!.text.isNotEmpty) {
         _damgaControllers[ay]!.text = _metin(dVal);
       }
     }
@@ -643,9 +649,13 @@ class _AsgariUcretYilSatiriState extends State<_AsgariUcretYilSatiri> {
       if (g != 0) gelir[ay] = g;
       if (d != 0) damga[ay] = d;
     }
+    int yilDegeri = int.tryParse(_yilController.text.trim()) ?? 0;
+    if (yilDegeri <= 0) {
+      yilDegeri = DateTime.now().year;
+    }
     widget.onChanged(
       AsgariUcretYilTablosu(
-        yil: int.tryParse(_yilController.text.trim()) ?? 0,
+        yil: yilDegeri,
         aylikMatrah: matrah,
         aylikGelirVergisi: gelir,
         aylikDamgaVergisi: damga,
