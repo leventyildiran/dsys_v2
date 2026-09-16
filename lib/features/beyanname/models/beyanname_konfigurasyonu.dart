@@ -76,6 +76,19 @@ class AsgariUcretYilTablosu {
     this.aylikDamgaVergisi = const {},
   });
 
+  AsgariUcretYilTablosu copyWith({
+    int? yil,
+    Map<int, double>? aylikMatrah,
+    Map<int, double>? aylikGelirVergisi,
+    Map<int, double>? aylikDamgaVergisi,
+  }) =>
+      AsgariUcretYilTablosu(
+        yil: yil ?? this.yil,
+        aylikMatrah: aylikMatrah ?? this.aylikMatrah,
+        aylikGelirVergisi: aylikGelirVergisi ?? this.aylikGelirVergisi,
+        aylikDamgaVergisi: aylikDamgaVergisi ?? this.aylikDamgaVergisi,
+      );
+
   Map<String, dynamic> toMap() => {
         'yil': yil,
         'aylikMatrah':

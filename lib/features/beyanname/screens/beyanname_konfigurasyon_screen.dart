@@ -74,7 +74,8 @@ class _BeyannameKonfigurasyonScreenState
   }
 
   BeyannameKonfigurasyonu _topla() {
-    final duzeltilmisTablolar = _asgariUcretTablolari.map((t) {
+    final duzeltilmisTablolar =
+        _asgariUcretTablolari.map<AsgariUcretYilTablosu>((t) {
       if (t.yil <= 0) {
         return t.copyWith(yil: DateTime.now().year);
       }
