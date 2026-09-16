@@ -1,3 +1,5 @@
+import 'package:flutter/services.dart';
+
 /// Türkçe para, tarih ve katsayı biçimlendirme yardımcıları.
 ///
 /// SKILL.md kurallarına birebir uyar:
@@ -6,6 +8,20 @@
 /// - Katsayı: `19,50` (virgülden sonra 2 basamak)
 class TurkceFormat {
   TurkceFormat._();
+
+  /// Sayının tam kısmına binlik nokta ayırıcıları ekler: `1000000` -> `1.000.000`
+  static String binlikNoktaEkle(String intPart) {
+    if (intPart.isEmpty) return '';
+    final buffer = StringBuffer();
+    final length = intPart.length;
+    for (int i = 0; i < length; i++) {
+      if (i > 0 && (length - i) % 3 == 0) {
+        buffer.write('.');
+      }
+      buffer.write(intPart[i]);
+    }
+    return buffer.toString();
+  }
 
   /// Para biçimlendirme: `120.000,00 TL`
   static String para(double tutar) {
@@ -18,17 +34,8 @@ class TurkceFormat {
     final intPart = parts[0];
     final decPart = parts[1];
 
-    // Binlik ayırıcı ekle
-    final buffer = StringBuffer();
-    final length = intPart.length;
-    for (int i = 0; i < length; i++) {
-      if (i > 0 && (length - i) % 3 == 0) {
-        buffer.write('.');
-      }
-      buffer.write(intPart[i]);
-    }
-
-    final formatted = '${isNegative ? '-' : ''}${buffer.toString()},$decPart TL';
+    final formattedInt = binlikNoktaEkle(intPart);
+    final formatted = '${isNegative ? '-' : ''}$formattedInt,$decPart TL';
     return formatted;
   }
 
@@ -50,6 +57,8 @@ class TurkceFormat {
       text = text.replaceAll('.', '').replaceAll(',', '.');
     } else if (text.contains(',')) {
       text = text.replaceAll(',', '.');
+    } else if ('.'.allMatches(text).length > 1 || RegExp(r'^-?\d{1,3}(\.\d{3})+$').hasMatch(text)) {
+      text = text.replaceAll('.', '');
     }
 
     text = text.replaceAll(RegExp(r'[^0-9\.\-]'), '');
@@ -115,5 +124,96 @@ class TurkceFormat {
       groupIndex++;
     }
     return result.trim().replaceAll('  ', ' ');
+  }
+}
+
+/// Kullanıcı yazarken canlı olarak binlik ayraçlarını nokta ile ekleyen Türkçe Para formatlayıcısı.
+/// Örneğin kullanıcı `1000000` yazdığında otomatik olarak `1.000.000` yapar.
+class TurkceParaInputFormatter extends TextInputFormatter {
+  final int maxOndalik;
+
+  const TurkceParaInputFormatter({this.maxOndalik = 2});
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    String text = newValue.text;
+    final isNegative = text.startsWith('-');
+    if (isNegative) {
+      text = text.substring(1);
+    }
+
+    // Kullanıcı numpad'den nokta bastıysa ve henüz virgül yoksa, virgüle çevir
+    if (text.endsWith('.') && !oldValue.text.endsWith('.') && !text.contains(',')) {
+      text = '${text.substring(0, text.length - 1)},';
+    }
+
+    final hasComma = text.contains(',');
+    String tamKisim;
+    String? ondalikKisim;
+
+    if (hasComma) {
+      final parts = text.split(',');
+      tamKisim = parts[0].replaceAll(RegExp(r'[^0-9]'), '');
+      ondalikKisim = parts.length > 1 ? parts[1].replaceAll(RegExp(r'[^0-9]'), '') : '';
+      if (ondalikKisim.length > maxOndalik) {
+        ondalikKisim = ondalikKisim.substring(0, maxOndalik);
+      }
+    } else {
+      tamKisim = text.replaceAll(RegExp(r'[^0-9]'), '');
+    }
+
+    // Baştaki fazla sıfırları temizle (tek başına '0' hariç)
+    if (tamKisim.length > 1 && tamKisim.startsWith('0')) {
+      tamKisim = tamKisim.replaceFirst(RegExp(r'^0+'), '');
+      if (tamKisim.isEmpty) tamKisim = '0';
+    }
+
+    String formattedText = TurkceFormat.binlikNoktaEkle(tamKisim);
+    if (isNegative && formattedText.isNotEmpty) {
+      formattedText = '-$formattedText';
+    }
+
+    if (hasComma) {
+      if (formattedText.isEmpty) {
+        formattedText = '0';
+      }
+      formattedText = '$formattedText,$ondalikKisim';
+    }
+
+    // İmleç konumunu canlı koruma:
+    // newValue içinde imleçten önce kaç adet nokta olmayan karakter vardı?
+    int nonDotBeforeCursor = 0;
+    final cursorOffset = newValue.selection.extentOffset;
+    for (int i = 0; i < cursorOffset && i < newValue.text.length; i++) {
+      if (newValue.text[i] != '.') {
+        nonDotBeforeCursor++;
+      }
+    }
+
+    // formattedText içinde aynı sayıda nokta harici karaktere denk gelen offset'i bul
+    int newCursorOffset = formattedText.length;
+    int nonDotSeen = 0;
+    for (int i = 0; i < formattedText.length; i++) {
+      if (nonDotSeen == nonDotBeforeCursor) {
+        newCursorOffset = i;
+        break;
+      }
+      if (formattedText[i] != '.') {
+        nonDotSeen++;
+      }
+      newCursorOffset = i + 1;
+    }
+
+    return TextEditingValue(
+      text: formattedText,
+      selection: TextSelection.collapsed(offset: newCursorOffset),
+    );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/turkce_format.dart';
 import '../models/beyanname_konfigurasyonu.dart';
 import '../providers/beyanname_provider.dart';
 import '../services/beyanname_konfigurasyon_servisi.dart';
@@ -157,9 +158,10 @@ class _BeyannameKonfigurasyonScreenState
   String _bindeMetni(double deger) => deger.toString();
 
   double _bindeOku(String metin) {
-    final normalize = metin.trim().replaceAll(',', '.');
-    return double.tryParse(normalize) ??
-        BeyannameKonfigurasyonu.varsayilanDamgaBinde;
+    return TurkceFormat.parseSayi(
+      metin,
+      fallback: BeyannameKonfigurasyonu.varsayilanDamgaBinde,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -216,9 +218,19 @@ class _BeyannameKonfigurasyonScreenState
 
   void _yilEkle() {
     setState(() {
+      int sonrakiYil = DateTime.now().year;
+      if (_asgariUcretTablolari.isNotEmpty) {
+        final gecerliYillar = _asgariUcretTablolari
+            .map((e) => e.yil)
+            .where((y) => y > 0)
+            .toList();
+        if (gecerliYillar.isNotEmpty) {
+          sonrakiYil = gecerliYillar.reduce((a, b) => a > b ? a : b) + 1;
+        }
+      }
       _asgariUcretTablolari = [
         ..._asgariUcretTablolari,
-        const AsgariUcretYilTablosu(yil: 0),
+        AsgariUcretYilTablosu(yil: sonrakiYil),
       ];
     });
   }

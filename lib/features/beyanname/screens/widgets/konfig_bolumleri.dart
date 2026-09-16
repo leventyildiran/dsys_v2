@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/turkce_format.dart';
 import '../../models/beyanname_konfigurasyonu.dart';
 
 /// Yapılandırma ekranındaki her bölümü saran başlıklı kart.
@@ -580,6 +581,7 @@ class _AsgariUcretYilSatiri extends StatefulWidget {
 
 class _AsgariUcretYilSatiriState extends State<_AsgariUcretYilSatiri> {
   late final TextEditingController _yilController;
+  final Map<int, TextEditingController> _matrahControllers = {};
   final Map<int, TextEditingController> _gelirControllers = {};
   final Map<int, TextEditingController> _damgaControllers = {};
 
@@ -588,6 +590,8 @@ class _AsgariUcretYilSatiriState extends State<_AsgariUcretYilSatiri> {
     super.initState();
     _yilController = TextEditingController(text: widget.tablo.yil.toString());
     for (var ay = 1; ay <= 12; ay++) {
+      _matrahControllers[ay] =
+          TextEditingController(text: _metin(widget.tablo.aylikMatrah[ay]));
       _gelirControllers[ay] =
           TextEditingController(text: _metin(widget.tablo.aylikGelirVergisi[ay]));
       _damgaControllers[ay] =
@@ -597,12 +601,11 @@ class _AsgariUcretYilSatiriState extends State<_AsgariUcretYilSatiri> {
 
   static String _metin(double? deger) {
     if (deger == null || deger == 0) return '';
-    return deger.toString();
+    return TurkceFormat.paraKalem(deger);
   }
 
   static double _oku(String metin) {
-    final normalize = metin.trim().replaceAll(',', '.');
-    return double.tryParse(normalize) ?? 0.0;
+    return TurkceFormat.parseSayi(metin);
   }
 
   @override
@@ -612,20 +615,38 @@ class _AsgariUcretYilSatiriState extends State<_AsgariUcretYilSatiri> {
     if (_yilController.text != yilMetni) {
       _yilController.text = yilMetni;
     }
+    for (var ay = 1; ay <= 12; ay++) {
+      final mVal = widget.tablo.aylikMatrah[ay] ?? 0.0;
+      if (_oku(_matrahControllers[ay]!.text) != mVal) {
+        _matrahControllers[ay]!.text = _metin(mVal);
+      }
+      final gVal = widget.tablo.aylikGelirVergisi[ay] ?? 0.0;
+      if (_oku(_gelirControllers[ay]!.text) != gVal) {
+        _gelirControllers[ay]!.text = _metin(gVal);
+      }
+      final dVal = widget.tablo.aylikDamgaVergisi[ay] ?? 0.0;
+      if (_oku(_damgaControllers[ay]!.text) != dVal) {
+        _damgaControllers[ay]!.text = _metin(dVal);
+      }
+    }
   }
 
   void _bildir() {
+    final matrah = <int, double>{};
     final gelir = <int, double>{};
     final damga = <int, double>{};
     for (var ay = 1; ay <= 12; ay++) {
-      final g = _oku(_gelirControllers[ay]!.text);
-      final d = _oku(_damgaControllers[ay]!.text);
+      final m = _oku(_matrahControllers[ay]?.text ?? '');
+      final g = _oku(_gelirControllers[ay]?.text ?? '');
+      final d = _oku(_damgaControllers[ay]?.text ?? '');
+      if (m != 0) matrah[ay] = m;
       if (g != 0) gelir[ay] = g;
       if (d != 0) damga[ay] = d;
     }
     widget.onChanged(
       AsgariUcretYilTablosu(
         yil: int.tryParse(_yilController.text.trim()) ?? 0,
+        aylikMatrah: matrah,
         aylikGelirVergisi: gelir,
         aylikDamgaVergisi: damga,
       ),
@@ -635,6 +656,9 @@ class _AsgariUcretYilSatiriState extends State<_AsgariUcretYilSatiri> {
   @override
   void dispose() {
     _yilController.dispose();
+    for (final c in _matrahControllers.values) {
+      c.dispose();
+    }
     for (final c in _gelirControllers.values) {
       c.dispose();
     }
@@ -674,7 +698,7 @@ class _AsgariUcretYilSatiriState extends State<_AsgariUcretYilSatiri> {
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
-                  'Aylık gelir ve damga vergisi istisna tutarları (TL).',
+                  'Aylık asgari ücret matrahı ve gelir/damga vergisi istisna tutarları (TL).',
                   style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                 ),
               ),
@@ -694,7 +718,7 @@ class _AsgariUcretYilSatiriState extends State<_AsgariUcretYilSatiri> {
               children: [
                 for (var ay = 1; ay <= 12; ay++) ...[
                   SizedBox(
-                    width: 120,
+                    width: 135,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -708,13 +732,29 @@ class _AsgariUcretYilSatiriState extends State<_AsgariUcretYilSatiri> {
                         ),
                         const SizedBox(height: 6),
                         TextField(
+                          controller: _matrahControllers[ay],
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          inputFormatters: const [TurkceParaInputFormatter()],
+                          onChanged: (_) => _bildir(),
+                          decoration: const InputDecoration(
+                            labelText: 'Matrah',
+                            hintText: '0,00',
+                            isDense: true,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        TextField(
                           controller: _gelirControllers[ay],
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
+                          inputFormatters: const [TurkceParaInputFormatter()],
                           onChanged: (_) => _bildir(),
                           decoration: const InputDecoration(
-                            labelText: 'Gelir',
+                            labelText: 'Gelir İst.',
+                            hintText: '0,00',
                             isDense: true,
                           ),
                         ),
@@ -724,9 +764,11 @@ class _AsgariUcretYilSatiriState extends State<_AsgariUcretYilSatiri> {
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
+                          inputFormatters: const [TurkceParaInputFormatter()],
                           onChanged: (_) => _bildir(),
                           decoration: const InputDecoration(
-                            labelText: 'Damga',
+                            labelText: 'Damga İst.',
+                            hintText: '0,00',
                             isDense: true,
                           ),
                         ),

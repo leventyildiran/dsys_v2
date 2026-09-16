@@ -121,10 +121,10 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
     );
     if (k1Index != -1) {
       final s = widget.provider.kdv1Satirlari[k1Index];
-      _kdv1Hesap10Ctrl.text = s.hesaplananKdv10 > 0 ? s.hesaplananKdv10.toStringAsFixed(2) : '';
-      _kdv1Hesap20Ctrl.text = s.hesaplananKdv20 > 0 ? s.hesaplananKdv20.toStringAsFixed(2) : '';
-      _kdv1Ind10Ctrl.text = s.indirilecekKdv10 > 0 ? s.indirilecekKdv10.toStringAsFixed(2) : '';
-      _kdv1Ind20Ctrl.text = s.indirilecekKdv20 > 0 ? s.indirilecekKdv20.toStringAsFixed(2) : '';
+      _kdv1Hesap10Ctrl.text = s.hesaplananKdv10 > 0 ? TurkceFormat.paraKalem(s.hesaplananKdv10) : '';
+      _kdv1Hesap20Ctrl.text = s.hesaplananKdv20 > 0 ? TurkceFormat.paraKalem(s.hesaplananKdv20) : '';
+      _kdv1Ind10Ctrl.text = s.indirilecekKdv10 > 0 ? TurkceFormat.paraKalem(s.indirilecekKdv10) : '';
+      _kdv1Ind20Ctrl.text = s.indirilecekKdv20 > 0 ? TurkceFormat.paraKalem(s.indirilecekKdv20) : '';
     } else {
       _kdv1Hesap10Ctrl.clear();
       _kdv1Hesap20Ctrl.clear();
@@ -138,7 +138,7 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
     );
     if (dIndex != -1) {
       final d = widget.provider.damgaSatirlari[dIndex];
-      _damgaTutarCtrl.text = d.damgaVergisi > 0 ? d.damgaVergisi.toStringAsFixed(2) : '';
+      _damgaTutarCtrl.text = d.damgaVergisi > 0 ? TurkceFormat.paraKalem(d.damgaVergisi) : '';
     } else {
       _damgaTutarCtrl.clear();
     }
@@ -149,8 +149,8 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
     );
     if (hIndex != -1) {
       final h = widget.provider.hasiat600Satirlari[hIndex];
-      _hasilatAylikCtrl.text = h.aylikHasilat600 > 0 ? h.aylikHasilat600.toStringAsFixed(2) : '';
-      _hasilatKrediKartiCtrl.text = h.krediKarti123 > 0 ? h.krediKarti123.toStringAsFixed(2) : '';
+      _hasilatAylikCtrl.text = h.aylikHasilat600 > 0 ? TurkceFormat.paraKalem(h.aylikHasilat600) : '';
+      _hasilatKrediKartiCtrl.text = h.krediKarti123 > 0 ? TurkceFormat.paraKalem(h.krediKarti123) : '';
     } else {
       _hasilatAylikCtrl.clear();
       _hasilatKrediKartiCtrl.clear();
@@ -182,7 +182,7 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
 
   // --- Otomatik Hesaplayıcılar ---
   void _hesaplaTevkifat() {
-    final matrah = double.tryParse(_tevkifatMatrahCtrl.text.replaceAll(',', '.')) ?? 0.0;
+    final matrah = TurkceFormat.parseSayi(_tevkifatMatrahCtrl.text);
     if (matrah <= 0) {
       _tevkifatKdvCtrl.clear();
       _tevkifatTutarCtrl.clear();
@@ -198,13 +198,13 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
     final kdv = BeyannameHesaplamaMotoru.round(matrah * (_tevkifatKdvOrani / 100.0));
     final tevkifat = BeyannameHesaplamaMotoru.round(kdv * (tanim.pay / tanim.payda));
 
-    _tevkifatKdvCtrl.text = kdv.toStringAsFixed(2);
-    _tevkifatTutarCtrl.text = tevkifat.toStringAsFixed(2);
+    _tevkifatKdvCtrl.text = TurkceFormat.paraKalem(kdv);
+    _tevkifatTutarCtrl.text = TurkceFormat.paraKalem(tevkifat);
     setState(() {});
   }
 
   double _parse(TextEditingController ctrl) =>
-      double.tryParse(ctrl.text.replaceAll(',', '.')) ?? 0.0;
+      TurkceFormat.parseSayi(ctrl.text);
 
   void _kaydetVeUygula() {
     if (_seciliBirim == null || _seciliBirim!.isEmpty) {

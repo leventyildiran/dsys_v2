@@ -60,6 +60,9 @@ class TevkifatTanimi {
 class AsgariUcretYilTablosu {
   final int yil;
 
+  /// Ay (1-12) -> aylık asgari ücret gelir vergisi matrahı (TL).
+  final Map<int, double> aylikMatrah;
+
   /// Ay (1-12) -> aylık gelir vergisi istisnası tutarı (TL).
   final Map<int, double> aylikGelirVergisi;
 
@@ -68,12 +71,15 @@ class AsgariUcretYilTablosu {
 
   const AsgariUcretYilTablosu({
     required this.yil,
+    this.aylikMatrah = const {},
     this.aylikGelirVergisi = const {},
     this.aylikDamgaVergisi = const {},
   });
 
   Map<String, dynamic> toMap() => {
         'yil': yil,
+        'aylikMatrah':
+            aylikMatrah.map((k, v) => MapEntry('$k', v)),
         'aylikGelirVergisi':
             aylikGelirVergisi.map((k, v) => MapEntry('$k', v)),
         'aylikDamgaVergisi':
@@ -83,6 +89,7 @@ class AsgariUcretYilTablosu {
   factory AsgariUcretYilTablosu.fromMap(Map<String, dynamic> map) =>
       AsgariUcretYilTablosu(
         yil: (map['yil'] as num?)?.toInt() ?? 0,
+        aylikMatrah: _aylikOku(map['aylikMatrah']),
         aylikGelirVergisi: _aylikOku(map['aylikGelirVergisi']),
         aylikDamgaVergisi: _aylikOku(map['aylikDamgaVergisi']),
       );

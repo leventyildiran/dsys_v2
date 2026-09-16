@@ -1157,12 +1157,32 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                   _cellText(TurkceFormat.para(f.kdvTutari)),
                   _cellText(TurkceFormat.para(f.tevkifatTutari), isBold: true, color: const Color(0xFFD97706)),
                   Center(
-                    child: IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.grey),
-                      splashRadius: 14,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () => provider.removeTevkifatKaydi(idx),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFFD97706)),
+                          splashRadius: 14,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          tooltip: 'Düzenle',
+                          onPressed: () => _showAddTevkifatDialog(
+                            context,
+                            provider,
+                            editIndex: idx,
+                            mevcut: f,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.grey),
+                          splashRadius: 14,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          tooltip: 'Sil',
+                          onPressed: () => provider.removeTevkifatKaydi(idx),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -1179,7 +1199,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             3: FlexColumnWidth(1.1),
             4: FlexColumnWidth(1.1),
             5: FlexColumnWidth(1.2),
-            6: FixedColumnWidth(55),
+            6: FixedColumnWidth(65),
           },
         ),
       ],
@@ -1231,12 +1251,32 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                   _cellText(TurkceFormat.para(m.netOdenen)),
                   _cellText(TurkceFormat.para(m.aylikGelirVergisiMatrahi)),
                   Center(
-                    child: IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.grey),
-                      splashRadius: 14,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () => provider.removeMuhtasarSatir(idx),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF059669)),
+                          splashRadius: 14,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          tooltip: 'Düzenle',
+                          onPressed: () => _showAddMuhtasarDialog(
+                            context,
+                            provider,
+                            editIndex: idx,
+                            mevcut: m,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.grey),
+                          splashRadius: 14,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          tooltip: 'Sil',
+                          onPressed: () => provider.removeMuhtasarSatir(idx),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -1255,7 +1295,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             5: FlexColumnWidth(1.0),
             6: FlexColumnWidth(1.1),
             7: FlexColumnWidth(1.1),
-            8: FixedColumnWidth(55),
+            8: FixedColumnWidth(65),
           },
         ),
       ],
@@ -2072,19 +2112,35 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
   }
 
 
-  void _showAddTevkifatDialog(BuildContext context, BeyannameProvider provider) {
-    final firmaCtrl = TextEditingController();
-    final vknCtrl = TextEditingController();
-    final matrahCtrl = TextEditingController();
-    final kdvCtrl = TextEditingController();
-    TevkifatTuru seciliTur = TevkifatTuru.dokuzBoluOn;
-    int kdvOrani = 20;
+  void _showAddTevkifatDialog(
+    BuildContext context,
+    BeyannameProvider provider, {
+    int? editIndex,
+    TevkifatFirmaKaydi? mevcut,
+  }) {
+    final firmaCtrl = TextEditingController(text: mevcut?.firmaAdi ?? '');
+    final vknCtrl = TextEditingController(text: mevcut?.vergiTcNo ?? '');
+    final matrahCtrl = TextEditingController(
+      text: mevcut != null && mevcut.matrahTutari > 0
+          ? TurkceFormat.paraKalem(mevcut.matrahTutari)
+          : '',
+    );
+    final kdvCtrl = TextEditingController(
+      text: mevcut != null && mevcut.kdvTutari > 0
+          ? TurkceFormat.paraKalem(mevcut.kdvTutari)
+          : '',
+    );
+    TevkifatTuru seciliTur = mevcut?.tevkifatTuru ?? TevkifatTuru.dokuzBoluOn;
+    int kdvOrani = mevcut?.kdvOrani ?? 20;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Yeni Tevkifatlı Fatura Ekle', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          title: Text(
+            mevcut != null ? 'Tevkifatlı Faturayı Düzenle' : 'Yeni Tevkifatlı Fatura Ekle',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -2121,18 +2177,24 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: matrahCtrl,
-                  decoration: const InputDecoration(labelText: 'Matrah Tutarı (TL)'),
+                  decoration: const InputDecoration(labelText: 'Matrah Tutarı (TL)', hintText: 'örn: 100.000,00'),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: const [TurkceParaInputFormatter()],
                   onChanged: (val) {
-                    final m = double.tryParse(val.replaceAll(',', '.')) ?? 0;
+                    final m = TurkceFormat.parseSayi(val);
                     if (m > 0) {
                       final kdv = BeyannameHesaplamaMotoru.round(m * (kdvOrani / 100));
-                      kdvCtrl.text = kdv.toString();
+                      kdvCtrl.text = TurkceFormat.paraKalem(kdv);
                     }
                   },
                 ),
                 const SizedBox(height: 8),
-                TextField(controller: kdvCtrl, decoration: const InputDecoration(labelText: 'KDV Tutarı (TL)')),
+                TextField(
+                  controller: kdvCtrl,
+                  decoration: const InputDecoration(labelText: 'KDV Tutarı (TL)', hintText: 'örn: 20.000,00'),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: const [TurkceParaInputFormatter()],
+                ),
               ],
             ),
           ),
@@ -2140,25 +2202,30 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
             ElevatedButton(
               onPressed: () {
-                final matrah = double.tryParse(matrahCtrl.text.replaceAll(',', '.')) ?? 0;
-                final kdv = double.tryParse(kdvCtrl.text.replaceAll(',', '.')) ?? 0;
+                final matrah = TurkceFormat.parseSayi(matrahCtrl.text);
+                final kdv = TurkceFormat.parseSayi(kdvCtrl.text);
                 final tevkifat = BeyannameHesaplamaMotoru.round(kdv * seciliTur.oran);
 
-                provider.addTevkifatKaydi(
-                  TevkifatFirmaKaydi(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    firmaAdi: firmaCtrl.text.trim(),
-                    vergiTcNo: vknCtrl.text.trim(),
-                    tevkifatTuru: seciliTur,
-                    kdvOrani: kdvOrani,
-                    matrahTutari: matrah,
-                    kdvTutari: kdv,
-                    tevkifatTutari: tevkifat,
-                  ),
+                final kayit = TevkifatFirmaKaydi(
+                  id: mevcut?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                  firmaAdi: firmaCtrl.text.trim(),
+                  vergiTcNo: vknCtrl.text.trim(),
+                  tevkifatTuru: seciliTur,
+                  kdvOrani: kdvOrani,
+                  matrahTutari: matrah,
+                  kdvTutari: kdv,
+                  tevkifatTutari: tevkifat,
+                  birimAdi: mevcut?.birimAdi,
                 );
+
+                if (editIndex != null) {
+                  provider.updateTevkifatKaydi(editIndex, kayit);
+                } else {
+                  provider.addTevkifatKaydi(kayit);
+                }
                 Navigator.pop(ctx);
               },
-              child: const Text('Kaydet'),
+              child: Text(mevcut != null ? 'Güncelle' : 'Kaydet'),
             ),
           ],
         ),
@@ -2166,7 +2233,12 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     );
   }
 
-  void _showAddMuhtasarDialog(BuildContext context, BeyannameProvider provider) {
+  void _showAddMuhtasarDialog(
+    BuildContext context,
+    BeyannameProvider provider, {
+    int? editIndex,
+    MuhtasarSatiri? mevcut,
+  }) {
     // Mevcut birim listesinden seçenekleri oluştur (varsayılan birimler + KDV 1 satırlarındaki birimler)
     final Set<String> mevcutBirimler = {};
     for (final b in BirimModel.varsayilanBirimler) {
@@ -2175,24 +2247,53 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     for (final s in provider.kdv1Satirlari) {
       if (s.birimAdi.isNotEmpty) mevcutBirimler.add(s.birimAdi);
     }
+    if (mevcut != null && mevcut.birimAdi.isNotEmpty) {
+      mevcutBirimler.add(mevcut.birimAdi);
+    }
     final birimListesi = mevcutBirimler.toList()..sort();
 
-    String seciliBirim = birimListesi.firstWhere(
-      (b) => BirimAdlandirma.canonicalKey(b) == 'dts',
-      orElse: () => birimListesi.isNotEmpty ? birimListesi.first : 'DTS',
-    );
+    String seciliBirim = mevcut != null && mevcut.birimAdi.isNotEmpty
+        ? (birimListesi.contains(mevcut.birimAdi)
+            ? mevcut.birimAdi
+            : (birimListesi.firstWhere(
+                (b) => BirimAdlandirma.canonicalKey(b) == BirimAdlandirma.canonicalKey(mevcut.birimAdi),
+                orElse: () => birimListesi.first,
+              )))
+        : birimListesi.firstWhere(
+            (b) => BirimAdlandirma.canonicalKey(b) == 'dts',
+            orElse: () => birimListesi.isNotEmpty ? birimListesi.first : 'DTS',
+          );
 
-    final adCtrl = TextEditingController();
-    final brutCtrl = TextEditingController();
-    final gvCtrl = TextEditingController();
-    final dvCtrl = TextEditingController();
-    final matrahCtrl = TextEditingController();
+    final adCtrl = TextEditingController(text: mevcut?.adSoyad ?? '');
+    final brutCtrl = TextEditingController(
+      text: mevcut != null && mevcut.brutUcret > 0
+          ? TurkceFormat.paraKalem(mevcut.brutUcret)
+          : '',
+    );
+    final gvCtrl = TextEditingController(
+      text: mevcut != null && mevcut.gelirVergisi > 0
+          ? TurkceFormat.paraKalem(mevcut.gelirVergisi)
+          : '',
+    );
+    final dvCtrl = TextEditingController(
+      text: mevcut != null && mevcut.damgaVergisi > 0
+          ? TurkceFormat.paraKalem(mevcut.damgaVergisi)
+          : '',
+    );
+    final matrahCtrl = TextEditingController(
+      text: mevcut != null && mevcut.aylikGelirVergisiMatrahi > 0
+          ? TurkceFormat.paraKalem(mevcut.aylikGelirVergisiMatrahi)
+          : '',
+    );
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Muhtasar Personel Satırı Ekle', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          title: Text(
+            mevcut != null ? 'Muhtasar Personel Satırı Düzenle' : 'Muhtasar Personel Satırı Ekle',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -2225,13 +2326,33 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 const SizedBox(height: 8),
                 TextField(controller: adCtrl, decoration: const InputDecoration(labelText: 'Personel Ad Soyad')),
                 const SizedBox(height: 8),
-                TextField(controller: brutCtrl, decoration: const InputDecoration(labelText: 'Brüt Ücret (TL)')),
+                TextField(
+                  controller: brutCtrl,
+                  decoration: const InputDecoration(labelText: 'Brüt Ücret (TL)', hintText: 'örn: 25.000,00'),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: const [TurkceParaInputFormatter()],
+                ),
                 const SizedBox(height: 8),
-                TextField(controller: gvCtrl, decoration: const InputDecoration(labelText: 'Gelir Vergisi (TL)')),
+                TextField(
+                  controller: gvCtrl,
+                  decoration: const InputDecoration(labelText: 'Gelir Vergisi (TL)', hintText: 'örn: 4.420,93'),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: const [TurkceParaInputFormatter()],
+                ),
                 const SizedBox(height: 8),
-                TextField(controller: dvCtrl, decoration: const InputDecoration(labelText: 'Damga Vergisi (TL)')),
+                TextField(
+                  controller: dvCtrl,
+                  decoration: const InputDecoration(labelText: 'Damga Vergisi (TL)', hintText: 'örn: 189,75'),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: const [TurkceParaInputFormatter()],
+                ),
                 const SizedBox(height: 8),
-                TextField(controller: matrahCtrl, decoration: const InputDecoration(labelText: 'Aylık GV Matrahı (TL)')),
+                TextField(
+                  controller: matrahCtrl,
+                  decoration: const InputDecoration(labelText: 'Aylık GV Matrahı (TL)', hintText: 'örn: 21.250,00'),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: const [TurkceParaInputFormatter()],
+                ),
               ],
             ),
           ),
@@ -2239,28 +2360,32 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
             ElevatedButton(
               onPressed: () {
-                final brut = double.tryParse(brutCtrl.text.replaceAll(',', '.')) ?? 0;
-                final gv = double.tryParse(gvCtrl.text.replaceAll(',', '.')) ?? 0;
-                final dv = double.tryParse(dvCtrl.text.replaceAll(',', '.')) ?? 0;
-                final matrah = double.tryParse(matrahCtrl.text.replaceAll(',', '.')) ?? 0;
+                final brut = TurkceFormat.parseSayi(brutCtrl.text);
+                final gv = TurkceFormat.parseSayi(gvCtrl.text);
+                final dv = TurkceFormat.parseSayi(dvCtrl.text);
+                final matrah = TurkceFormat.parseSayi(matrahCtrl.text);
                 final net = BeyannameHesaplamaMotoru.round(brut - gv - dv);
 
-                provider.addMuhtasarSatir(
-                  MuhtasarSatiri(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    birimAdi: BirimAdlandirma.tamAdGetir(seciliBirim),
-                    adSoyad: adCtrl.text.trim(),
-                    kisiSayisi: 1,
-                    brutUcret: brut,
-                    gelirVergisi: gv,
-                    damgaVergisi: dv,
-                    netOdenen: net,
-                    aylikGelirVergisiMatrahi: matrah,
-                  ),
+                final satir = MuhtasarSatiri(
+                  id: mevcut?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                  birimAdi: BirimAdlandirma.tamAdGetir(seciliBirim),
+                  adSoyad: adCtrl.text.trim(),
+                  kisiSayisi: mevcut?.kisiSayisi ?? 1,
+                  brutUcret: brut,
+                  gelirVergisi: gv,
+                  damgaVergisi: dv,
+                  netOdenen: net,
+                  aylikGelirVergisiMatrahi: matrah,
                 );
+
+                if (editIndex != null) {
+                  provider.updateMuhtasarSatir(editIndex, satir);
+                } else {
+                  provider.addMuhtasarSatir(satir);
+                }
                 Navigator.pop(ctx);
               },
-              child: const Text('Ekle'),
+              child: Text(mevcut != null ? 'Güncelle' : 'Ekle'),
             ),
           ],
         ),

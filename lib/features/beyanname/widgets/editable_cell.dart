@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/turkce_format.dart';
+
 /// Excel/Google Sheets stili, sıfır donma garantili, yerel odaklı giriş hücresi.
 /// Her tuş vuruşunda üst widget ağacını yeniden çizmez (rebuild yapmaz).
 /// Sadece kullanıcı Enter'a bastığında veya hücreden çıktığında (onFocusChange)
@@ -65,24 +67,27 @@ class _EditableCellState extends State<EditableCell> {
 
   String _formatValue(double v) {
     if (v == 0) return '';
-    if (v == v.roundToDouble()) {
-      return v.toInt().toString();
-    }
-    return v.toStringAsFixed(2).replaceAll('.', ',');
+    return TurkceFormat.paraKalem(v);
   }
 
   void _handleFocusChange() {
-    if (!_focusNode.hasFocus) {
+    if (_focusNode.hasFocus) {
+      // Hücreye odaklanıldığında metni seç, düzenleme kolaylaşsın
+      _controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _controller.text.length,
+      );
+    } else {
       _commitValue();
     }
   }
 
   void _commitValue() {
-    final text = _controller.text.trim().replaceAll('.', '').replaceAll(',', '.');
-    final parsed = double.tryParse(text) ?? 0.0;
+    final parsed = TurkceFormat.parseSayi(_controller.text.trim());
     if (parsed != widget.value) {
       widget.onSubmitted(parsed);
     }
+    _controller.text = _formatValue(parsed);
   }
 
   @override
@@ -137,8 +142,8 @@ class _EditableCellState extends State<EditableCell> {
               hintStyle: const TextStyle(fontSize: 10, color: Color(0xFFD97706), fontWeight: FontWeight.w500),
             ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            inputFormatters: const [
+              TurkceParaInputFormatter(),
             ],
             onSubmitted: (_) {
               _commitValue();
