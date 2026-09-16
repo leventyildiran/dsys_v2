@@ -18,10 +18,10 @@ class PersonelService {
   CollectionReference<Map<String, dynamic>> get _personelRef =>
       _service.collection(_collection);
 
-  /// Tüm personelleri getirir.
-  /// 1. Varsa önbellekten döner.
-  /// 2. Firestore'dan yükler.
-  /// 3. Firestore boşsa veya hata verirse yerel 'assets/data/usak_personeller.json' yedeğinden yükler.
+  /// Tüm personelleri getirir (Firebase Fatura Dostu / Sıfır Maliyet Mimarisi):
+  /// 1. Varsa bellekteki önbellekten döner (0 Read).
+  /// 2. 1.219 kişilik üniversite rehberini yerel asset'ten anında yükler (0 Read, 0 Maliyet!).
+  /// 3. Firestore'dan SADECE sonradan elle eklenmiş özel personelleri çeker (where kaynak == 'manuel').
   Future<List<PersonelModel>> getAll({
     bool forceRefresh = false,
     bool sadeceAktif = true,
@@ -34,32 +34,35 @@ class PersonelService {
 
     List<PersonelModel> list = [];
 
-    // 1. Adım: Firestore'dan çekmeyi dene
+    // 1. Adım: Önce 1.219 kişilik ana üniversite rehberini YEREL ASSET'TEN yükle (0 Firestore Read!)
     try {
-      final snapshot = await _personelRef.get();
-      if (snapshot.docs.isNotEmpty) {
-        list = snapshot.docs
-            .map((doc) => PersonelModel.fromMap(doc.id, doc.data()))
-            .toList();
-      }
+      final jsonStr = await rootBundle.loadString('assets/data/usak_personeller.json');
+      final decoded = jsonDecode(jsonStr) as List<dynamic>;
+      list = decoded.map((e) {
+        final m = e as Map<String, dynamic>;
+        final id = m['id'] as String? ?? '';
+        return PersonelModel.fromMap(id, m);
+      }).toList();
+      debugPrint('[PersonelService] Yerel rehberden ${list.length} personel sıfır maliyetle yüklendi.');
     } catch (e) {
-      debugPrint('[PersonelService.getAll] Firestore okuma hatası: $e');
+      debugPrint('[PersonelService] Yerel asset okuma hatası: $e');
     }
 
-    // 2. Adım: Firestore boşsa veya erişilemezse yerel asset'ten yükle
-    if (list.isEmpty) {
-      try {
-        final jsonStr = await rootBundle.loadString('assets/data/usak_personeller.json');
-        final decoded = jsonDecode(jsonStr) as List<dynamic>;
-        list = decoded.map((e) {
-          final m = e as Map<String, dynamic>;
-          final id = m['id'] as String? ?? '';
-          return PersonelModel.fromMap(id, m);
-        }).toList();
-        debugPrint('[PersonelService] Yerel rehber yedeğinden ${list.length} personel yüklendi.');
-      } catch (e) {
-        debugPrint('[PersonelService] Yerel asset yükleme hatası: $e');
+    // 2. Adım: Firestore'dan sadece kullanıcıların sonradan elle eklediği kayıtları çek (Kota dostu kısıtlı sorgu)
+    try {
+      final snapshot = await _personelRef.where('kaynak', isEqualTo: 'manuel').get();
+      if (snapshot.docs.isNotEmpty) {
+        for (final doc in snapshot.docs) {
+          final p = PersonelModel.fromMap(doc.id, doc.data());
+          // Listede yoksa ekle
+          if (!list.any((item) => item.id == p.id)) {
+            list.add(p);
+          }
+        }
+        debugPrint('[PersonelService] Firestore\'dan ${snapshot.docs.length} adet manuel personel senkronize edildi.');
       }
+    } catch (e) {
+      debugPrint('[PersonelService] Firestore manuel personel okuma uyarısı: $e');
     }
 
     // Sıralama (Ad Soyad'a göre Türkçe alfabetik)
