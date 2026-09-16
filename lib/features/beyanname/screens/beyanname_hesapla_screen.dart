@@ -253,11 +253,16 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
   Future<void> _beyannameKaydet(BuildContext context, BeyannameProvider provider) async {
     final ok = await provider.kaydet();
     if (context.mounted) {
+      final msg = ok
+          ? 'Beyanname başarıyla kaydedildi.'
+          : (provider.errorMessage != null && provider.errorMessage!.isNotEmpty
+              ? 'Kayıt Hatası: ${provider.errorMessage}'
+              : 'Kayıt sırasında bir hata oluştu! Lütfen tekrar deneyiniz.');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(ok ? 'Beyanname başarıyla kaydedildi.' : 'Kayıt sırasında hata oluştu!'),
+          content: Text(msg),
           backgroundColor: ok ? AppColors.success : AppColors.danger,
-          duration: const Duration(seconds: 2),
+          duration: Duration(seconds: ok ? 2 : 5),
         ),
       );
     }
@@ -512,8 +517,13 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           onSelected: (val) async {
             if (val == 'excel') {
               _defterdarlikExcelIndir(context, provider);
-            } else if (val == 'pdf') {
-              BeyannameRaporServisi.aylikRaporuYazdir(context, provider);
+            } else if (val == 'pdf_aktif') {
+              BeyannameRaporServisi.sayfaRaporuYazdir(context, provider, _activeTabIndex);
+            } else if (val == 'pdf_konsolide') {
+              BeyannameRaporServisi.sayfaRaporuYazdir(context, provider, 0);
+            } else if (val.startsWith('pdf_tab_')) {
+              final idx = int.tryParse(val.replaceAll('pdf_tab_', '')) ?? 0;
+              BeyannameRaporServisi.sayfaRaporuYazdir(context, provider, idx);
             }
           },
           itemBuilder: (ctx) => [
@@ -535,23 +545,55 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               ),
             ),
             const PopupMenuDivider(),
-            const PopupMenuItem(
-              value: 'pdf',
+            PopupMenuItem(
+              value: 'pdf_aktif',
               child: Row(
                 children: [
-                  Icon(Icons.picture_as_pdf_rounded, size: 18, color: Color(0xFF0F766E)),
+                  const Icon(Icons.picture_as_pdf_rounded, size: 18, color: Color(0xFF0F766E)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('📄 Açık Olan Masayı PDF İndir', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F766E))),
+                        Text('${_tabTitles[_activeTabIndex]} (Aktif Sayfa)', style: const TextStyle(fontSize: 10, color: AppColors.textSecondary), maxLines: 1),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'pdf_konsolide',
+              child: Row(
+                children: [
+                  Icon(Icons.print_rounded, size: 18, color: Color(0xFF1E40AF)),
                   SizedBox(width: 10),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Aylık Rapor (PDF)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      Text('Resmi döküm ve yazdırma formatı', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                      Text('📑 Konsolide İcmal Raporu (Tüm Masalar)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text('Resmi döküm ve tahakkuk icmali', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
                     ],
                   ),
                 ],
               ),
             ),
+            const PopupMenuDivider(),
+            ...List.generate(_tabTitles.length, (i) {
+              return PopupMenuItem(
+                value: 'pdf_tab_$i',
+                child: Row(
+                  children: [
+                    Icon(Icons.description_outlined, size: 16, color: _tabColors[i]),
+                    const SizedBox(width: 10),
+                    Text(_tabTitles[i], style: const TextStyle(fontSize: 11)),
+                  ],
+                ),
+              );
+            }),
           ],
           child: Container(
             height: 30,
@@ -742,7 +784,13 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // --- 1. KDV 1 BÖLÜMÜ ---
-        _buildSheetTitle('KDV 1 (HESAPLANAN & İNDİRİLECEK KDV DENGESİ)', accentColor: const Color(0xFF1D4ED8)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSheetTitle('KDV 1 (HESAPLANAN & İNDİRİLECEK KDV DENGESİ)', accentColor: const Color(0xFF1D4ED8)),
+            _buildSayfaPdfButton(context, provider, 0),
+          ],
+        ),
         const SizedBox(height: 6),
         _buildTableContainer(
           [
@@ -988,14 +1036,21 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildSheetTitle('Birim Bazlı KDV 1 Giriş Masası (Hesaplanan & İndirilecek KDV)', accentColor: const Color(0xFF1D4ED8)),
-            SizedBox(
-              height: 28,
-              child: ElevatedButton.icon(
-                onPressed: () => _showAddBirimDialog(context, provider),
-                icon: const Icon(Icons.add, size: 14),
-                label: const Text('Yeni Birim Ekle', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1D4ED8), foregroundColor: Colors.white),
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildSayfaPdfButton(context, provider, 2),
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 28,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showAddBirimDialog(context, provider),
+                    icon: const Icon(Icons.add, size: 14),
+                    label: const Text('Yeni Birim Ekle', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1D4ED8), foregroundColor: Colors.white),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1125,14 +1180,21 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildSheetTitle('KDV 2 Tevkifatlı Fatura & Firma Masası', accentColor: const Color(0xFFD97706)),
-            SizedBox(
-              height: 28,
-              child: ElevatedButton.icon(
-                onPressed: () => _showAddTevkifatDialog(context, provider),
-                icon: const Icon(Icons.add, size: 14),
-                label: const Text('Tevkifatlı Fatura Ekle', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD97706), foregroundColor: Colors.white),
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildSayfaPdfButton(context, provider, 3),
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 28,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showAddTevkifatDialog(context, provider),
+                    icon: const Icon(Icons.add, size: 14),
+                    label: const Text('Tevkifatlı Fatura Ekle', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD97706), foregroundColor: Colors.white),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1217,14 +1279,21 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildSheetTitle('Muhtasar Personel Bordro Tablosu', accentColor: const Color(0xFF059669)),
-            SizedBox(
-              height: 28,
-              child: ElevatedButton.icon(
-                onPressed: () => _showAddMuhtasarDialog(context, provider),
-                icon: const Icon(Icons.person_add_rounded, size: 14),
-                label: const Text('Personel Ekle', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF059669), foregroundColor: Colors.white),
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildSayfaPdfButton(context, provider, 4),
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 28,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showAddMuhtasarDialog(context, provider),
+                    icon: const Icon(Icons.person_add_rounded, size: 14),
+                    label: const Text('Personel Ekle', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF059669), foregroundColor: Colors.white),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1309,7 +1378,13 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSheetTitle('360.03.05 Ödemelerden Kesilen Damga Vergisi (Binde 9,48 Ters Matrah Hesabı)', accentColor: const Color(0xFF7C3AED)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSheetTitle('360.03.05 Ödemelerden Kesilen Damga Vergisi (Binde 9,48 Ters Matrah Hesabı)', accentColor: const Color(0xFF7C3AED)),
+            _buildSayfaPdfButton(context, provider, 5),
+          ],
+        ),
         const SizedBox(height: 6),
         _buildTableContainer(
           [
@@ -1429,6 +1504,8 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             _buildSheetTitle('600 Hasılat & 123 Kredi Kartı (Geçmiş Aylar Kümülatif Takibi)', accentColor: const Color(0xFF0284C7)),
             Row(
               children: [
+                _buildSayfaPdfButton(context, provider, 6),
+                const SizedBox(width: 8),
                 if (provider.seciliAy > 1)
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
@@ -1588,7 +1665,13 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // ==================== 1. TABLO: BİRİM BAZLI VERGİLER (KDV 1, DAMGA, MUHTASAR) ====================
-        _buildSheetTitle('Birim Bazlı Vergiler (KDV 1, Damga Vergisi, Muhtasar)', accentColor: const Color(0xFF15803D)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSheetTitle('Birim Bazlı Vergiler (KDV 1, Damga Vergisi, Muhtasar)', accentColor: const Color(0xFF15803D)),
+            _buildSayfaPdfButton(context, provider, 1),
+          ],
+        ),
         const SizedBox(height: 6),
         _buildTableContainer(
           [
@@ -1766,6 +1849,23 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSayfaPdfButton(BuildContext context, BeyannameProvider provider, int tabIndex) {
+    return SizedBox(
+      height: 28,
+      child: OutlinedButton.icon(
+        onPressed: () => BeyannameRaporServisi.sayfaRaporuYazdir(context, provider, tabIndex),
+        icon: const Icon(Icons.picture_as_pdf_rounded, size: 14),
+        label: const Text('PDF İndir', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF0F766E),
+          side: const BorderSide(color: Color(0xFF0F766E), width: 1),
+          backgroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+        ),
+      ),
     );
   }
 
