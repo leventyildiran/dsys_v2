@@ -2525,7 +2525,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                                 ),
                                 subtitle: p.birimAdi != null && p.birimAdi!.isNotEmpty
                                     ? Text(
-                                        '${p.birimAdi}${p.dahili != null && p.dahili!.isNotEmpty ? " • Dahili: ${p.dahili}" : ""}',
+                                        '${p.birimAdi}${p.telefon != null && p.telefon!.isNotEmpty ? " • Dahili: ${p.telefon}" : ""}',
                                         style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -2606,7 +2606,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
 
                 // Merkezi Personel Veritabanına da otomatik kazandır (arka planda)
                 if (adSoyad.isNotEmpty) {
-                  PersonelService().getOrAdd(adSoyad, birimAdi: seciliBirim).catchError((_) => null);
+                  PersonelService().getOrAdd(adSoyad: adSoyad, birimAdi: seciliBirim).catchError((_) => null);
                 }
 
                 Navigator.pop(ctx);
