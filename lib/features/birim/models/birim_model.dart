@@ -161,16 +161,6 @@ class BirimModel {
       vkn: '8960453664',
       aktif: true,
     ),
-    BirimModel(
-      id: 'default_uzem',
-      ad: 'Uzaktan Eğitim Uygulama ve Araştırma Merkezi (UZEM)',
-      kisaAd: 'UZEM',
-      tur: BirimTuru.merkez,
-      hesapAdi: 'Kurum Tek İdare Tahsilat Alt Hesabı /Uzaktan Eğitim DSİ',
-      iban: 'TR500001001758672355695003',
-      vkn: '8960466257',
-      aktif: true,
-    ),
   ];
 }
 

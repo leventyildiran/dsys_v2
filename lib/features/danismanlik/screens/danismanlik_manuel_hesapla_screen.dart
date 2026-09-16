@@ -187,7 +187,6 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
           'Deri, Tekstil ve Seramik Tasarım Uygulama ve Araştırma Merkezi',
           'Bilimsel Analiz ve Teknolojik Uygulama ve Araştırma Merkezi (UBATAM)',
           'Sürekli Eğitim Uygulama ve Araştırma Merkezi (USEM)',
-          'Uzaktan Eğitim Uygulama ve Araştırma Merkezi (UZEM)',
           'Döner Sermaye İşletme Müdürlüğü',
         ];
       }
@@ -204,7 +203,6 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
             'Deri, Tekstil ve Seramik Tasarım Uygulama ve Araştırma Merkezi',
             'Bilimsel Analiz ve Teknolojik Uygulama ve Araştırma Merkezi (UBATAM)',
             'Sürekli Eğitim Uygulama ve Araştırma Merkezi (USEM)',
-            'Uzaktan Eğitim Uygulama ve Araştırma Merkezi (UZEM)',
             'Döner Sermaye İşletme Müdürlüğü',
           ];
         });
