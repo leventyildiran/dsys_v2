@@ -2335,12 +2335,15 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     );
   }
 
-  void _showAddMuhtasarDialog(
+  Future<void> _showAddMuhtasarDialog(
     BuildContext context,
     BeyannameProvider provider, {
     int? editIndex,
     MuhtasarSatiri? mevcut,
-  }) {
+  }) async {
+    // 1.219 üniversite personelini hafızadan getir (sıfır gecikme)
+    final tumPersoneller = await PersonelService().getAll();
+
     // Mevcut birim listesinden seçenekleri oluştur (varsayılan birimler + KDV 1 satırlarındaki birimler)
     final Set<String> mevcutBirimler = {};
     for (final b in BirimModel.varsayilanBirimler) {
@@ -2367,7 +2370,9 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           );
 
     final adCtrl = TextEditingController(text: mevcut?.adSoyad ?? '');
-    final FocusNode adFocusNode = FocusNode();
+    List<PersonelModel> oneriListesi = [];
+    bool aramaYapildi = false;
+
     final brutCtrl = TextEditingController(
       text: mevcut != null && mevcut.brutUcret > 0
           ? TurkceFormat.paraKalem(mevcut.brutUcret)
@@ -2389,6 +2394,8 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           : '',
     );
 
+    if (!context.mounted) return;
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -2403,172 +2410,216 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               ),
             ],
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: seciliBirim,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Birim Seçimi',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    prefixIcon: Icon(Icons.apartment_rounded, size: 18),
-                  ),
-                  items: birimListesi.map((b) {
-                    final kisa = BirimAdlandirma.kisaAdGetir(b);
-                    return DropdownMenuItem(
-                      value: b,
-                      child: Text(
-                        '$kisa - $b',
-                        style: const TextStyle(fontSize: 12),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setDialogState(() => seciliBirim = val);
-                    }
-                  },
-                ),
-                const SizedBox(height: 10),
-                RawAutocomplete<PersonelModel>(
-                  textEditingController: adCtrl,
-                  focusNode: adFocusNode,
-                  optionsBuilder: (TextEditingValue textEditingValue) async {
-                    final query = textEditingValue.text.trim();
-                    if (query.length < 2) return const Iterable<PersonelModel>.empty();
-                    final list = await PersonelService().search(query);
-                    return list.take(15);
-                  },
-                  displayStringForOption: (PersonelModel option) => option.tamAdGosterim,
-                  onSelected: (PersonelModel selection) {
-                    adCtrl.text = selection.tamAdGosterim;
-                    if (selection.birimAdi != null && selection.birimAdi!.trim().isNotEmpty) {
-                      final pBirim = selection.birimAdi!.trim();
-                      final match = birimListesi.firstWhere(
-                        (b) => BirimAdlandirma.canonicalKey(b) == BirimAdlandirma.canonicalKey(pBirim) ||
-                               b.toLowerCase() == pBirim.toLowerCase(),
-                        orElse: () => '',
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: seciliBirim,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Birim Seçimi',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      prefixIcon: Icon(Icons.apartment_rounded, size: 18),
+                    ),
+                    items: birimListesi.map((b) {
+                      final kisa = BirimAdlandirma.kisaAdGetir(b);
+                      return DropdownMenuItem(
+                        value: b,
+                        child: Text(
+                          '$kisa - $b',
+                          style: const TextStyle(fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
-                      if (match.isNotEmpty) {
-                        setDialogState(() => seciliBirim = match);
-                      } else {
-                        if (!birimListesi.contains(pBirim)) {
-                          birimListesi.add(pBirim);
-                          birimListesi.sort();
-                        }
-                        setDialogState(() => seciliBirim = pBirim);
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() => seciliBirim = val);
                       }
-                    }
-                  },
-                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                    return TextField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      onSubmitted: (_) => onFieldSubmitted(),
-                      decoration: InputDecoration(
-                        labelText: 'Personel Ad Soyad (Rehberden Otomatik Tamamlama)',
-                        hintText: 'İsim, unvan veya birim yazarak arayın...',
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                        prefixIcon: const Icon(Icons.person_search_rounded, size: 20, color: Color(0xFF059669)),
-                        suffixIcon: controller.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear_rounded, size: 18),
-                                splashRadius: 14,
-                                onPressed: () {
-                                  controller.clear();
-                                  setDialogState(() {});
-                                },
-                              )
-                            : null,
-                      ),
-                    );
-                  },
-                  optionsViewBuilder: (context, onSelected, options) {
-                    return Align(
-                      alignment: Alignment.topLeft,
-                      child: Material(
-                        elevation: 8,
-                        borderRadius: BorderRadius.circular(8),
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  // AKILLI PERSONEL ARAMA VE TAMAMLAMA METİN KUTUSU
+                  TextField(
+                    controller: adCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Personel Ad Soyad (Üniversite Rehberi)',
+                      hintText: 'Ad, unvan veya birim yazarak arayın...',
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      prefixIcon: const Icon(Icons.person_search_rounded, size: 20, color: Color(0xFF059669)),
+                      suffixIcon: adCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 18),
+                              splashRadius: 14,
+                              onPressed: () {
+                                adCtrl.clear();
+                                setDialogState(() {
+                                  oneriListesi = [];
+                                  aramaYapildi = false;
+                                });
+                              },
+                            )
+                          : null,
+                    ),
+                    onChanged: (val) {
+                      final q = PersonelService.normalizeMetin(val);
+                      setDialogState(() {
+                        if (q.length < 2) {
+                          oneriListesi = [];
+                          aramaYapildi = false;
+                        } else {
+                          oneriListesi = tumPersoneller.where((p) {
+                            final ad = PersonelService.normalizeMetin(p.adSoyad);
+                            final unvan = PersonelService.normalizeMetin(p.unvan);
+                            final birim = PersonelService.normalizeMetin(p.birimAdi ?? '');
+                            return ad.contains(q) || unvan.contains(q) || birim.contains(q);
+                          }).take(8).toList();
+                          aramaYapildi = true;
+                        }
+                      });
+                    },
+                  ),
+                  // DİNAMİK CANLI ÖNERİ LİSTESİ (Sıfır gecikme, overlay hatası yok)
+                  if (aramaYapildi && oneriListesi.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      decoration: BoxDecoration(
                         color: Colors.white,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 260, maxWidth: 440),
-                          child: ListView.separated(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            shrinkWrap: true,
-                            itemCount: options.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                            itemBuilder: (context, index) {
-                              final p = options.elementAt(index);
-                              final isAkademik = p.personelTuru == 'Akademik';
-                              return ListTile(
-                                dense: true,
-                                leading: CircleAvatar(
-                                  radius: 14,
-                                  backgroundColor: isAkademik
-                                      ? const Color(0xFF1E40AF).withValues(alpha: 0.12)
-                                      : const Color(0xFF059669).withValues(alpha: 0.12),
-                                  child: Icon(
-                                    isAkademik ? Icons.school_rounded : Icons.badge_rounded,
-                                    size: 14,
-                                    color: isAkademik ? const Color(0xFF1E40AF) : const Color(0xFF059669),
-                                  ),
-                                ),
-                                title: Text(
-                                  p.tamAdGosterim,
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                                ),
-                                subtitle: p.birimAdi != null && p.birimAdi!.isNotEmpty
-                                    ? Text(
-                                        '${p.birimAdi}${p.telefon != null && p.telefon!.isNotEmpty ? " • Dahili: ${p.telefon}" : ""}',
-                                        style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      )
-                                    : null,
-                                onTap: () => onSelected(p),
-                              );
-                            },
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF059669), width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
                           ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(7),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.zero,
+                          itemCount: oneriListesi.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                          itemBuilder: (ctx, idx) {
+                            final p = oneriListesi[idx];
+                            final isAkademik = p.personelTuru == 'Akademik';
+                            return ListTile(
+                              dense: true,
+                              tileColor: idx.isEven ? Colors.white : const Color(0xFFF8FAFC),
+                              leading: CircleAvatar(
+                                radius: 13,
+                                backgroundColor: isAkademik
+                                    ? const Color(0xFF1E40AF).withValues(alpha: 0.12)
+                                    : const Color(0xFF059669).withValues(alpha: 0.12),
+                                child: Icon(
+                                  isAkademik ? Icons.school_rounded : Icons.badge_rounded,
+                                  size: 13,
+                                  color: isAkademik ? const Color(0xFF1E40AF) : const Color(0xFF059669),
+                                ),
+                              ),
+                              title: Text(
+                                p.tamAdGosterim,
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                              ),
+                              subtitle: p.birimAdi != null && p.birimAdi!.isNotEmpty
+                                  ? Text(
+                                      '${p.birimAdi}${p.telefon != null && p.telefon!.isNotEmpty ? " • Dahili: ${p.telefon}" : ""}',
+                                      style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    )
+                                  : null,
+                              onTap: () {
+                                adCtrl.text = p.tamAdGosterim;
+                                if (p.birimAdi != null && p.birimAdi!.trim().isNotEmpty) {
+                                  final pBirim = p.birimAdi!.trim();
+                                  final match = birimListesi.firstWhere(
+                                    (b) => BirimAdlandirma.canonicalKey(b) == BirimAdlandirma.canonicalKey(pBirim) ||
+                                           b.toLowerCase() == pBirim.toLowerCase(),
+                                    orElse: () => '',
+                                  );
+                                  if (match.isNotEmpty) {
+                                    seciliBirim = match;
+                                  } else {
+                                    if (!birimListesi.contains(pBirim)) {
+                                      birimListesi.add(pBirim);
+                                      birimListesi.sort();
+                                    }
+                                    seciliBirim = pBirim;
+                                  }
+                                }
+                                setDialogState(() {
+                                  oneriListesi = [];
+                                  aramaYapildi = false;
+                                });
+                              },
+                            );
+                          },
                         ),
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: brutCtrl,
-                  decoration: const InputDecoration(labelText: 'Brüt Ücret (TL)', hintText: 'örn: 25.000,00'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: const [TurkceParaInputFormatter()],
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: gvCtrl,
-                  decoration: const InputDecoration(labelText: 'Gelir Vergisi (TL)', hintText: 'örn: 4.420,93'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: const [TurkceParaInputFormatter()],
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: dvCtrl,
-                  decoration: const InputDecoration(labelText: 'Damga Vergisi (TL)', hintText: 'örn: 189,75'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: const [TurkceParaInputFormatter()],
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: matrahCtrl,
-                  decoration: const InputDecoration(labelText: 'Aylık GV Matrahı (TL)', hintText: 'örn: 21.250,00'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: const [TurkceParaInputFormatter()],
-                ),
-              ],
+                    ),
+                  ] else if (aramaYapildi && oneriListesi.isEmpty) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF64748B)),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Rehberde kayıt bulunamadı. Dilerseniz bu ismi elle yazıp doğrudan ekleyebilirsiniz.',
+                              style: TextStyle(fontSize: 10.5, color: Color(0xFF475569)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: brutCtrl,
+                    decoration: const InputDecoration(labelText: 'Brüt Ücret (TL)', hintText: 'örn: 25.000,00'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: const [TurkceParaInputFormatter()],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: gvCtrl,
+                    decoration: const InputDecoration(labelText: 'Gelir Vergisi (TL)', hintText: 'örn: 4.420,93'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: const [TurkceParaInputFormatter()],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: dvCtrl,
+                    decoration: const InputDecoration(labelText: 'Damga Vergisi (TL)', hintText: 'örn: 189,75'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: const [TurkceParaInputFormatter()],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: matrahCtrl,
+                    decoration: const InputDecoration(labelText: 'Aylık GV Matrahı (TL)', hintText: 'örn: 21.250,00'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: const [TurkceParaInputFormatter()],
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
