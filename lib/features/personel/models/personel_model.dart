@@ -1,12 +1,18 @@
-/// Akademik personel modeli.
+/// Üniversite personeli modeli (Akademik & İdari).
 class PersonelModel {
   const PersonelModel({
     required this.id,
-    required this.tcKimlikNo,
+    this.tcKimlikNo = '',
     required this.adSoyad,
-    required this.unvan,
-    required this.unvanKatsayisi,
-    required this.birimId,
+    this.unvan = '',
+    this.unvanKatsayisi = 1.0,
+    this.birimId = '',
+    this.birimAdi,
+    this.eposta,
+    this.telefon,
+    this.personelTuru = 'Akademik', // 'Akademik' | 'İdari'
+    this.kaynak = 'manuel', // 'rehber' | 'manuel'
+    this.rehberId,
     this.iban,
     this.aktif = true,
   });
@@ -17,8 +23,23 @@ class PersonelModel {
   final String unvan;
   final double unvanKatsayisi;
   final String birimId;
+  final String? birimAdi;
+  final String? eposta;
+  final String? telefon;
+  final String personelTuru;
+  final String kaynak;
+  final String? rehberId;
   final String? iban;
   final bool aktif;
+
+  /// Ekranda listelenirken kullanılacak unvanlı ve birimli kurumsal etiket
+  String get tamAdGosterim {
+    final u = unvan.trim();
+    final ad = adSoyad.trim();
+    final b = (birimAdi ?? '').trim();
+    final baslik = u.isNotEmpty ? '$u $ad' : ad;
+    return b.isNotEmpty ? '$baslik ($b)' : baslik;
+  }
 
   factory PersonelModel.fromMap(String id, Map<String, dynamic> map) {
     return PersonelModel(
@@ -28,6 +49,12 @@ class PersonelModel {
       unvan: map['unvan'] as String? ?? '',
       unvanKatsayisi: (map['unvanKatsayisi'] as num?)?.toDouble() ?? 1.0,
       birimId: map['birimId'] as String? ?? '',
+      birimAdi: map['birimAdi'] as String?,
+      eposta: map['eposta'] as String?,
+      telefon: map['telefon'] as String?,
+      personelTuru: map['personelTuru'] as String? ?? 'Akademik',
+      kaynak: map['kaynak'] as String? ?? 'manuel',
+      rehberId: map['rehberId'] as String?,
       iban: map['iban'] as String?,
       aktif: map['aktif'] as bool? ?? true,
     );
@@ -41,7 +68,13 @@ class PersonelModel {
       'unvan': unvan,
       'unvanKatsayisi': unvanKatsayisi,
       'birimId': birimId,
-      'iban': iban,
+      if (birimAdi != null) 'birimAdi': birimAdi,
+      if (eposta != null) 'eposta': eposta,
+      if (telefon != null) 'telefon': telefon,
+      'personelTuru': personelTuru,
+      'kaynak': kaynak,
+      if (rehberId != null) 'rehberId': rehberId,
+      if (iban != null) 'iban': iban,
       'aktif': aktif,
     };
   }
@@ -52,6 +85,12 @@ class PersonelModel {
     String? unvan,
     double? unvanKatsayisi,
     String? birimId,
+    String? birimAdi,
+    String? eposta,
+    String? telefon,
+    String? personelTuru,
+    String? kaynak,
+    String? rehberId,
     String? iban,
     bool? aktif,
   }) {
@@ -62,6 +101,12 @@ class PersonelModel {
       unvan: unvan ?? this.unvan,
       unvanKatsayisi: unvanKatsayisi ?? this.unvanKatsayisi,
       birimId: birimId ?? this.birimId,
+      birimAdi: birimAdi ?? this.birimAdi,
+      eposta: eposta ?? this.eposta,
+      telefon: telefon ?? this.telefon,
+      personelTuru: personelTuru ?? this.personelTuru,
+      kaynak: kaynak ?? this.kaynak,
+      rehberId: rehberId ?? this.rehberId,
       iban: iban ?? this.iban,
       aktif: aktif ?? this.aktif,
     );

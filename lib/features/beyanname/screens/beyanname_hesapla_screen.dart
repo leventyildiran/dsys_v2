@@ -9,6 +9,8 @@ import '../services/beyanname_rapor_servisi.dart';
 import '../services/beyanname_excel_servisi.dart';
 import '../widgets/editable_cell.dart';
 import '../../birim/models/birim_model.dart';
+import '../../personel/models/personel_model.dart';
+import '../../personel/services/personel_service.dart';
 import 'hizli_veri_girisi_dialog.dart';
 import 'vergi_arama_dialog.dart';
 
@@ -2365,6 +2367,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           );
 
     final adCtrl = TextEditingController(text: mevcut?.adSoyad ?? '');
+    final FocusNode adFocusNode = FocusNode();
     final brutCtrl = TextEditingController(
       text: mevcut != null && mevcut.brutUcret > 0
           ? TurkceFormat.paraKalem(mevcut.brutUcret)
@@ -2390,13 +2393,20 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(
-            mevcut != null ? 'Muhtasar Personel Satırı Düzenle' : 'Muhtasar Personel Satırı Ekle',
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          title: Row(
+            children: [
+              const Icon(Icons.badge_rounded, color: Color(0xFF059669), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                mevcut != null ? 'Muhtasar Personel Satırı Düzenle' : 'Muhtasar Personel Satırı Ekle',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+            ],
           ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 DropdownButtonFormField<String>(
                   value: seciliBirim,
@@ -2405,6 +2415,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                     labelText: 'Birim Seçimi',
                     border: OutlineInputBorder(),
                     contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    prefixIcon: Icon(Icons.apartment_rounded, size: 18),
                   ),
                   items: birimListesi.map((b) {
                     final kisa = BirimAdlandirma.kisaAdGetir(b);
@@ -2423,9 +2434,113 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                     }
                   },
                 ),
-                const SizedBox(height: 8),
-                TextField(controller: adCtrl, decoration: const InputDecoration(labelText: 'Personel Ad Soyad')),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
+                RawAutocomplete<PersonelModel>(
+                  textEditingController: adCtrl,
+                  focusNode: adFocusNode,
+                  optionsBuilder: (TextEditingValue textEditingValue) async {
+                    final query = textEditingValue.text.trim();
+                    if (query.length < 2) return const Iterable<PersonelModel>.empty();
+                    final list = await PersonelService().search(query);
+                    return list.take(15);
+                  },
+                  displayStringForOption: (PersonelModel option) => option.tamAdGosterim,
+                  onSelected: (PersonelModel selection) {
+                    adCtrl.text = selection.tamAdGosterim;
+                    if (selection.birimAdi != null && selection.birimAdi!.trim().isNotEmpty) {
+                      final pBirim = selection.birimAdi!.trim();
+                      final match = birimListesi.firstWhere(
+                        (b) => BirimAdlandirma.canonicalKey(b) == BirimAdlandirma.canonicalKey(pBirim) ||
+                               b.toLowerCase() == pBirim.toLowerCase(),
+                        orElse: () => '',
+                      );
+                      if (match.isNotEmpty) {
+                        setDialogState(() => seciliBirim = match);
+                      } else {
+                        if (!birimListesi.contains(pBirim)) {
+                          birimListesi.add(pBirim);
+                          birimListesi.sort();
+                        }
+                        setDialogState(() => seciliBirim = pBirim);
+                      }
+                    }
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                    return TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      onSubmitted: (_) => onFieldSubmitted(),
+                      decoration: InputDecoration(
+                        labelText: 'Personel Ad Soyad (Rehberden Otomatik Tamamlama)',
+                        hintText: 'İsim, unvan veya birim yazarak arayın...',
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                        prefixIcon: const Icon(Icons.person_search_rounded, size: 20, color: Color(0xFF059669)),
+                        suffixIcon: controller.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded, size: 18),
+                                splashRadius: 14,
+                                onPressed: () {
+                                  controller.clear();
+                                  setDialogState(() {});
+                                },
+                              )
+                            : null,
+                      ),
+                    );
+                  },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 8,
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.white,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 260, maxWidth: 440),
+                          child: ListView.separated(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                            itemBuilder: (context, index) {
+                              final p = options.elementAt(index);
+                              final isAkademik = p.personelTuru == 'Akademik';
+                              return ListTile(
+                                dense: true,
+                                leading: CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: isAkademik
+                                      ? const Color(0xFF1E40AF).withValues(alpha: 0.12)
+                                      : const Color(0xFF059669).withValues(alpha: 0.12),
+                                  child: Icon(
+                                    isAkademik ? Icons.school_rounded : Icons.badge_rounded,
+                                    size: 14,
+                                    color: isAkademik ? const Color(0xFF1E40AF) : const Color(0xFF059669),
+                                  ),
+                                ),
+                                title: Text(
+                                  p.tamAdGosterim,
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                ),
+                                subtitle: p.birimAdi != null && p.birimAdi!.isNotEmpty
+                                    ? Text(
+                                        '${p.birimAdi}${p.dahili != null && p.dahili!.isNotEmpty ? " • Dahili: ${p.dahili}" : ""}',
+                                        style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      )
+                                    : null,
+                                onTap: () => onSelected(p),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: brutCtrl,
                   decoration: const InputDecoration(labelText: 'Brüt Ücret (TL)', hintText: 'örn: 25.000,00'),
@@ -2459,17 +2574,22 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF059669),
+                foregroundColor: Colors.white,
+              ),
               onPressed: () {
                 final brut = TurkceFormat.parseSayi(brutCtrl.text);
                 final gv = TurkceFormat.parseSayi(gvCtrl.text);
                 final dv = TurkceFormat.parseSayi(dvCtrl.text);
                 final matrah = TurkceFormat.parseSayi(matrahCtrl.text);
                 final net = BeyannameHesaplamaMotoru.round(brut - gv - dv);
+                final adSoyad = adCtrl.text.trim();
 
                 final satir = MuhtasarSatiri(
                   id: mevcut?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
                   birimAdi: BirimAdlandirma.tamAdGetir(seciliBirim),
-                  adSoyad: adCtrl.text.trim(),
+                  adSoyad: adSoyad,
                   kisiSayisi: mevcut?.kisiSayisi ?? 1,
                   brutUcret: brut,
                   gelirVergisi: gv,
@@ -2483,6 +2603,12 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 } else {
                   provider.addMuhtasarSatir(satir);
                 }
+
+                // Merkezi Personel Veritabanına da otomatik kazandır (arka planda)
+                if (adSoyad.isNotEmpty) {
+                  PersonelService().getOrAdd(adSoyad, birimAdi: seciliBirim).catchError((_) => null);
+                }
+
                 Navigator.pop(ctx);
               },
               child: Text(mevcut != null ? 'Güncelle' : 'Ekle'),

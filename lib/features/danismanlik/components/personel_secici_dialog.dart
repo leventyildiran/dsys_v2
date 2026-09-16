@@ -5,6 +5,7 @@ import '../../personel/services/personel_service.dart';
 import '../../birim/models/birim_model.dart';
 import '../../birim/services/birim_service.dart';
 import '../../../core/services/sistem_ayarlari_service.dart';
+import '../../../core/turkce_format.dart';
 
 class PersonelSeciciDialog extends StatefulWidget {
   const PersonelSeciciDialog({
@@ -94,12 +95,17 @@ class _PersonelSeciciDialogState extends State<PersonelSeciciDialog> {
   }
 
   List<PersonelModel> get _filteredPersoneller {
-    final query = _aramaController.text.trim().toLowerCase();
+    final query = TurkceFormat.normalizeArama(_aramaController.text);
     if (query.isEmpty) return _personeller;
     return _personeller.where((p) {
-      return p.adSoyad.toLowerCase().contains(query) ||
-          p.unvan.toLowerCase().contains(query) ||
-          p.tcKimlikNo.contains(query);
+      final ad = TurkceFormat.normalizeArama(p.adSoyad);
+      final unvan = TurkceFormat.normalizeArama(p.unvan);
+      final birim = TurkceFormat.normalizeArama(p.birimAdi ?? p.birimId);
+      final tc = p.tcKimlikNo.trim();
+      return ad.contains(query) ||
+          unvan.contains(query) ||
+          birim.contains(query) ||
+          tc.contains(query);
     }).toList();
   }
 
@@ -206,13 +212,22 @@ class _PersonelSeciciDialogState extends State<PersonelSeciciDialog> {
                     itemBuilder: (context, index) {
                       final p = _filteredPersoneller[index];
                       return ListTile(
-                        leading: const CircleAvatar(
-                          child: Icon(Icons.person_outline),
+                        leading: CircleAvatar(
+                          child: Icon(
+                            p.personelTuru == 'Akademik'
+                                ? Icons.school_rounded
+                                : Icons.person_outline,
+                          ),
                         ),
-                        title: Text('${p.unvan} ${p.adSoyad}'),
+                        title: Text(p.tamAdGosterim),
                         subtitle: Text(
                           [
-                            if (p.birimId.isNotEmpty) p.birimId,
+                            if (p.birimAdi != null && p.birimAdi!.isNotEmpty)
+                              p.birimAdi!
+                            else if (p.birimId.isNotEmpty)
+                              p.birimId,
+                            if (p.personelTuru != null && p.personelTuru!.isNotEmpty)
+                              p.personelTuru!,
                             if (p.tcKimlikNo.isNotEmpty) p.tcKimlikNo,
                           ].join(' • '),
                         ),
