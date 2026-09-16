@@ -218,10 +218,19 @@ class MuhtasarSatiri {
   final double netOdenen;
   final double aylikGelirVergisiMatrahi;
 
+  final String? unvan;
+
+  /// Ekranda veya Excel/PDF dökümünde parantezli birim bilgisi arındırılmış saf personel ismi
+  String get temizAdSoyad {
+    final temiz = adSoyad.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+    return temiz.isNotEmpty ? temiz : adSoyad;
+  }
+
   const MuhtasarSatiri({
     required this.id,
     required this.birimAdi,
     this.adSoyad = '',
+    this.unvan,
     this.kisiSayisi = 1,
     this.brutUcret = 0.0,
     this.gelirVergisi = 0.0,
@@ -234,6 +243,7 @@ class MuhtasarSatiri {
     String? id,
     String? birimAdi,
     String? adSoyad,
+    String? unvan,
     int? kisiSayisi,
     double? brutUcret,
     double? gelirVergisi,
@@ -245,6 +255,7 @@ class MuhtasarSatiri {
       id: id ?? this.id,
       birimAdi: birimAdi ?? this.birimAdi,
       adSoyad: adSoyad ?? this.adSoyad,
+      unvan: unvan ?? this.unvan,
       kisiSayisi: kisiSayisi ?? this.kisiSayisi,
       brutUcret: brutUcret ?? this.brutUcret,
       gelirVergisi: gelirVergisi ?? this.gelirVergisi,
@@ -258,6 +269,7 @@ class MuhtasarSatiri {
         'id': id,
         'birimAdi': birimAdi,
         'adSoyad': adSoyad,
+        if (unvan != null && unvan!.isNotEmpty) 'unvan': unvan,
         'kisiSayisi': kisiSayisi,
         'brutUcret': brutUcret,
         'gelirVergisi': gelirVergisi,
@@ -270,6 +282,7 @@ class MuhtasarSatiri {
         id: map['id'] as String? ?? '',
         birimAdi: map['birimAdi'] as String? ?? '',
         adSoyad: map['adSoyad'] as String? ?? '',
+        unvan: map['unvan'] as String?,
         kisiSayisi: (map['kisiSayisi'] as num?)?.toInt() ?? 1,
         brutUcret: (map['brutUcret'] as num?)?.toDouble() ?? 0.0,
         gelirVergisi: (map['gelirVergisi'] as num?)?.toDouble() ?? 0.0,

@@ -1314,7 +1314,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 decoration: BoxDecoration(color: idx.isEven ? Colors.white : const Color(0xFFFAFAFA)),
                 children: [
                   _buildBirimCell(m.birimAdi),
-                  _cellText(m.adSoyad, align: TextAlign.left),
+                  _buildPersonelAdSoyadCell(m),
                   _cellText('${m.kisiSayisi}', align: TextAlign.center),
                   _cellText(TurkceFormat.para(m.brutUcret)),
                   _cellText(TurkceFormat.para(m.gelirVergisi)),
@@ -1370,6 +1370,54 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildPersonelAdSoyadCell(MuhtasarSatiri m) {
+    final isim = m.temizAdSoyad;
+    final unvan = (m.unvan ?? '').trim();
+    final birim = m.birimAdi.trim();
+
+    final List<String> detaylar = [];
+    if (unvan.isNotEmpty) detaylar.add('👤 Ünvan: $unvan');
+    if (birim.isNotEmpty) detaylar.add('🏛️ Birim: $birim');
+
+    final tooltipMesaji = detaylar.isNotEmpty ? detaylar.join('\n') : isim;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Tooltip(
+        message: tooltipMesaji,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A),
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        textStyle: const TextStyle(fontSize: 11.5, color: Colors.white, height: 1.4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                isim,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (unvan.isNotEmpty || birim.isNotEmpty) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.info_outline_rounded, size: 13, color: Color(0xFF94A3B8)),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -2369,7 +2417,8 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             orElse: () => birimListesi.isNotEmpty ? birimListesi.first : 'DTS',
           );
 
-    final adCtrl = TextEditingController(text: mevcut?.adSoyad ?? '');
+    final adCtrl = TextEditingController(text: mevcut?.temizAdSoyad ?? '');
+    String? seciliUnvan = mevcut?.unvan;
     List<PersonelModel> oneriListesi = [];
     bool aramaYapildi = false;
 
@@ -2527,19 +2576,22 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                                 ),
                               ),
                               title: Text(
-                                p.tamAdGosterim,
+                                p.adSoyad,
                                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                               ),
-                              subtitle: p.birimAdi != null && p.birimAdi!.isNotEmpty
-                                  ? Text(
-                                      '${p.birimAdi}${p.telefon != null && p.telefon!.isNotEmpty ? " • Dahili: ${p.telefon}" : ""}',
-                                      style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    )
-                                  : null,
+                              subtitle: Text(
+                                [
+                                  if (p.unvan.isNotEmpty) p.unvan,
+                                  if (p.birimAdi != null && p.birimAdi!.isNotEmpty) p.birimAdi!,
+                                  if (p.telefon != null && p.telefon!.isNotEmpty) 'Dahili: ${p.telefon}',
+                                ].join(' • '),
+                                style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                               onTap: () {
-                                adCtrl.text = p.tamAdGosterim;
+                                adCtrl.text = p.adSoyad.trim();
+                                seciliUnvan = p.unvan.isNotEmpty ? p.unvan : null;
                                 if (p.birimAdi != null && p.birimAdi!.trim().isNotEmpty) {
                                   final pBirim = p.birimAdi!.trim();
                                   final match = birimListesi.firstWhere(
@@ -2641,6 +2693,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                   id: mevcut?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
                   birimAdi: BirimAdlandirma.tamAdGetir(seciliBirim),
                   adSoyad: adSoyad,
+                  unvan: seciliUnvan,
                   kisiSayisi: mevcut?.kisiSayisi ?? 1,
                   brutUcret: brut,
                   gelirVergisi: gv,

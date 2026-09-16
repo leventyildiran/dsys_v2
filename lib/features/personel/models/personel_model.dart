@@ -32,13 +32,11 @@ class PersonelModel {
   final String? iban;
   final bool aktif;
 
-  /// Ekranda listelenirken kullanılacak unvanlı ve birimli kurumsal etiket
+  /// Ekranda listelenirken kullanılacak unvanlı etiket (Birim eklenmez, sadece unvan ve isim)
   String get tamAdGosterim {
     final u = unvan.trim();
     final ad = adSoyad.trim();
-    final b = (birimAdi ?? '').trim();
-    final baslik = u.isNotEmpty ? '$u $ad' : ad;
-    return b.isNotEmpty ? '$baslik ($b)' : baslik;
+    return u.isNotEmpty ? '$u $ad' : ad;
   }
 
   factory PersonelModel.fromMap(String id, Map<String, dynamic> map) {

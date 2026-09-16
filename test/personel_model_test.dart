@@ -1,10 +1,11 @@
 ﻿import 'package:flutter_test/flutter_test.dart';
 import 'package:dsys_v2/features/personel/models/personel_model.dart';
 import 'package:dsys_v2/features/personel/services/personel_service.dart';
+import 'package:dsys_v2/features/beyanname/models/beyanname_model.dart';
 
 void main() {
   group('PersonelModel Tests', () {
-    test('tamAdGosterim returns unvan + adSoyad + birim when present', () {
+    test('tamAdGosterim returns unvan + adSoyad without birim', () {
       final p = PersonelModel(
         id: '1',
         adSoyad: 'Ahmet Yılmaz',
@@ -12,10 +13,10 @@ void main() {
         birimAdi: 'Mühendislik Fakültesi',
         personelTuru: 'Akademik',
       );
-      expect(p.tamAdGosterim, equals('Prof. Dr. Ahmet Yılmaz (Mühendislik Fakültesi)'));
+      expect(p.tamAdGosterim, equals('Prof. Dr. Ahmet Yılmaz'));
     });
 
-    test('tamAdGosterim without birim returns unvan + adSoyad', () {
+    test('tamAdGosterim without unvan returns only adSoyad', () {
       final p1 = PersonelModel(
         id: '2',
         adSoyad: 'Mehmet Demir',
@@ -56,6 +57,24 @@ void main() {
       final serialized = p.toMap();
       expect(serialized['birimAdi'], equals('Tıp Fakültesi'));
       expect(serialized['eposta'], equals('ayse.kaya@usak.edu.tr'));
+    });
+  });
+
+  group('MuhtasarSatiri Tests', () {
+    test('temizAdSoyad strips trailing parenthesized unit name', () {
+      const satir1 = MuhtasarSatiri(
+        id: '1',
+        birimAdi: 'DÖSİM',
+        adSoyad: 'İŞLETME MÜDÜRÜ ERCAN BİLGEÇ (Döner Sermaye İşletme Müdürlüğü)',
+      );
+      expect(satir1.temizAdSoyad, equals('İŞLETME MÜDÜRÜ ERCAN BİLGEÇ'));
+
+      const satir2 = MuhtasarSatiri(
+        id: '2',
+        birimAdi: 'UBATAM',
+        adSoyad: 'ERCAN BİLGEÇ',
+      );
+      expect(satir2.temizAdSoyad, equals('ERCAN BİLGEÇ'));
     });
   });
 
