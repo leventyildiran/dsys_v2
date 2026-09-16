@@ -5,7 +5,6 @@ import '../../personel/services/personel_service.dart';
 import '../../birim/models/birim_model.dart';
 import '../../birim/services/birim_service.dart';
 import '../../../core/services/sistem_ayarlari_service.dart';
-import '../../../core/turkce_format.dart';
 
 class PersonelSeciciDialog extends StatefulWidget {
   const PersonelSeciciDialog({
@@ -95,12 +94,12 @@ class _PersonelSeciciDialogState extends State<PersonelSeciciDialog> {
   }
 
   List<PersonelModel> get _filteredPersoneller {
-    final query = TurkceFormat.normalizeArama(_aramaController.text);
+    final query = PersonelService.normalizeMetin(_aramaController.text);
     if (query.isEmpty) return _personeller;
     return _personeller.where((p) {
-      final ad = TurkceFormat.normalizeArama(p.adSoyad);
-      final unvan = TurkceFormat.normalizeArama(p.unvan);
-      final birim = TurkceFormat.normalizeArama(p.birimAdi ?? p.birimId);
+      final ad = PersonelService.normalizeMetin(p.adSoyad);
+      final unvan = PersonelService.normalizeMetin(p.unvan);
+      final birim = PersonelService.normalizeMetin(p.birimAdi ?? p.birimId);
       final tc = p.tcKimlikNo.trim();
       return ad.contains(query) ||
           unvan.contains(query) ||
@@ -226,8 +225,8 @@ class _PersonelSeciciDialogState extends State<PersonelSeciciDialog> {
                               p.birimAdi!
                             else if (p.birimId.isNotEmpty)
                               p.birimId,
-                            if (p.personelTuru != null && p.personelTuru!.isNotEmpty)
-                              p.personelTuru!,
+                            if (p.personelTuru.isNotEmpty)
+                              p.personelTuru,
                             if (p.tcKimlikNo.isNotEmpty) p.tcKimlikNo,
                           ].join(' • '),
                         ),
