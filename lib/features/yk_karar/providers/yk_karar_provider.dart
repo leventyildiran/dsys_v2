@@ -394,7 +394,6 @@ class YkKararProvider extends ChangeNotifier {
         for (final m in const [
           'gemini-3.6-flash',
           'gemini-3.8-flash',
-          'gemini-flash-latest',
         ]) {
           if (!modelOrder.contains(m)) modelOrder.add(m);
         }
@@ -494,7 +493,6 @@ class YkKararProvider extends ChangeNotifier {
         for (final m in const [
           'gemini-3.6-flash',
           'gemini-3.8-flash',
-          'gemini-flash-latest',
         ]) {
           if (!modelOrder.contains(m)) modelOrder.add(m);
         }

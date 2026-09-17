@@ -21,6 +21,7 @@ import '../services/fatura_arsiv_export_servisi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/excel_universal_parser.dart';
 import '../services/fatura_pdf_uretici.dart';
+import '../services/fatura_dogrulama_servisi.dart';
 import 'fatura_kuyruk_provider.dart';
 import 'fatura_matbu_provider.dart';
 
@@ -677,69 +678,53 @@ class BatchFaturaProvider extends ChangeNotifier {
   }) async {
     List<FaturaModel> sonuc = [];
 
-    if (!cevrimdisi) {
-      // Hızlı Çevrimdışı Yol: Yapısal veri giriş veya sayfa formatı içeriyorsa AI/Arşiv beklemeden hemen parse et
-      final lowerText = text.toLowerCase();
-      if (lowerText.contains('veri giriş') ||
-          lowerText.contains('veri giris') ||
-          (lowerText.contains('--- sheet:') && lowerText.contains('fatura'))) {
-        final hizliSonuc = FaturaOfflineParser.parse(text);
-        if (hizliSonuc.isNotEmpty && hizliSonuc.first.kalemler.isNotEmpty) {
-          sonuc = hizliSonuc;
-          sonAyristirmaBilgisi = hizliSonuc.first.parsedBy;
-        }
-      }
+    // ── Katman 0 — Yerel kural motoru (HER ZAMAN, koşulsuz, ilk sırada) ──
+    // 0.01s, internet gerektirmez, hata vermez.
+    sonuc = FaturaOfflineParser.parse(text);
+    if (sonuc.isNotEmpty) {
+      sonAyristirmaBilgisi = sonuc.first.parsedBy;
+    }
 
-      // Katman 1 — Arşiv eşleştirme (Maks 3s zaman aşımı)
-      if (sonuc.isEmpty) {
-        try {
-          final arsivKayitlar = await _faturaService.araFaturalar(
-            FaturaArsivAramaFiltre(metin: ''),
-          ).timeout(const Duration(seconds: 3), onTimeout: () => []);
-          final gecmis = arsivKayitlar.map((e) => e.fatura).toList();
-          final eslesmeSonuc = FaturaEslestirmeServisi.eslestir(
-            rawText: text,
-            gecmisFaturalar: gecmis,
-          );
-          if (eslesmeSonuc != null) {
-            sonuc = [eslesmeSonuc.fatura];
-            final skor = eslesmeSonuc.skor;
-            final dusukSkor = skor < FaturaEslestirmeServisi.yuksekGuvenSkoru;
-            sonAyristirmaBilgisi = dusukSkor
-                ? 'Arşiv şablonundan dolduruldu (eşleşme skoru: $skor — kontrol edin)'
-                : 'Arşiv şablonundan dolduruldu (eşleşme skoru: $skor)';
-          }
-        } catch (e) {
-          debugPrint('Eşleştirme servisi hatası: $e');
+    // ── Katman 1 — Arşiv eşleştirme (yerel parser boş döndüyse) ──
+    if (sonuc.isEmpty && !cevrimdisi) {
+      try {
+        final arsivKayitlar = await _faturaService.araFaturalar(
+          FaturaArsivAramaFiltre(metin: ''),
+        ).timeout(const Duration(seconds: 3), onTimeout: () => []);
+        final gecmis = arsivKayitlar.map((e) => e.fatura).toList();
+        final eslesmeSonuc = FaturaEslestirmeServisi.eslestir(
+          rawText: text,
+          gecmisFaturalar: gecmis,
+        );
+        if (eslesmeSonuc != null) {
+          sonuc = [eslesmeSonuc.fatura];
+          final skor = eslesmeSonuc.skor;
+          final dusukSkor = skor < FaturaEslestirmeServisi.yuksekGuvenSkoru;
+          sonAyristirmaBilgisi = dusukSkor
+              ? 'Arşiv şablonundan dolduruldu (eşleşme skoru: $skor — kontrol edin)'
+              : 'Arşiv şablonundan dolduruldu (eşleşme skoru: $skor)';
         }
-      }
-
-      // Katman 2 — AI (Maks 12s zaman aşımı)
-      if (sonuc.isEmpty) {
-        try {
-          final extractedData = await _aiService.extractBatchData(
-            text,
-            pdfBytes: pdfBytes,
-          ).timeout(const Duration(seconds: 35), onTimeout: () {
-            debugPrint('AI ayrıştırma zaman aşımına uğradı (35s).');
-            return [];
-          });
-          sonuc = extractedData.map(FaturaModel.fromJson).toList();
-          if (sonuc.isNotEmpty) {
-            sonAyristirmaBilgisi = sonuc.first.parsedBy;
-          }
-        } catch (e) {
-          debugPrint(
-            'AI ayrıştırma başarısız, çevrimdışı parser deneniyor: $e',
-          );
-        }
+      } catch (e) {
+        debugPrint('Eşleştirme servisi hatası: $e');
       }
     }
 
-    if (sonuc.isEmpty) {
-      sonuc = FaturaOfflineParser.parse(text);
-      if (sonuc.isNotEmpty) {
-        sonAyristirmaBilgisi = sonuc.first.parsedBy;
+    // ── Katman 2 — AI (son çare, yerel + arşiv ikisi de boş döndüyse) ──
+    if (sonuc.isEmpty && !cevrimdisi) {
+      try {
+        final extractedData = await _aiService.extractBatchData(
+          text,
+          pdfBytes: pdfBytes,
+        ).timeout(const Duration(seconds: 15), onTimeout: () {
+          debugPrint('AI ayrıştırma zaman aşımına uğradı (15s).');
+          return [];
+        });
+        sonuc = extractedData.map(FaturaModel.fromJson).toList();
+        if (sonuc.isNotEmpty) {
+          sonAyristirmaBilgisi = sonuc.first.parsedBy;
+        }
+      } catch (e) {
+        debugPrint('AI ayrıştırma başarısız: $e');
       }
     }
 
@@ -750,6 +735,7 @@ class BatchFaturaProvider extends ChangeNotifier {
       );
     }
 
+    sonuc = FaturaDogrulamaServisi.dogrulaList(sonuc);
     _kuyrukProvider.setInvoicesFromParse(sonuc, append: append);
   }
 
@@ -779,9 +765,19 @@ class BatchFaturaProvider extends ChangeNotifier {
     final baslikSonucu = _excelBasliklariBul(lines, isYumurta: isYumurta);
 
     if (baslikSonucu == null) {
+      // 1. Şans: Birim fatura form şablonu (VERİ GİRİŞ / FATURA sheet veya form düzeni)
+      final offlineSonuc = FaturaOfflineParser.parse(csvText);
+      if (offlineSonuc.isNotEmpty && offlineSonuc.first.kalemler.isNotEmpty) {
+        sonAyristirmaBilgisi = offlineSonuc.first.parsedBy;
+        final dogrulanmis = FaturaDogrulamaServisi.dogrulaList(offlineSonuc);
+        _kuyrukProvider.setInvoicesFromParse(dogrulanmis, append: append);
+        return;
+      }
+
       throw Exception(
-        'Excel başlık satırı bulunamadı.\n'
-        'Dosyada "Ad-Soyad", "TC No", "Tutar" veya benzeri sütun başlıkları olmalıdır.',
+        'Excel dosyasından fatura verisi çıkarılamadı.\n'
+        'Liste faturası için "Ad-Soyad", "TC No", "Tutar" sütunları; '
+        'veya birim Excel şablonu ("VERİ GİRİŞ" / "FATURA") gereklidir.',
       );
     }
 
@@ -801,6 +797,15 @@ class BatchFaturaProvider extends ChangeNotifier {
     }
 
     if (faturalar.isEmpty) {
+      // Başlık bulundu ama satırlar dolmadıysa form şablonu olarak son bir kez dene
+      final offlineSonuc = FaturaOfflineParser.parse(csvText);
+      if (offlineSonuc.isNotEmpty && offlineSonuc.first.kalemler.isNotEmpty) {
+        sonAyristirmaBilgisi = offlineSonuc.first.parsedBy;
+        final dogrulanmis = FaturaDogrulamaServisi.dogrulaList(offlineSonuc);
+        _kuyrukProvider.setInvoicesFromParse(dogrulanmis, append: append);
+        return;
+      }
+
       throw Exception(
         'Excel dosyasından hiç fatura oluşturulamadı.\n'
         'Başlıklar bulundu (satır ${baslikSonucu.startRow}) '
@@ -809,7 +814,8 @@ class BatchFaturaProvider extends ChangeNotifier {
       );
     }
 
-    _kuyrukProvider.setInvoicesFromParse(faturalar, append: append);
+    final dogrulanmis = FaturaDogrulamaServisi.dogrulaList(faturalar);
+    _kuyrukProvider.setInvoicesFromParse(dogrulanmis, append: append);
   }
 
   // ─── Başlık tespiti ───────────────────────────────────────

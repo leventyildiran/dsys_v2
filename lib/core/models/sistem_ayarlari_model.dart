@@ -71,6 +71,14 @@ class SistemAyarlariModel {
     final rawGeminiModel = json['geminiModel']?.toString().trim() ?? '';
     final rawKurumAdi = json['kurumAdi']?.toString().trim() ?? '';
     final rawEbysDomain = json['ebysDomain']?.toString().trim() ?? '';
+    String resolvedModel = rawGeminiModel;
+    if (resolvedModel.isEmpty ||
+        resolvedModel == 'gemini-flash-latest' ||
+        resolvedModel == 'gemini-2.5-flash' ||
+        resolvedModel == 'gemini-2.0-flash' ||
+        resolvedModel == 'gemini-1.5-flash') {
+      resolvedModel = 'gemini-3.6-flash';
+    }
     return SistemAyarlariModel(
       kurumAdi: rawKurumAdi.isNotEmpty ? rawKurumAdi : 'Uşak Üniversitesi',
       hesapAdi: json['hesapAdi'] ?? '',
@@ -79,7 +87,7 @@ class SistemAyarlariModel {
       varsayilanKdvOrani: (json['varsayilanKdvOrani'] as num?)?.toDouble() ?? 20.0,
       ebysDomain: rawEbysDomain.isNotEmpty ? rawEbysDomain : 'usak.local',
       geminiApiKey: json['geminiApiKey'] ?? '',
-      geminiModel: rawGeminiModel.isNotEmpty ? rawGeminiModel : 'gemini-3.6-flash',
+      geminiModel: resolvedModel,
       visionApiKey: json['visionApiKey']?.toString() ?? '',
       deepseekApiUrl: json['deepseekApiUrl'] ?? '',
       deepseekApiKey: json['deepseekApiKey'] ?? '',

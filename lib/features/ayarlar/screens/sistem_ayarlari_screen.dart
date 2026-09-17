@@ -495,7 +495,6 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
         children: [
           'gemini-3.6-flash',
           'gemini-3.8-flash',
-          'gemini-flash-latest',
           'gemma-3-27b-it',
         ].map((m) {
           final isSelected = _geminiModelController.text.trim() == m;

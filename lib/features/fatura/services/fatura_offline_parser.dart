@@ -66,7 +66,17 @@ class FaturaOfflineParser {
       if (fatura != null && fatura.kalemler.isNotEmpty) return [fatura];
     }
 
-    // 3) Serbest metin / sayfa işareti olmayan döküm
+    // 3) Birim talep PDF formu (üst yazılı, MELBES/Numune bloklu)
+    final talepSonuc = _parseBirimTalepFormu(rawText);
+    if (talepSonuc != null && talepSonuc.isNotEmpty) return talepSonuc;
+
+    // 4) e-Arşiv / e-Fatura GİB standart metin katmanı
+    final eArsivSonuc = _parseEArsivMetni(rawText);
+    if (eArsivSonuc != null && eArsivSonuc.kalemler.isNotEmpty) {
+      return [eArsivSonuc];
+    }
+
+    // 5) Serbest metin / sayfa işareti olmayan döküm (fallback)
     final fatura = _parseFreeText(rawText);
     return fatura == null ? [] : [fatura];
   }
@@ -443,7 +453,7 @@ class FaturaOfflineParser {
 
   static String _extractFirmaAdi(List<String> lines) {
     final musteriRegex = RegExp(
-      r'(?:say[ıi]n|m[üu][şs]teri|al[ıi]c[ıi]|firma\s*ad[ıi]?)\s*[:.\-]?\s*(.+)',
+      r'(?:say[ıi]n|m[üu][şs]teri|al[ıi]c[ıi]|firma(?:\s*ad[ıi]?)?)\s*[:.\-]?\s*(.+)',
       caseSensitive: false,
     );
     for (final line in lines) {
@@ -466,6 +476,8 @@ class FaturaOfflineParser {
           l.contains('irsaliye') ||
           l.contains('sayfa') ||
           l.contains('tarih') ||
+          l.contains('melbes') ||
+          l.contains('numune') ||
           line.length < 3) {
         continue;
       }
@@ -710,5 +722,275 @@ class FaturaOfflineParser {
       }
     }
     return double.tryParse(s) ?? 0;
+  }
+
+  // --------------------------------------------------------------------------
+  // Birim Talep PDF Formu (eski dsys/ motorundan taşındı)
+  // --------------------------------------------------------------------------
+
+  /// Birim talep PDF'leri üst yazı + tablo yapısındadır.
+  /// Üst yazıyı atlar, MELBES/Numune bloklarını bulur, her bloktan bir fatura çıkarır.
+  static List<FaturaModel>? _parseBirimTalepFormu(String text) {
+    final lower = text.toLowerCase();
+
+    // Talep formu ipuçları: melbes başvuru no, numune no, firma/unvan + tablo yapısı
+    final hasMelbes = RegExp(r'melbes\s*ba[şs]vuru\s*no', caseSensitive: false)
+        .hasMatch(text);
+    final hasNumune = RegExp(r'numune\s*no', caseSensitive: false).hasMatch(text);
+    final hasTabloIpucu = RegExp(
+      r'(fatura\s*bilgileri|numune\s*a[çc]iklamasi|birim\s*fiyat|toplam\s*fiyat)',
+      caseSensitive: false,
+    ).hasMatch(text);
+
+    if (!hasMelbes && !hasNumune && !hasTabloIpucu) return null;
+
+    // Üst yazıyı atla
+    final temizMetin = _ustYaziyiAtla(text);
+
+    // MELBES bloklarına ayır
+    final melbesRegex = RegExp(
+      r'melbes\s*ba[şs]vuru\s*no\s*[:\-]?\s*([a-zA-Z0-9\-/]+)',
+      caseSensitive: false,
+    );
+    final melbesMatches = melbesRegex.allMatches(temizMetin).toList();
+
+    final bloklar = <String>[];
+    if (melbesMatches.isEmpty) {
+      bloklar.add(temizMetin);
+    } else {
+      for (var i = 0; i < melbesMatches.length; i++) {
+        final start = melbesMatches[i].start;
+        final end = (i + 1 < melbesMatches.length)
+            ? melbesMatches[i + 1].start
+            : temizMetin.length;
+        bloklar.add(temizMetin.substring(start, end));
+      }
+    }
+
+    final sonuclar = <FaturaModel>[];
+    for (final blok in bloklar) {
+      final melbesNo = melbesRegex.firstMatch(blok)?.group(1)?.trim() ?? '';
+      final numuneNo =
+          RegExp(r'numune\s*no\s*[:\-]?\s*([a-zA-Z0-9\-/]+)', caseSensitive: false)
+              .firstMatch(blok)
+              ?.group(1)
+              ?.trim() ?? '';
+
+      if (melbesNo.isEmpty && numuneNo.isEmpty) continue;
+
+      final firma = _extractFirmaFromBlock(blok);
+      final kalemler = _extractKalemlerFromBlock(blok);
+
+      final toplamMatch = RegExp(
+        r'toplam\s*fiyat[^\d]*([\d\.]+,\d{2})',
+        caseSensitive: false,
+      ).firstMatch(blok);
+      final toplam = toplamMatch != null
+          ? _parseNum(toplamMatch.group(1)!)
+          : kalemler.fold<double>(0, (acc, k) => acc + (_parseNum(k['fiyat'].toString()) * _parseNum(k['miktar'].toString())));
+
+      if (firma.isEmpty && kalemler.isEmpty && toplam <= 0) continue;
+
+      final fatura = _build(
+        firmaAdi: firma,
+        adres: '',
+        vergiDairesi: '',
+        vergiNo: '',
+        tarih: _ilkTarih(blok),
+        kalemler: kalemler.isEmpty
+            ? [{'cinsi': 'Numune analizi', 'miktar': 1, 'fiyat': toplam}]
+            : kalemler,
+        kdvOrani: 20,
+        muaf: lower.contains('muaf'),
+        iban: _ibanRegex.firstMatch(blok) != null
+            ? _normalizeIban(_ibanRegex.firstMatch(blok)!.group(0)!)
+            : null,
+        hesapAdi: null,
+        fullText: blok,
+      );
+      fatura.parsedBy = 'Birim Talep Formu';
+      sonuclar.add(fatura);
+    }
+
+    return sonuclar.isEmpty ? null : sonuclar;
+  }
+
+  /// Üst yazı / sunum bölümünü atlayıp veri tablosuna yaklaşır.
+  static String _ustYaziyiAtla(String metin) {
+    final satirlar = metin.split('\n');
+    if (satirlar.isEmpty) return metin;
+
+    final veriBaslangicRegex = RegExp(
+      r'(numune\s*no|melbes|başvuru\s*no|basvuru\s*no|firma|unvan|hizmet|analiz|tahlil|kalem|miktar|birim\s*fiyat|toplam|kdv)',
+      caseSensitive: false,
+    );
+
+    var baslangic = -1;
+    for (var i = 0; i < satirlar.length; i++) {
+      if (veriBaslangicRegex.hasMatch(satirlar[i])) {
+        baslangic = i;
+        break;
+      }
+    }
+
+    if (baslangic <= 0) return metin;
+    final from = baslangic > 2 ? baslangic - 2 : 0;
+    return satirlar.sublist(from).join('\n').trim();
+  }
+
+  /// Bir bloktan firma unvanını çıkarır (A.Ş., Ltd. Şti. vb. ipuçlarıyla).
+  static String _extractFirmaFromBlock(String blok) {
+    final satirlar = blok
+        .split('\n')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    // 1. Öncelik: "Firma:", "Firma Adı:", "Sayın:" gibi açık etiketler
+    final musteriRegex = RegExp(
+      r'^(?:say[ıi]n|m[üu][şsŞS]teri|firma(?:\s*ad[ıi]?)?)\s*[:\-.]?\s*(.+)$',
+      caseSensitive: false,
+      unicode: true,
+    );
+    for (final satir in satirlar) {
+      final m = musteriRegex.firstMatch(satir);
+      if (m != null && m.group(1)!.trim().length > 3) {
+        return m.group(1)!.trim();
+      }
+    }
+
+    // 2. Öncelik: Kurumsal şirket unvanı içeren satırlar (A.Ş., Ltd. Şti.)
+    final firmaRegex = RegExp(
+      r'(ltd\.?\s*[şsŞS]ti\.?|a\.?\s*[şsŞS]\.?|anonim|san\.?|tic\.?|limited)',
+      caseSensitive: false,
+      unicode: true,
+    );
+
+    for (var i = 0; i < satirlar.length; i++) {
+      if (firmaRegex.hasMatch(satirlar[i])) {
+        final next = (i + 1 < satirlar.length && satirlar[i + 1].length < 80 && !satirlar[i + 1].contains(':'))
+            ? ' ${satirlar[i + 1]}'
+            : '';
+        return '${satirlar[i]}$next'.trim();
+      }
+    }
+
+    return '';
+  }
+
+  /// Bir bloktan kalem satırlarını çıkarır: "Açıklama  Adet  Fiyat" formatı.
+  static List<Map<String, dynamic>> _extractKalemlerFromBlock(String blok) {
+    final satirlar = blok.split('\n');
+    final kalemler = <Map<String, dynamic>>[];
+    final kalemRegex = RegExp(
+      r'^(.*?)\s+\*?\s*(\d+)\s+(?:\p{Sc}|TL|₺|EUR|\$)?\s*([\d\.]+,\d{2})\s*(?:TL|₺|EUR|\$)?\s*$',
+      caseSensitive: false,
+      unicode: true,
+    );
+
+    for (final hamSatir in satirlar) {
+      final satir = hamSatir.trim();
+      if (satir.isEmpty) continue;
+      final match = kalemRegex.firstMatch(satir);
+      if (match == null) continue;
+
+      final aciklama = (match.group(1) ?? '').trim();
+      final adet = int.tryParse((match.group(2) ?? '1').trim()) ?? 1;
+      final fiyatStr = (match.group(3) ?? '').trim();
+      final birimFiyat = _parseNum(fiyatStr);
+      if (aciklama.isEmpty || birimFiyat <= 0) continue;
+      kalemler.add({
+        'cinsi': aciklama,
+        'miktar': adet,
+        'fiyat': birimFiyat * adet,
+      });
+    }
+
+    return kalemler;
+  }
+
+  // --------------------------------------------------------------------------
+  // e-Arşiv / e-Fatura GİB Standart Metin Katmanı
+  // --------------------------------------------------------------------------
+
+  /// GİB e-Arşiv PDF'lerinin metin katmanında standart etiketler bulunur.
+  /// Bu parser bu etiketleri tanır ve yapısal veri çıkarır.
+  static FaturaModel? _parseEArsivMetni(String text) {
+    final lower = text.toLowerCase();
+
+    // e-Arşiv / e-Fatura ipuçları
+    final isEArsiv = lower.contains('e-arşiv') ||
+        lower.contains('e-arsiv') ||
+        lower.contains('e-fatura') ||
+        lower.contains('efatura') ||
+        (lower.contains('fatura') && lower.contains('ettn'));
+
+    if (!isEArsiv) return null;
+
+    // Standart GİB etiketlerinden veri çek
+    final odenecek = RegExp(
+      r'(?:[öo]denecek\s*tutar|toplam\s*tutar|genel\s*toplam)\s*[:\-]?\s*([\d.,]+)',
+      caseSensitive: false,
+    ).firstMatch(text);
+    final matrahMatch = RegExp(
+      r'(?:mal\s*hizmet\s*toplam\s*tutar[ıi]?|matrah|vergiye\s*tabi\s*tutar)\s*[:\-]?\s*([\d.,]+)',
+      caseSensitive: false,
+    ).firstMatch(text);
+    final kdvMatch = RegExp(
+      r'(?:hesaplanan\s*kdv|toplam\s*kdv|kdv\s*tutar[ıi])\s*[:\-]?\s*([\d.,]+)',
+      caseSensitive: false,
+    ).firstMatch(text);
+
+    final genelToplam = odenecek != null ? _parseNum(odenecek.group(1)!) : 0.0;
+    final matrah = matrahMatch != null ? _parseNum(matrahMatch.group(1)!) : 0.0;
+    final kdvTutari = kdvMatch != null ? _parseNum(kdvMatch.group(1)!) : 0.0;
+
+    if (genelToplam <= 0 && matrah <= 0) return null;
+
+    // Müşteri bilgileri
+    final lines = text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    final firmaAdi = _extractFirmaAdi(lines);
+    final adres = _extractAdres(lines, firmaAdi);
+
+    final vnMatch = RegExp(
+      r'(?:vergi\s*no|vkn|t\.c\.?\s*kimlik|tc\s*no)\s*[:\.\-]?\s*(\d{10,11})\b',
+      caseSensitive: false,
+    ).firstMatch(text);
+    final vdMatch = RegExp(
+      r'(?:vergi\s*dairesi|v\.d\.)\s*[:\.\-]?\s*([A-Za-zÇĞİÖŞÜçğıöşü\s]+?)(?:[\n,]|vkn|vergi|$)',
+      caseSensitive: false,
+    ).firstMatch(text);
+
+    // KDV oranını hesapla
+    double kdvOrani = 20.0;
+    if (matrah > 0 && kdvTutari > 0) {
+      kdvOrani = (kdvTutari / matrah * 100).roundToDouble();
+    }
+
+    final effectiveMatrah = matrah > 0
+        ? matrah
+        : (genelToplam > 0 ? genelToplam / (1 + kdvOrani / 100) : 0.0);
+
+    return _build(
+      firmaAdi: firmaAdi,
+      adres: adres,
+      vergiDairesi: vdMatch?.group(1)?.trim() ?? '',
+      vergiNo: vnMatch?.group(1)?.trim() ?? '',
+      tarih: _ilkTarih(text),
+      kalemler: [
+        {
+          'cinsi': firmaAdi.isNotEmpty ? 'Hizmet / Analiz Bedeli' : 'Fatura Bedeli',
+          'miktar': 1,
+          'fiyat': effectiveMatrah,
+        },
+      ],
+      kdvOrani: kdvOrani,
+      muaf: lower.contains('muaf'),
+      iban: _ibanRegex.firstMatch(text) != null
+          ? _normalizeIban(_ibanRegex.firstMatch(text)!.group(0)!)
+          : null,
+      hesapAdi: null,
+      fullText: text,
+    );
   }
 }

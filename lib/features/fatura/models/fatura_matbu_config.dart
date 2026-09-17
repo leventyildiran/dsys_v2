@@ -5,8 +5,8 @@ import '../../../core/turkce_format.dart';
 class FaturaMatbuConfig {
   FaturaMatbuConfig._();
 
-  static const double a4Genislik = 595;
-  static const double a4Yukseklik = 842;
+  static const double a4Genislik = 595.28;
+  static const double a4Yukseklik = 841.89;
   static const double varsayilanFontBoyutu = 10.0;
   static const double varsayilanKalemSatirAraligi = 19.0;
   static const int varsayilanSatirLimit = 10;

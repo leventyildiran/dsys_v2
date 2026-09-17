@@ -514,7 +514,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       // Cinsi
       if (provider.coordinates.containsKey('cinsi')) {
           w.add(Positioned(
-            left: provider.coordinates['cinsi']!.dx + provider.globalOffsetDx + 276,
+            left: provider.coordinates['cinsi']!.dx + provider.globalOffsetDx + 300,
             top: satirTop,
            child: _editableField(
              provider,
@@ -531,7 +531,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       // Miktar
       if (provider.coordinates.containsKey('miktar')) {
           w.add(Positioned(
-            left: provider.coordinates['miktar']!.dx + provider.globalOffsetDx + 276,
+            left: provider.coordinates['miktar']!.dx + provider.globalOffsetDx + 300,
             top: satirTop,
            child: _editableField(
              provider,
@@ -549,7 +549,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       // Fiyat
       if (provider.coordinates.containsKey('fiyat')) {
           w.add(Positioned(
-            left: provider.coordinates['fiyat']!.dx + provider.globalOffsetDx + 276,
+            left: provider.coordinates['fiyat']!.dx + provider.globalOffsetDx + 300,
             top: satirTop,
            child: _editableField(
              provider,
@@ -572,7 +572,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
          
          final metin = t > 0 ? TurkceFormat.paraKalem(t) : '';
          w.add(Positioned(
-           left: provider.coordinates['tutar']!.dx + provider.globalOffsetDx + 276,
+           left: provider.coordinates['tutar']!.dx + provider.globalOffsetDx + 300,
            top: satirTop,
            child: _suruklenebilirAlan(
                    provider: provider,
@@ -627,7 +627,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
 
   Offset _konum(BatchFaturaProvider provider, String key) {
     final base = provider.coordinates[key] ?? Offset.zero;
-    return Offset(base.dx + provider.globalOffsetDx + 276, base.dy + provider.globalOffsetDy + 200);
+    return Offset(base.dx + provider.globalOffsetDx + 300, base.dy + provider.globalOffsetDy + 200);
   }
 
   Widget _editableField(

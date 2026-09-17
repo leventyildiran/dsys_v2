@@ -23,6 +23,6 @@ abstract final class FaturaPrefsKeys {
 
   // ── PDF ─────────────────────────────────────────────────
   static const int pdfSatirLimit = 10;
-  static const double pdfA4Genislik = 595;
-  static const double pdfA4Yukseklik = 842;
+  static const double pdfA4Genislik = 595.28;
+  static const double pdfA4Yukseklik = 841.89;
 }

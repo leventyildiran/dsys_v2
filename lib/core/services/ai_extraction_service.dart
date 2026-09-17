@@ -12,7 +12,6 @@ class AIExtractionService {
   static const List<String> _geminiModelFallbacks = [
     'gemini-3.6-flash',
     'gemini-3.8-flash',
-    'gemini-flash-latest',
   ];
 
   Future<String?> _runGeminiWithFallback({
@@ -21,8 +20,18 @@ class AIExtractionService {
     String? preferredModel,
   }) async {
     final modelOrder = <String>[];
-    if (preferredModel != null && preferredModel.trim().isNotEmpty) {
-      modelOrder.add(preferredModel.trim());
+    String? cleanPreferred = preferredModel?.trim();
+    if (cleanPreferred != null &&
+        (cleanPreferred.isEmpty ||
+            cleanPreferred == 'gemini-flash-latest' ||
+            cleanPreferred == 'gemini-2.5-flash' ||
+            cleanPreferred == 'gemini-2.0-flash' ||
+            cleanPreferred == 'gemini-1.5-flash')) {
+      cleanPreferred = 'gemini-3.6-flash';
+    }
+
+    if (cleanPreferred != null && cleanPreferred.isNotEmpty) {
+      modelOrder.add(cleanPreferred);
     }
     for (final m in _geminiModelFallbacks) {
       if (!modelOrder.contains(m)) modelOrder.add(m);
@@ -35,14 +44,14 @@ class AIExtractionService {
         final model = GenerativeModel(model: modelName, apiKey: apiKey);
         final response = await model
             .generateContent([Content.multi(parts)])
-            .timeout(const Duration(seconds: 15));
+            .timeout(const Duration(seconds: 8));
         final text = response.text?.trim() ?? '';
         if (text.isNotEmpty) return text;
       } catch (e) {
         sonHata = e;
         debugPrint('$modelName hatası: $e');
       }
-      await Future.delayed(const Duration(milliseconds: 200));
+      await Future.delayed(const Duration(milliseconds: 100));
     }
     if (sonHata != null) {
       throw Exception(sonHata.toString());
