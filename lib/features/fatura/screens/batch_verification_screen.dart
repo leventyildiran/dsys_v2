@@ -781,8 +781,10 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
         final document = PdfDocument(inputBytes: bytes);
         final text = PdfTextExtractor(document).extractText().trim();
         document.dispose();
+        debugPrint('[_extractTextFromFile] PDF metin katmanı çıkarıldı: ${text.length} karakter');
         return text; // Boş olsa bile dön, taranmışsa boş çıkar ve Vision API devreye girer.
       } catch (e) {
+        debugPrint('[_extractTextFromFile] PDF metin çıkarma hatası: $e');
         return ''; // Hata olursa yine boş dön
       }
     }

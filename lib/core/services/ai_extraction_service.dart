@@ -37,14 +37,17 @@ class AIExtractionService {
       if (!modelOrder.contains(m)) modelOrder.add(m);
     }
 
+    final hasMedia = parts.any((p) => p is DataPart);
+    final modelTimeout = Duration(seconds: hasMedia ? 35 : 15);
+
     Object? sonHata;
     for (final modelName in modelOrder) {
       try {
-        debugPrint('Gemini API ($modelName) ile ayrıştırma deneniyor...');
+        debugPrint('Gemini API ($modelName) ile ayrıştırma deneniyor (timeout: ${modelTimeout.inSeconds}s)...');
         final model = GenerativeModel(model: modelName, apiKey: apiKey);
         final response = await model
             .generateContent([Content.multi(parts)])
-            .timeout(const Duration(seconds: 8));
+            .timeout(modelTimeout);
         final text = response.text?.trim() ?? '';
         if (text.isNotEmpty) return text;
       } catch (e) {

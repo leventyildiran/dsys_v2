@@ -678,15 +678,26 @@ class BatchFaturaProvider extends ChangeNotifier {
   }) async {
     List<FaturaModel> sonuc = [];
 
+    debugPrint('[loadBatch] Gelen evrak: metin=${text.length} karakter, pdfBytes=${pdfBytes?.length ?? 0} byte');
+    if (text.trim().isNotEmpty) {
+      final onizleme = text.length > 400 ? '${text.substring(0, 400)}...' : text;
+      debugPrint('[loadBatch] Metin önizleme:\n$onizleme');
+    }
+
     // ── Katman 0 — Yerel kural motoru (HER ZAMAN, koşulsuz, ilk sırada) ──
     // 0.01s, internet gerektirmez, hata vermez.
-    sonuc = FaturaOfflineParser.parse(text);
-    if (sonuc.isNotEmpty) {
-      sonAyristirmaBilgisi = sonuc.first.parsedBy;
+    if (text.trim().isNotEmpty) {
+      sonuc = FaturaOfflineParser.parse(text);
+      if (sonuc.isNotEmpty) {
+        debugPrint('[loadBatch] Yerel parser başarılı: ${sonuc.length} fatura (${sonuc.first.parsedBy})');
+        sonAyristirmaBilgisi = sonuc.first.parsedBy;
+      } else {
+        debugPrint('[loadBatch] Yerel parser faturayı tanıyamadı, arşiv/AI katmanına geçiliyor.');
+      }
     }
 
     // ── Katman 1 — Arşiv eşleştirme (yerel parser boş döndüyse) ──
-    if (sonuc.isEmpty && !cevrimdisi) {
+    if (sonuc.isEmpty && !cevrimdisi && text.trim().isNotEmpty) {
       try {
         final arsivKayitlar = await _faturaService.araFaturalar(
           FaturaArsivAramaFiltre(metin: ''),
@@ -712,11 +723,15 @@ class BatchFaturaProvider extends ChangeNotifier {
     // ── Katman 2 — AI (son çare, yerel + arşiv ikisi de boş döndüyse) ──
     if (sonuc.isEmpty && !cevrimdisi) {
       try {
+        final hasPdf = pdfBytes != null && pdfBytes.isNotEmpty;
+        final aiTimeout = Duration(seconds: hasPdf ? 45 : 20);
+        debugPrint('[loadBatch] AI katmanı çağrılıyor (timeout: ${aiTimeout.inSeconds}s)...');
+
         final extractedData = await _aiService.extractBatchData(
           text,
           pdfBytes: pdfBytes,
-        ).timeout(const Duration(seconds: 15), onTimeout: () {
-          debugPrint('AI ayrıştırma zaman aşımına uğradı (15s).');
+        ).timeout(aiTimeout, onTimeout: () {
+          debugPrint('AI ayrıştırma zaman aşımına uğradı (${aiTimeout.inSeconds}s).');
           return [];
         });
         sonuc = extractedData.map(FaturaModel.fromJson).toList();

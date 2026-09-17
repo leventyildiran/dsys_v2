@@ -66,15 +66,15 @@ class FaturaOfflineParser {
       if (fatura != null && fatura.kalemler.isNotEmpty) return [fatura];
     }
 
-    // 3) Birim talep PDF formu (üst yazılı, MELBES/Numune bloklu)
-    final talepSonuc = _parseBirimTalepFormu(rawText);
-    if (talepSonuc != null && talepSonuc.isNotEmpty) return talepSonuc;
-
-    // 4) e-Arşiv / e-Fatura GİB standart metin katmanı
+    // 3) e-Arşiv / e-Fatura GİB standart metin katmanı (ETTN / e-Arşiv açık etiketli)
     final eArsivSonuc = _parseEArsivMetni(rawText);
     if (eArsivSonuc != null && eArsivSonuc.kalemler.isNotEmpty) {
       return [eArsivSonuc];
     }
+
+    // 4) Birim talep PDF formu (üst yazılı, MELBES/Numune bloklu veya tekil birim talep tablosu)
+    final talepSonuc = _parseBirimTalepFormu(rawText);
+    if (talepSonuc != null && talepSonuc.isNotEmpty) return talepSonuc;
 
     // 5) Serbest metin / sayfa işareti olmayan döküm (fallback)
     final fatura = _parseFreeText(rawText);
@@ -729,28 +729,31 @@ class FaturaOfflineParser {
   // --------------------------------------------------------------------------
 
   /// Birim talep PDF'leri üst yazı + tablo yapısındadır.
-  /// Üst yazıyı atlar, MELBES/Numune bloklarını bulur, her bloktan bir fatura çıkarır.
+  /// Üst yazıyı atlar, MELBES/Numune bloklarını veya tekil birim talep tablosunu bulur.
   static List<FaturaModel>? _parseBirimTalepFormu(String text) {
     final lower = text.toLowerCase();
 
-    // Talep formu ipuçları: melbes başvuru no, numune no, firma/unvan + tablo yapısı
-    final hasMelbes = RegExp(r'melbes\s*ba[şs]vuru\s*no', caseSensitive: false)
-        .hasMatch(text);
-    final hasNumune = RegExp(r'numune\s*no', caseSensitive: false).hasMatch(text);
-    final hasTabloIpucu = RegExp(
-      r'(fatura\s*bilgileri|numune\s*a[çc]iklamasi|birim\s*fiyat|toplam\s*fiyat)',
+    // Talep formu ipuçları: Resmi fatura talep yazısı, melbes, numune no veya fatura düzenlenmesi talebi
+    final hasTalepIpucu = RegExp(
+      r'(fatura\s*talep|faturan[ıi]n\s*d[üu]zenlenmesi|fatura\s*d[üu]zenlenmesi|melbes|numune\s*no)',
       caseSensitive: false,
     ).hasMatch(text);
 
-    if (!hasMelbes && !hasNumune && !hasTabloIpucu) return null;
+    // e-Arşiv / e-Fatura veya ETTN içeren belgeler birim talep formu değildir
+    if (lower.contains('e-arşiv') || lower.contains('e-arsiv') || lower.contains('ettn')) {
+      return null;
+    }
+
+    if (!hasTalepIpucu) return null;
 
     // Üst yazıyı atla
     final temizMetin = _ustYaziyiAtla(text);
 
-    // MELBES bloklarına ayır
+    // MELBES bloklarına ayır (varsa çoklu fatura, yoksa tekil fatura)
     final melbesRegex = RegExp(
-      r'melbes\s*ba[şs]vuru\s*no\s*[:\-]?\s*([a-zA-Z0-9\-/]+)',
+      r'melbes\s*ba[şsŞS]vuru\s*no\s*[:\-]?\s*([a-zA-Z0-9\-/]+)',
       caseSensitive: false,
+      unicode: true,
     );
     final melbesMatches = melbesRegex.allMatches(temizMetin).toList();
 
@@ -776,20 +779,23 @@ class FaturaOfflineParser {
               ?.group(1)
               ?.trim() ?? '';
 
-      if (melbesNo.isEmpty && numuneNo.isEmpty) continue;
-
       final firma = _extractFirmaFromBlock(blok);
       final kalemler = _extractKalemlerFromBlock(blok);
 
       final toplamMatch = RegExp(
-        r'toplam\s*fiyat[^\d]*([\d\.]+,\d{2})',
+        r'(?:toplam\s*fiyat|toplam\s*tutar|genel\s*toplam|ödenecek\s*tutar)[^\d]*([\d\.]+,\d{2})',
         caseSensitive: false,
       ).firstMatch(blok);
       final toplam = toplamMatch != null
           ? _parseNum(toplamMatch.group(1)!)
           : kalemler.fold<double>(0, (acc, k) => acc + (_parseNum(k['fiyat'].toString()) * _parseNum(k['miktar'].toString())));
 
+      // Asgari geçerlilik: firma adı olmalı VEYA (kalemler / toplam tutar olmalı)
       if (firma.isEmpty && kalemler.isEmpty && toplam <= 0) continue;
+
+      final defaultCinsi = numuneNo.isNotEmpty
+          ? 'Numune analizi'
+          : (firma.isNotEmpty ? 'Hizmet Bedeli' : 'Fatura Bedeli');
 
       final fatura = _build(
         firmaAdi: firma,
@@ -798,7 +804,7 @@ class FaturaOfflineParser {
         vergiNo: '',
         tarih: _ilkTarih(blok),
         kalemler: kalemler.isEmpty
-            ? [{'cinsi': 'Numune analizi', 'miktar': 1, 'fiyat': toplam}]
+            ? [{'cinsi': defaultCinsi, 'miktar': 1, 'fiyat': toplam}]
             : kalemler,
         kdvOrani: 20,
         muaf: lower.contains('muaf'),
