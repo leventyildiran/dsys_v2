@@ -10,9 +10,9 @@ class AIExtractionService {
   final SistemAyarlariService _ayarlarService = SistemAyarlariService();
   final GoogleVisionOcrService _visionOcr = GoogleVisionOcrService();
   static const List<String> _geminiModelFallbacks = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
+    'gemini-3.6-flash',
+    'gemini-3.8-flash',
+    'gemini-flash-latest',
   ];
 
   Future<String?> _runGeminiWithFallback({
@@ -35,7 +35,7 @@ class AIExtractionService {
         final model = GenerativeModel(model: modelName, apiKey: apiKey);
         final response = await model
             .generateContent([Content.multi(parts)])
-            .timeout(const Duration(seconds: 8));
+            .timeout(const Duration(seconds: 15));
         final text = response.text?.trim() ?? '';
         if (text.isNotEmpty) return text;
       } catch (e) {

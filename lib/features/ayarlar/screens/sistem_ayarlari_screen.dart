@@ -27,7 +27,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
   late TextEditingController _hesapAdiController;
   late TextEditingController _ibanController;
   late TextEditingController _geminiKeyController;
-  String _selectedGeminiModel = 'gemini-2.5-flash';
+  late TextEditingController _geminiModelController;
   late TextEditingController _visionKeyController;
   late TextEditingController _deepseekUrlController;
   late TextEditingController _deepseekKeyController;
@@ -49,6 +49,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
     _hesapAdiController = TextEditingController();
     _ibanController = TextEditingController();
     _geminiKeyController = TextEditingController();
+    _geminiModelController = TextEditingController();
     _visionKeyController = TextEditingController();
     _deepseekUrlController = TextEditingController();
     _deepseekKeyController = TextEditingController();
@@ -65,7 +66,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
       _hesapAdiController.text = ayarlar.hesapAdi;
       _ibanController.text = ayarlar.iban;
       _geminiKeyController.text = ayarlar.geminiApiKey;
-      _selectedGeminiModel = ayarlar.geminiModel.isNotEmpty ? ayarlar.geminiModel : 'gemini-2.5-flash';
+      _geminiModelController.text = ayarlar.geminiModel.isNotEmpty ? ayarlar.geminiModel : 'gemini-3.6-flash';
       _visionKeyController.text = ayarlar.visionApiKey;
       _deepseekUrlController.text = ayarlar.deepseekApiUrl;
       _deepseekKeyController.text = ayarlar.deepseekApiKey;
@@ -93,7 +94,9 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
         varsayilanKdvOrani: double.tryParse(_varsayilanKdvController.text.replaceAll(',', '.')) ?? 20.0,
         ebysDomain: _ebysDomainController.text.trim(),
         geminiApiKey: _geminiKeyController.text.trim(),
-        geminiModel: _selectedGeminiModel,
+        geminiModel: _geminiModelController.text.trim().isNotEmpty
+            ? _geminiModelController.text.trim()
+            : 'gemini-3.6-flash',
         visionApiKey: _visionKeyController.text.trim(),
         deepseekApiUrl: _deepseekUrlController.text.trim(),
         deepseekApiKey: _deepseekKeyController.text.trim(),
@@ -130,6 +133,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
     _hesapAdiController.dispose();
     _ibanController.dispose();
     _geminiKeyController.dispose();
+    _geminiModelController.dispose();
     _visionKeyController.dispose();
     _deepseekUrlController.dispose();
     _deepseekKeyController.dispose();
@@ -467,49 +471,51 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
             'Zorunlu önerilir. Boş bırakılırsa fatura PDF\'leri yapay zeka ile okunamaz (yalnızca çevrimdışı kural devreye girer).',
       ),
       const SizedBox(height: 16),
-      DropdownButtonFormField<String>(
-        initialValue: [
-          'gemini-2.5-flash',
-          'gemini-2.0-flash',
-          'gemini-2.5-flash-lite',
-          'gemini-flash-latest',
-          'gemini-1.5-flash',
-        ].contains(_selectedGeminiModel)
-            ? _selectedGeminiModel
-            : 'gemini-2.5-flash',
-        decoration: const InputDecoration(
-          labelText: 'Gemini Modeli',
-          prefixIcon: Icon(Icons.psychology),
-          border: OutlineInputBorder(),
-          helperText: 'Varsayılan: gemini-2.5-flash (En güncel ve hızlı Google modeli)',
+      TextField(
+        controller: _geminiModelController,
+        decoration: InputDecoration(
+          labelText: 'Gemini Modeli (Düzenlenebilir)',
+          hintText: 'örn: gemini-3.6-flash, gemini-flash-latest',
+          prefixIcon: const Icon(Icons.psychology),
+          border: const OutlineInputBorder(),
+          helperText: 'İstediğiniz model adını doğrudan yazabilir veya aşağıdaki hızlı önerilerden seçebilirsiniz.',
+          suffixIcon: _geminiModelController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () => setState(() => _geminiModelController.clear()),
+                )
+              : null,
         ),
-        items: const [
-          DropdownMenuItem(
-            value: 'gemini-2.5-flash',
-            child: Text('gemini-2.5-flash (Önerilen · En Güncel)'),
-          ),
-          DropdownMenuItem(
-            value: 'gemini-2.0-flash',
-            child: Text('gemini-2.0-flash (Kararlı · Hızlı)'),
-          ),
-          DropdownMenuItem(
-            value: 'gemini-2.5-flash-lite',
-            child: Text('gemini-2.5-flash-lite (Hafif · Yüksek Hız)'),
-          ),
-          DropdownMenuItem(
-            value: 'gemini-flash-latest',
-            child: Text('gemini-flash-latest (Daima En Son Flash)'),
-          ),
-          DropdownMenuItem(
-            value: 'gemini-1.5-flash',
-            child: Text('gemini-1.5-flash (Eski Sürüm)'),
-          ),
-        ],
-        onChanged: (val) {
-          if (val != null) {
-            setState(() => _selectedGeminiModel = val);
-          }
-        },
+        onChanged: (_) => setState(() {}),
+      ),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          'gemini-3.6-flash',
+          'gemini-3.8-flash',
+          'gemini-flash-latest',
+          'gemma-3-27b-it',
+        ].map((m) {
+          final isSelected = _geminiModelController.text.trim() == m;
+          return ChoiceChip(
+            label: Text(
+              m,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            selected: isSelected,
+            selectedColor: const Color(0xFF1E40AF).withValues(alpha: 0.18),
+            onSelected: (selected) {
+              if (selected) {
+                setState(() => _geminiModelController.text = m);
+              }
+            },
+          );
+        }).toList(),
       ),
     ];
   }

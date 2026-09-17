@@ -392,9 +392,8 @@ class YkKararProvider extends ChangeNotifier {
         final modelOrder = <String>[];
         if (ayarlar.geminiModel.isNotEmpty) modelOrder.add(ayarlar.geminiModel);
         for (final m in const [
-          'gemini-2.5-flash',
-          'gemini-2.0-flash',
-          'gemini-2.5-flash-lite',
+          'gemini-3.6-flash',
+          'gemini-3.8-flash',
           'gemini-flash-latest',
         ]) {
           if (!modelOrder.contains(m)) modelOrder.add(m);
@@ -493,9 +492,8 @@ class YkKararProvider extends ChangeNotifier {
         final modelOrder = <String>[];
         if (ayarlar.geminiModel.isNotEmpty) modelOrder.add(ayarlar.geminiModel);
         for (final m in const [
-          'gemini-2.5-flash',
-          'gemini-2.0-flash',
-          'gemini-2.5-flash-lite',
+          'gemini-3.6-flash',
+          'gemini-3.8-flash',
           'gemini-flash-latest',
         ]) {
           if (!modelOrder.contains(m)) modelOrder.add(m);

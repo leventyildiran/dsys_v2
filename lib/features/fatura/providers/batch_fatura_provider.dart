@@ -720,8 +720,8 @@ class BatchFaturaProvider extends ChangeNotifier {
           final extractedData = await _aiService.extractBatchData(
             text,
             pdfBytes: pdfBytes,
-          ).timeout(const Duration(seconds: 12), onTimeout: () {
-            debugPrint('AI ayrıştırma zaman aşımına uğradı (12s).');
+          ).timeout(const Duration(seconds: 35), onTimeout: () {
+            debugPrint('AI ayrıştırma zaman aşımına uğradı (35s).');
             return [];
           });
           sonuc = extractedData.map(FaturaModel.fromJson).toList();

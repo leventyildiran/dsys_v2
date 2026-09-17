@@ -720,11 +720,11 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
             await provider.loadExcelFile(bytes, file.name, append: shouldAppend);
           } else {
             final text = await _extractTextFromFile(bytes, extension);
-            if (text.isEmpty && extension == 'pdf') {
-              await provider.loadBatch(text, pdfBytes: bytes, append: shouldAppend);
-            } else {
-              await provider.loadBatch(text, pdfBytes: null, append: shouldAppend);
-            }
+            await provider.loadBatch(
+              text,
+              pdfBytes: extension == 'pdf' ? bytes : null,
+              append: shouldAppend,
+            );
           }
           basariliDosya++;
         } catch (e) {

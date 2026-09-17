@@ -294,19 +294,44 @@ class FaturaOfflineParser {
     if (lines.isEmpty) return null;
 
     final firmaAdi = _extractFirmaAdi(lines);
+    final adres = _extractAdres(lines, firmaAdi);
     final kalemler = <Map<String, dynamic>>[];
 
-    // Tutar Regex'i: İster TL/₺ ile bitsin, ister doğrudan sayısal tutarla (1.250,00 veya 1250.00 veya 500)
+    // Tutar Regex'i: İster TL/₺ ile bitsin, ister doğrudan sayısal tutarla (% ve parantez destekli)
     final kalemRegex = RegExp(
-      r'^([A-Za-zÇĞİÖŞÜçğıöşü0-9\s.,_\-\/()]+?)[\s\t:]+([\d.,]+)\s*(?:TL|₺)?\s*$',
+      r'^([A-Za-zÇĞİÖŞÜçğıöşü0-9\s.,_\-\/()%]+?)[\s\t:]+([\d.,]+)\s*(?:TL|₺)?\s*$',
       caseSensitive: false,
     );
+
+    // Dip toplamları tara (Ödenecek Tutar, Genel Toplam, Mal Hizmet Toplam Tutarı, KDV vb.)
+    final odenecekMatch = RegExp(
+      r'(?:[öo]denecek\s*tutar|genel\s*toplam|toplam\s*tutar|fatura\s*toplam[ıi])\s*[:.\-]?\s*([\d.,]+)',
+      caseSensitive: false,
+    ).firstMatch(text);
+    final matrahMatch = RegExp(
+      r'(?:matrah|mal\s*hizmet\s*toplam(?:\s*tutar[ıi])?|vergi\s*matrah[ıi])\s*[:.\-]?\s*([\d.,]+)',
+      caseSensitive: false,
+    ).firstMatch(text);
+    final kdvTutarMatch = RegExp(
+      r'(?:hesaplanan\s*kdv|toplam\s*kdv|kdv\s*tutar[ıi])\s*[:.\-]?\s*([\d.,]+)',
+      caseSensitive: false,
+    ).firstMatch(text);
+    final kdvOranMatch = RegExp(
+      r'(?:kdv\s*oran[ıi]|oran[ıi])\s*[:.\-]?\s*%?\s*(\d{1,2})',
+      caseSensitive: false,
+    ).firstMatch(text);
+
+    final dipGenelToplam = odenecekMatch != null ? _parseNum(odenecekMatch.group(1)!) : 0.0;
+    final dipMatrah = matrahMatch != null ? _parseNum(matrahMatch.group(1)!) : 0.0;
+    final dipKdvOrani = kdvOranMatch != null ? (double.tryParse(kdvOranMatch.group(1)!) ?? 20.0) : 20.0;
 
     for (final line in lines) {
       if (_atlanacakKalem(line)) continue;
       final m = kalemRegex.firstMatch(line);
       if (m != null) {
-        final cinsi = m.group(1)!.trim();
+        var cinsi = m.group(1)!.trim();
+        // Baştaki sıra numarasını temizle (örn. "1 Test Analizi" -> "Test Analizi")
+        cinsi = cinsi.replaceFirst(RegExp(r'^\d+[\s\.\-]+'), '').trim();
         final tutar = _parseNum(m.group(2)!);
         if (cinsi.length >= 2 &&
             tutar > 0 &&
@@ -315,6 +340,16 @@ class FaturaOfflineParser {
           kalemler.add({'cinsi': cinsi, 'miktar': 1, 'fiyat': tutar});
         }
       }
+    }
+
+    // Kalem satırları tek tek tespit edilemediyse ama dip toplam bulunduysa faturayı kurtar
+    if (kalemler.isEmpty && (dipGenelToplam > 0 || dipMatrah > 0)) {
+      final tutar = dipMatrah > 0 ? dipMatrah : dipGenelToplam;
+      kalemler.add({
+        'cinsi': firmaAdi.isNotEmpty ? 'Hizmet / Analiz Bedeli' : 'Fatura Bedeli',
+        'miktar': 1,
+        'fiyat': tutar,
+      });
     }
 
     if (kalemler.isEmpty) return null;
@@ -331,12 +366,12 @@ class FaturaOfflineParser {
 
     return _build(
       firmaAdi: firmaAdi,
-      adres: '',
+      adres: adres,
       vergiDairesi: vdMatch?.group(1)?.trim() ?? '',
       vergiNo: vnMatch?.group(1)?.trim() ?? '',
       tarih: _ilkTarih(text),
       kalemler: kalemler,
-      kdvOrani: 20,
+      kdvOrani: dipKdvOrani,
       muaf: text.toLowerCase().contains('muaf'),
       iban: ibanMatch == null ? null : _normalizeIban(ibanMatch.group(0)!),
       hesapAdi: null,
@@ -344,18 +379,66 @@ class FaturaOfflineParser {
     );
   }
 
+  static String _extractAdres(List<String> lines, String firmaAdi) {
+    for (final line in lines) {
+      final l = line.toLowerCase();
+      if (l.contains('adres') && l.contains(':')) {
+        final parts = line.split(':');
+        if (parts.length > 1 && parts[1].trim().length > 3) {
+          return parts.sublist(1).join(':').trim();
+        }
+      }
+      if (l.contains('mah.') ||
+          l.contains('mahallesi') ||
+          l.contains('cad.') ||
+          l.contains('caddesi') ||
+          l.contains('sok.') ||
+          l.contains('sokak') ||
+          l.contains('apt.') ||
+          l.contains('sitesi')) {
+        if (!_isMetadataLine(l) && line != firmaAdi) {
+          return line.trim();
+        }
+      }
+    }
+    return '';
+  }
+
   static bool _isMetadataLine(String s) {
-    final l = s.toLowerCase();
+    final l = s.toLowerCase().trim();
+    if (l == 'vkn' ||
+        l == 'tc' ||
+        l == 'tckn' ||
+        l == 'no' ||
+        l == 'vd' ||
+        l == 'v.d.' ||
+        l == 'tel' ||
+        l == 'fax') {
+      return true;
+    }
     return l.contains('tarih') ||
         l.contains('fatura no') ||
+        l.contains('fatura') ||
         l.contains('sayfa') ||
         l.contains('toplam') ||
         l.contains('matrah') ||
         l.contains('kdv') ||
         l.contains('vergi') ||
+        l.contains('vkn') ||
+        l.contains('tckn') ||
+        l.contains('tc no') ||
+        l.contains('tc kimlik') ||
+        l.contains('tutar') ||
+        l.contains('ödenecek') ||
+        l.contains('odenecek') ||
         l.contains('iban') ||
         l.contains('mersis') ||
-        l.contains('ticaret');
+        l.contains('ticaret') ||
+        l.contains('sayın') ||
+        l.contains('sayin') ||
+        l.contains('müşteri') ||
+        l.contains('musteri') ||
+        l.contains('adres');
   }
 
   static String _extractFirmaAdi(List<String> lines) {

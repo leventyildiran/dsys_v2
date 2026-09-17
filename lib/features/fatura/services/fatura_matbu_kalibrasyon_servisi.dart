@@ -38,73 +38,105 @@ class FaturaMatbuKalibrasyonServisi {
     );
   }
 
-  Future<FaturaMatbuKalibrasyon> yukleYerel() async {
+  String _prefix(String? birimId) =>
+      (birimId != null && birimId.isNotEmpty) ? '${birimId}_' : '';
+
+  Future<FaturaMatbuKalibrasyon> yukleYerel({String? birimId}) async {
     final prefs = await SharedPreferences.getInstance();
+    final p = _prefix(birimId);
     final varsayilan = FaturaMatbuKalibrasyon.varsayilan();
     final koordinatlar = Map<String, Offset>.from(varsayilan.koordinatlar);
 
     for (final key in koordinatlar.keys) {
-      final dx = prefs.getDouble('${key}_dx');
-      final dy = prefs.getDouble('${key}_dy');
+      final dx = prefs.getDouble('$p${key}_dx') ??
+          (p.isNotEmpty ? prefs.getDouble('${key}_dx') : null);
+      final dy = prefs.getDouble('$p${key}_dy') ??
+          (p.isNotEmpty ? prefs.getDouble('${key}_dy') : null);
       if (dx != null && dy != null) {
         koordinatlar[key] = Offset(dx, dy);
       }
     }
 
-    final surum = prefs.getInt(_prefsSurumKey) ?? 0;
+    final surum = prefs.getInt('$p$_prefsSurumKey') ??
+        prefs.getInt(_prefsSurumKey) ??
+        0;
     return FaturaMatbuKalibrasyon(
       surum: surum,
       koordinatlar: koordinatlar,
-      kalemSatirAraligi: prefs.getDouble('fatura_kalem_satir_araligi') ??
+      kalemSatirAraligi: prefs.getDouble('${p}fatura_kalem_satir_araligi') ??
+          prefs.getDouble('fatura_kalem_satir_araligi') ??
           varsayilan.kalemSatirAraligi,
-      fontBoyutu: prefs.getDouble('fatura_matbu_font_boyutu') ??
+      fontBoyutu: prefs.getDouble('${p}fatura_matbu_font_boyutu') ??
+          prefs.getDouble('fatura_matbu_font_boyutu') ??
           varsayilan.fontBoyutu,
-      globalOffsetDx: prefs.getDouble('fatura_global_offset_dx') ?? 0,
-      globalOffsetDy: prefs.getDouble('fatura_global_offset_dy') ?? 0,
-      matbuBaskiModu: prefs.getBool('fatura_matbu_baski_modu') ?? true,
-      satirLimit: prefs.getInt('fatura_satir_limit') ?? varsayilan.satirLimit,
-      nakliYekunUstMetin: prefs.getString('fatura_nakli_yekun_ust_metin') ?? varsayilan.nakliYekunUstMetin,
-      nakliYekunAltMetin: prefs.getString('fatura_nakli_yekun_alt_metin') ?? varsayilan.nakliYekunAltMetin,
+      globalOffsetDx: prefs.getDouble('${p}fatura_global_offset_dx') ??
+          prefs.getDouble('fatura_global_offset_dx') ??
+          0,
+      globalOffsetDy: prefs.getDouble('${p}fatura_global_offset_dy') ??
+          prefs.getDouble('fatura_global_offset_dy') ??
+          0,
+      matbuBaskiModu: prefs.getBool('${p}fatura_matbu_baski_modu') ??
+          prefs.getBool('fatura_matbu_baski_modu') ??
+          true,
+      satirLimit: prefs.getInt('${p}fatura_satir_limit') ??
+          prefs.getInt('fatura_satir_limit') ??
+          varsayilan.satirLimit,
+      nakliYekunUstMetin:
+          prefs.getString('${p}fatura_nakli_yekun_ust_metin') ??
+              prefs.getString('fatura_nakli_yekun_ust_metin') ??
+              varsayilan.nakliYekunUstMetin,
+      nakliYekunAltMetin:
+          prefs.getString('${p}fatura_nakli_yekun_alt_metin') ??
+              prefs.getString('fatura_nakli_yekun_alt_metin') ??
+              varsayilan.nakliYekunAltMetin,
     ).normalize();
   }
 
-  Future<void> kaydetYerel(FaturaMatbuKalibrasyon ayar) async {
+  Future<void> kaydetYerel(FaturaMatbuKalibrasyon ayar, {String? birimId}) async {
     final prefs = await SharedPreferences.getInstance();
+    final p = _prefix(birimId);
     final normalized = ayar.normalize();
 
     for (final entry in normalized.koordinatlar.entries) {
-      await prefs.setDouble('${entry.key}_dx', entry.value.dx);
-      await prefs.setDouble('${entry.key}_dy', entry.value.dy);
+      await prefs.setDouble('$p${entry.key}_dx', entry.value.dx);
+      await prefs.setDouble('$p${entry.key}_dy', entry.value.dy);
     }
-    await prefs.setInt(_prefsSurumKey, FaturaMatbuKalibrasyon.guncelSurum);
+    await prefs.setInt('$p$_prefsSurumKey', FaturaMatbuKalibrasyon.guncelSurum);
     await prefs.setDouble(
-      'fatura_kalem_satir_araligi',
+      '${p}fatura_kalem_satir_araligi',
       normalized.kalemSatirAraligi,
     );
-    await prefs.setDouble('fatura_matbu_font_boyutu', normalized.fontBoyutu);
-    await prefs.setDouble('fatura_global_offset_dx', normalized.globalOffsetDx);
-    await prefs.setDouble('fatura_global_offset_dy', normalized.globalOffsetDy);
-    await prefs.setBool('fatura_matbu_baski_modu', normalized.matbuBaskiModu);
-    await prefs.setInt('fatura_satir_limit', normalized.satirLimit);
-    await prefs.setString('fatura_nakli_yekun_ust_metin', normalized.nakliYekunUstMetin);
-    await prefs.setString('fatura_nakli_yekun_alt_metin', normalized.nakliYekunAltMetin);
+    await prefs.setDouble('${p}fatura_matbu_font_boyutu', normalized.fontBoyutu);
+    await prefs.setDouble('${p}fatura_global_offset_dx', normalized.globalOffsetDx);
+    await prefs.setDouble('${p}fatura_global_offset_dy', normalized.globalOffsetDy);
+    await prefs.setBool('${p}fatura_matbu_baski_modu', normalized.matbuBaskiModu);
+    await prefs.setInt('${p}fatura_satir_limit', normalized.satirLimit);
+    await prefs.setString(
+      '${p}fatura_nakli_yekun_ust_metin',
+      normalized.nakliYekunUstMetin,
+    );
+    await prefs.setString(
+      '${p}fatura_nakli_yekun_alt_metin',
+      normalized.nakliYekunAltMetin,
+    );
   }
 
-  Future<void> temizleYerel() async {
+  Future<void> temizleYerel({String? birimId}) async {
     final prefs = await SharedPreferences.getInstance();
+    final p = _prefix(birimId);
     final keys = FaturaMatbuKalibrasyon.varsayilan().koordinatlar.keys;
     for (final key in keys) {
-      await prefs.remove('${key}_dx');
-      await prefs.remove('${key}_dy');
+      await prefs.remove('$p${key}_dx');
+      await prefs.remove('$p${key}_dy');
     }
-    await prefs.remove(_prefsSurumKey);
-    await prefs.remove('fatura_kalem_satir_araligi');
-    await prefs.remove('fatura_matbu_font_boyutu');
-    await prefs.remove('fatura_global_offset_dx');
-    await prefs.remove('fatura_global_offset_dy');
-    await prefs.remove('fatura_matbu_baski_modu');
-    await prefs.remove('fatura_satir_limit');
-    await prefs.remove('fatura_nakli_yekun_ust_metin');
-    await prefs.remove('fatura_nakli_yekun_alt_metin');
+    await prefs.remove('$p$_prefsSurumKey');
+    await prefs.remove('${p}fatura_kalem_satir_araligi');
+    await prefs.remove('${p}fatura_matbu_font_boyutu');
+    await prefs.remove('${p}fatura_global_offset_dx');
+    await prefs.remove('${p}fatura_global_offset_dy');
+    await prefs.remove('${p}fatura_matbu_baski_modu');
+    await prefs.remove('${p}fatura_satir_limit');
+    await prefs.remove('${p}fatura_nakli_yekun_ust_metin');
+    await prefs.remove('${p}fatura_nakli_yekun_alt_metin');
   }
 }

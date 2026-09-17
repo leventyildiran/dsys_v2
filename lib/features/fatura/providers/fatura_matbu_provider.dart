@@ -217,11 +217,8 @@ class FaturaMatbuProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Matbu kalibrasyon Firestore kaydı başarısız: $e');
     }
-    // Yerel yedeği sadece global ayar için tutuyoruz şimdilik, 
-    // ancak istenirse birim bazlı yerel yedek de yapılabilir.
-    if (aktifBirimId == null) {
-      await _matbuKalibrasyonServisi.kaydetYerel(ayar);
-    }
+    // Hem Firestore'a hem yerel SharedPreferences'a birim bazlı yedekle
+    await _matbuKalibrasyonServisi.kaydetYerel(ayar, birimId: aktifBirimId);
   }
 
   Future<void> saveCoordinates() => saveMatbuAyarlari();
@@ -230,15 +227,13 @@ class FaturaMatbuProvider extends ChangeNotifier {
     aktifBirimId = birimId;
     FaturaMatbuKalibrasyon? ayar =
         await _matbuKalibrasyonServisi.yukleFirestore(birimId: aktifBirimId);
-    ayar ??= await _matbuKalibrasyonServisi.yukleYerel();
+    ayar ??= await _matbuKalibrasyonServisi.yukleYerel(birimId: aktifBirimId);
     _kalibrasyonUygula(ayar.normalize());
     notifyListeners();
   }
 
   Future<void> resetCoordinates() async {
-    if (aktifBirimId == null) {
-      await _matbuKalibrasyonServisi.temizleYerel();
-    }
+    await _matbuKalibrasyonServisi.temizleYerel(birimId: aktifBirimId);
     final varsayilan = FaturaMatbuKalibrasyon.varsayilan();
     _kalibrasyonUygula(varsayilan);
     try {

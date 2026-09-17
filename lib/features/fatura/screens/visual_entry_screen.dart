@@ -338,8 +338,9 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       Offset adjustedOffset = offset;
       final isBold = key.toLowerCase().contains('toplam') || key.toLowerCase().contains('yekun');
 
-      // Alan genişliği
+      // Alan genişliği ve metin hizalaması (PDF baskısıyla birebir aynı)
       double maxW;
+      TextAlign textAlignment = TextAlign.left;
       if (key == 'yaziylaTutar') {
         maxW = 420;
       } else if (key == 'numuneAciklama') {
@@ -350,8 +351,10 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
         maxW = key == 'melbes' ? 155 : 140;
       } else if (key == 'kdvOrani') {
         maxW = 40;
+        textAlignment = TextAlign.right;
       } else if (key == 'matrah' || key == 'kdv' || key == 'genelToplam' || key.contains('Tutar')) {
         maxW = 80;
+        textAlignment = TextAlign.right;
       } else {
         maxW = 150;
       }
@@ -368,6 +371,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
                   fontBoyutu: provider.matbuFontBoyutu,
                   secili: _seciliAlan == key,
                   maxWidth: maxW,
+                  textAlign: textAlignment,
                   kalin: isBold,
                 ),
               ),
