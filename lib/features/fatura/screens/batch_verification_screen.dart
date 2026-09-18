@@ -575,7 +575,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
                       ),
                     )
                   : const Icon(Icons.auto_awesome, size: 18),
-              label: const Text('Yapay Zeka'),
+              label: const Text('Sistem Okuma'),
               onPressed: loading ? null : () => calistir(setLocal, ctx, false),
             ),
           ],
@@ -708,9 +708,15 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
           barrierDismissible: false,
           builder: (dialogCtx) {
             progressDialogContext = dialogCtx;
-            final progressLabel = totalFiles > 1
-                ? '(${i + 1}/$totalFiles) ${file.name} işleniyor…'
-                : '${file.name} okunuyor…';
+            final isPdf = (file.extension ?? '').toLowerCase() == 'pdf';
+            final String progressLabel;
+            if (totalFiles > 1) {
+              progressLabel = '(${i + 1}/$totalFiles) ${file.name} işleniyor…';
+            } else if (isPdf) {
+              progressLabel = 'Sistem belgenin tüm sayfalarını inceliyor, lütfen bekleyiniz…';
+            } else {
+              progressLabel = '${file.name} okunuyor…';
+            }
             return AlertDialog(
               content: Row(
                 children: [

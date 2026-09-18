@@ -366,10 +366,11 @@ class FaturaKuyrukProvider extends ChangeNotifier {
         currentInvoice.adres = value.toString();
       case 'vergiDairesi':
         currentInvoice.vergiDairesi = value.toString();
-      case 'vergiNo':
-        currentInvoice.vergiNo = value.toString();
       case 'tarih':
-        currentInvoice.tarih = value.toString();
+        final tStr = value.toString();
+        currentInvoice.tarih = tStr;
+        currentInvoice.irsaliyeTarihi = tStr;
+        dialogUpdateCounter++;
       case 'irsaliyeTarihi':
         currentInvoice.irsaliyeTarihi = value.toString();
       case 'irsaliyeNo':

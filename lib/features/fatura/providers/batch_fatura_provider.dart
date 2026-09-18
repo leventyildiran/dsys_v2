@@ -16,14 +16,13 @@ import '../models/fatura_parse_kaynaklari.dart';
 import '../models/fatura_onay_sonucu.dart';
 import '../services/fatura_service.dart';
 import '../services/fatura_offline_parser.dart';
-import '../services/fatura_eslestirme_servisi.dart';
+
 import '../services/fatura_arsiv_export_servisi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/excel_universal_parser.dart';
 import '../services/fatura_pdf_uretici.dart';
 import '../services/fatura_dogrulama_servisi.dart';
-import '../services/tesseract_ocr_web.dart';
-import '../../../core/services/google_vision_ocr_service.dart';
+
 import 'package:flutter/foundation.dart';
 import 'fatura_kuyruk_provider.dart';
 import 'fatura_matbu_provider.dart';
@@ -679,108 +678,55 @@ class BatchFaturaProvider extends ChangeNotifier {
     Uint8List? pdfBytes,
     bool append = false,
   }) async {
-    List<FaturaModel> sonuc = [];
-
     debugPrint('[loadBatch] Gelen evrak: metin=${text.length} karakter, pdfBytes=${pdfBytes?.length ?? 0} byte');
-    if (text.trim().isNotEmpty) {
-      final onizleme = text.length > 400 ? '${text.substring(0, 400)}...' : text;
-      debugPrint('[loadBatch] Metin önizleme:\n$onizleme');
-    }
 
-    // ── Katman 0 — Yerel kural motoru (HER ZAMAN, koşulsuz, ilk sırada) ──
-    // 0.01s, internet gerektirmez, hata vermez.
-    if (text.trim().isNotEmpty) {
-      sonuc = FaturaOfflineParser.parse(text);
-      if (sonuc.isNotEmpty) {
-        debugPrint('[loadBatch] Yerel parser başarılı: ${sonuc.length} fatura (${sonuc.first.parsedBy})');
-        sonAyristirmaBilgisi = sonuc.first.parsedBy;
-      } else {
-        debugPrint('[loadBatch] Yerel parser faturayı tanıyamadı, arşiv/AI katmanına geçiliyor.');
-      }
-    }
-
-    // ── Katman 0.5 — Tesseract.js Yerel OCR (Eğer metin boşsa ve PDF ise) ──
-    if (sonuc.isEmpty && text.trim().isEmpty && pdfBytes != null && pdfBytes.isNotEmpty && kIsWeb) {
-      debugPrint('[loadBatch] PDF metin katmanı boş. Tesseract.js yerel OCR deneniyor...');
-      try {
-        final jpegs = GoogleVisionOcrService.pdfIciJpegleriCikar(pdfBytes);
-        final ocrParts = <String>[];
-        for (final jpeg in jpegs) {
-          final ocrText = await TesseractOcrWeb.ocrFromImageBytes(jpeg);
-          if (ocrText.trim().isNotEmpty) ocrParts.add(ocrText.trim());
-        }
-        final finalOcr = ocrParts.join('\n\n');
-        if (finalOcr.trim().isNotEmpty) {
-           text = finalOcr;
-           debugPrint('[loadBatch] Tesseract yerel OCR başarılı:\n$finalOcr');
-           // Yeniden yerel parser'ı dene
-           sonuc = FaturaOfflineParser.parse(text);
-           if (sonuc.isNotEmpty) {
-             sonAyristirmaBilgisi = '${sonuc.first.parsedBy} (Yerel OCR ile)';
-             for (var s in sonuc) { s.parsedBy = sonAyristirmaBilgisi ?? ''; }
-           }
-        }
-      } catch (e) {
-        debugPrint('[loadBatch] Tesseract.js OCR hatası: $e');
-      }
-    }
-
-    // ── Katman 1 — Arşiv eşleştirme (yerel parser boş döndüyse) ──
-    if (sonuc.isEmpty && !cevrimdisi && text.trim().isNotEmpty) {
-      try {
-        final arsivKayitlar = await _faturaService.araFaturalar(
-          FaturaArsivAramaFiltre(metin: ''),
-        ).timeout(const Duration(seconds: 3), onTimeout: () => []);
-        final gecmis = arsivKayitlar.map((e) => e.fatura).toList();
-        final eslesmeSonuc = FaturaEslestirmeServisi.eslestir(
-          rawText: text,
-          gecmisFaturalar: gecmis,
-        );
-        if (eslesmeSonuc != null) {
-          sonuc = [eslesmeSonuc.fatura];
-          final skor = eslesmeSonuc.skor;
-          final dusukSkor = skor < FaturaEslestirmeServisi.yuksekGuvenSkoru;
-          sonAyristirmaBilgisi = dusukSkor
-              ? 'Arşiv şablonundan dolduruldu (eşleşme skoru: $skor — kontrol edin)'
-              : 'Arşiv şablonundan dolduruldu (eşleşme skoru: $skor)';
-        }
-      } catch (e) {
-        debugPrint('Eşleştirme servisi hatası: $e');
-      }
-    }
-
-    // ── Katman 2 — AI (son çare, yerel + arşiv ikisi de boş döndüyse) ──
-    if (sonuc.isEmpty && !cevrimdisi) {
-      try {
-        final hasPdf = pdfBytes != null && pdfBytes.isNotEmpty;
-        final aiTimeout = Duration(seconds: hasPdf ? 45 : 20);
-        debugPrint('[loadBatch] AI katmanı çağrılıyor (timeout: ${aiTimeout.inSeconds}s)...');
-
-        final extractedData = await _aiService.extractBatchData(
-          text,
-          pdfBytes: pdfBytes,
-        ).timeout(aiTimeout, onTimeout: () {
-          debugPrint('AI ayrıştırma zaman aşımına uğradı (${aiTimeout.inSeconds}s).');
-          return [];
-        });
-        sonuc = extractedData.map(FaturaModel.fromJson).toList();
-        if (sonuc.isNotEmpty) {
-          sonAyristirmaBilgisi = sonuc.first.parsedBy;
-        }
-      } catch (e) {
-        debugPrint('AI ayrıştırma başarısız: $e');
-      }
-    }
-
-    if (sonuc.isEmpty) {
+    if (cevrimdisi) {
       throw Exception(
-        'Fatura okunamadı. AI anahtarı yoksa metin biçimini kontrol edin '
-        'veya alanları manuel doldurun.',
+        'Çevrimdışı modda fatura okunamaz. '
+        'İnternet bağlantısını kontrol edip tekrar deneyin.',
       );
     }
 
-    sonuc = FaturaDogrulamaServisi.dogrulaList(sonuc);
-    _kuyrukProvider.setInvoicesFromParse(sonuc, append: append);
+    // ── Gemini Vision API — doğrudan PDF/metin gönder ──
+    final hasPdf = pdfBytes != null && pdfBytes.isNotEmpty;
+    final aiTimeout = Duration(seconds: hasPdf ? 150 : 45);
+    debugPrint('[loadBatch] Gemini API çağrılıyor (timeout: ${aiTimeout.inSeconds}s)...');
+
+    try {
+      final extractedData = await _aiService.extractBatchData(
+        text,
+        pdfBytes: pdfBytes,
+      ).timeout(aiTimeout, onTimeout: () {
+        throw Exception(
+          'Sistem yanıt vermedi (${aiTimeout.inSeconds} saniye). '
+          'Belge çok büyük olabilir, lütfen tekrar deneyin.',
+        );
+      });
+
+      final sonuc = extractedData.map(FaturaModel.fromJson).toList();
+      if (sonuc.isEmpty) {
+        throw Exception(
+          'Sistem belgeden fatura verisi çıkaramadı. '
+          'Belgenin okunabilir olduğundan emin olun.',
+        );
+      }
+
+      // Fatura tarihi ve irsaliye tarihi otomatik günün tarihi olsun
+      final simdi = DateTime.now();
+      final bugunStr =
+          '${simdi.day.toString().padLeft(2, '0')}.${simdi.month.toString().padLeft(2, '0')}.${simdi.year}';
+      for (final f in sonuc) {
+        f.tarih = bugunStr;
+        f.irsaliyeTarihi = bugunStr;
+      }
+
+      sonAyristirmaBilgisi = sonuc.first.parsedBy;
+      final dogrulanmis = FaturaDogrulamaServisi.dogrulaList(sonuc);
+      _kuyrukProvider.setInvoicesFromParse(dogrulanmis, append: append);
+    } catch (e) {
+      debugPrint('[loadBatch] Ayrıştırma hatası: $e');
+      rethrow;
+    }
   }
 
   // ─────────────────────────────────────────────────────────

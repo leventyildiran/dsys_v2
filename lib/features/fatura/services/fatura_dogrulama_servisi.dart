@@ -92,6 +92,16 @@ class FaturaDogrulamaServisi {
     f.kdvTutari = double.parse(kdvTutari.toStringAsFixed(2));
     f.genelToplam = double.parse(genelToplam.toStringAsFixed(2));
 
+    // 4. Tarih & İrsaliye Tarihi güvencesi (boşsa günün tarihi ve ikisi eşit)
+    if (f.tarih.trim().isEmpty) {
+      final simdi = DateTime.now();
+      f.tarih =
+          '${simdi.day.toString().padLeft(2, '0')}.${simdi.month.toString().padLeft(2, '0')}.${simdi.year}';
+    }
+    if (f.irsaliyeTarihi.trim().isEmpty) {
+      f.irsaliyeTarihi = f.tarih;
+    }
+
     return f;
   }
 

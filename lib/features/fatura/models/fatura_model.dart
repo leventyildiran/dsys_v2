@@ -228,14 +228,17 @@ class FaturaModel {
   }
 
   factory FaturaModel.bos({String id = '0'}) {
+    final simdi = DateTime.now();
+    final bugunStr =
+        '${simdi.day.toString().padLeft(2, '0')}.${simdi.month.toString().padLeft(2, '0')}.${simdi.year}';
     return FaturaModel(
       id: id,
       firmaAdi: '',
       adres: '',
       vergiDairesi: '',
       vergiNo: '',
-      tarih: '',
-      irsaliyeTarihi: '',
+      tarih: bugunStr,
+      irsaliyeTarihi: bugunStr,
       irsaliyeNo: '',
       melbesNo: '',
       numuneNo: '',

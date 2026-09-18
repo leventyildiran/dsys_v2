@@ -3,12 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../models/sistem_ayarlari_model.dart';
-import 'google_vision_ocr_service.dart';
 import 'sistem_ayarlari_service.dart';
 
 class AIExtractionService {
   final SistemAyarlariService _ayarlarService = SistemAyarlariService();
-  final GoogleVisionOcrService _visionOcr = GoogleVisionOcrService();
   static const List<String> _geminiModelFallbacks = [
     'gemini-3.8-flash',
     'gemini-3.7-flash',
@@ -17,6 +15,11 @@ class AIExtractionService {
     'gemini-3.5-flash-lite',
   ];
 
+  /// Gemini API'ye model fallback zinciriyle istek gönderir.
+  ///
+  /// - Media (PDF) timeout: 120 saniye
+  /// - Text-only timeout: 30 saniye
+  /// - 503/UNAVAILABLE hatalarında aynı modeli 2s bekleyip 1 kez daha dener.
   Future<String?> _runGeminiWithFallback({
     required String apiKey,
     required List<Part> parts,
@@ -41,25 +44,40 @@ class AIExtractionService {
     }
 
     final hasMedia = parts.any((p) => p is DataPart);
-    final modelTimeout = Duration(seconds: hasMedia ? 35 : 15);
+    final modelTimeout = Duration(seconds: hasMedia ? 120 : 30);
 
     Object? sonHata;
     for (final modelName in modelOrder) {
-      try {
-        debugPrint('Gemini API ($modelName) ile ayrıştırma deneniyor (timeout: ${modelTimeout.inSeconds}s)...');
-        final model = GenerativeModel(model: modelName, apiKey: apiKey);
-        final response = await model
-            .generateContent([Content.multi(parts)])
-            .timeout(modelTimeout);
-        final text = response.text?.trim() ?? '';
-        if (text.isNotEmpty) return text;
-      } catch (e) {
-        sonHata = e;
-        final err = e.toString();
-        if (err.contains('503') || err.contains('UNAVAILABLE') || err.contains('high demand')) {
-          debugPrint('$modelName anlık aşırı yoğunlukta (503/High Demand), sıradaki modele geçiliyor...');
-        } else {
+      // Her model için en fazla 2 deneme (ilk + 503 retry)
+      for (int attempt = 0; attempt < 2; attempt++) {
+        try {
+          debugPrint(
+            'Gemini API ($modelName) deneme ${attempt + 1}/2 '
+            '(timeout: ${modelTimeout.inSeconds}s)...',
+          );
+          final model = GenerativeModel(model: modelName, apiKey: apiKey);
+          final response = await model
+              .generateContent([Content.multi(parts)])
+              .timeout(modelTimeout);
+          final text = response.text?.trim() ?? '';
+          if (text.isNotEmpty) return text;
+          break; // Boş döndüyse retry anlamsız, sonraki modele geç
+        } catch (e) {
+          sonHata = e;
+          final err = e.toString();
+          final is503 = err.contains('503') ||
+              err.contains('UNAVAILABLE') ||
+              err.contains('high demand') ||
+              err.contains('overloaded');
+          if (is503 && attempt == 0) {
+            debugPrint(
+              '$modelName 503/aşırı yoğunluk — 2 saniye bekleyip tekrar deneniyor...',
+            );
+            await Future.delayed(const Duration(seconds: 2));
+            continue; // Aynı modeli bir kez daha dene
+          }
           debugPrint('$modelName hatası: $e');
+          break; // 503 değilse veya 2. denemeyse sonraki modele geç
         }
       }
       await Future.delayed(const Duration(milliseconds: 150));
@@ -70,15 +88,17 @@ class AIExtractionService {
     return null;
   }
 
+  /// Fatura PDF/metin verisini AI ile ayrıştırır.
+  ///
+  /// Akış: Gemini Vision (PDF byte) → DeepSeek (metin fallback)
   Future<List<Map<String, dynamic>>> extractBatchData(
     String rawBatchText, {
     Uint8List? pdfBytes,
   }) async {
     final ayarlar = await _ayarlarService.getAyarlar();
-
-    // Prompt hazırlığı
     final prompt = _buildPrompt(rawBatchText);
 
+    // ── Gemini (öncelikli) ──
     Object? geminiHata;
     if (ayarlar.geminiApiKey.isNotEmpty) {
       try {
@@ -94,124 +114,46 @@ class AIExtractionService {
         );
         final parsed = _parseJson(text ?? '');
         if (parsed.isNotEmpty) {
-          final etiket = (pdfBytes != null && pdfBytes.isNotEmpty)
-              ? 'Yapay zeka (Gemini Vision)'
-              : 'Yapay zeka (Gemini)';
           for (var p in parsed) {
-            p['parsedBy'] = etiket;
+            p['parsedBy'] = 'Sistem okuma';
           }
           return parsed;
         }
-        geminiHata = 'Yapay zeka (Gemini) faturayı anlayamadı, JSON formatı hatalı.';
+        geminiHata = 'Belge anlaşılamadı, veri formatı hatalı.';
       } catch (e) {
         geminiHata = e;
-        debugPrint('Gemini ayrıştırma hatası: $e');
+        debugPrint('Ayrıştırma hatası: $e');
       }
     }
 
-    if (pdfBytes != null && pdfBytes.isNotEmpty && ayarlar.visionApiKey.isNotEmpty) {
-      final ocrSonuc = await _ocrVeYapayZekaDene(
-        ayarlar: ayarlar,
-        ocrKaynakMetin: rawBatchText,
-        pdfBytes: pdfBytes,
-      );
-      if (ocrSonuc != null) return ocrSonuc;
-    }
-
-    if (pdfBytes != null && pdfBytes.isNotEmpty && geminiHata != null) {
-      final hataMesaji = geminiHata.toString();
-      if (hataMesaji.contains('not found') || hataMesaji.contains('404')) {
-        throw Exception(
-          'Birim Gemini API anahtarı bu modellere erişemiyor. '
-          'Google AI Studio (birim hesabı) üzerinden yeni anahtar oluşturun '
-          'veya Sistem Ayarları → OCR yedek anahtarını tanımlayın.',
-        );
-      }
-      if (ayarlar.visionApiKey.isEmpty) {
-        throw Exception(
-          'Taranmış PDF okunamadı. Sistem Ayarlarından birim Vision OCR anahtarını tanımlayın.\n$hataMesaji',
-        );
-      }
-      throw Exception(
-        'Taranmış PDF okunamadı (Gemini ve OCR yedek). Metin tabanlı PDF deneyin.\n$hataMesaji',
-      );
-    }
-
-    // Metin tabanlı — DeepSeek yedeği
+    // ── DeepSeek (metin tabanlı yedek) ──
     if (ayarlar.deepseekApiKey.isNotEmpty &&
         ayarlar.deepseekApiUrl.isNotEmpty) {
       final parsed = await _deepSeekParse(
         ayarlar: ayarlar,
         prompt: prompt,
-        parsedByEtiketi: 'Yapay zeka (DeepSeek)',
+        parsedByEtiketi: 'Sistem okuma',
       );
       if (parsed != null) return parsed;
     }
 
-    // Tüm AI denemeleri başarısızsa boş dön
-    throw Exception(
-      'Yapay zeka faturayı okuyamadı. Birim API anahtarlarını Sistem Ayarlarından kontrol edin.',
-    );
-  }
-
-  /// Taranmış PDF: Vision OCR → metin → Gemini (metin) veya DeepSeek.
-  Future<List<Map<String, dynamic>>?> _ocrVeYapayZekaDene({
-    required SistemAyarlariModel ayarlar,
-    required String ocrKaynakMetin,
-    required Uint8List pdfBytes,
-  }) async {
-    if (ayarlar.visionApiKey.trim().isEmpty) {
-      debugPrint('[AI] Vision OCR anahtarı tanımlı değil.');
-      return null;
-    }
-
-    try {
-      final ocrMetin = await _visionOcr.pdfdenMetinCikar(
-        pdfBytes: pdfBytes,
-        apiKey: ayarlar.visionApiKey,
-      );
-      if (ocrMetin.trim().length < 30) {
-        debugPrint('[AI] Vision OCR yetersiz metin döndü.');
-        return null;
-      }
-
-      final birlesikMetin = ocrKaynakMetin.trim().isEmpty
-          ? ocrMetin
-          : '${ocrKaynakMetin.trim()}\n\n--- OCR ---\n$ocrMetin';
-      final ocrPrompt = _buildPrompt(birlesikMetin);
-
-      if (ayarlar.geminiApiKey.isNotEmpty) {
-        try {
-          final text = await _runGeminiWithFallback(
-            apiKey: ayarlar.geminiApiKey,
-            preferredModel: ayarlar.geminiModel,
-            parts: [TextPart(ocrPrompt)],
-          );
-          final parsed = _parseJson(text ?? '');
-          if (parsed.isNotEmpty) {
-            for (var p in parsed) {
-              p['parsedBy'] = 'Yapay zeka (Gemini · OCR yedek)';
-            }
-            return parsed;
-          }
-        } catch (e) {
-          debugPrint('[AI] OCR sonrası Gemini metin hatası: $e');
-        }
-      }
-
-      if (ayarlar.deepseekApiKey.isNotEmpty &&
-          ayarlar.deepseekApiUrl.isNotEmpty) {
-        final parsed = await _deepSeekParse(
-          ayarlar: ayarlar,
-          prompt: ocrPrompt,
-          parsedByEtiketi: 'Yapay zeka (DeepSeek · OCR yedek)',
+    // ── Hata fırlat ──
+    if (geminiHata != null) {
+      final hataMesaji = geminiHata.toString();
+      if (hataMesaji.contains('not found') || hataMesaji.contains('404')) {
+        throw Exception(
+          'Okuma servisi API anahtarı bu modellere erişemiyor. '
+          'Sistem Ayarları üzerinden kontrol edin.',
         );
-        if (parsed != null) return parsed;
       }
-    } catch (e) {
-      debugPrint('[AI] Vision OCR zinciri hatası: $e');
+      throw Exception(
+        'Fatura okunamadı. Lütfen tekrar deneyin.\n$hataMesaji',
+      );
     }
-    return null;
+
+    throw Exception(
+      'Sistem faturayı okuyamadı. Sistem Ayarlarından bağlantıyı kontrol edin.',
+    );
   }
 
   Future<List<Map<String, dynamic>>?> _deepSeekParse({
@@ -313,7 +255,7 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
 ]
 
 ÖNEMLİ KURALLAR:
-1. SADECE JSON ÇIKTISI VER. Yorum yapma, açıklamalar ekleme, markdown tickleri (```json) ekleme veya başa/sona yazı koyma!
+1. SADECE JSON ÇIKTISI VER. Yorum yapma, açıklamalar ekleme, markdown tickleri (\`\`\`json) ekleme veya başa/sona yazı koyma!
 2. Faturadaki HER BİR HİZMET VEYA ÜRÜN KALEMİNİ eksiksiz olarak 'kalemler' dizisine ayrı bir obje olarak ekle. Hiçbir kalemi atlama veya birleştirme. Faturada ne kadar kalem varsa hepsi dizide olmalı!
 3. Faturada birden fazla müşteri verisi varsa liste içine birden fazla obje koy.
 4. "kalemler" listesinde, "fiyat" kısmına virgülleri noktaya çevirerek bir Number koy (örn: 1540.50). 
@@ -328,7 +270,7 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
    - Hiçbiri değilse: DİĞER
 
 Ham Fatura Metni:
-$rawText
+\$rawText
 ''';
   }
 
@@ -362,7 +304,7 @@ Sütun endeksleri 0'dan başlar (Yani ilk sütun 0'dır).
 Eğer bu dosya bir toplu müşteri listesi değil de, düz bir fatura şablonuysa "isBatchList": false döndür. SADECE JSON döndür.
 
 CSV Önizleme:
-$excelCsvPreview
+\$excelCsvPreview
 ''';
 
     if (ayarlar.geminiApiKey.isNotEmpty) {
@@ -546,7 +488,7 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
 3. Fiyat, para birimi, oran gibi verileri değil sadece FAALİYET ADETİ/SAATİ ve PUANI bilgilerini çek.
 
 Ham Karar Metni:
-$rawText
+\$rawText
 ''';
   }
 }
