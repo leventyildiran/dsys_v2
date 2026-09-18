@@ -125,6 +125,34 @@ class ExcelUniversalParser {
       _parseSharedStrings(sstXml, sharedStrings);
     }
 
+    // 1.5 Gerçek sayfa adlarını bul (workbook.xml ve rels)
+    final sheetNamesMap = <String, String>{};
+    final workbookFile = archive.findFile('xl/workbook.xml');
+    final relsFile = archive.findFile('xl/_rels/workbook.xml.rels');
+    
+    if (workbookFile != null && relsFile != null) {
+      final wbXml = utf8.decode(workbookFile.content as List<int>, allowMalformed: true);
+      final relsXml = utf8.decode(relsFile.content as List<int>, allowMalformed: true);
+      
+      final relMap = <String, String>{};
+      final relRegex = RegExp(r'<Relationship\b[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"', caseSensitive: false);
+      for (final m in relRegex.allMatches(relsXml)) {
+        relMap[m.group(1)!] = m.group(2)!;
+      }
+      
+      final sheetRegex = RegExp(r'<sheet\b[^>]*name="([^"]+)"[^>]*r:id="([^"]+)"', caseSensitive: false);
+      for (final m in sheetRegex.allMatches(wbXml)) {
+        final name = m.group(1)!;
+        final rId = m.group(2)!;
+        final target = relMap[rId];
+        if (target != null) {
+          // target genellikle 'worksheets/sheet1.xml' olur
+          final targetClean = target.toLowerCase().startsWith('xl/') ? target : 'xl/$target';
+          sheetNamesMap[targetClean.toLowerCase()] = name;
+        }
+      }
+    }
+
     // 2. Çalışma sayfalarını bul (xl/worksheets/sheet*.xml)
     final sheetFiles = archive.files.where((f) {
       final name = f.name.toLowerCase();
@@ -139,7 +167,8 @@ class ExcelUniversalParser {
     final buffer = StringBuffer();
 
     for (final sFile in sheetFiles) {
-      final sheetName = sFile.name.split('/').last.replaceAll('.xml', '');
+      final sFileName = sFile.name.toLowerCase();
+      final sheetName = sheetNamesMap[sFileName] ?? sFile.name.split('/').last.replaceAll('.xml', '');
       buffer.writeln('--- SHEET: $sheetName ---');
 
       final sheetXml = utf8.decode(sFile.content as List<int>, allowMalformed: true);

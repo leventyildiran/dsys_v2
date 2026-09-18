@@ -76,6 +76,10 @@ class FaturaOfflineParser {
     final talepSonuc = _parseBirimTalepFormu(rawText);
     if (talepSonuc != null && talepSonuc.isNotEmpty) return talepSonuc;
 
+    // 4.5) Tablo/Liste formatı (Yumurta Satış vb. - her satır ayrı fatura)
+    final listeSonuc = _parseYumurtaListesi(rawText);
+    if (listeSonuc != null && listeSonuc.isNotEmpty) return listeSonuc;
+
     // 5) Serbest metin / sayfa işareti olmayan döküm (fallback)
     final fatura = _parseFreeText(rawText);
     return fatura == null ? [] : [fatura];
@@ -289,6 +293,71 @@ class FaturaOfflineParser {
       hesapAdi: ibanBilgi.$2,
       fullText: fullText,
     );
+  }
+
+  // --------------------------------------------------------------------------
+  // Tablo / Satır Satır Liste Ayrıştırma (Örn: Yumurta Listesi)
+  // --------------------------------------------------------------------------
+  
+  static List<FaturaModel>? _parseYumurtaListesi(String text) {
+    // Listede çoklu satır olup olmadığını anlamak için basit bir kelime kontrolü
+    if (!text.toLowerCase().contains('yumurta') && !text.toLowerCase().contains('liste')) {
+      return null;
+    }
+
+    final lines = text.split('\n').map((l) => l.replaceAll('|', ' ').trim()).toList();
+    
+    // Satır regex'i: Başta olası sıra no, ortada isim (min 2 kelime), sonda tutar
+    // Örn: "1 Ahmet Yılmaz 150,00" veya "Ahmet Yılmaz 150 TL"
+    final satirRegex = RegExp(
+      r'^(?:\d+[\s\.\-]+)?([a-zA-ZçğıöşüÇĞİÖŞÜ]+\s+[a-zA-ZçğıöşüÇĞİÖŞÜ\s]+?)[\s\t:]+([\d.,]+)\s*(?:TL|₺)?$',
+      caseSensitive: false,
+    );
+
+    final faturalar = <FaturaModel>[];
+    final tarih = _ilkTarih(text);
+    
+    final ibanMatch = _ibanRegex.firstMatch(text);
+    final ibanStr = ibanMatch == null ? null : _normalizeIban(ibanMatch.group(0)!);
+
+    for (final line in lines) {
+      if (line.isEmpty || _atlanacakKalem(line) || _isMetadataLine(line)) continue;
+      
+      final m = satirRegex.firstMatch(line);
+      if (m != null) {
+        final adSoyad = m.group(1)!.trim();
+        final tutar = _parseNum(m.group(2)!);
+        
+        if (adSoyad.split(' ').length >= 2 && tutar > 0 && adSoyad.length > 5) {
+          final fatura = _build(
+            firmaAdi: adSoyad,
+            adres: '',
+            vergiDairesi: '',
+            vergiNo: '',
+            tarih: tarih,
+            kalemler: [
+              {
+                'cinsi': 'Yumurta Satış Bedeli', // Varsayılan kalem açıklaması
+                'miktar': 1,
+                'fiyat': tutar,
+              }
+            ],
+            kdvOrani: 20,
+            muaf: text.toLowerCase().contains('muaf'),
+            iban: ibanStr,
+            hesapAdi: null,
+            fullText: line, // Sadece o satırı verelim
+          );
+          faturalar.add(fatura);
+        }
+      }
+    }
+
+    if (faturalar.isNotEmpty && faturalar.length >= 2) {
+      return faturalar; // En az 2 kişi/satır bulduysa geçerli bir listedir.
+    }
+    
+    return null;
   }
 
   // --------------------------------------------------------------------------

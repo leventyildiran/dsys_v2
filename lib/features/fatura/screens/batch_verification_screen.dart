@@ -1,6 +1,6 @@
 import 'dart:convert';
-
-import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:printing/printing.dart';
 import 'package:file_picker/file_picker.dart';
@@ -610,7 +610,12 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       if (!context.mounted) return;
       if (result == null || result.files.isEmpty) return;
       final file = result.files.first;
-      if (file.bytes == null) return;
+      
+      Uint8List? fileBytes = file.bytes;
+      if (fileBytes == null && !kIsWeb && file.path != null) {
+        fileBytes = File(file.path!).readAsBytesSync();
+      }
+      if (fileBytes == null) return;
 
       if (!context.mounted) return;
       showDialog(
@@ -630,7 +635,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
         },
       );
 
-      await provider.loadExcelFile(file.bytes!, file.name);
+      await provider.loadExcelFile(fileBytes, file.name);
 
       if (!context.mounted) return;
       closeProgressDialog();
@@ -685,10 +690,16 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       final baslangicAdet = provider.pendingInvoices
           .where((f) => !BatchFaturaProvider.yerTutucuMu(f))
           .length;
+          
+      final List<String> errorMessages = [];
 
       for (var i = 0; i < totalFiles; i++) {
         final file = result.files[i];
-        final bytes = file.bytes;
+        
+        Uint8List? bytes = file.bytes;
+        if (bytes == null && !kIsWeb && file.path != null) {
+          bytes = File(file.path!).readAsBytesSync();
+        }
         if (bytes == null) continue;
 
         if (!context.mounted) return;
@@ -729,6 +740,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
           basariliDosya++;
         } catch (e) {
           debugPrint('${file.name} ayrıştırılırken hata: $e');
+          errorMessages.add('${file.name}: $e');
         } finally {
           closeProgressDialog();
         }
@@ -748,22 +760,24 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
             content: Text(
               totalFiles > 1
                   ? '$basariliDosya dosya başarıyla işlendi (Kuyrukta toplam $sonAdet fatura hazır).'
-                  : '$yeniEklenen fatura başarıyla oluşturuldu (Kuyrukta: $sonAdet).',
+                  : 'Fatura başarıyla eklendi.',
             ),
-            backgroundColor: Colors.green.shade700,
-            duration: const Duration(seconds: 4),
+            backgroundColor: Colors.green,
           ),
         );
       } else {
+        final allErrors = errorMessages.take(3).join('\n'); // En fazla 3 hata göster
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Seçilen dosyalardan geçerli fatura verisi çıkarılamadı.'),
+          SnackBar(
+            content: Text(
+              'Geçerli fatura çıkarılamadı.\nHatalar:\n$allErrors',
+            ),
             backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 8),
           ),
         );
       }
     } catch (e) {
-      closeProgressDialog();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

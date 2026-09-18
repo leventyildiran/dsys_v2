@@ -22,6 +22,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/excel_universal_parser.dart';
 import '../services/fatura_pdf_uretici.dart';
 import '../services/fatura_dogrulama_servisi.dart';
+import '../services/tesseract_ocr_web.dart';
+import '../../../core/services/google_vision_ocr_service.dart';
+import 'package:flutter/foundation.dart';
 import 'fatura_kuyruk_provider.dart';
 import 'fatura_matbu_provider.dart';
 
@@ -693,6 +696,32 @@ class BatchFaturaProvider extends ChangeNotifier {
         sonAyristirmaBilgisi = sonuc.first.parsedBy;
       } else {
         debugPrint('[loadBatch] Yerel parser faturayı tanıyamadı, arşiv/AI katmanına geçiliyor.');
+      }
+    }
+
+    // ── Katman 0.5 — Tesseract.js Yerel OCR (Eğer metin boşsa ve PDF ise) ──
+    if (sonuc.isEmpty && text.trim().isEmpty && pdfBytes != null && pdfBytes.isNotEmpty && kIsWeb) {
+      debugPrint('[loadBatch] PDF metin katmanı boş. Tesseract.js yerel OCR deneniyor...');
+      try {
+        final jpegs = GoogleVisionOcrService.pdfIciJpegleriCikar(pdfBytes);
+        final ocrParts = <String>[];
+        for (final jpeg in jpegs) {
+          final ocrText = await TesseractOcrWeb.ocrFromImageBytes(jpeg);
+          if (ocrText.trim().isNotEmpty) ocrParts.add(ocrText.trim());
+        }
+        final finalOcr = ocrParts.join('\n\n');
+        if (finalOcr.trim().isNotEmpty) {
+           text = finalOcr;
+           debugPrint('[loadBatch] Tesseract yerel OCR başarılı:\n$finalOcr');
+           // Yeniden yerel parser'ı dene
+           sonuc = FaturaOfflineParser.parse(text);
+           if (sonuc.isNotEmpty) {
+             sonAyristirmaBilgisi = '${sonuc.first.parsedBy} (Yerel OCR ile)';
+             for (var s in sonuc) { s.parsedBy = sonAyristirmaBilgisi; }
+           }
+        }
+      } catch (e) {
+        debugPrint('[loadBatch] Tesseract.js OCR hatası: $e');
       }
     }
 
