@@ -10,8 +10,11 @@ class AIExtractionService {
   final SistemAyarlariService _ayarlarService = SistemAyarlariService();
   final GoogleVisionOcrService _visionOcr = GoogleVisionOcrService();
   static const List<String> _geminiModelFallbacks = [
-    'gemini-3.6-flash',
     'gemini-3.8-flash',
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
   ];
 
   Future<String?> _runGeminiWithFallback({
@@ -27,7 +30,7 @@ class AIExtractionService {
             cleanPreferred == 'gemini-2.5-flash' ||
             cleanPreferred == 'gemini-2.0-flash' ||
             cleanPreferred == 'gemini-1.5-flash')) {
-      cleanPreferred = 'gemini-3.6-flash';
+      cleanPreferred = 'gemini-3.8-flash';
     }
 
     if (cleanPreferred != null && cleanPreferred.isNotEmpty) {
@@ -52,9 +55,14 @@ class AIExtractionService {
         if (text.isNotEmpty) return text;
       } catch (e) {
         sonHata = e;
-        debugPrint('$modelName hatası: $e');
+        final err = e.toString();
+        if (err.contains('503') || err.contains('UNAVAILABLE') || err.contains('high demand')) {
+          debugPrint('$modelName anlık aşırı yoğunlukta (503/High Demand), sıradaki modele geçiliyor...');
+        } else {
+          debugPrint('$modelName hatası: $e');
+        }
       }
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 150));
     }
     if (sonHata != null) {
       throw Exception(sonHata.toString());
