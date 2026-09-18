@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:google_generative_ai/google_generative_ai.dart';
-import '../models/sistem_ayarlari_model.dart';
 import 'sistem_ayarlari_service.dart';
 
 class AIExtractionService {
@@ -88,9 +86,7 @@ class AIExtractionService {
     return null;
   }
 
-  /// Fatura PDF/metin verisini AI ile ayrıştırır.
-  ///
-  /// Akış: Gemini Vision (PDF byte) → DeepSeek (metin fallback)
+  /// Fatura PDF/metin verisini Gemini Vision ile doğrudan ayrıştırır.
   Future<List<Map<String, dynamic>>> extractBatchData(
     String rawBatchText, {
     Uint8List? pdfBytes,
@@ -98,7 +94,6 @@ class AIExtractionService {
     final ayarlar = await _ayarlarService.getAyarlar();
     final prompt = _buildPrompt(rawBatchText);
 
-    // ── Gemini (öncelikli) ──
     Object? geminiHata;
     if (ayarlar.geminiApiKey.isNotEmpty) {
       try {
@@ -126,18 +121,6 @@ class AIExtractionService {
       }
     }
 
-    // ── DeepSeek (metin tabanlı yedek) ──
-    if (ayarlar.deepseekApiKey.isNotEmpty &&
-        ayarlar.deepseekApiUrl.isNotEmpty) {
-      final parsed = await _deepSeekParse(
-        ayarlar: ayarlar,
-        prompt: prompt,
-        parsedByEtiketi: 'Sistem okuma',
-      );
-      if (parsed != null) return parsed;
-    }
-
-    // ── Hata fırlat ──
     if (geminiHata != null) {
       final hataMesaji = geminiHata.toString();
       if (hataMesaji.contains('not found') || hataMesaji.contains('404')) {
@@ -154,61 +137,6 @@ class AIExtractionService {
     throw Exception(
       'Sistem faturayı okuyamadı. Sistem Ayarlarından bağlantıyı kontrol edin.',
     );
-  }
-
-  Future<List<Map<String, dynamic>>?> _deepSeekParse({
-    required SistemAyarlariModel ayarlar,
-    required String prompt,
-    required String parsedByEtiketi,
-  }) async {
-    try {
-      debugPrint('DeepSeek API ile ayrıştırma deneniyor...');
-      final url = ayarlar.deepseekApiUrl.endsWith('/')
-          ? '${ayarlar.deepseekApiUrl}chat/completions'
-          : '${ayarlar.deepseekApiUrl}/chat/completions';
-      final modelName = ayarlar.deepseekModel.isEmpty
-          ? 'deepseek-chat'
-          : ayarlar.deepseekModel;
-
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'Authorization': 'Bearer ${ayarlar.deepseekApiKey}',
-        },
-        body: jsonEncode({
-          'model': modelName,
-          'messages': [
-            {
-              'role': 'system',
-              'content':
-                  'You are a precise invoice parsing AI that outputs strictly in JSON.',
-            },
-            {'role': 'user', 'content': prompt},
-          ],
-          'temperature': 0.1,
-        }),
-      );
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-        final content = decoded['choices']?[0]?['message']?['content'] ?? '';
-        final parsed = _parseJson(content);
-        if (parsed.isNotEmpty) {
-          for (var p in parsed) {
-            p['parsedBy'] = parsedByEtiketi;
-          }
-          return parsed;
-        }
-      } else {
-        debugPrint(
-          'DeepSeek API Hatası: ${response.statusCode} - ${response.body}',
-        );
-      }
-    } catch (e) {
-      debugPrint('DeepSeek hatası: $e');
-    }
-    return null;
   }
 
   String _buildPrompt(String rawText) {
@@ -270,7 +198,7 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
    - Hiçbiri değilse: DİĞER
 
 Ham Fatura Metni:
-\$rawText
+$rawText
 ''';
   }
 
@@ -280,8 +208,7 @@ Ham Fatura Metni:
   ) async {
     final ayarlar = await _ayarlarService.getAyarlar();
 
-    final prompt =
-        '''
+    final prompt = '''
 Aşağıda bir Excel dosyasının ilk 15 satırının CSV dökümü bulunuyor.
 Bu dosya bir müşteri/kursiyer listesi olabilir. Lütfen satırlara bakarak, hangi sütunun hangi faturasal veriye denk geldiğini bul.
 Sütun endeksleri 0'dan başlar (Yani ilk sütun 0'dır).
@@ -304,7 +231,7 @@ Sütun endeksleri 0'dan başlar (Yani ilk sütun 0'dır).
 Eğer bu dosya bir toplu müşteri listesi değil de, düz bir fatura şablonuysa "isBatchList": false döndür. SADECE JSON döndür.
 
 CSV Önizleme:
-\$excelCsvPreview
+$excelCsvPreview
 ''';
 
     if (ayarlar.geminiApiKey.isNotEmpty) {
@@ -391,11 +318,8 @@ CSV Önizleme:
     String rawKararText,
   ) async {
     final ayarlar = await _ayarlarService.getAyarlar();
-
-    // Prompt hazırlığı
     final prompt = _buildDanismanlikPrompt(rawKararText);
 
-    // GEMINI DENEMESİ
     if (ayarlar.geminiApiKey.isNotEmpty) {
       try {
         final text = await _runGeminiWithFallback(
@@ -412,53 +336,8 @@ CSV Önizleme:
       }
     }
 
-    // DEEPSEEK DENEMESİ
-    if (ayarlar.deepseekApiKey.isNotEmpty &&
-        ayarlar.deepseekApiUrl.isNotEmpty) {
-      try {
-        final url = ayarlar.deepseekApiUrl.endsWith('/')
-            ? '${ayarlar.deepseekApiUrl}chat/completions'
-            : '${ayarlar.deepseekApiUrl}/chat/completions';
-        final modelName = ayarlar.deepseekModel.isEmpty
-            ? 'deepseek-chat'
-            : ayarlar.deepseekModel;
-
-        final response = await http.post(
-          Uri.parse(url),
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': 'Bearer ${ayarlar.deepseekApiKey}',
-          },
-          body: jsonEncode({
-            'model': modelName,
-            'messages': [
-              {
-                'role': 'system',
-                'content':
-                    'You are a precise data extraction AI that outputs strictly in JSON.',
-              },
-              {'role': 'user', 'content': prompt},
-            ],
-            'temperature': 0.1,
-          }),
-        );
-
-        if (response.statusCode >= 200 && response.statusCode < 300) {
-          final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-          final content = decoded['choices']?[0]?['message']?['content'] ?? '';
-
-          final parsed = _parseJson(content);
-          if (parsed.isNotEmpty) {
-            return parsed;
-          }
-        }
-      } catch (e) {
-        debugPrint('DeepSeek danışmanlık hatası: $e');
-      }
-    }
-
     throw Exception(
-      'Yapay zeka kararı okuyamadı. Lütfen API anahtarlarını veya kararın metnini kontrol edin.',
+      'Sistem kararı okuyamadı. Lütfen API anahtarını veya kararın metnini kontrol edin.',
     );
   }
 
@@ -488,7 +367,7 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
 3. Fiyat, para birimi, oran gibi verileri değil sadece FAALİYET ADETİ/SAATİ ve PUANI bilgilerini çek.
 
 Ham Karar Metni:
-\$rawText
+$rawText
 ''';
   }
 }
