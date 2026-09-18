@@ -717,7 +717,7 @@ class BatchFaturaProvider extends ChangeNotifier {
            sonuc = FaturaOfflineParser.parse(text);
            if (sonuc.isNotEmpty) {
              sonAyristirmaBilgisi = '${sonuc.first.parsedBy} (Yerel OCR ile)';
-             for (var s in sonuc) { s.parsedBy = sonAyristirmaBilgisi; }
+             for (var s in sonuc) { s.parsedBy = sonAyristirmaBilgisi ?? ''; }
            }
         }
       } catch (e) {
