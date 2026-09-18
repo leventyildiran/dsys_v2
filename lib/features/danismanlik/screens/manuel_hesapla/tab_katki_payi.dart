@@ -23,6 +23,9 @@ class TabKatkiPayi extends StatelessWidget {
     required this.onPersonelSil,
     required this.onPersonelGuncelle,
     this.is58k = false,
+    this.is58e = false,
+    this.gelirVergisiOrani = 15,
+    this.onGelirVergisiOraniDegisti,
     this.odemeTekSeferde = true,
     this.toplamTaksitSayisi = 3,
     this.aktifTaksitNo = 1,
@@ -54,6 +57,9 @@ class TabKatkiPayi extends StatelessWidget {
   final ValueChanged<int> onPersonelSil;
   final void Function(int index, ExcelPersonelGirdi girdi) onPersonelGuncelle;
   final bool is58k;
+  final bool is58e;
+  final int gelirVergisiOrani;
+  final ValueChanged<int>? onGelirVergisiOraniDegisti;
   final bool odemeTekSeferde;
   final int toplamTaksitSayisi;
   final int aktifTaksitNo;
@@ -81,7 +87,7 @@ class TabKatkiPayi extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (is58k) {
+    if (is58k || is58e) {
       return _build58kView(context);
     }
     return SingleChildScrollView(
@@ -923,9 +929,9 @@ class TabKatkiPayi extends StatelessWidget {
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.teal.shade200),
+              side: BorderSide(color: is58e ? Colors.indigo.shade200 : Colors.teal.shade200),
             ),
-            color: const Color(0xFFF0FDFA), // Teal 50
+            color: is58e ? const Color(0xFFEEF2FF) : const Color(0xFFF0FDFA),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               child: Row(
@@ -933,10 +939,14 @@ class TabKatkiPayi extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F766E).withValues(alpha: 0.12),
+                      color: (is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.handshake_rounded, color: Color(0xFF0F766E), size: 26),
+                    child: Icon(
+                      is58e ? Icons.gavel_rounded : Icons.handshake_rounded,
+                      color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E),
+                      size: 26,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -945,29 +955,43 @@ class TabKatkiPayi extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            const Text(
-                              '2547 Sayılı Kanun Madde 58/k — Sözleşmeli Danışmanlık',
-                              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF134E4A)),
+                            Text(
+                              is58e
+                                  ? '2547 Sayılı Kanun Madde 58/e — Danışmanlık ve Hizmet Geliri'
+                                  : '2547 Sayılı Kanun Madde 58/k — Sözleşmeli Danışmanlık',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                color: is58e ? const Color(0xFF312E81) : const Color(0xFF134E4A),
+                              ),
                             ),
                             const SizedBox(width: 10),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF0F766E),
+                                color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Text(
-                                'Kalan %85 Doğrudan Ödenir',
-                                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              child: Text(
+                                is58e
+                                    ? 'Dağıtılabilir Pay: %${kdvHaric > 0 ? ((katkiPayi85 / kdvHaric) * 100).toStringAsFixed(0) : '79'}'
+                                    : 'Kalan %85 Doğrudan Ödenir',
+                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          'Bu maddede puanlama, ek gösterge ve saat tavanı uygulanmaz. '
-                          'Yatan gelirden %15 kurum kesintisi yapıldıktan sonra kalan %85 sözleşme esaslarına göre doğrudan öğretim elemanına ödenir.',
-                          style: TextStyle(fontSize: 12, color: Colors.teal.shade900),
+                          is58e
+                              ? 'Üniversite imkânları kullanılmaksızın verilen danışmanlık ve hizmet gelirleri. '
+                                'KDV hariç matrahtan %1 Hazine, %5 BAP ve belirlenen Birim Payı kesildikten sonra kalan tutar personele dağıtılır. Gelir Vergisi ve Damga Vergisi kesintisine tabidir.'
+                              : 'Bu maddede puanlama, ek gösterge ve saat tavanı uygulanmaz. '
+                                'Yatan gelirden %15 kurum kesintisi yapıldıktan sonra kalan %85 sözleşme esaslarına göre doğrudan öğretim elemanına ödenir.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: is58e ? Colors.indigo.shade900 : Colors.teal.shade900,
+                          ),
                         ),
                       ],
                     ),
@@ -978,7 +1002,7 @@ class TabKatkiPayi extends StatelessWidget {
                     icon: const Icon(Icons.person_add_alt_1, size: 16),
                     label: const Text('Personel Ekle'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F766E),
+                      backgroundColor: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     ),
@@ -989,8 +1013,8 @@ class TabKatkiPayi extends StatelessWidget {
                     icon: const Icon(Icons.group_add_outlined, size: 16),
                     label: const Text('Çoklu Ekle'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF0F766E),
-                      side: const BorderSide(color: Color(0xFF0F766E)),
+                      foregroundColor: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E),
+                      side: BorderSide(color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),
@@ -1003,7 +1027,7 @@ class TabKatkiPayi extends StatelessWidget {
           // 2. 3'LÜ KPI ÖZET KARTLARI
           Row(
             children: [
-              // Kart 1: Gelir & %15 Kesinti
+              // Kart 1: Gelir & Kesintiler
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1038,8 +1062,14 @@ class TabKatkiPayi extends StatelessWidget {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('%15 Yasal Kesinti:', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
-                                Text(TurkceFormat.para(aracGerec15), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFFDC2626))),
+                                Text(
+                                  is58e ? 'Toplam Kesintiler:' : '%15 Yasal Kesinti:',
+                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFDC2626)),
+                                ),
+                                Text(
+                                  TurkceFormat.para(is58e ? ((kesinti?.hazinePayi ?? 0) + (kesinti?.bapPayi ?? 0) + aracGerec15) : aracGerec15),
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFFDC2626)),
+                                ),
                               ],
                             ),
                           ],
@@ -1050,7 +1080,7 @@ class TabKatkiPayi extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              // Kart 2: Dağıtılacak Toplam %85 Hak Ediş
+              // Kart 2: Dağıtılacak Toplam Pay
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1074,7 +1104,10 @@ class TabKatkiPayi extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Sözleşme Toplam %85 Pay:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                            Text(
+                              is58e ? 'Toplam Dağıtılabilir Pay:' : 'Sözleşme Toplam %85 Pay:',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                            ),
                             const SizedBox(height: 2),
                             Text(TurkceFormat.para(katkiPayi85), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF047857))),
                             Text(odemeTekSeferde ? 'Tek seferde ödenecek' : '$toplamTaksitSayisi aya bölünecek', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
@@ -1093,17 +1126,17 @@ class TabKatkiPayi extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF0F766E), width: 1.5),
+                    border: Border.all(color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E), width: 1.5),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0F766E).withValues(alpha: 0.1),
+                          color: (is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF0F766E), size: 24),
+                        child: Icon(Icons.check_circle_outline_rounded, color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E), size: 24),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1113,8 +1146,22 @@ class TabKatkiPayi extends StatelessWidget {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Bu Ayki Taksit Payı:', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF0F766E))),
-                                Text(TurkceFormat.para(buAykiPay), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0F766E))),
+                                Text(
+                                  is58e ? 'Net Ele Geçecek Tutar:' : 'Bu Ayki Taksit Payı:',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E),
+                                  ),
+                                ),
+                                Text(
+                                  TurkceFormat.para(buAykiPay),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E),
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 4),
@@ -1300,11 +1347,11 @@ class TabKatkiPayi extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.people_alt_outlined, color: Color(0xFF0F766E), size: 22),
+                      Icon(Icons.people_alt_outlined, color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E), size: 22),
                       const SizedBox(width: 10),
-                      const Text(
-                        'Danışman Öğretim Elemanı / Araştırmacı Listesi',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+                      Text(
+                        is58e ? '58/e Danışman ve Araştırmacı Personel Listesi' : 'Danışman Öğretim Elemanı / Araştırmacı Listesi',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
                       ),
                       const Spacer(),
                       Text(
@@ -1314,6 +1361,44 @@ class TabKatkiPayi extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 14),
+
+                  if (is58e) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEEF2FF),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFC7D2FE)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.receipt_long_outlined, size: 18, color: Color(0xFF4F46E5)),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Gelir Vergisi (Stopaj) Dilimi:',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF312E81)),
+                          ),
+                          const SizedBox(width: 10),
+                          DropdownButton<int>(
+                            value: gelirVergisiOrani,
+                            underline: const SizedBox(),
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF4F46E5), fontSize: 13),
+                            items: [15, 20, 27, 35, 40].map((o) => DropdownMenuItem(value: o, child: Text('%$o'))).toList(),
+                            onChanged: (val) {
+                              if (val != null) onGelirVergisiOraniDegisti?.call(val);
+                            },
+                          ),
+                          const Spacer(),
+                          const Text(
+                            'Damga Vergisi: %0,759 (Yasal Sabit)',
+                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
                   if (personeller.isEmpty)
                     Center(
                       child: Padding(
@@ -1345,17 +1430,24 @@ class TabKatkiPayi extends StatelessWidget {
                             ? excelSonuc.personelSatirlari[index]
                             : null;
                         final brutPay = sonuc?.brutHakedis ?? 0.0;
-                        final gelirVergisi = brutPay * 0.15;
+                        final gelirVergisi = brutPay * (gelirVergisiOrani / 100);
                         final damgaVergisi = brutPay * 0.00759;
-                        final netPay = brutPay - gelirVergisi - damgaVergisi;
+                        final netPay = is58k ? brutPay : (brutPay - gelirVergisi - damgaVergisi);
 
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             CircleAvatar(
                               radius: 16,
-                              backgroundColor: const Color(0xFF0F766E).withValues(alpha: 0.1),
-                              child: Text('${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F766E), fontSize: 12)),
+                              backgroundColor: (is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)).withValues(alpha: 0.1),
+                              child: Text(
+                                '${index + 1}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E),
+                                  fontSize: 12,
+                                ),
+                              ),
                             ),
                             const SizedBox(width: 12),
                             // Unvan Seçici
@@ -1401,9 +1493,9 @@ class TabKatkiPayi extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF0FDF4),
+                                color: is58e ? const Color(0xFFF8FAFC) : const Color(0xFFF0FDF4),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xFF86EFAC)),
+                                border: Border.all(color: is58e ? const Color(0xFFCBD5E1) : const Color(0xFF86EFAC)),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -1412,17 +1504,37 @@ class TabKatkiPayi extends StatelessWidget {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       const Text('Brüt Hak Ediş: ', style: TextStyle(fontSize: 11, color: Color(0xFF166534))),
-                                      Text(TurkceFormat.para(brutPay), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF15803D))),
+                                      Text(TurkceFormat.para(brutPay), style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF15803D))),
                                     ],
                                   ),
-                                  const SizedBox(height: 2),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Text('Net Ödenecek: ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F766E))),
-                                      Text(TurkceFormat.para(netPay), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF0F766E))),
-                                    ],
-                                  ),
+                                  if (is58e) ...[
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text('Stopaj (%$gelirVergisiOrani) + DV: ', style: const TextStyle(fontSize: 10, color: Color(0xFFDC2626))),
+                                        Text('-${TurkceFormat.para(gelirVergisi + damgaVergisi)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Text('Net Ele Geçecek: ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5))),
+                                        Text(TurkceFormat.para(netPay), style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900, color: Color(0xFF4F46E5))),
+                                      ],
+                                    ),
+                                  ] else ...[
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Text('Net Ödenecek: ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F766E))),
+                                        Text(TurkceFormat.para(netPay), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF0F766E))),
+                                      ],
+                                    ),
+                                    Text('(Vergiden Muaf)', style: TextStyle(fontSize: 9.5, color: Colors.teal.shade700, fontWeight: FontWeight.w600)),
+                                  ],
                                 ],
                               ),
                             ),

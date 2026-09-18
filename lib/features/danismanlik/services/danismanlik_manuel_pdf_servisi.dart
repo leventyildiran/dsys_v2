@@ -23,6 +23,8 @@ class ManuelHesaplamaVerisi {
     this.memurMaasKatsayisi = 1.387871,
     this.tavanUygula = false,
     this.is58k = false,
+    this.is58e = false,
+    this.gelirVergisiOrani = 15,
     this.odemeTekSeferde = true,
     this.toplamTaksitSayisi = 3,
     this.aktifTaksitNo = 1,
@@ -47,6 +49,8 @@ class ManuelHesaplamaVerisi {
   final double memurMaasKatsayisi;
   final bool tavanUygula;
   final bool is58k;
+  final bool is58e;
+  final int gelirVergisiOrani;
   final bool odemeTekSeferde;
   final int toplamTaksitSayisi;
   final int aktifTaksitNo;
@@ -127,7 +131,7 @@ class ManuelHesaplamaVerisi {
       );
 
   double get buAykiDagitilacakPay58k {
-    if (!is58k || odemeTekSeferde) return kesintiSonuc.katkiPayi;
+    if ((!is58k && !is58e) || odemeTekSeferde) return kesintiSonuc.katkiPayi;
     if (ozelTaksitTutari != null && ozelTaksitTutari! > 0) return ozelTaksitTutari!;
     final pay = toplamTaksitSayisi > 0
         ? (kesintiSonuc.katkiPayi / toplamTaksitSayisi)
@@ -136,7 +140,7 @@ class ManuelHesaplamaVerisi {
   }
 
   double get kalanDevredenBakiye58k {
-    if (!is58k || odemeTekSeferde) return 0.0;
+    if ((!is58k && !is58e) || odemeTekSeferde) return 0.0;
     final kalan = kesintiSonuc.katkiPayi - buAykiDagitilacakPay58k;
     return kalan > 0 ? double.parse(kalan.toStringAsFixed(2)) : 0.0;
   }
@@ -148,6 +152,17 @@ class ManuelHesaplamaVerisi {
         personeller: personeller,
         odenecekTutar: buAykiDagitilacakPay58k,
         kalanBakiye: kalanDevredenBakiye58k,
+      );
+    }
+    if (is58e) {
+      return DanismanlikExcelHesaplama.hesapla58e(
+        kesinti: kesintiSonuc,
+        personeller: personeller,
+        odenecekTutar: buAykiDagitilacakPay58k,
+        kalanBakiye: kalanDevredenBakiye58k,
+        gelirVergisiOrani: gelirVergisiOrani,
+        tavanUygula: tavanUygula,
+        memurMaasKatsayisi: memurMaasKatsayisi,
       );
     }
     return DanismanlikExcelHesaplama.hesapla(
@@ -286,9 +301,11 @@ class ManuelHesaplamaPdfServisi {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(veri.is58k ? '2. SÖZLEŞME & TAKSİT İCMALİ (58/k)' : '2. KATSAYI VE HAKEDİŞ DAĞITIMI', style: kalin(10)),
+                      pw.Text(veri.is58k
+                          ? '2. SÖZLEŞME & TAKSİT İCMALİ (58/k)'
+                          : (veri.is58e ? '2. SÖZLEŞME & VERGİ İCMALİ (58/e)' : '2. KATSAYI VE HAKEDİŞ DAĞITIMI'), style: kalin(10)),
                       pw.Divider(thickness: 0.5),
-                      if (veri.is58k) ...[
+                      if (veri.is58k || veri.is58e) ...[
                         _pdfSatir('Ödeme Şekli', veri.odemeTekSeferde ? 'Tek Seferde Tam Ödeme' : '${veri.toplamTaksitSayisi} Taksitli Ödeme', kalin: true, normal: normal, bold: kalin),
                         if (!veri.odemeTekSeferde) ...[
                           _pdfSatir('Aktif Taksit', '${veri.aktifTaksitNo} / ${veri.toplamTaksitSayisi}. Taksit', normal: normal, bold: kalin),
@@ -301,12 +318,19 @@ class ManuelHesaplamaPdfServisi {
                         ] else ...[
                           if (veri.aktifTaksitTarihAraligi.isNotEmpty)
                             _pdfSatir('Danışmanlık Hizmet Dönemi', veri.aktifTaksitTarihAraligi, kalin: true, normal: normal, bold: kalin),
-                          _pdfSatir('Net Hakediş (%85)', TurkceFormat.para(kesinti.katkiPayi), kalin: true, normal: normal, bold: kalin),
+                          _pdfSatir('Dağıtılabilir Brüt Pay', TurkceFormat.para(kesinti.katkiPayi), kalin: true, normal: normal, bold: kalin),
+                        ],
+                        if (veri.is58e) ...[
+                          _pdfSatir('Gelir Vergisi (Stopaj)', '%${veri.gelirVergisiOrani}', normal: normal, bold: kalin),
+                          _pdfSatir('Damga Vergisi', '%0,759', normal: normal, bold: kalin),
+                          _pdfSatir('Net Ele Geçecek Tutar', TurkceFormat.para(excel.netOdemeToplam), kalin: true, normal: normal, bold: kalin),
+                        ],
+                        if (veri.is58k) ...[
+                          _pdfSatir('Vergi Muafiyeti', 'Gelir & Damga Vergisi %0 (Muaf)', normal: normal, bold: kalin),
+                          _pdfSatir('Tavan Sınırı', 'Uygulanmaz (Tavana Takılmaz)', normal: normal, bold: kalin),
                         ],
                         if (veri.sozlesmeSuresiMetni.isNotEmpty)
                           _pdfSatir('Sözleşme Kapsamı & Süresi', veri.sozlesmeSuresiMetni, normal: normal, bold: kalin),
-                        _pdfSatir('Puan & Katsayı Hesabı', 'Mevzuat Gereği Yoktur (Muaf)', normal: normal, bold: kalin),
-                        _pdfSatir('3,2 Katı Saat Tavanı', 'Uygulanmaz (Doğrudan Hakediş)', normal: normal, bold: kalin),
                       ] else ...[
                         _pdfSatir('Toplam Net Katkı Puanı', excel.toplamPuan.toStringAsFixed(0), kalin: true, normal: normal, bold: kalin),
                         _pdfSatir('Dönem Ek Ödeme Katsayısı', TurkceFormat.katsayi(excel.donemKatsayi), kalin: true, normal: normal, bold: kalin),
@@ -328,7 +352,7 @@ class ManuelHesaplamaPdfServisi {
                             pw.SizedBox(height: 2),
                             pw.Text(
                               excel.saglama <= kesinti.katkiPayi + 0.01
-                                  ? (veri.is58k ? '✓ %85 net hakediş ve taksit tutarı sınır dahilindedir.' : '✓ Sağlama tutarı dağıtılabilir payı aşmamaktadır.')
+                                  ? ((veri.is58k || veri.is58e) ? '✓ Dağıtılan tutar hak edilen payı aşmamaktadır.' : '✓ Sağlama tutarı dağıtılabilir payı aşmamaktadır.')
                                   : '⚠ DİKKAT: Dağıtılan tutar hak edilen payı aşmaktadır!',
                               style: pw.TextStyle(
                                 font: fontRegular,
@@ -347,7 +371,7 @@ class ManuelHesaplamaPdfServisi {
           ),
 
           pw.SizedBox(height: 14),
-          pw.Text(veri.is58k ? '3. PERSONEL SÖZLEŞMELİ HAKEDİŞ DETAYI' : '3. PERSONEL HAKEDİŞ VE TAVAN DETAYI', style: kalin(10)),
+          pw.Text(veri.is58k ? '3. PERSONEL SÖZLEŞMELİ HAKEDİŞ DETAYI' : (veri.is58e ? '3. PERSONEL HAKEDİŞ VE VERGİ KESİNTİLERİ (58/e)' : '3. PERSONEL HAKEDİŞ VE TAVAN DETAYI'), style: kalin(10)),
           pw.SizedBox(height: 4),
 
           if (veri.is58k)
@@ -370,6 +394,38 @@ class ManuelHesaplamaPdfServisi {
                     'Muaf (Puan Yok)',
                     veri.odemeTekSeferde ? 'Tek Sefer' : '${veri.aktifTaksitNo}/${veri.toplamTaksitSayisi}',
                     TurkceFormat.para(s.odenebilirHakedis),
+                  ];
+                }),
+              ],
+              headerStyle: kalin(8),
+              cellStyle: normal(8),
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+            )
+          else if (veri.is58e)
+            pw.TableHelper.fromTextArray(
+              headers: const [
+                'Adı Soyadı & Unvanı',
+                'Faaliyet / Hizmet',
+                'Brüt Hak Ediş',
+                'Gelir V. (Stopaj)',
+                'Damga V.',
+                'Net Ele Geçecek (TL)',
+              ],
+              data: [
+                ...excel.personelSatirlari.map((s) {
+                  final p = s.girdi;
+                  final brut = s.brutHakedis;
+                  final gv = brut * (veri.gelirVergisiOrani / 100);
+                  final dv = brut * 0.00759;
+                  final net = s.odenebilirHakedis;
+                  return [
+                    '${p.unvan} ${p.adSoyad}',
+                    p.faaliyetTuru,
+                    TurkceFormat.para(brut),
+                    '%${veri.gelirVergisiOrani} (${TurkceFormat.para(gv)})',
+                    TurkceFormat.para(dv),
+                    TurkceFormat.para(net),
                   ];
                 }),
               ],

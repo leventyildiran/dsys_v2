@@ -420,6 +420,120 @@ class DanismanlikExcelHesaplama {
     );
   }
 
+  /// 2547 Sayılı Kanun Madde 58/e — Üniversite imkânları kullanılmaksızın verilen danışmanlık.
+  /// Kesintiler: %1 Hazine, %5 BAP, Kullanıcının belirlediği Birim/Kurum Payı (varsayılan %15).
+  /// Kalan tutar (varsayılan %79) dağıtılabilir katkı payıdır.
+  /// Gelir Vergisi (varsayılan %15) ve Damga Vergisi (%0.759) stopajına tabidir.
+  static DanismanlikExcelSonuc hesapla58e({
+    required ExcelKesintiSonuc kesinti,
+    required List<ExcelPersonelGirdi> personeller,
+    required double odenecekTutar,
+    double kalanBakiye = 0.0,
+    int gelirVergisiOrani = 15,
+    double damgaVergisiOrani = 0.00759,
+    bool tavanUygula = false,
+    double? memurMaasKatsayisi,
+  }) {
+    if (personeller.isEmpty) {
+      return DanismanlikExcelSonuc(
+        kesinti: kesinti,
+        toplamPuan: 0,
+        donemKatsayi: 1.0,
+        saglama: 0,
+        personelSatirlari: const [],
+        artikBakiye: kesinti.katkiPayi,
+      );
+    }
+
+    final satirlar = <ExcelPersonelSonuc>[];
+    final dagitimlar = <DagitimModel>[];
+
+    final n = personeller.length;
+    double toplamOran = 0.0;
+    for (final p in personeller) {
+      toplamOran += (p.puan > 0 ? p.puan : (100.0 / n));
+    }
+    if (toplamOran <= 0) toplamOran = 100.0;
+
+    double netOdemeToplam = 0;
+    double havuzToplam = 0;
+
+    for (var i = 0; i < personeller.length; i++) {
+      final p = personeller[i];
+      final personelOrani = (p.puan > 0 ? p.puan : (100.0 / n)) / toplamOran;
+      final brutHakedis = _round(odenecekTutar * personelOrani, 2);
+
+      // Tavan kontrolü
+      final aktifMemurKatsayisi = memurMaasKatsayisi ?? memurMaasKatsayisiGuncel;
+      final bazSaatlik = p.ekGosterge * aktifMemurKatsayisi;
+      final tavanSaatlik = p.mesaiIci ? bazSaatlik * 2 : bazSaatlik * 3.2;
+      final tavanTutari = _round(tavanSaatlik * (p.dersSaati > 0 ? p.dersSaati : 10), 2);
+
+      final tavanAsildi = brutHakedis > tavanTutari && tavanTutari > 0;
+      double odenebilirBrut = brutHakedis;
+      double havuz = 0.0;
+
+      if (tavanAsildi && tavanUygula) {
+        odenebilirBrut = tavanTutari;
+        havuz = _round(brutHakedis - odenebilirBrut, 2);
+      }
+
+      // Vergi kesintileri
+      final gelirVergisi = _round(odenebilirBrut * (gelirVergisiOrani / 100), 2);
+      final damgaVergisi = _round(odenebilirBrut * damgaVergisiOrani, 2);
+      final netEleGecen = _round(odenebilirBrut - gelirVergisi - damgaVergisi, 2);
+
+      netOdemeToplam += netEleGecen;
+      havuzToplam += havuz;
+
+      satirlar.add(
+        ExcelPersonelSonuc(
+          girdi: p,
+          bireyselNetKatkiPuani: p.puan,
+          donemKatsayi: 1.0,
+          kursSaatlikUcreti: p.dersSaati > 0 ? _round(brutHakedis / p.dersSaati, 2) : 0,
+          tavanSaatlikUcreti: tavanSaatlik,
+          brutHakedis: brutHakedis,
+          odenebilirHakedis: netEleGecen,
+          havuzTutari: havuz,
+        ),
+      );
+
+      dagitimlar.add(
+        DagitimModel(
+          personelId: p.personelId,
+          adSoyad: p.adSoyad,
+          unvan: p.unvan,
+          unvanKatsayisi: p.unvanKatsayisi,
+          ekGosterge: p.ekGosterge,
+          faaliyetTuru: '2547 Sayılı Kanun Madde 58/e Danışmanlık ve Hizmet Geliri',
+          faaliyetAdeti: p.dersSaati.round() > 0 ? p.dersSaati.round() : 1,
+          faaliyetTabanPuani: p.puan,
+          mesaiIci: p.mesaiIci,
+          toplamPuan: toplamOran,
+          bireyselPuan: p.puan,
+          brutHakedis: brutHakedis,
+          tavanKontrol: tavanAsildi,
+          tavanLimitTutari: tavanTutari,
+          odenebilirHakedis: netEleGecen,
+          fazlalikHavuzTutari: havuz,
+        ),
+      );
+    }
+
+    return DanismanlikExcelSonuc(
+      kesinti: kesinti,
+      toplamPuan: toplamOran,
+      donemKatsayi: 1.0,
+      saglama: _round(odenecekTutar, 2),
+      personelSatirlari: satirlar,
+      dagitimlar: dagitimlar,
+      netOdemeToplam: _round(netOdemeToplam, 2),
+      havuzToplam: _round(havuzToplam, 2),
+      artikBakiye: kalanBakiye,
+    );
+  }
+
   static DanismanlikExcelSonuc hesaplaDanismanlik({
     required DanismanlikModel danismanlik,
     required double brutTaksitTutari,

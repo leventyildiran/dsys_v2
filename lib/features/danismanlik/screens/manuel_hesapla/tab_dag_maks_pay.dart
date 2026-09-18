@@ -142,9 +142,19 @@ class TabDagMaksPay extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Text(
-                        'GELİRDEN AKTARILACAK PAYLAR',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F172A)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'GELİRDEN AKTARILACAK PAYLAR',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F172A)),
+                          ),
+                          TextButton.icon(
+                            onPressed: () => _oranlariDuzenleDialog(context),
+                            icon: const Icon(Icons.tune, size: 16, color: Color(0xFF4F46E5)),
+                            label: const Text('Oranları Değiştir', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5))),
+                          ),
+                        ],
                       ),
                       const Divider(thickness: 1, height: 20),
                       _paySatiri(
@@ -288,6 +298,120 @@ class TabDagMaksPay extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _oranlariDuzenleDialog(BuildContext context) {
+    int yeniHazine = hazineOrani;
+    int yeniBap = bapOrani;
+    double yeniAracGerec = aracGerecOrani * 100;
+
+    final hazineCtrl = TextEditingController(text: yeniHazine.toString());
+    final bapCtrl = TextEditingController(text: yeniBap.toString());
+    final aracCtrl = TextEditingController(text: yeniAracGerec.toStringAsFixed(0));
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final h = int.tryParse(hazineCtrl.text) ?? 0;
+            final b = int.tryParse(bapCtrl.text) ?? 0;
+            final a = double.tryParse(aracCtrl.text.replaceAll(',', '.')) ?? 0;
+            final kalanKatki = (100.0 - h - b - a).clamp(0.0, 100.0);
+
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.tune, color: Color(0xFF4F46E5), size: 22),
+                  SizedBox(width: 8),
+                  Text('Yasal Pay ve Kesinti Oranları'),
+                ],
+              ),
+              content: SizedBox(
+                width: 360,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: hazineCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Hazine Payı Oranı (%)',
+                        suffixText: '%',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => setModalState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: bapCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'BAP Payı Oranı (%)',
+                        suffixText: '%',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => setModalState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: aracCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Birim / Araç Gereç Payı (%)',
+                        suffixText: '%',
+                        helperText: '58/e için varsayılan %15 (kurum yönergesine göre değiştirilebilir)',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => setModalState(() {}),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFF86EFAC)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Kalan Katkı Payı:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Color(0xFF166534))),
+                          Text('%${kalanKatki.toStringAsFixed(1)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF15803D))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('İptal'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4F46E5),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    final hVal = int.tryParse(hazineCtrl.text) ?? hazineOrani;
+                    final bVal = int.tryParse(bapCtrl.text) ?? bapOrani;
+                    final aVal = (double.tryParse(aracCtrl.text.replaceAll(',', '.')) ?? (aracGerecOrani * 100)) / 100;
+                    onOranlariGuncelle(hVal, bVal, aVal);
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Kaydet ve Güncelle'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

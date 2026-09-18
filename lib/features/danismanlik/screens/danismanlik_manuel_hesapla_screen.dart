@@ -77,6 +77,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
   final _58kOzelTaksitController = TextEditingController();
   DateTime _58kSozlesmeBaslangic = DateTime(2026, 7, 24);
   String _58kDonemMetni = '24.07.2026 - 24.08.2026';
+  int _gelirVergisiOrani = 15;
 
   // Memur Maaş Katsayısı
   double _memurMaasKatsayisi = 1.387871;
@@ -436,6 +437,8 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
     switch (tur.toLowerCase()) {
       case '58k':
         return '2547 Madde 58/k';
+      case '58e':
+        return '2547 Madde 58/e';
       case 'usem':
         return 'USEM Kursu';
       case 'tomer':
@@ -452,6 +455,8 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
     switch (tur.toLowerCase()) {
       case '58k':
         return const Color(0xFF2563EB); // Blue
+      case '58e':
+        return const Color(0xFF4F46E5); // Indigo
       case 'usem':
         return const Color(0xFF7C3AED); // Violet
       case 'tomer':
@@ -684,6 +689,56 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
     });
   }
 
+  void _ornek58eSablonuYukle() {
+    // 2547 Sayılı Kanun Madde 58/e - Üniversite İmkânları Kullanılmaksızın Danışmanlık ve Hizmet Geliri
+    setState(() {
+      _aktifSablonTuru = '58e';
+      _aktifKayitId = '';
+      _kurumController.text = 'T.C.\nUŞAK ÜNİVERSİTESİ REKTÖRLÜĞÜ';
+      _rektorlukController.text = 'DÖNER SERMAYE İŞLETME MÜDÜRLÜĞÜ';
+      _mudurlukController.text = 'DÖNER SERMAYE İŞLETME MÜDÜRLÜĞÜ';
+      _hizmetBasligiController.text = '2547 SAYILI KANUN MADDE 58/e DANIŞMANLIK VE HİZMET GELİRİ DAĞITIM CETVELİ';
+      _kdvOrani = 20;
+      _hazineOrani = 1;
+      _bapOrani = 5;
+      _aracGerecOrani = 0.15; // Kullanıcının istediği gibi düzenlenebilir (%15 varsayılan -> Kalan %79 Dağıtılabilir Pay)
+      _gelirVergisiOrani = 15;
+      _satirlar = [
+        ManuelListeSatiri(
+          sn: 1,
+          tc: '',
+          aciklama: '2547 Madde 58/e Danışmanlık Hizmet Geliri',
+          tutar: 10000.0,
+        ),
+        for (int i = 2; i <= 10; i++)
+          ManuelListeSatiri(sn: i, tc: '', aciklama: '', tutar: 0.0),
+      ];
+      _personeller = [
+        const ExcelPersonelGirdi(
+          personelId: '1',
+          adSoyad: '',
+          unvan: 'Prof. Dr.',
+          puan: 20.0,
+          unvanKatsayisi: 3.0,
+          ekGosterge: 300,
+          dersSaati: 10.0,
+          mesaiIci: false,
+          faaliyetTuru: '2547 Madde 58/e Danışmanlık',
+        ),
+      ];
+      _manuelKatsayiAktif = false;
+      _manuelKatsayiController.clear();
+      _memurMaasKatsayisiController.text = _memurMaasKatsayisi.toString();
+      _58kOdemeTekSeferde = true;
+      _58kToplamTaksitSayisi = 3;
+      _58kAktifTaksitNo = 1;
+      _58kSozlesmeBaslangic = DateTime.now();
+      _58kDonemMetni = '';
+      _58kOzelTaksitTutari = null;
+      _58kOzelTaksitController.clear();
+    });
+  }
+
   void _ornekUsemSablonuYukle() {
     setState(() {
       _aktifSablonTuru = 'usem';
@@ -794,6 +849,9 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       case '58k':
         _ornek58kSablonuYukle();
         break;
+      case '58e':
+        _ornek58eSablonuYukle();
+        break;
       case 'usem':
         _ornekUsemSablonuYukle();
         break;
@@ -855,6 +913,8 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       manuelDonemKatsayisi: manuelKatsayi,
       memurMaasKatsayisi: _memurMaasKatsayisi,
       is58k: _aktifSablonTuru == '58k',
+      is58e: _aktifSablonTuru == '58e',
+      gelirVergisiOrani: _gelirVergisiOrani,
       odemeTekSeferde: _58kOdemeTekSeferde,
       toplamTaksitSayisi: _58kToplamTaksitSayisi,
       aktifTaksitNo: _58kAktifTaksitNo,
@@ -938,6 +998,16 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                           Icon(Icons.gavel_outlined, size: 16, color: Color(0xFF2563EB)),
                           SizedBox(width: 8),
                           Text('2547 Madde 58/k (DONGSAN - %15 A.G.P. / %85 Pay)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: '58e',
+                      child: Row(
+                        children: [
+                          Icon(Icons.gavel_rounded, size: 16, color: Color(0xFF4F46E5)),
+                          SizedBox(width: 8),
+                          Text('2547 Madde 58/e (%1 Hazine · %5 BAP · %15 Birim)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -1243,6 +1313,9 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                     });
                   },
                   is58k: _aktifSablonTuru == '58k',
+                  is58e: _aktifSablonTuru == '58e',
+                  gelirVergisiOrani: _gelirVergisiOrani,
+                  onGelirVergisiOraniDegisti: (val) => setState(() => _gelirVergisiOrani = val),
                   odemeTekSeferde: _58kOdemeTekSeferde,
                   toplamTaksitSayisi: _58kToplamTaksitSayisi,
                   aktifTaksitNo: _58kAktifTaksitNo,

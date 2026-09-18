@@ -683,18 +683,20 @@ class BeyannameRaporServisi {
             pw.Table(
               border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
               columnWidths: const {
-                0: pw.FlexColumnWidth(2.8),
+                0: pw.FlexColumnWidth(2.5),
                 1: pw.FlexColumnWidth(1.2),
-                2: pw.FlexColumnWidth(1.2),
-                3: pw.FlexColumnWidth(1.2),
-                4: pw.FlexColumnWidth(1.2),
-                5: pw.FlexColumnWidth(1.3),
+                2: pw.FlexColumnWidth(1.1),
+                3: pw.FlexColumnWidth(1.1),
+                4: pw.FlexColumnWidth(1.1),
+                5: pw.FlexColumnWidth(1.1),
+                6: pw.FlexColumnWidth(1.3),
               },
               children: [
                 pw.TableRow(
                   decoration: const pw.BoxDecoration(color: PdfColors.blue100),
                   children: [
                     _th('BİRİM ADI', align: pw.TextAlign.left),
+                    _th('TOPLAM MATRAH'),
                     _th('HESAPLANAN %10'),
                     _th('HESAPLANAN %20'),
                     _th('İNDİRİLECEK %10'),
@@ -719,6 +721,7 @@ class BeyannameRaporServisi {
                           ],
                         ),
                       ),
+                      _td(TurkceFormat.para(s.toplamHesaplananMatrah), isBold: true, renk: PdfColors.blue900),
                       _td(TurkceFormat.para(s.hesaplananKdv10)),
                       _td(TurkceFormat.para(s.hesaplananKdv20)),
                       _td(TurkceFormat.para(s.indirilecekKdv10)),
@@ -735,6 +738,7 @@ class BeyannameRaporServisi {
                   decoration: const pw.BoxDecoration(color: PdfColors.blue50),
                   children: [
                     _td('TOPLAMLAR', isBold: true, align: pw.TextAlign.left, renk: PdfColors.blue900),
+                    _td(TurkceFormat.para(k1.matrah10Hesaplanan + k1.matrah20Hesaplanan), isBold: true, renk: PdfColors.blue900),
                     _td(TurkceFormat.para(provider.kdv1Satirlari.fold(0.0, (s, x) => s + x.hesaplananKdv10)), isBold: true),
                     _td(TurkceFormat.para(provider.kdv1Satirlari.fold(0.0, (s, x) => s + x.hesaplananKdv20)), isBold: true),
                     _td(TurkceFormat.para(provider.kdv1Satirlari.fold(0.0, (s, x) => s + x.indirilecekKdv10)), isBold: true),

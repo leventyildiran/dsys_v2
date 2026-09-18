@@ -154,6 +154,23 @@ class DanismanlikProvider extends ChangeNotifier {
 
   void setTur(DanismanlikTuru value) {
     _tur = value;
+    if (value == DanismanlikTuru.sanayiIsbirligi58k) {
+      _hazinePayiOrani = 0;
+      _bapPayiOrani = 0;
+      _aracGerecPayiOrani = 15;
+    } else if (value == DanismanlikTuru.genelDanismanlik58e) {
+      _hazinePayiOrani = 1;
+      _bapPayiOrani = 5;
+      _aracGerecPayiOrani = 15;
+    } else if (value == DanismanlikTuru.egitimKuru) {
+      _hazinePayiOrani = 1;
+      _bapPayiOrani = 0;
+      _aracGerecPayiOrani = 49;
+    } else {
+      _hazinePayiOrani = 1;
+      _bapPayiOrani = 5;
+      _aracGerecPayiOrani = 45;
+    }
     _hesapla();
   }
 
@@ -393,7 +410,11 @@ class DanismanlikProvider extends ChangeNotifier {
         hazinePayiOrani: _hazinePayiOrani,
         bapPayiOrani: _bapPayiOrani,
         aracGerecPayiOrani: _aracGerecPayiOrani,
-        dagitilabilirOran: _tur == DanismanlikTuru.standart ? 49 : 85,
+        dagitilabilirOran: _tur == DanismanlikTuru.standart
+            ? 49
+            : (_tur == DanismanlikTuru.sanayiIsbirligi58k
+                ? 85
+                : (100 - _hazinePayiOrani - _bapPayiOrani - _aracGerecPayiOrani)),
         personeller: List.from(_personeller),
         createdAt: DateTime.now(), // Will be updated by server mostly, or ignored in update depending on implementation
       );
@@ -536,6 +557,20 @@ class DanismanlikProvider extends ChangeNotifier {
         dagMaksAkademikPay: dagitilabilir,
         toplam: dagitilabilir,
       );
+    } else if (_tur == DanismanlikTuru.genelDanismanlik58e) {
+      final hazine = _brutTaksitTutari * (_hazinePayiOrani / 100);
+      final bap = _brutTaksitTutari * (_bapPayiOrani / 100);
+      final birim = _brutTaksitTutari * (_aracGerecPayiOrani / 100);
+      final dagitilabilir = _brutTaksitTutari - hazine - bap - birim;
+      k = ExcelKesintiSonuc(
+        kdvHaricGelir: _brutTaksitTutari,
+        hazinePayi: hazine,
+        bapPayi: bap,
+        aracGerecPayi: birim,
+        katkiPayi: dagitilabilir,
+        dagMaksAkademikPay: dagitilabilir,
+        toplam: dagitilabilir,
+      );
     } else {
       k = DanismanlikExcelHesaplama.kesintiler(
         kdvHaricGelir: _brutTaksitTutari,
@@ -557,7 +592,7 @@ class DanismanlikProvider extends ChangeNotifier {
     double katsayi = 0;
     double artikBakiye = 0;
 
-    if (_tur == DanismanlikTuru.sanayiIsbirligi58k) {
+    if (_tur == DanismanlikTuru.sanayiIsbirligi58k || _tur == DanismanlikTuru.genelDanismanlik58e) {
       katsayi = 1.0;
       artikBakiye = 0.0;
       final int toplamPay = _personeller.fold(0, (sum, p) => sum + (p.payOrani > 0 ? p.payOrani : 100));

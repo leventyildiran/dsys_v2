@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import '../providers/batch_fatura_provider.dart';
@@ -190,10 +191,12 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
                           final pageIndices = pagesOfIndices[sayfaIndex];
                           final pageOnizleme = provider.kalibrasyonBaskiOnizlemesi(sayfaIndex + 1);
 
-                          return Container(
-                            width: FaturaMatbuConfig.a4Genislik,
-                            height: FaturaMatbuConfig.a4Yukseklik,
-                            margin: const EdgeInsets.only(bottom: 40),
+                          return _HandleOverflowHitTest(
+                            overflowPadding: 150.0,
+                            child: Container(
+                              width: FaturaMatbuConfig.a4Genislik,
+                              height: FaturaMatbuConfig.a4Yukseklik,
+                              margin: const EdgeInsets.only(bottom: 40),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               boxShadow: [
@@ -234,8 +237,9 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
                       ..._buildKalemler(provider, invoice, pageOnizleme, pageIndices),
                     ],
                   ),
-                );
-              }),
+                ),
+              );
+            }),
                       ),
                     ),
                   ),
@@ -813,22 +817,27 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       child: MouseRegion(
         cursor: SystemMouseCursors.move,
         child: Container(
-          width: 20,
-          height: 20,
-          margin: const EdgeInsets.only(right: 4),
+          width: 24,
+          height: 24,
           alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: secili ? Colors.blue.shade700 : Colors.blueAccent.withValues(alpha: 0.9),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 3,
-                offset: const Offset(1, 1),
-              ),
-            ],
+          color: Colors.transparent,
+          child: Container(
+            width: 20,
+            height: 20,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: secili ? Colors.blue.shade700 : Colors.blueAccent.withValues(alpha: 0.9),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 3,
+                  offset: const Offset(1, 1),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.open_with, size: 12, color: Colors.white),
           ),
-          child: const Icon(Icons.open_with, size: 12, color: Colors.white),
         ),
       ),
     );
@@ -838,7 +847,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       onTap: () {
         setState(() => _seciliAlan = alanKey);
       },
-      onPanStart: !readOnly
+      onPanStart: readOnly
           ? (_) {
               setState(() {
                 _surukleAktif = true;
@@ -846,42 +855,48 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
               });
             }
           : null,
-      onPanUpdate: !readOnly
+      onPanUpdate: readOnly
           ? (details) {
               provider.calibrationDragDelta(alanKey, details.delta, notify: false);
               setState(() {});
             }
           : null,
-      onPanEnd: !readOnly
+      onPanEnd: readOnly
           ? (_) {
               _surukleBitir(provider);
             }
           : null,
-      onPanCancel: !readOnly
+      onPanCancel: readOnly
           ? () {
               _surukleBitir(provider);
             }
           : null,
-      child: Container(
-        decoration: BoxDecoration(
-          border: secili
-              ? Border.all(color: Colors.blue.shade700, width: 1.5)
-              : Border.all(color: Colors.transparent, width: 1.5),
+      child: MouseRegion(
+        cursor: readOnly ? SystemMouseCursors.move : SystemMouseCursors.basic,
+        child: Container(
+          decoration: BoxDecoration(
+            border: secili
+                ? Border.all(color: Colors.blue.shade700, width: 1.5)
+                : Border.all(color: Colors.transparent, width: 1.5),
+          ),
+          child: child,
         ),
-        child: child,
       ),
     );
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        fieldBox,
-        Positioned(
-          left: -22,
-          top: -1,
-          child: handle,
-        ),
-      ],
+    return _HandleOverflowHitTest(
+      overflowPadding: 35.0,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          fieldBox,
+          Positioned(
+            left: -24,
+            top: -2,
+            child: handle,
+          ),
+        ],
+      ),
     );
   }
 
@@ -972,3 +987,46 @@ class _MatbuEditableFieldState extends State<_MatbuEditableField> {
     );
   }
 }
+
+/// A4 kağıdının kenarındaki veya kutuların solundaki taşan tutamaçların
+/// Flutter hit-test mekanizması tarafından yutulmasını önler ve tıklanabilir/sürüklenebilir kılar.
+class _HandleOverflowHitTest extends SingleChildRenderObjectWidget {
+  final double overflowPadding;
+  const _HandleOverflowHitTest({
+    super.key,
+    required Widget child,
+    this.overflowPadding = 40.0,
+  }) : super(child: child);
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderHandleOverflow(overflowPadding: overflowPadding);
+
+  @override
+  void updateRenderObject(BuildContext context, covariant _RenderHandleOverflow renderObject) {
+    renderObject.overflowPadding = overflowPadding;
+  }
+}
+
+class _RenderHandleOverflow extends RenderProxyBox {
+  double overflowPadding;
+  _RenderHandleOverflow({this.overflowPadding = 40.0});
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    final hitRect = Rect.fromLTWH(
+      -overflowPadding,
+      -overflowPadding,
+      size.width + (overflowPadding * 2),
+      size.height + (overflowPadding * 2),
+    );
+    if (hitRect.contains(position)) {
+      if (hitTestChildren(result, position: position) || hitTestSelf(position)) {
+        result.add(BoxHitTestEntry(this, position));
+        return true;
+      }
+    }
+    return false;
+  }
+}
+

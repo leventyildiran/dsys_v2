@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
@@ -1065,6 +1066,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             _headerRow(
               [
                 'BİRİM ADI',
+                'TOPLAM MATRAH',
                 'HESAPLANAN %10',
                 'HESAPLANAN %20',
                 'İNDİRİLECEK %10',
@@ -1082,6 +1084,69 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 decoration: BoxDecoration(color: idx.isEven ? Colors.white : const Color(0xFFFAFAFA)),
                 children: [
                   _buildBirimCell(s.birimAdi),
+                  EditableCell(
+                    value: s.toplamHesaplananMatrah,
+                    isBold: true,
+                    textColor: const Color(0xFF1D4ED8),
+                    onSubmitted: (newMatrah) {
+                      if (newMatrah <= 0) {
+                        provider.updateKdv1Satir(
+                          idx,
+                          s.copyWith(
+                            hesaplananKdv10: 0,
+                            hesaplananMatrah10: 0,
+                            hesaplananKdv20: 0,
+                            hesaplananMatrah20: 0,
+                          ),
+                        );
+                        return;
+                      }
+
+                      // Akıllı oran tespiti:
+                      // 1) Mevcut satırda %10 varsa -> %10
+                      // 2) Mevcut satırda %20 varsa -> %20
+                      // 3) İkisi de boşsa -> Birim adına göre (eğitim kursları %10, diğerleri %20)
+                      final bKey = BirimAdlandirma.canonicalKey(s.birimAdi);
+                      final bool isEgitimBirimi = bKey.contains('usem') ||
+                          bKey.contains('tomer') ||
+                          bKey.contains('tadaum') ||
+                          bKey.contains('egitim') ||
+                          bKey.contains('kurs');
+
+                      final bool use10;
+                      if (s.hesaplananKdv10 > 0 && s.hesaplananKdv20 == 0) {
+                        use10 = true;
+                      } else if (s.hesaplananKdv20 > 0 && s.hesaplananKdv10 == 0) {
+                        use10 = false;
+                      } else {
+                        use10 = isEgitimBirimi;
+                      }
+
+                      if (use10) {
+                        final kdv = BeyannameHesaplamaMotoru.round(newMatrah * 0.10);
+                        provider.updateKdv1Satir(
+                          idx,
+                          s.copyWith(
+                            hesaplananKdv10: kdv,
+                            hesaplananMatrah10: newMatrah,
+                            hesaplananKdv20: 0,
+                            hesaplananMatrah20: 0,
+                          ),
+                        );
+                      } else {
+                        final kdv = BeyannameHesaplamaMotoru.round(newMatrah * 0.20);
+                        provider.updateKdv1Satir(
+                          idx,
+                          s.copyWith(
+                            hesaplananKdv10: 0,
+                            hesaplananMatrah10: 0,
+                            hesaplananKdv20: kdv,
+                            hesaplananMatrah20: newMatrah,
+                          ),
+                        );
+                      }
+                    },
+                  ),
                   EditableCell(
                     value: s.hesaplananKdv10,
                     onSubmitted: (v) {
@@ -1155,18 +1220,45 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 ],
               );
             }),
+            // Toplam Satırı
+            TableRow(
+              key: const ValueKey('highlight'),
+              decoration: const BoxDecoration(color: Color(0xFFF1F5F9)),
+              children: [
+                _cellText('TOPLAM', isBold: true, align: TextAlign.left, color: const Color(0xFF1E293B)),
+                _cellText(TurkceFormat.para(provider.kdv1Sonuc.matrah10Hesaplanan + provider.kdv1Sonuc.matrah20Hesaplanan), isBold: true, color: const Color(0xFF1D4ED8)),
+                _cellText(TurkceFormat.para(provider.kdv1Sonuc.kdv10Hesaplanan), isBold: true, color: const Color(0xFF1E293B)),
+                _cellText(TurkceFormat.para(provider.kdv1Sonuc.kdv20Hesaplanan), isBold: true, color: const Color(0xFF1E293B)),
+                _cellText(TurkceFormat.para(provider.kdv1Sonuc.kdv10Indirilecek), isBold: true, color: const Color(0xFF1E293B)),
+                _cellText(TurkceFormat.para(provider.kdv1Sonuc.kdv20Indirilecek), isBold: true, color: const Color(0xFF1E293B)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Text(
+                    TurkceFormat.para(provider.kdv1Sonuc.toplamHesaplananKdv - provider.kdv1Sonuc.toplamIndirilecekKdv),
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: (provider.kdv1Sonuc.toplamHesaplananKdv - provider.kdv1Sonuc.toplamIndirilecekKdv) >= 0 ? const Color(0xFF059669) : Colors.red,
+                    ),
+                  ),
+                ),
+                const SizedBox.shrink(),
+              ],
+            ),
           ],
           borderColor: const Color(0xFFCBD5E1),
           gridColor: const Color(0xFFF1F5F9),
-          minWidth: 920,
+          minWidth: 1040,
           columnWidths: const {
-            0: FlexColumnWidth(2.6),
-            1: FlexColumnWidth(1.1),
-            2: FlexColumnWidth(1.1),
-            3: FlexColumnWidth(1.1),
-            4: FlexColumnWidth(1.1),
-            5: FlexColumnWidth(1.2),
-            6: FixedColumnWidth(55),
+            0: FlexColumnWidth(2.3),
+            1: FlexColumnWidth(1.25),
+            2: FlexColumnWidth(1.05),
+            3: FlexColumnWidth(1.05),
+            4: FlexColumnWidth(1.05),
+            5: FlexColumnWidth(1.05),
+            6: FlexColumnWidth(1.2),
+            7: FixedColumnWidth(55),
           },
         ),
       ],
@@ -1502,6 +1594,11 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               value: provider.oncekiAydanDevredenKdv,
               onSubmitted: (v) => provider.setOncekiAydanDevredenKdv(v),
             ),
+          ),
+          const SizedBox(width: 14),
+          Text(
+            'Toplam Matrah: ${TurkceFormat.para(k1.matrah10Hesaplanan + k1.matrah20Hesaplanan)}',
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8)),
           ),
           const SizedBox(width: 14),
           Text(
@@ -1930,38 +2027,18 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     Map<int, TableColumnWidth>? columnWidths,
     double minWidth = 850,
   }) {
-    final table = Table(
+    return _HoverableTableContainer(
+      rows: rows,
+      borderColor: borderColor,
+      gridColor: gridColor,
       columnWidths: columnWidths,
-      border: TableBorder.all(color: gridColor, width: 1),
-      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      children: rows,
-    );
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: borderColor),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth < minWidth) {
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: minWidth,
-                child: table,
-              ),
-            );
-          }
-          return table;
-        },
-      ),
+      minWidth: minWidth,
     );
   }
 
   TableRow _headerRow(List<String> titles, {Color? bg, Color? textColor, List<TextAlign>? alignments}) {
     return TableRow(
+      key: const ValueKey('header'),
       decoration: BoxDecoration(
         color: bg ?? const Color(0xFFE0F2FE),
       ),
@@ -2024,6 +2101,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
 
   TableRow _dividerRow(String title, int colSpan, {Color? bg, Color? textColor}) {
     return TableRow(
+      key: const ValueKey('divider'),
       decoration: BoxDecoration(
         color: bg ?? const Color(0xFFBAE6FD),
       ),
@@ -2064,6 +2142,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
       ),
     );
     return TableRow(
+      key: const ValueKey('highlight'),
       decoration: BoxDecoration(color: color.withValues(alpha: 0.08)),
       children: cells,
     );
@@ -2071,6 +2150,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
 
   TableRow _singleCellRow(String text, int colSpan) {
     return TableRow(
+      key: const ValueKey('empty'),
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -2901,6 +2981,165 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               child: Text(mevcut != null ? 'Güncelle' : 'Ekle'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HoverableTableContainer extends StatefulWidget {
+  final List<TableRow> rows;
+  final Color borderColor;
+  final Color gridColor;
+  final Map<int, TableColumnWidth>? columnWidths;
+  final double minWidth;
+
+  const _HoverableTableContainer({
+    required this.rows,
+    required this.borderColor,
+    required this.gridColor,
+    this.columnWidths,
+    this.minWidth = 850,
+  });
+
+  @override
+  State<_HoverableTableContainer> createState() => _HoverableTableContainerState();
+}
+
+class _HoverableTableContainerState extends State<_HoverableTableContainer> {
+  int? _hoveredRowIndex;
+  Timer? _exitTimer;
+
+  @override
+  void dispose() {
+    _exitTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onRowEnter(int index) {
+    _exitTimer?.cancel();
+    if (_hoveredRowIndex != index) {
+      setState(() {
+        _hoveredRowIndex = index;
+      });
+    }
+  }
+
+  void _onRowExit(int index) {
+    _exitTimer?.cancel();
+    _exitTimer = Timer(const Duration(milliseconds: 50), () {
+      if (mounted && _hoveredRowIndex == index) {
+        setState(() {
+          _hoveredRowIndex = null;
+        });
+      }
+    });
+  }
+
+  Color _getHoverColor(Color borderColor) {
+    if (borderColor == const Color(0xFFFDE68A) || borderColor == const Color(0xFFD97706)) {
+      return const Color(0xFFFEF3C7);
+    }
+    if (borderColor == const Color(0xFFA7F3D0) || borderColor == const Color(0xFF059669)) {
+      return const Color(0xFFE6FDF2);
+    }
+    if (borderColor == const Color(0xFFDDD6FE) || borderColor == const Color(0xFF7C3AED)) {
+      return const Color(0xFFF3E8FF).withValues(alpha: 0.6);
+    }
+    return const Color(0xFFE0F2FE);
+  }
+
+  bool _isNonHoverable(TableRow row, int index) {
+    if (row.key == const ValueKey('header') ||
+        row.key == const ValueKey('divider') ||
+        row.key == const ValueKey('empty')) {
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hoverColor = _getHoverColor(widget.borderColor);
+
+    final modifiedRows = widget.rows.asMap().entries.map((entry) {
+      final i = entry.key;
+      final row = entry.value;
+
+      if (_isNonHoverable(row, i)) {
+        return row;
+      }
+
+      final isHovered = _hoveredRowIndex == i;
+
+      final wrappedChildren = row.children.map((child) {
+        return MouseRegion(
+          behavior: HitTestBehavior.opaque,
+          onEnter: (_) => _onRowEnter(i),
+          onExit: (_) => _onRowExit(i),
+          child: child,
+        );
+      }).toList();
+
+      final BoxDecoration? effectiveDecoration;
+      if (isHovered) {
+        if (row.key == const ValueKey('highlight')) {
+          final origBox = row.decoration as BoxDecoration?;
+          final origColor = origBox?.color;
+          if (origColor != null) {
+            effectiveDecoration = BoxDecoration(color: origColor.withValues(alpha: 0.22));
+          } else {
+            effectiveDecoration = BoxDecoration(color: hoverColor);
+          }
+        } else {
+          effectiveDecoration = BoxDecoration(color: hoverColor);
+        }
+      } else {
+        effectiveDecoration = row.decoration as BoxDecoration?;
+      }
+
+      return TableRow(
+        key: row.key,
+        decoration: effectiveDecoration,
+        children: wrappedChildren,
+      );
+    }).toList();
+
+    final table = Table(
+      columnWidths: widget.columnWidths,
+      border: TableBorder.all(color: widget.gridColor, width: 1),
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      children: modifiedRows,
+    );
+
+    return MouseRegion(
+      onExit: (_) {
+        _exitTimer?.cancel();
+        if (_hoveredRowIndex != null) {
+          setState(() {
+            _hoveredRowIndex = null;
+          });
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: widget.borderColor),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < widget.minWidth) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: widget.minWidth,
+                  child: table,
+                ),
+              );
+            }
+            return table;
+          },
         ),
       ),
     );

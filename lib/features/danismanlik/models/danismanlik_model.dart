@@ -4,6 +4,7 @@ import '../../personel/models/personel_model.dart';
 enum DanismanlikTuru {
   standart('standart', 'Standart Danışmanlık'),
   sanayiIsbirligi58k('sanayi_isbirligi_58k', 'Sanayi İşbirliği (58/k)'),
+  genelDanismanlik58e('genel_danismanlik_58e', 'Genel Danışmanlık (58/e)'),
   egitimKuru('egitim_kuru', 'Eğitim / Kur (TÖMER vb.)');
 
   const DanismanlikTuru(this.value, this.displayName);

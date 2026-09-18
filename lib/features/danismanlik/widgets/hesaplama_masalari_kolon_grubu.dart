@@ -47,22 +47,24 @@ class HesaplamaMasalariKolonGrubu extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        // 4 Kolonlu Responsive Kart Grid
+        // 5 Kolonlu Responsive Kart Grid
         LayoutBuilder(
           builder: (context, constraints) {
-            final isWide = constraints.maxWidth > 1050;
-            final isMedium = constraints.maxWidth > 650;
+            final isWide = constraints.maxWidth > 1200;
+            final isMedium = constraints.maxWidth > 700;
 
             if (isWide) {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(child: _buildDtsCard(context)),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(child: _build58kCard(context)),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
+                  Expanded(child: _build58eCard(context)),
+                  const SizedBox(width: 10),
                   Expanded(child: _buildUsemCard(context)),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(child: _buildTomerCard(context)),
                 ],
               );
@@ -73,8 +75,10 @@ class HesaplamaMasalariKolonGrubu extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(child: _buildDtsCard(context)),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(child: _build58kCard(context)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _build58eCard(context)),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -82,7 +86,7 @@ class HesaplamaMasalariKolonGrubu extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(child: _buildUsemCard(context)),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(child: _buildTomerCard(context)),
                     ],
                   ),
@@ -94,6 +98,8 @@ class HesaplamaMasalariKolonGrubu extends StatelessWidget {
                   _buildDtsCard(context),
                   const SizedBox(height: 10),
                   _build58kCard(context),
+                  const SizedBox(height: 10),
+                  _build58eCard(context),
                   const SizedBox(height: 10),
                   _buildUsemCard(context),
                   const SizedBox(height: 10),
@@ -146,6 +152,27 @@ class HesaplamaMasalariKolonGrubu extends StatelessWidget {
       ],
       etiket: 'GENEL KANUN',
       butonMetni: '58/k Cetveli',
+    );
+  }
+
+  // 3. 2547 Madde 58/e Kartı (Genel Danışmanlık ve Hizmet Gelirleri)
+  Widget _build58eCard(BuildContext context) {
+    return _kolonKarti(
+      context: context,
+      sablonTuru: '58e',
+      baslik: '2547 Madde 58/e',
+      altBaslik: 'Genel Danışmanlık & Hizmet',
+      ikon: Icons.gavel_rounded,
+      renk: const Color(0xFF4F46E5), // Indigo
+      oranlar: [
+        'KDV: %20',
+        '%15 Birim Payı (Esnek)',
+        '%1 Hazine · %5 BAP',
+        '%79 DAĞITILABİLİR PAY',
+        'Stopaj & Damga Vergisi',
+      ],
+      etiket: 'GENEL KANUN',
+      butonMetni: '58/e Cetveli',
     );
   }
 
