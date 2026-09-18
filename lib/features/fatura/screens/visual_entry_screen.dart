@@ -33,9 +33,6 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       final provider = context.read<BatchFaturaProvider>();
       final birimId = provider.seciliBirimFor(widget.invoiceIndex);
       provider.loadMatbuAyarlari(birimId);
-      if (_horizontalScrollController.hasClients) {
-        _horizontalScrollController.jumpTo(260.0); // A4 kağıdını sola yaklaştırmak için boşluğu atla
-      }
     });
   }
 
@@ -87,6 +84,45 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
                   includeBackground: false, // Arka plan yazıcıya GİTMEZ
                 ),
               );
+            },
+          ),
+          const SizedBox(width: 8),
+          TextButton.icon(
+            icon: const Icon(Icons.restore, color: Colors.orangeAccent),
+            label: const Text('Sıfırla', style: TextStyle(color: Colors.orangeAccent)),
+            onPressed: () async {
+              final bool? confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Standart A4 Şablonuna Sıfırla'),
+                  content: const Text(
+                    'Tüm alan koordinatları ve hizalamalar orijinal standart A4 matbu şablonuna sıfırlansın mı?',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('İptal'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: TextButton.styleFrom(foregroundColor: Colors.orange),
+                      child: const Text('Sıfırla'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirm == true) {
+                final provider = context.read<BatchFaturaProvider>();
+                provider.varsayilanaSifirla();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Koordinatlar standart A4 şablonuna sıfırlandı.'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              }
             },
           ),
           const SizedBox(width: 8),
@@ -148,48 +184,37 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
                     scrollDirection: Axis.horizontal,
                     physics: _surukleAktif ? const NeverScrollableScrollPhysics() : null,
                     child: Padding(
-                      padding: const EdgeInsets.only(top: 40, bottom: 40, right: 40, left: 10),
+                      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 30),
                       child: Column(
                         children: List.generate(toplamSayfa, (sayfaIndex) {
                           final pageIndices = pagesOfIndices[sayfaIndex];
                           final pageOnizleme = provider.kalibrasyonBaskiOnizlemesi(sayfaIndex + 1);
-                          // Nakli yekün üst/alt tutarları KalibrasyonBaskiOnizleme'nin
-                          // 'nakliYekunUstTutar' / 'nakliYekunAltTutar' alanlarından gelir;
-                          // burada ayrıca hesaplanmasına gerek yoktur.
-                          
+
                           return Container(
-                  width: FaturaMatbuConfig.a4Genislik + 600,
-                  height: FaturaMatbuConfig.a4Yukseklik + 400,
-                  margin: const EdgeInsets.only(bottom: 40),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // A4 Arkaplan
-                      Positioned(
-                        left: 300,
-                        top: 200,
-                        child: Container(
-                          width: FaturaMatbuConfig.a4Genislik,
-                          height: FaturaMatbuConfig.a4Yukseklik,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
-                                blurRadius: 15,
-                                spreadRadius: 5,
-                              ),
-                            ],
-                          ),
-                          child: Visibility(
-                            visible: _arkaPlanGoster,
-                            child: Image.asset(
-                              'assets/images/fatura_sablon.jpeg',
-                              fit: BoxFit.fill,
+                            width: FaturaMatbuConfig.a4Genislik,
+                            height: FaturaMatbuConfig.a4Yukseklik,
+                            margin: const EdgeInsets.only(bottom: 40),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 15,
+                                  spreadRadius: 5,
+                                ),
+                              ],
                             ),
-                          ),
-                        ),
-                      ),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                // A4 Arkaplan
+                                if (_arkaPlanGoster)
+                                  Positioned.fill(
+                                    child: Image.asset(
+                                      'assets/images/fatura_sablon.jpeg',
+                                      fit: BoxFit.fill,
+                                    ),
+                                  ),
                       
                       // Sabit alanlar ilk sayfadaysa veya genel bilgiler
                       ..._buildSabitAlanlar(
@@ -506,7 +531,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     
     for (int i in pageIndices) {
       final satirDy = renderIndex * provider.kalemSatirAraligi;
-      final satirTop = cinsiBase.dy + provider.globalOffsetDy + satirDy + 200;
+      final satirTop = cinsiBase.dy + provider.globalOffsetDy + satirDy;
       renderIndex++;
       
       final satirMap = kalemler[i];
@@ -514,7 +539,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       // Cinsi
       if (provider.coordinates.containsKey('cinsi')) {
           w.add(Positioned(
-            left: provider.coordinates['cinsi']!.dx + provider.globalOffsetDx + 300,
+            left: provider.coordinates['cinsi']!.dx + provider.globalOffsetDx,
             top: satirTop,
            child: _editableField(
              provider,
@@ -531,7 +556,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       // Miktar
       if (provider.coordinates.containsKey('miktar')) {
           w.add(Positioned(
-            left: provider.coordinates['miktar']!.dx + provider.globalOffsetDx + 300,
+            left: provider.coordinates['miktar']!.dx + provider.globalOffsetDx,
             top: satirTop,
            child: _editableField(
              provider,
@@ -549,7 +574,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       // Fiyat
       if (provider.coordinates.containsKey('fiyat')) {
           w.add(Positioned(
-            left: provider.coordinates['fiyat']!.dx + provider.globalOffsetDx + 300,
+            left: provider.coordinates['fiyat']!.dx + provider.globalOffsetDx,
             top: satirTop,
            child: _editableField(
              provider,
@@ -572,7 +597,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
          
          final metin = t > 0 ? TurkceFormat.paraKalem(t) : '';
          w.add(Positioned(
-           left: provider.coordinates['tutar']!.dx + provider.globalOffsetDx + 300,
+           left: provider.coordinates['tutar']!.dx + provider.globalOffsetDx,
            top: satirTop,
            child: _suruklenebilirAlan(
                    provider: provider,
@@ -627,7 +652,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
 
   Offset _konum(BatchFaturaProvider provider, String key) {
     final base = provider.coordinates[key] ?? Offset.zero;
-    return Offset(base.dx + provider.globalOffsetDx + 300, base.dy + provider.globalOffsetDy + 200);
+    return Offset(base.dx + provider.globalOffsetDx, base.dy + provider.globalOffsetDy);
   }
 
   Widget _editableField(
@@ -667,14 +692,14 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
   }) {
     return Container(
       width: maxWidth,
-      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+      padding: EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: secili ? Colors.blue.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.92),
+        color: secili ? Colors.blue.withValues(alpha: 0.15) : Colors.transparent,
         border: Border.all(
-          color: secili ? Colors.blue : Colors.red,
-          width: secili ? 2 : 1.5,
+          color: secili ? Colors.blue : Colors.red.withValues(alpha: 0.35),
+          width: 1.0,
         ),
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(2),
       ),
       child: Text(
         metin,
@@ -689,7 +714,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
         style: TextStyle(
           fontSize: fontBoyutu,
           fontWeight: kalin ? FontWeight.bold : FontWeight.normal,
-          color: Colors.red.shade700,
+          color: Colors.red.shade900,
           height: 1.0,
         ),
       ),
@@ -808,48 +833,53 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       ),
     );
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final fieldBox = GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () {
+        setState(() => _seciliAlan = alanKey);
+      },
+      onPanStart: !readOnly
+          ? (_) {
+              setState(() {
+                _surukleAktif = true;
+                _seciliAlan = alanKey;
+              });
+            }
+          : null,
+      onPanUpdate: !readOnly
+          ? (details) {
+              provider.calibrationDragDelta(alanKey, details.delta, notify: false);
+              setState(() {});
+            }
+          : null,
+      onPanEnd: !readOnly
+          ? (_) {
+              _surukleBitir(provider);
+            }
+          : null,
+      onPanCancel: !readOnly
+          ? () {
+              _surukleBitir(provider);
+            }
+          : null,
+      child: Container(
+        decoration: BoxDecoration(
+          border: secili
+              ? Border.all(color: Colors.blue.shade700, width: 1.5)
+              : Border.all(color: Colors.transparent, width: 1.5),
+        ),
+        child: child,
+      ),
+    );
+
+    return Stack(
+      clipBehavior: Clip.none,
       children: [
-        handle,
-        GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onTap: () {
-            setState(() => _seciliAlan = alanKey);
-          },
-          onPanStart: !readOnly
-              ? (_) {
-                  setState(() {
-                    _surukleAktif = true;
-                    _seciliAlan = alanKey;
-                  });
-                }
-              : null,
-          onPanUpdate: !readOnly
-              ? (details) {
-                  provider.calibrationDragDelta(alanKey, details.delta, notify: false);
-                  setState(() {});
-                }
-              : null,
-          onPanEnd: !readOnly
-              ? (_) {
-                  _surukleBitir(provider);
-                }
-              : null,
-          onPanCancel: !readOnly
-              ? () {
-                  _surukleBitir(provider);
-                }
-              : null,
-          child: Container(
-            decoration: BoxDecoration(
-              border: secili
-                  ? Border.all(color: Colors.blue.shade700, width: 1.5)
-                  : Border.all(color: Colors.transparent, width: 1.5),
-            ),
-            child: child,
-          ),
+        fieldBox,
+        Positioned(
+          left: -22,
+          top: -1,
+          child: handle,
         ),
       ],
     );
@@ -933,7 +963,7 @@ class _MatbuEditableFieldState extends State<_MatbuEditableField> {
           hintText: widget.hint,
           hintStyle: TextStyle(fontSize: widget.fontSize, color: Colors.grey),
           isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+          contentPadding: EdgeInsets.zero,
           border: InputBorder.none,
           focusedBorder: InputBorder.none,
           enabledBorder: InputBorder.none,

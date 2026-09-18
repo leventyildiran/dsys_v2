@@ -158,6 +158,8 @@ class BatchFaturaProvider extends ChangeNotifier {
   Map<String, Offset> get coordinates => _matbuProvider.coordinates;
   set coordinates(Map<String, Offset> v) => _matbuProvider.coordinates = v;
 
+  void varsayilanaSifirla() => _matbuProvider.varsayilanaSifirla();
+
   bool get isNakliYekunAktif => _matbuProvider.isNakliYekunAktif;
   set isNakliYekunAktif(bool v) => _matbuProvider.isNakliYekunAktif = v;
 

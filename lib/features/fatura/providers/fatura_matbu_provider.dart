@@ -153,6 +153,13 @@ class FaturaMatbuProvider extends ChangeNotifier {
     nakliYekunAltMetin = ayar.nakliYekunAltMetin;
   }
 
+  /// Kalibrasyonu fabrika standartlarına (orijinal A4 koordinatlarına) sıfırlar.
+  void varsayilanaSifirla() {
+    _kalibrasyonUygula(FaturaMatbuKalibrasyon.varsayilan());
+    notifyListeners();
+    _scheduleMatbuAyarKaydet();
+  }
+
   // ─────────────────────────────────────────────────────────
   // Property Setters
   // ─────────────────────────────────────────────────────────
