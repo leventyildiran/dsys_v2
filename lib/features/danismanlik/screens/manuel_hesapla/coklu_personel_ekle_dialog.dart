@@ -12,18 +12,22 @@ class CokluPersonelEkleDialog extends StatefulWidget {
   const CokluPersonelEkleDialog({
     super.key,
     this.mevcutPersonelSayisi = 0,
+    this.is58kOrE = false,
   });
 
   final int mevcutPersonelSayisi;
+  final bool is58kOrE;
 
   static Future<List<ExcelPersonelGirdi>?> goster(
     BuildContext context, {
     int mevcutPersonelSayisi = 0,
+    bool is58kOrE = false,
   }) {
     return showDialog<List<ExcelPersonelGirdi>>(
       context: context,
       builder: (ctx) => CokluPersonelEkleDialog(
         mevcutPersonelSayisi: mevcutPersonelSayisi,
+        is58kOrE: is58kOrE,
       ),
     );
   }
@@ -42,10 +46,8 @@ class _CokluPersonelEkleDialogState extends State<CokluPersonelEkleDialog>
   String _aramaMetni = '';
   bool _yukleniyor = true;
 
-  final TextEditingController _varsayilanPuanController =
-      TextEditingController(text: '40');
-  final TextEditingController _varsayilanSaatController =
-      TextEditingController(text: '5');
+  late final TextEditingController _varsayilanPuanController;
+  late final TextEditingController _varsayilanSaatController;
   bool _varsayilanMesaiIci = false;
 
   final TextEditingController _metinController = TextEditingController();
@@ -53,6 +55,10 @@ class _CokluPersonelEkleDialogState extends State<CokluPersonelEkleDialog>
   @override
   void initState() {
     super.initState();
+    _varsayilanPuanController =
+        TextEditingController(text: widget.is58kOrE ? '100' : '40');
+    _varsayilanSaatController =
+        TextEditingController(text: widget.is58kOrE ? '1' : '5');
     _tabController = TabController(length: 3, vsync: this);
     _personelleriYukle();
   }
@@ -176,7 +182,7 @@ class _CokluPersonelEkleDialogState extends State<CokluPersonelEkleDialog>
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
                   ),
                   const Spacer(),
-                  const Text('Puan:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text(widget.is58kOrE ? 'Sözleşme Payı (%):' : 'Puan:', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                   const SizedBox(width: 4),
                   SizedBox(
                     width: 55,
@@ -193,47 +199,49 @@ class _CokluPersonelEkleDialogState extends State<CokluPersonelEkleDialog>
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Text('Saat:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 4),
-                  SizedBox(
-                    width: 45,
-                    height: 28,
-                    child: TextField(
-                      controller: _varsayilanSaatController,
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(vertical: 4),
-                        border: OutlineInputBorder(),
-                      ),
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  InkWell(
-                    onTap: () => setState(() => _varsayilanMesaiIci = !_varsayilanMesaiIci),
-                    borderRadius: BorderRadius.circular(4),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _varsayilanMesaiIci ? const Color(0xFFEFF6FF) : const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: _varsayilanMesaiIci ? const Color(0xFFBFDBFE) : const Color(0xFFFDE68A),
+                  if (!widget.is58kOrE) ...[
+                    const SizedBox(width: 12),
+                    const Text('Saat:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 4),
+                    SizedBox(
+                      width: 45,
+                      height: 28,
+                      child: TextField(
+                        controller: _varsayilanSaatController,
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(vertical: 4),
+                          border: OutlineInputBorder(),
                         ),
-                      ),
-                      child: Text(
-                        _varsayilanMesaiIci ? 'Mesai Ici' : 'Mesai Disi',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: _varsayilanMesaiIci ? const Color(0xFF1D4ED8) : const Color(0xFFB45309),
-                        ),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    InkWell(
+                      onTap: () => setState(() => _varsayilanMesaiIci = !_varsayilanMesaiIci),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _varsayilanMesaiIci ? const Color(0xFFEFF6FF) : const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: _varsayilanMesaiIci ? const Color(0xFFBFDBFE) : const Color(0xFFFDE68A),
+                          ),
+                        ),
+                        child: Text(
+                          _varsayilanMesaiIci ? 'Mesai Ici' : 'Mesai Disi',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: _varsayilanMesaiIci ? const Color(0xFF1D4ED8) : const Color(0xFFB45309),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

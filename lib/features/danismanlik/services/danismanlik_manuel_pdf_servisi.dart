@@ -231,6 +231,10 @@ class ManuelHesaplamaPdfServisi {
 
     final kesinti = veri.kesintiSonuc;
     final excel = veri.excelSonuc;
+    final double akademikOran = (kesinti.kdvHaricGelir > 0)
+        ? ((kesinti.dagMaksAkademikPay / kesinti.kdvHaricGelir) * 100)
+        : (100.0 - veri.hazineOrani - veri.bapOrani - (veri.aracGerecOrani * 100));
+    final akademikOranStr = akademikOran.toStringAsFixed(akademikOran % 1 == 0 ? 0 : 1);
 
     // ─────────────────────────────────────────────────────────────
     // SAYFA 1: HESAPLAMA ÖZETİ (YÖNETİM VE İCMAL FORMU)
@@ -284,7 +288,7 @@ class ManuelHesaplamaPdfServisi {
                       _pdfSatir('• Araç Gereç Payı (%${(veri.aracGerecOrani * 100).toStringAsFixed(0)})', TurkceFormat.para(kesinti.aracGerecPayi), normal: normal, bold: kalin),
                       pw.Divider(thickness: 0.5),
                       _pdfSatir('Dağıtılabilir Katkı Payı', TurkceFormat.para(kesinti.katkiPayi), kalin: true, normal: normal, bold: kalin),
-                      _pdfSatir('Maks. Akademik Pay (%49)', TurkceFormat.para(kesinti.dagMaksAkademikPay), normal: normal, bold: kalin),
+                      _pdfSatir('Maks. Akademik Pay (%$akademikOranStr)', TurkceFormat.para(kesinti.dagMaksAkademikPay), normal: normal, bold: kalin),
                     ],
                   ),
                 ),
@@ -623,7 +627,7 @@ class ManuelHesaplamaPdfServisi {
           _pdfSatir('TOPLAM', TurkceFormat.para(kesinti.toplam), kalin: true, normal: normal, bold: kalin),
           pw.Divider(thickness: 1),
           pw.SizedBox(height: 6),
-          _pdfSatir('DAĞ. MAKS. AKADEMİK PAY (%49)', TurkceFormat.para(kesinti.dagMaksAkademikPay), kalin: true, normal: normal, bold: kalin),
+          _pdfSatir('DAĞ. MAKS. AKADEMİK PAY (%$akademikOranStr)', TurkceFormat.para(kesinti.dagMaksAkademikPay), kalin: true, normal: normal, bold: kalin),
         ],
       ),
     );
@@ -636,53 +640,121 @@ class ManuelHesaplamaPdfServisi {
         pageFormat: PdfPageFormat.a4.landscape,
         margin: const pw.EdgeInsets.all(28),
         build: (ctx) => [
-          pw.Text('KATKI PAYI / DÖNEM EK KATSAYI HESAPLAMA', style: kalin(12)),
+          pw.Text(
+            veri.is58k
+                ? '2547 SAYILI KANUN MADDE 58/k SÖZLEŞMELİ DANIŞMANLIK HAKEDİŞ DAĞITIMI'
+                : (veri.is58e
+                    ? '2547 SAYILI KANUN MADDE 58/e DANIŞMANLIK VE HİZMET GELİRİ HAKEDİŞ CETVELİ'
+                    : 'KATKI PAYI / DÖNEM EK KATSAYI HESAPLAMA'),
+            style: kalin(12),
+          ),
           pw.SizedBox(height: 4),
           pw.Text(veri.hizmetBasligi, style: normal(9)),
           pw.SizedBox(height: 10),
           pw.TableHelper.fromTextArray(
             context: ctx,
-            headers: const [
-              'Adı Soyadı',
-              'Puan',
-              'Unvan K.',
-              'Saat',
-              'Bireysel Net Katkı',
-              'Dönem Kats.',
-              'Kurs Saatlik Ücret',
-              'Ek Ders Tavanı',
-              'Brüt Hakediş',
-              'Ödenebilir Hakediş',
-            ],
-            data: [
-              ...excel.personelSatirlari.map((s) {
-                final p = s.girdi;
-                return [
-                  '${p.unvan} ${p.adSoyad}',
-                  p.puan.toStringAsFixed(0),
-                  p.unvanKatsayisi.toStringAsFixed(1),
-                  p.dersSaati.toStringAsFixed(0),
-                  s.bireyselNetKatkiPuani.toStringAsFixed(0),
-                  TurkceFormat.katsayi(s.donemKatsayi),
-                  TurkceFormat.para(s.kursSaatlikUcreti),
-                  TurkceFormat.para(s.tavanSaatlikUcreti),
-                  TurkceFormat.para(s.brutHakedis),
-                  TurkceFormat.para(s.odenebilirHakedis),
-                ];
-              }),
-              [
-                'TOPLAM',
-                '',
-                '',
-                '',
-                excel.toplamPuan.toStringAsFixed(0),
-                TurkceFormat.katsayi(excel.donemKatsayi),
-                '',
-                '',
-                TurkceFormat.para(excel.saglama),
-                TurkceFormat.para(excel.netOdemeToplam),
-              ],
-            ],
+            headers: veri.is58k
+                ? const [
+                    'Adı Soyadı / Unvan',
+                    'Sözleşme Payı',
+                    'Brüt Hakediş',
+                    'Yasal Kesinti / Vergi',
+                    'Ödenecek Net Tutar',
+                  ]
+                : (veri.is58e
+                    ? const [
+                        'Adı Soyadı / Unvan',
+                        'Sözleşme Payı',
+                        'Brüt Hakediş',
+                        'Stopaj Gelir Vergisi',
+                        'Damga Vergisi (%0,759)',
+                        'Net Ele Geçecek Tutar',
+                      ]
+                    : const [
+                        'Adı Soyadı',
+                        'Puan',
+                        'Unvan K.',
+                        'Saat',
+                        'Bireysel Net Katkı',
+                        'Dönem Kats.',
+                        'Kurs Saatlik Ücret',
+                        'Ek Ders Tavanı',
+                        'Brüt Hakediş',
+                        'Ödenebilir Hakediş',
+                      ]),
+            data: veri.is58k
+                ? [
+                    ...excel.personelSatirlari.map((s) {
+                      final p = s.girdi;
+                      return [
+                        '${p.unvan} ${p.adSoyad}',
+                        '%${p.puan > 0 ? p.puan.toStringAsFixed(p.puan % 1 == 0 ? 0 : 1) : '100'}',
+                        TurkceFormat.para(s.brutHakedis),
+                        '2547 s.k. 58/k (Vergiden Muaf)',
+                        TurkceFormat.para(s.odenebilirHakedis),
+                      ];
+                    }),
+                    [
+                      'TOPLAM',
+                      '',
+                      TurkceFormat.para(excel.saglama),
+                      'Muaf',
+                      TurkceFormat.para(excel.netOdemeToplam),
+                    ],
+                  ]
+                : (veri.is58e
+                    ? [
+                        ...excel.personelSatirlari.map((s) {
+                          final p = s.girdi;
+                          final gv = s.brutHakedis * (veri.gelirVergisiOrani / 100);
+                          final dv = s.brutHakedis * 0.00759;
+                          return [
+                            '${p.unvan} ${p.adSoyad}',
+                            '%${p.puan > 0 ? p.puan.toStringAsFixed(p.puan % 1 == 0 ? 0 : 1) : '100'}',
+                            TurkceFormat.para(s.brutHakedis),
+                            '%${veri.gelirVergisiOrani} (-${TurkceFormat.para(gv)})',
+                            '-${TurkceFormat.para(dv)}',
+                            TurkceFormat.para(s.odenebilirHakedis),
+                          ];
+                        }),
+                        [
+                          'TOPLAM',
+                          '',
+                          TurkceFormat.para(excel.saglama),
+                          '',
+                          '',
+                          TurkceFormat.para(excel.netOdemeToplam),
+                        ],
+                      ]
+                    : [
+                        ...excel.personelSatirlari.map((s) {
+                          final p = s.girdi;
+                          return [
+                            '${p.unvan} ${p.adSoyad}',
+                            p.puan.toStringAsFixed(0),
+                            p.unvanKatsayisi.toStringAsFixed(1),
+                            p.dersSaati.toStringAsFixed(0),
+                            s.bireyselNetKatkiPuani.toStringAsFixed(0),
+                            TurkceFormat.katsayi(s.donemKatsayi),
+                            TurkceFormat.para(s.kursSaatlikUcreti),
+                            TurkceFormat.para(s.tavanSaatlikUcreti),
+                            TurkceFormat.para(s.brutHakedis),
+                            TurkceFormat.para(s.odenebilirHakedis),
+                          ];
+                        }),
+                        [
+                          'TOPLAM',
+                          '',
+                          '',
+                          '',
+                          excel.toplamPuan.toStringAsFixed(0),
+                          TurkceFormat.katsayi(excel.donemKatsayi),
+                          '',
+                          '',
+                          TurkceFormat.para(excel.saglama),
+                          TurkceFormat.para(excel.netOdemeToplam),
+                        ],
+                      ]),
             headerStyle: kalin(8),
             cellStyle: normal(8),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
@@ -692,9 +764,14 @@ class ManuelHesaplamaPdfServisi {
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('Dağıtılacak Maksimum Akademik Pay: ${TurkceFormat.para(kesinti.dagMaksAkademikPay)}', style: kalin(9)),
-              pw.Text('Hesaplama Sağlaması (Puan x Katsayı): ${TurkceFormat.para(excel.saglama)}', style: kalin(9)),
-              pw.Text('Artık Bakiye (Birim Havuzu): ${TurkceFormat.para(excel.artikBakiye)}', style: kalin(9)),
+              pw.Text('Dağıtılacak Maksimum Akademik Pay (%$akademikOranStr): ${TurkceFormat.para(kesinti.dagMaksAkademikPay)}', style: kalin(9)),
+              pw.Text(
+                veri.is58k
+                    ? 'Ödenecek Net Toplam: ${TurkceFormat.para(excel.netOdemeToplam)}'
+                    : (veri.is58e ? 'Net Ele Geçecek: ${TurkceFormat.para(excel.netOdemeToplam)}' : 'Hesaplama Sağlaması: ${TurkceFormat.para(excel.saglama)}'),
+                style: kalin(9),
+              ),
+              pw.Text('Kalan Bakiye: ${TurkceFormat.para(excel.artikBakiye)}', style: kalin(9)),
             ],
           ),
         ],

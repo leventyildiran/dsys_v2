@@ -124,9 +124,7 @@ class DanismanlikExcelHesaplama {
     final aracGerec = _round(kdvHaricGelir * aracGerecOrani, 2);
     // G18 = B11-(G15+G16+G17) — Excel birebir
     final katkiPayi = _round(kdvHaricGelir - hazine - bap - aracGerec, 2);
-    final dagMaksAkademikPay = (hazineOrani == 0 && bapOrani == 0)
-        ? katkiPayi
-        : _round(kdvHaricGelir * 0.49, 2);
+    final dagMaksAkademikPay = katkiPayi;
 
     return ExcelKesintiSonuc(
       kdvHaricGelir: kdvHaricGelir,
@@ -362,12 +360,14 @@ class DanismanlikExcelHesaplama {
       toplamOran += (p.puan > 0 ? p.puan : (100.0 / n));
     }
     if (toplamOran <= 0) toplamOran = 100.0;
+    final bolen = toplamOran > 100.0 ? toplamOran : 100.0;
 
     double netOdemeToplam = 0;
 
     for (var i = 0; i < personeller.length; i++) {
       final p = personeller[i];
-      final personelOrani = (p.puan > 0 ? p.puan : (100.0 / n)) / toplamOran;
+      final girilenPuan = p.puan > 0 ? p.puan : (100.0 / n);
+      final personelOrani = girilenPuan / bolen;
       final brutHakedis = _round(odenecekTutar * personelOrani, 2);
 
       netOdemeToplam += brutHakedis;
@@ -394,7 +394,7 @@ class DanismanlikExcelHesaplama {
           ekGosterge: p.ekGosterge,
           faaliyetTuru: '2547 Sayılı Kanun Madde 58/k Sözleşmeli Danışmanlık',
           faaliyetAdeti: 1,
-          faaliyetTabanPuani: p.puan,
+          faaliyetTabanPuani: girilenPuan,
           mesaiIci: false,
           toplamPuan: 0,
           bireyselPuan: 0,
@@ -407,6 +407,9 @@ class DanismanlikExcelHesaplama {
       );
     }
 
+    final dagitilmayanFark = _round(odenecekTutar - netOdemeToplam, 2);
+    final nihaiArtikBakiye = kalanBakiye + (dagitilmayanFark > 0 ? dagitilmayanFark : 0.0);
+
     return DanismanlikExcelSonuc(
       kesinti: kesinti,
       toplamPuan: 0,
@@ -416,7 +419,7 @@ class DanismanlikExcelHesaplama {
       dagitimlar: dagitimlar,
       netOdemeToplam: _round(netOdemeToplam, 2),
       havuzToplam: 0,
-      artikBakiye: kalanBakiye,
+      artikBakiye: _round(nihaiArtikBakiye, 2),
     );
   }
 
@@ -454,14 +457,18 @@ class DanismanlikExcelHesaplama {
       toplamOran += (p.puan > 0 ? p.puan : (100.0 / n));
     }
     if (toplamOran <= 0) toplamOran = 100.0;
+    final bolen = toplamOran > 100.0 ? toplamOran : 100.0;
 
     double netOdemeToplam = 0;
     double havuzToplam = 0;
+    double brutToplam = 0;
 
     for (var i = 0; i < personeller.length; i++) {
       final p = personeller[i];
-      final personelOrani = (p.puan > 0 ? p.puan : (100.0 / n)) / toplamOran;
+      final girilenPuan = p.puan > 0 ? p.puan : (100.0 / n);
+      final personelOrani = girilenPuan / bolen;
       final brutHakedis = _round(odenecekTutar * personelOrani, 2);
+      brutToplam += brutHakedis;
 
       // Tavan kontrolü
       final aktifMemurKatsayisi = memurMaasKatsayisi ?? memurMaasKatsayisiGuncel;
@@ -521,6 +528,9 @@ class DanismanlikExcelHesaplama {
       );
     }
 
+    final dagitilmayanFark = _round(odenecekTutar - brutToplam, 2);
+    final nihaiArtikBakiye = kalanBakiye + (dagitilmayanFark > 0 ? dagitilmayanFark : 0.0);
+
     return DanismanlikExcelSonuc(
       kesinti: kesinti,
       toplamPuan: toplamOran,
@@ -530,7 +540,7 @@ class DanismanlikExcelHesaplama {
       dagitimlar: dagitimlar,
       netOdemeToplam: _round(netOdemeToplam, 2),
       havuzToplam: _round(havuzToplam, 2),
-      artikBakiye: kalanBakiye,
+      artikBakiye: _round(nihaiArtikBakiye, 2),
     );
   }
 

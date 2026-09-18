@@ -668,7 +668,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
           personelId: '1',
           adSoyad: 'Dr. Deniz GÜRLER',
           unvan: 'Dr. Öğr. Üyesi',
-          puan: 20.0,
+          puan: 100.0,
           unvanKatsayisi: 2.0,
           ekGosterge: 200,
           dersSaati: 1.0,
@@ -716,9 +716,9 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       _personeller = [
         const ExcelPersonelGirdi(
           personelId: '1',
-          adSoyad: '',
+          adSoyad: 'Prof. Dr. Ahmet YILMAZ',
           unvan: 'Prof. Dr.',
-          puan: 20.0,
+          puan: 100.0,
           unvanKatsayisi: 3.0,
           ekGosterge: 300,
           dersSaati: 10.0,
@@ -749,8 +749,8 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       _hizmetBasligiController.text = 'GENEL İNGİLİZCE KURSU HİZMET GELİRLERİ HESAPLAMA CETVELİ';
       _kdvOrani = 10;
       _hazineOrani = 1;
-      _bapOrani = 5;
-      _aracGerecOrani = 0.45;
+      _bapOrani = 0;
+      _aracGerecOrani = 0.49;
       _satirlar = [
         ManuelListeSatiri(sn: 1, tc: '22787673956', aciklama: 'Cemre ARMAĞAN - Kursiyer Ücreti', tutar: 5000.0),
         ManuelListeSatiri(sn: 2, tc: '49756749382', aciklama: 'Emrah TORUN - Kursiyer Ücreti', tutar: 5000.0),
@@ -936,9 +936,11 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
   }
 
   Future<void> _cokluPersonelEkle() async {
+    final is58kOrE = _aktifSablonTuru == '58k' || _aktifSablonTuru == '58e';
     final yeniPersoneller = await CokluPersonelEkleDialog.goster(
       context,
       mevcutPersonelSayisi: _personeller.length,
+      is58kOrE: is58kOrE,
     );
 
     if (yeniPersoneller != null && yeniPersoneller.isNotEmpty && mounted) {
@@ -1286,17 +1288,18 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                   onMemurMaasKatsayisiKaydet: _memurMaasKatsayisiKaydet,
                   onPersonelEkle: () {
                     setState(() {
+                      final is58kOrE = _aktifSablonTuru == '58k' || _aktifSablonTuru == '58e';
                       _personeller.add(
                         ExcelPersonelGirdi(
                           personelId: '${_personeller.length + 1}',
                           adSoyad: '',
-                          unvan: 'Öğr. Gör. Dr.',
-                          puan: 20.0,
+                          unvan: is58kOrE ? 'Dr. Öğr. Üyesi' : 'Öğr. Gör. Dr.',
+                          puan: is58kOrE ? 100.0 : 20.0,
                           unvanKatsayisi: 2.0,
-                          ekGosterge: 160,
-                          dersSaati: 5.0,
+                          ekGosterge: is58kOrE ? 200 : 160,
+                          dersSaati: is58kOrE ? 1.0 : 5.0,
                           mesaiIci: false,
-                          faaliyetTuru: 'Danışmanlık',
+                          faaliyetTuru: is58kOrE ? 'Danışmanlık' : 'Danışmanlık',
                         ),
                       );
                     });

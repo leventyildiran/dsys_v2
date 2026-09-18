@@ -26,6 +26,11 @@ class TabDagMaksPay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double akademikOran = (kesinti.kdvHaricGelir > 0)
+        ? ((kesinti.dagMaksAkademikPay / kesinti.kdvHaricGelir) * 100)
+        : (100.0 - hazineOrani - bapOrani - (aracGerecOrani * 100));
+    final akademikOranStr = akademikOran.toStringAsFixed(akademikOran % 1 == 0 ? 0 : 1);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -200,12 +205,12 @@ class TabDagMaksPay extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'DAĞ. MAKS. AKADEMİK PAY (%49)',
-                                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF3730A3)),
+                                  Text(
+                                    'DAĞ. MAKS. AKADEMİK PAY (%$akademikOranStr)',
+                                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF3730A3)),
                                   ),
                                   Text(
-                                    'Akademik personele ödenebilecek yasal üst sınır (%49)',
+                                    'Akademik personele ödenebilecek yasal üst sınır (%$akademikOranStr)',
                                     style: TextStyle(fontSize: 11, color: Colors.indigo.shade600),
                                   ),
                                 ],

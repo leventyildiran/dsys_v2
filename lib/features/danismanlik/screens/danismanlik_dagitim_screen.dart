@@ -478,8 +478,10 @@ class _DanismanlikDagitimScreenState extends State<DanismanlikDagitimScreen> {
         _satir('ARAÇ GEREÇ PAYI (%${d.aracGerecPayiOrani})', TurkceFormat.para(k.aracGerecPayi)),
         _satir('KATKI PAYI', TurkceFormat.para(k.katkiPayi), kalin: true, renk: Colors.green.shade700),
         _satir('TOPLAM', TurkceFormat.para(k.toplam), kalin: true),
-        const Divider(),
-        _satir('DAĞ. MAKS. AKADEMİK PAY (%49)', TurkceFormat.para(k.dagMaksAkademikPay)),
+        _satir(
+          'DAĞ. MAKS. AKADEMİK PAY (%${k.kdvHaricGelir > 0 ? ((k.dagMaksAkademikPay / k.kdvHaricGelir) * 100).toStringAsFixed(0) : '49'})',
+          TurkceFormat.para(k.dagMaksAkademikPay),
+        ),
       ],
     );
   }

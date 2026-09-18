@@ -16,6 +16,10 @@ class TabOzetIcmal extends StatelessWidget {
   Widget build(BuildContext context) {
     final kesinti = veri.kesintiSonuc;
     final excel = veri.excelSonuc;
+    final double akademikOran = (kesinti.kdvHaricGelir > 0)
+        ? ((kesinti.dagMaksAkademikPay / kesinti.kdvHaricGelir) * 100)
+        : (100.0 - veri.hazineOrani - veri.bapOrani - (veri.aracGerecOrani * 100));
+    final akademikOranStr = akademikOran.toStringAsFixed(akademikOran % 1 == 0 ? 0 : 1);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -121,7 +125,7 @@ class TabOzetIcmal extends StatelessWidget {
                           _satir('• Araç Gereç Payı (%${(veri.aracGerecOrani * 100).toStringAsFixed(0)})', TurkceFormat.para(kesinti.aracGerecPayi)),
                           const Divider(height: 16),
                           _satir('Dağıtılabilir Katkı Payı', TurkceFormat.para(kesinti.katkiPayi), kalin: true, renk: const Color(0xFF4338CA)),
-                          _satir('Maks. Akademik Pay (%49)', TurkceFormat.para(kesinti.dagMaksAkademikPay), kalin: true, renk: const Color(0xFF3730A3)),
+                          _satir('Maks. Akademik Pay (%$akademikOranStr)', TurkceFormat.para(kesinti.dagMaksAkademikPay), kalin: true, renk: const Color(0xFF3730A3)),
                         ],
                       ),
                     ),
@@ -158,7 +162,7 @@ class TabOzetIcmal extends StatelessWidget {
                             ] else ...[
                               if (veri.aktifTaksitTarihAraligi.isNotEmpty)
                                 _satir('Danışmanlık Hizmet Dönemi', veri.aktifTaksitTarihAraligi, kalin: true, renk: const Color(0xFF0F766E)),
-                              _satir('Net Ödenecek Hakediş Tutarı (%85)', TurkceFormat.para(kesinti.katkiPayi), kalin: true, renk: const Color(0xFF107C41)),
+                              _satir('Net Ödenecek Hakediş Tutarı (%$akademikOranStr)', TurkceFormat.para(kesinti.katkiPayi), kalin: true, renk: const Color(0xFF107C41)),
                             ],
                             if (veri.sozlesmeSuresiMetni.isNotEmpty)
                               _satir('Sözleşme Süresi & Kapsamı', veri.sozlesmeSuresiMetni, kalin: false, renk: const Color(0xFF475569)),
@@ -200,7 +204,7 @@ class TabOzetIcmal extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     excel.saglama <= kesinti.katkiPayi + 0.01
-                                        ? (veri.is58k ? 'Güvenli: %85 net hakediş ve taksit tutarı sınır dahilindedir.' : 'Güvenli: Sağlama tutarı dağıtılabilir katkı payı tavanını aşmamaktadır.')
+                                        ? (veri.is58k ? 'Güvenli: %$akademikOranStr net hakediş ve taksit tutarı sınır dahilindedir.' : 'Güvenli: Sağlama tutarı dağıtılabilir katkı payı tavanını aşmamaktadır.')
                                         : 'UYARI: Dağıtılan tutar hak edilen payı aşmaktadır!',
                                     style: TextStyle(
                                       fontSize: 11,
@@ -270,9 +274,13 @@ class TabOzetIcmal extends StatelessWidget {
                               ),
                             ),
                             if (veri.is58k) ...[
-                              const SizedBox(
+                              SizedBox(
                                 width: 100,
-                                child: Text('%100 (Sözleşmeli)', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2563EB))),
+                                child: Text(
+                                  '%${p.puan > 0 ? p.puan.toStringAsFixed(p.puan % 1 == 0 ? 0 : 1) : '100'} (Sözleşmeli)',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                                ),
                               ),
                               const SizedBox(
                                 width: 120,

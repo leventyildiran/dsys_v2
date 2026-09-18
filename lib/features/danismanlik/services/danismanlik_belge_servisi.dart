@@ -119,7 +119,7 @@ class DanismanlikBelgeServisi {
             ),
             pw.Divider(thickness: 0.5),
             _pdfSatir(
-              'DAĞ. MAKS. AKADEMİK PAY (%49)',
+              'DAĞ. MAKS. AKADEMİK PAY (%${k.kdvHaricGelir > 0 ? ((k.dagMaksAkademikPay / k.kdvHaricGelir) * 100).toStringAsFixed(0) : '49'})',
               TurkceFormat.para(k.dagMaksAkademikPay),
               normal: normal,
               bold: kalin,

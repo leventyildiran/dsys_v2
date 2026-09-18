@@ -37,9 +37,9 @@ class DanismanlikHesaplamaServisi {
   }
 
   /// KDV hariç toplam tutardan (matrah), kesintileri düşerek
-  /// dağıtılacak maksimum akademik payı (%49) hesaplar.
-  static double hesaplaDagitilacakMaksimumPay(double kdvHaricTutar) {
-    return kdvHaricTutar * 0.49;
+  /// dağıtılacak maksimum akademik payı hesaplar.
+  static double hesaplaDagitilacakMaksimumPay(double kdvHaricTutar, [double dagitilabilirOran = 0.49]) {
+    return kdvHaricTutar * dagitilabilirOran;
   }
 
   /// 1 Saatlik Tavan (Limit) Ek Ders Ücretini hesaplar
