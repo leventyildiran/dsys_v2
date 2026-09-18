@@ -255,7 +255,7 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
 ]
 
 ÖNEMLİ KURALLAR:
-1. SADECE JSON ÇIKTISI VER. Yorum yapma, açıklamalar ekleme, markdown tickleri (\`\`\`json) ekleme veya başa/sona yazı koyma!
+1. SADECE JSON ÇIKTISI VER. Yorum yapma, açıklamalar ekleme, markdown tickleri (```json) ekleme veya başa/sona yazı koyma!
 2. Faturadaki HER BİR HİZMET VEYA ÜRÜN KALEMİNİ eksiksiz olarak 'kalemler' dizisine ayrı bir obje olarak ekle. Hiçbir kalemi atlama veya birleştirme. Faturada ne kadar kalem varsa hepsi dizide olmalı!
 3. Faturada birden fazla müşteri verisi varsa liste içine birden fazla obje koy.
 4. "kalemler" listesinde, "fiyat" kısmına virgülleri noktaya çevirerek bir Number koy (örn: 1540.50). 

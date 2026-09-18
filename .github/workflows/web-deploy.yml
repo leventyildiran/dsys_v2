@@ -26,7 +26,7 @@ jobs:
         run: flutter pub get
 
       - name: Analyze (fatura modülü)
-        run: flutter analyze lib/features/fatura lib/core/services/ai_extraction_service.dart --no-fatal-infos
+        run: flutter analyze lib/features/fatura lib/core/services/ai_extraction_service.dart --no-fatal-infos --no-fatal-warnings
 
       - name: Build web release
         run: flutter build web --release

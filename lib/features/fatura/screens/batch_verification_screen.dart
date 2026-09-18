@@ -758,7 +758,6 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       final sonAdet = provider.pendingInvoices
           .where((f) => !BatchFaturaProvider.yerTutucuMu(f))
           .length;
-      final yeniEklenen = sonAdet - baslangicAdet;
 
       if (basariliDosya > 0) {
         ScaffoldMessenger.of(context).showSnackBar(

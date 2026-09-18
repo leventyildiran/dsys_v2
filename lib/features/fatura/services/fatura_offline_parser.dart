@@ -391,10 +391,6 @@ class FaturaOfflineParser {
       r'(?:matrah|mal\s*hizmet\s*toplam(?:\s*tutar[ıi])?|vergi\s*matrah[ıi])\s*[:.\-]?\s*([\d.,]+)',
       caseSensitive: false,
     ).firstMatch(text);
-    final kdvTutarMatch = RegExp(
-      r'(?:hesaplanan\s*kdv|toplam\s*kdv|kdv\s*tutar[ıi])\s*[:.\-]?\s*([\d.,]+)',
-      caseSensitive: false,
-    ).firstMatch(text);
     final kdvOranMatch = RegExp(
       r'(?:kdv\s*oran[ıi]|oran[ıi])\s*[:.\-]?\s*%?\s*(\d{1,2})',
       caseSensitive: false,
@@ -841,7 +837,6 @@ class FaturaOfflineParser {
 
     final sonuclar = <FaturaModel>[];
     for (final blok in bloklar) {
-      final melbesNo = melbesRegex.firstMatch(blok)?.group(1)?.trim() ?? '';
       final numuneNo =
           RegExp(r'numune\s*no\s*[:\-]?\s*([a-zA-Z0-9\-/]+)', caseSensitive: false)
               .firstMatch(blok)
