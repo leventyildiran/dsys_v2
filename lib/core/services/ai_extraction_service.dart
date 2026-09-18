@@ -10,11 +10,11 @@ class AIExtractionService {
   final SistemAyarlariService _ayarlarService = SistemAyarlariService();
   final GoogleVisionOcrService _visionOcr = GoogleVisionOcrService();
   static const List<String> _geminiModelFallbacks = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-8b',
-    'gemini-1.5-pro',
+    'gemini-3.8-flash',
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
   ];
 
   Future<String?> _runGeminiWithFallback({
@@ -24,8 +24,13 @@ class AIExtractionService {
   }) async {
     final modelOrder = <String>[];
     String? cleanPreferred = preferredModel?.trim();
-    if (cleanPreferred != null && cleanPreferred.isEmpty) {
-      cleanPreferred = 'gemini-1.5-flash';
+    if (cleanPreferred != null &&
+        (cleanPreferred.isEmpty ||
+            cleanPreferred == 'gemini-flash-latest' ||
+            cleanPreferred == 'gemini-2.5-flash' ||
+            cleanPreferred == 'gemini-2.0-flash' ||
+            cleanPreferred == 'gemini-1.5-flash')) {
+      cleanPreferred = 'gemini-3.6-flash'; // 2026 standard
     }
 
     if (cleanPreferred != null && cleanPreferred.isNotEmpty) {

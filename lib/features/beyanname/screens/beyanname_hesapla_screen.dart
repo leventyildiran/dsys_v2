@@ -11,6 +11,8 @@ import '../widgets/editable_cell.dart';
 import '../../birim/models/birim_model.dart';
 import '../../personel/models/personel_model.dart';
 import '../../personel/services/personel_service.dart';
+import '../../../core/models/firma_model.dart';
+import '../../fatura/components/firma_secici_dialog.dart';
 import 'hizli_veri_girisi_dialog.dart';
 import 'vergi_arama_dialog.dart';
 
@@ -1204,7 +1206,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
         _buildTableContainer(
           [
             _headerRow(
-              ['FİRMA / KİŞİ ADI', 'VERGİ / TC NO', 'TÜR / ORAN', 'MATRAH TUTARI', 'KDV TUTARI', 'TEVKİFAT TUTARI', 'İŞLEM'],
+              ['FİRMA / KİŞİ ADI', 'VERGİ / TC NO', 'BİRİM', 'TÜR / ORAN', 'MATRAH TUTARI', 'KDV TUTARI', 'TEVKİFAT TUTARI', 'İŞLEM'],
               bg: const Color(0xFFFEF3C7),
               textColor: const Color(0xFF92400E),
             ),
@@ -1216,6 +1218,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 children: [
                   _cellText(f.firmaAdi, isBold: true, align: TextAlign.left),
                   _cellText(f.vergiTcNo, align: TextAlign.center),
+                  _buildBirimCell(f.birimAdi ?? '—'),
                   _cellText('${f.tevkifatTuru.etiket} (%${f.kdvOrani})', align: TextAlign.center),
                   _cellText(TurkceFormat.para(f.matrahTutari)),
                   _cellText(TurkceFormat.para(f.kdvTutari)),
@@ -1255,15 +1258,16 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           ],
           borderColor: const Color(0xFFFDE68A),
           gridColor: const Color(0xFFFFFBEB),
-          minWidth: 920,
+          minWidth: 1020,
           columnWidths: const {
-            0: FlexColumnWidth(2.4),
+            0: FlexColumnWidth(2.2),
             1: FlexColumnWidth(1.1),
-            2: FlexColumnWidth(1.1),
+            2: FlexColumnWidth(1.4),
             3: FlexColumnWidth(1.1),
             4: FlexColumnWidth(1.1),
-            5: FlexColumnWidth(1.2),
-            6: FixedColumnWidth(65),
+            5: FlexColumnWidth(1.1),
+            6: FlexColumnWidth(1.2),
+            7: FixedColumnWidth(65),
           },
         ),
       ],
@@ -2283,74 +2287,252 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     TevkifatTuru seciliTur = mevcut?.tevkifatTuru ?? TevkifatTuru.dokuzBoluOn;
     int kdvOrani = mevcut?.kdvOrani ?? 20;
 
+    // Birim seçeneklerini topla
+    final Map<String, String> birimSecenekleri = {};
+    for (final b in BirimModel.varsayilanBirimler) {
+      birimSecenekleri[b.ad] = b.kisaAd.isNotEmpty ? b.kisaAd : b.ad;
+    }
+    for (final b in provider.sistemBirimleri) {
+      if (b.ad.isNotEmpty) {
+        birimSecenekleri[b.ad] = b.kisaAd.isNotEmpty ? b.kisaAd : b.ad;
+      }
+    }
+    for (final k in provider.kdv1Satirlari) {
+      if (k.birimAdi.isNotEmpty && !birimSecenekleri.containsKey(k.birimAdi)) {
+        birimSecenekleri[k.birimAdi] = BirimAdlandirma.kisaAdGetir(k.birimAdi);
+      }
+    }
+    final sortedBirimler = birimSecenekleri.keys.toList()..sort();
+
+    String? seciliBirim = mevcut?.birimAdi;
+    if (seciliBirim == null || !birimSecenekleri.containsKey(seciliBirim)) {
+      if (sortedBirimler.isNotEmpty) {
+        seciliBirim = sortedBirimler.first;
+      }
+    }
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(
-            mevcut != null ? 'Tevkifatlı Faturayı Düzenle' : 'Yeni Tevkifatlı Fatura Ekle',
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          title: Row(
+            children: [
+              const Icon(Icons.receipt_long_rounded, color: Color(0xFFD97706), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                mevcut != null ? 'Tevkifatlı Faturayı Düzenle' : 'Yeni Tevkifatlı Fatura Ekle',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+            ],
           ),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: firmaCtrl, decoration: const InputDecoration(labelText: 'Firma / Kişi Adı')),
-                const SizedBox(height: 8),
-                TextField(controller: vknCtrl, decoration: const InputDecoration(labelText: 'Vergi No / TC Kimlik')),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<TevkifatTuru>(
-                        value: seciliTur,
-                        decoration: const InputDecoration(labelText: 'Tevkifat Türü'),
-                        items: const [
-                          DropdownMenuItem(value: TevkifatTuru.dokuzBoluOn, child: Text('9 / 10 (%90)')),
-                          DropdownMenuItem(value: TevkifatTuru.yediBoluOn, child: Text('7 / 10 (%70)')),
-                          DropdownMenuItem(value: TevkifatTuru.besBoluOn, child: Text('5 / 10 (%50)')),
-                        ],
-                        onChanged: (v) => setDialogState(() => seciliTur = v!),
-                      ),
+            child: SizedBox(
+              width: 500,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Birim Seçimi (Birim Bazlı Vergiler icmali için zorunlu)
+                  DropdownButtonFormField<String>(
+                    value: seciliBirim,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Ait Olduğu Birim (Birim Dağılımı İçin)',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      prefixIcon: Icon(Icons.account_balance_rounded, size: 18),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: DropdownButtonFormField<int>(
-                        value: kdvOrani,
-                        decoration: const InputDecoration(labelText: 'KDV Oranı'),
-                        items: [8, 10, 18, 20].map((o) => DropdownMenuItem(value: o, child: Text('%$o'))).toList(),
-                        onChanged: (v) => setDialogState(() => kdvOrani = v!),
+                    items: sortedBirimler.map((ad) {
+                      final kisa = birimSecenekleri[ad] ?? ad;
+                      return DropdownMenuItem<String>(
+                        value: ad,
+                        child: Text(
+                          '$kisa — $ad',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (v) => setDialogState(() => seciliBirim = v),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 2. Firma Adı + Rehberden Seç Butonu
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: firmaCtrl,
+                          decoration: InputDecoration(
+                            labelText: 'Firma / Kişi Adı',
+                            border: const OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            prefixIcon: const Icon(Icons.business_rounded, size: 18),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.search_rounded, color: Color(0xFFD97706)),
+                              tooltip: 'Firma Veritabanından Seç',
+                              onPressed: () async {
+                                final secilen = await showDialog<FirmaModel>(
+                                  context: context,
+                                  builder: (c) => const FirmaSeciciDialog(),
+                                );
+                                if (secilen != null) {
+                                  firmaCtrl.text = secilen.firmaAdi;
+                                  vknCtrl.text = secilen.vergiNo;
+                                  setDialogState(() {});
+                                }
+                              },
+                            ),
+                          ),
+                        ),
                       ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        height: 44,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFD97706),
+                            side: const BorderSide(color: Color(0xFFD97706)),
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                          ),
+                          icon: const Icon(Icons.corporate_fare_rounded, size: 16),
+                          label: const Text('Rehberden Seç', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          onPressed: () async {
+                            final secilen = await showDialog<FirmaModel>(
+                              context: context,
+                              builder: (c) => const FirmaSeciciDialog(),
+                            );
+                            if (secilen != null) {
+                              firmaCtrl.text = secilen.firmaAdi;
+                              vknCtrl.text = secilen.vergiNo;
+                              setDialogState(() {});
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 3. Vergi No / TC Kimlik
+                  TextField(
+                    controller: vknCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Vergi No / TC Kimlik',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      prefixIcon: Icon(Icons.badge_rounded, size: 18),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: matrahCtrl,
-                  decoration: const InputDecoration(labelText: 'Matrah Tutarı (TL)', hintText: 'örn: 100.000,00'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: const [TurkceParaInputFormatter()],
-                  onChanged: (val) {
-                    final m = TurkceFormat.parseSayi(val);
-                    if (m > 0) {
-                      final kdv = BeyannameHesaplamaMotoru.round(m * (kdvOrani / 100));
-                      kdvCtrl.text = TurkceFormat.paraKalem(kdv);
-                    }
-                  },
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: kdvCtrl,
-                  decoration: const InputDecoration(labelText: 'KDV Tutarı (TL)', hintText: 'örn: 20.000,00'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: const [TurkceParaInputFormatter()],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 4. Tevkifat Türü ve KDV Oranı
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<TevkifatTuru>(
+                          value: seciliTur,
+                          decoration: const InputDecoration(
+                            labelText: 'Tevkifat Türü',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: TevkifatTuru.dokuzBoluOn, child: Text('9 / 10 (%90)')),
+                            DropdownMenuItem(value: TevkifatTuru.yediBoluOn, child: Text('7 / 10 (%70)')),
+                            DropdownMenuItem(value: TevkifatTuru.besBoluOn, child: Text('5 / 10 (%50)')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) {
+                              setDialogState(() => seciliTur = v);
+                              final m = TurkceFormat.parseSayi(matrahCtrl.text);
+                              if (m > 0) {
+                                final kdv = BeyannameHesaplamaMotoru.round(m * (kdvOrani / 100));
+                                kdvCtrl.text = TurkceFormat.paraKalem(kdv);
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: kdvOrani,
+                          decoration: const InputDecoration(
+                            labelText: 'KDV Oranı',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                          items: [8, 10, 18, 20].map((o) => DropdownMenuItem(value: o, child: Text('%$o'))).toList(),
+                          onChanged: (v) {
+                            if (v != null) {
+                              setDialogState(() => kdvOrani = v);
+                              final m = TurkceFormat.parseSayi(matrahCtrl.text);
+                              if (m > 0) {
+                                final kdv = BeyannameHesaplamaMotoru.round(m * (kdvOrani / 100));
+                                kdvCtrl.text = TurkceFormat.paraKalem(kdv);
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 5. Matrah ve KDV Tutarları
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: matrahCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Matrah Tutarı (TL)',
+                            hintText: 'örn: 100.000,00',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: const [TurkceParaInputFormatter()],
+                          onChanged: (val) {
+                            final m = TurkceFormat.parseSayi(val);
+                            if (m > 0) {
+                              final kdv = BeyannameHesaplamaMotoru.round(m * (kdvOrani / 100));
+                              kdvCtrl.text = TurkceFormat.paraKalem(kdv);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: kdvCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'KDV Tutarı (TL)',
+                            hintText: 'örn: 20.000,00',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: const [TurkceParaInputFormatter()],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD97706),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
               onPressed: () {
                 final matrah = TurkceFormat.parseSayi(matrahCtrl.text);
                 final kdv = TurkceFormat.parseSayi(kdvCtrl.text);
@@ -2358,14 +2540,15 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
 
                 final kayit = TevkifatFirmaKaydi(
                   id: mevcut?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-                  firmaAdi: firmaCtrl.text.trim(),
+                  firmaAdi: firmaCtrl.text.trim().isEmpty ? 'Tevkifatlı Fatura' : firmaCtrl.text.trim(),
                   vergiTcNo: vknCtrl.text.trim(),
                   tevkifatTuru: seciliTur,
+                  tevkifatEtiketi: seciliTur.etiket,
                   kdvOrani: kdvOrani,
                   matrahTutari: matrah,
                   kdvTutari: kdv,
                   tevkifatTutari: tevkifat,
-                  birimAdi: mevcut?.birimAdi,
+                  birimAdi: seciliBirim,
                 );
 
                 if (editIndex != null) {

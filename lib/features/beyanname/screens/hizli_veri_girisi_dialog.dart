@@ -6,6 +6,8 @@ import '../models/beyanname_model.dart';
 import '../models/beyanname_konfigurasyonu.dart';
 import '../providers/beyanname_provider.dart';
 import '../services/beyanname_hesaplama_motoru.dart';
+import '../../../core/models/firma_model.dart';
+import '../../fatura/components/firma_secici_dialog.dart';
 
 enum _HizliGirisTuru {
   kdv2Tevkifat,
@@ -665,12 +667,52 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
               flex: 3,
               child: TextField(
                 controller: _tevkifatFirmaCtrl,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Firma / Kişi Adı',
                   hintText: 'örn: ABC Ltd. Şti.',
                   isDense: true,
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.business_rounded, size: 18),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.search_rounded, color: Color(0xFFD97706)),
+                    tooltip: 'Firma Veritabanından Seç',
+                    onPressed: () async {
+                      final secilen = await showDialog<FirmaModel>(
+                        context: context,
+                        builder: (c) => const FirmaSeciciDialog(),
+                      );
+                      if (secilen != null) {
+                        _tevkifatFirmaCtrl.text = secilen.firmaAdi;
+                        _tevkifatVergiNoCtrl.text = secilen.vergiNo;
+                        setState(() {});
+                      }
+                    },
+                  ),
                 ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              height: 44,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFD97706),
+                  side: const BorderSide(color: Color(0xFFD97706)),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                ),
+                icon: const Icon(Icons.corporate_fare_rounded, size: 16),
+                label: const Text('Rehber', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                onPressed: () async {
+                  final secilen = await showDialog<FirmaModel>(
+                    context: context,
+                    builder: (c) => const FirmaSeciciDialog(),
+                  );
+                  if (secilen != null) {
+                    _tevkifatFirmaCtrl.text = secilen.firmaAdi;
+                    _tevkifatVergiNoCtrl.text = secilen.vergiNo;
+                    setState(() {});
+                  }
+                },
               ),
             ),
             const SizedBox(width: 10),
@@ -684,6 +726,7 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
                   hintText: '10 veya 11 haneli',
                   isDense: true,
                   border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.badge_rounded, size: 18),
                 ),
               ),
             ),
