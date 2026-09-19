@@ -16,6 +16,7 @@ import '../../../core/models/firma_model.dart';
 import '../../fatura/components/firma_secici_dialog.dart';
 import 'hizli_veri_girisi_dialog.dart';
 import 'vergi_arama_dialog.dart';
+import '../widgets/ai_ajan/beyanname_ai_ajan_tab.dart';
 
 class BeyannameHesaplaScreen extends StatefulWidget {
   const BeyannameHesaplaScreen({super.key});
@@ -41,6 +42,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     '👥 Muhtasar Bordro',
     '🏷️ Damga (360.03.05)',
     '📈 600 Hasılat & 123',
+    '🤖 Akıllı Mizan & Belge Ajanı',
   ];
 
   final List<Color> _tabColors = const [
@@ -51,6 +53,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     Color(0xFF059669), // 4. Muhtasar (Zümrüt Yeşili)
     Color(0xFF7C3AED), // 5. Damga (Asil Mor)
     Color(0xFF0284C7), // 6. 600 Hasılat (Camgöbeği)
+    Color(0xFF4F46E5), // 7. Akıllı Mizan & Belge Ajanı (İndigo)
   ];
 
   @override
@@ -772,6 +775,8 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
         return _buildDamgaMasasi(provider);
       case 6:
         return _build600Masasi(provider);
+      case 7:
+        return BeyannameAiAjanTab(provider: provider);
       default:
         return const SizedBox.shrink();
     }
@@ -2973,7 +2978,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
 
                 // Merkezi Personel Veritabanına da otomatik kazandır (arka planda)
                 if (adSoyad.isNotEmpty) {
-                  PersonelService().getOrAdd(adSoyad: adSoyad, birimAdi: seciliBirim).catchError((_) => null);
+                  unawaited(PersonelService().getOrAdd(adSoyad: adSoyad, birimAdi: seciliBirim).then((_) {}).catchError((_) {}));
                 }
 
                 Navigator.pop(ctx);
@@ -3074,7 +3079,7 @@ class _HoverableTableContainerState extends State<_HoverableTableContainer> {
 
       final wrappedChildren = row.children.map((child) {
         return MouseRegion(
-          behavior: HitTestBehavior.opaque,
+          hitTestBehavior: HitTestBehavior.opaque,
           onEnter: (_) => _onRowEnter(i),
           onExit: (_) => _onRowExit(i),
           child: child,
