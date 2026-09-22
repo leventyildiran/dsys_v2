@@ -2,6 +2,11 @@
 import 'fatura_parse_kaynaklari.dart';
 const fKdvOranlari = [0.0, 1.0, 10.0, 20.0];
 
+/// Muaf olmayan faturalarda KDV oranı çözümlenemediğinde uygulanan varsayılan
+/// oran. Yeni fatura, arşiv eşleştirme ve doğrulama servislerinin tamamı bu tek
+/// kaynağı kullanır; böylece bir yerde 0, başka yerde 20 gibi tutarsızlık oluşmaz.
+const fVarsayilanKdvOrani = 20.0;
+
 // Hizmet Tipi seçenekleri
 const fHizmetTipleri = [
   'EĞİTİM',
@@ -178,12 +183,12 @@ class FaturaModel {
   }
 
   static double _normalizeKdvOrani(dynamic raw) {
-    final v = (raw as num?)?.toDouble() ?? 20.0;
+    final v = (raw as num?)?.toDouble() ?? fVarsayilanKdvOrani;
     if (fKdvOranlari.contains(v)) return v;
     if (v <= 0) return 0;
     if (v <= 5) return 1;
     if (v <= 15) return 10;
-    return 20;
+    return fVarsayilanKdvOrani;
   }
 
   factory FaturaModel.fromJson(Map<String, dynamic> json) {
@@ -249,7 +254,7 @@ class FaturaModel {
       genelToplam: 0,
       isKdvMuaf: false,
       nakliYekunAktif: false,
-      kdvOrani: 20,
+      kdvOrani: fVarsayilanKdvOrani,
       parsedBy: FaturaParseKaynaklari.yeniFatura,
       kalemler: [],
       ytbOgrencisi: false,

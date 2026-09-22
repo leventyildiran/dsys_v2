@@ -101,6 +101,41 @@ void main() {
       expect(dogrulanmis.kdvTutari, equals(200.0));
       expect(dogrulanmis.genelToplam, equals(1200.0));
     });
+
+    test('Muaf olmayan faturada KDV oranı 0 gelirse varsayılan %20 uygulanmalı', () {
+      final f = FaturaModel(
+        id: 'test-4',
+        firmaAdi: 'Varsayilan KDV A.S.',
+        adres: 'Usak',
+        vergiDairesi: 'Merkez',
+        vergiNo: '1111111111',
+        tarih: '17.09.2026',
+        irsaliyeNo: '',
+        melbesNo: '',
+        numuneNo: '',
+        numuneAciklamasi: '',
+        kalemler: [
+          {'cinsi': 'Hizmet', 'miktar': 1, 'fiyat': 1000.0, 'tutar': 1000.0},
+        ],
+        isKdvMuaf: false,
+        matrah: 1000.0,
+        kdvOrani: 0.0,
+        kdvTutari: 0.0,
+        genelToplam: 1000.0,
+        parsedBy: 'Test',
+      );
+
+      final dogrulanmis = FaturaDogrulamaServisi.dogrulaVeTamamla(f);
+
+      expect(dogrulanmis.kdvOrani, equals(20.0));
+      expect(dogrulanmis.kdvTutari, equals(200.0));
+      expect(dogrulanmis.genelToplam, equals(1200.0));
+    });
+
+    test('Yeni fatura varsayılan KDV oranı %20 olmalı', () {
+      expect(FaturaModel.bos().kdvOrani, equals(20.0));
+      expect(fVarsayilanKdvOrani, equals(20.0));
+    });
   });
 
   group('FaturaOfflineParser Birim Talep ve e-Arşiv Testleri', () {

@@ -110,6 +110,22 @@ class FaturaEslestirmeServisi {
     return null; // Eşleşme yok veya skor yetersiz
   }
 
+  /// Yeni belgeden çözümlenen KDV oranı geçerliyse (0'dan büyükse) onu esas alır.
+  /// Aksi halde şablonun oranına bakar. Şablon oranı 0 ise -ki bu geçmişte KDV
+  /// muaf olduğu için sıfırlanmış olabilir- yeni faturaya "%0" oranı miras
+  /// kalmaz; varsayılan orana düşülür.
+  static double _kdvOraniCozumle(FaturaModel? parsedFatura, FaturaModel sablon) {
+    final yeniBelgeMuaf = parsedFatura?.isKdvMuaf ?? sablon.isKdvMuaf;
+    if (yeniBelgeMuaf) return 0.0;
+
+    final parsedOran = parsedFatura?.kdvOrani ?? 0.0;
+    if (parsedOran > 0) return parsedOran;
+
+    if (sablon.kdvOrani > 0) return sablon.kdvOrani;
+
+    return fVarsayilanKdvOrani;
+  }
+
   /// Geçmiş faturanın sabit bilgilerini (Müşteri, KDV durumu, Birim vs.) kopyalar,
   /// dinamik verileri (Miktar, Tarih, No vb.) OfflineParser kullanarak yeni metinden çıkarır.
   static FaturaModel _faturayiKlonlaVeGuncelle(
@@ -158,7 +174,7 @@ class FaturaEslestirmeServisi {
       numuneAciklamasi: parsedFatura?.numuneAciklamasi ?? '',
       iban: sablon.iban,
       hesapAdi: sablon.hesapAdi,
-      kdvOrani: sablon.kdvOrani,
+      kdvOrani: _kdvOraniCozumle(parsedFatura, sablon),
       kdvTutari: parsedFatura?.kdvTutari ?? 0.0,
       matrah: parsedFatura?.matrah ?? 0.0,
       genelToplam: parsedFatura?.genelToplam ?? 0.0,

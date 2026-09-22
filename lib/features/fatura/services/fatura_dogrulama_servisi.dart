@@ -52,6 +52,11 @@ class FaturaDogrulamaServisi {
       kdvOrani = 0.0;
       f.kdvOrani = 0.0;
       f.kdvTutari = 0.0;
+    } else if (kdvOrani <= 0) {
+      // Muaf olmayan bir faturada KDV oranı 0 gelmişse (arşiv şablonundan miras
+      // kalan sıfır, eksik çözümleme vb.) varsayılan oranı uygula. Böylece
+      // geçmişte muaf olan bir şablon yeni faturaya "%0" oranını taşımaz.
+      kdvOrani = fVarsayilanKdvOrani;
     }
 
     // Matrah sıfır ama kalemler toplamı varsa:
@@ -89,6 +94,7 @@ class FaturaDogrulamaServisi {
     }
 
     f.matrah = double.parse(matrah.toStringAsFixed(2));
+    f.kdvOrani = kdvOrani;
     f.kdvTutari = double.parse(kdvTutari.toStringAsFixed(2));
     f.genelToplam = double.parse(genelToplam.toStringAsFixed(2));
 
