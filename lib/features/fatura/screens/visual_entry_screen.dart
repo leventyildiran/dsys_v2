@@ -394,7 +394,6 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
         child: _suruklenebilirAlan(
                 provider: provider,
                 alanKey: key,
-                readOnly: true,
                 child: _metinKutusu(
                   metin: finalVal,
                   fontBoyutu: provider.matbuFontBoyutu,
@@ -606,7 +605,6 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
            child: _suruklenebilirAlan(
                    provider: provider,
                    alanKey: 'tutar',
-                   readOnly: true,
                    child: Row(
                      mainAxisSize: MainAxisSize.min,
                      children: [
@@ -681,6 +679,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
         maxLines: maxLines,
         textAlign: textAlign,
         hint: hint,
+        onFocus: () => setState(() => _seciliAlan = key),
       ),
     );
   }
@@ -792,7 +791,6 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     required BatchFaturaProvider provider,
     required String alanKey,
     required Widget child,
-    bool readOnly = false,
   }) {
     final secili = _seciliAlan == alanKey;
     
@@ -842,37 +840,31 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       ),
     );
 
+    // Tüm alanlar (salt-okunur ve düzenlenebilir) gövdeden sürüklenebilir:
+    // hızlı dokunuş = düzenle/seç, sürükleme = taşı.
     final fieldBox = GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: () {
         setState(() => _seciliAlan = alanKey);
       },
-      onPanStart: readOnly
-          ? (_) {
-              setState(() {
-                _surukleAktif = true;
-                _seciliAlan = alanKey;
-              });
-            }
-          : null,
-      onPanUpdate: readOnly
-          ? (details) {
-              provider.calibrationDragDelta(alanKey, details.delta, notify: false);
-              setState(() {});
-            }
-          : null,
-      onPanEnd: readOnly
-          ? (_) {
-              _surukleBitir(provider);
-            }
-          : null,
-      onPanCancel: readOnly
-          ? () {
-              _surukleBitir(provider);
-            }
-          : null,
+      onPanStart: (_) {
+        setState(() {
+          _surukleAktif = true;
+          _seciliAlan = alanKey;
+        });
+      },
+      onPanUpdate: (details) {
+        provider.calibrationDragDelta(alanKey, details.delta, notify: false);
+        setState(() {});
+      },
+      onPanEnd: (_) {
+        _surukleBitir(provider);
+      },
+      onPanCancel: () {
+        _surukleBitir(provider);
+      },
       child: MouseRegion(
-        cursor: readOnly ? SystemMouseCursors.move : SystemMouseCursors.basic,
+        cursor: SystemMouseCursors.move,
         child: Container(
           decoration: BoxDecoration(
             border: secili
@@ -917,6 +909,9 @@ class _MatbuEditableField extends StatefulWidget {
   final TextAlign textAlign;
   final String? hint;
 
+  /// Alan düzenlemeye geçtiğinde (seçildiğinde) üst katmanı bilgilendirir.
+  final VoidCallback? onFocus;
+
   const _MatbuEditableField({
     required this.initialValue,
     required this.onChanged,
@@ -925,6 +920,7 @@ class _MatbuEditableField extends StatefulWidget {
     this.maxLines = 1,
     this.textAlign = TextAlign.left,
     this.hint,
+    this.onFocus,
   });
 
   @override
@@ -933,11 +929,20 @@ class _MatbuEditableField extends StatefulWidget {
 
 class _MatbuEditableFieldState extends State<_MatbuEditableField> {
   late TextEditingController _controller;
+  final FocusNode _focusNode = FocusNode();
+  bool _duzenleniyor = false;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialValue);
+    _focusNode.addListener(_focusDegisti);
+  }
+
+  void _focusDegisti() {
+    if (!_focusNode.hasFocus && _duzenleniyor) {
+      setState(() => _duzenleniyor = false);
+    }
   }
 
   @override
@@ -950,38 +955,78 @@ class _MatbuEditableFieldState extends State<_MatbuEditableField> {
 
   @override
   void dispose() {
+    _focusNode.removeListener(_focusDegisti);
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
   }
 
+  void _duzenlemeyeGec() {
+    setState(() => _duzenleniyor = true);
+    widget.onFocus?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: widget.maxWidth,
-      decoration: BoxDecoration(
-        color: Colors.blue.withValues(alpha: 0.05),
-        border: Border(
-          bottom: BorderSide(color: Colors.blue.withValues(alpha: 0.3), width: 1),
-        ),
+    final decoration = BoxDecoration(
+      color: Colors.blue.withValues(alpha: 0.05),
+      border: Border(
+        bottom: BorderSide(color: Colors.blue.withValues(alpha: 0.3), width: 1),
       ),
-      child: TextFormField(
-        controller: _controller,
-        onChanged: widget.onChanged,
-        maxLines: widget.maxLines,
-        textAlign: widget.textAlign,
-        style: TextStyle(
-          fontSize: widget.fontSize,
-          height: 1.1,
-          color: Colors.black,
+    );
+
+    // Düzenleme modu: gerçek metin girişi.
+    if (_duzenleniyor) {
+      return Container(
+        width: widget.maxWidth,
+        decoration: decoration,
+        child: TextFormField(
+          controller: _controller,
+          focusNode: _focusNode,
+          autofocus: true,
+          onChanged: widget.onChanged,
+          onTapOutside: (_) => _focusNode.unfocus(),
+          maxLines: widget.maxLines,
+          textAlign: widget.textAlign,
+          style: TextStyle(
+            fontSize: widget.fontSize,
+            height: 1.1,
+            color: Colors.black,
+          ),
+          decoration: InputDecoration(
+            hintText: widget.hint,
+            hintStyle: TextStyle(fontSize: widget.fontSize, color: Colors.grey),
+            isDense: true,
+            contentPadding: EdgeInsets.zero,
+            border: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            enabledBorder: InputBorder.none,
+          ),
         ),
-        decoration: InputDecoration(
-          hintText: widget.hint,
-          hintStyle: TextStyle(fontSize: widget.fontSize, color: Colors.grey),
-          isDense: true,
-          contentPadding: EdgeInsets.zero,
-          border: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          enabledBorder: InputBorder.none,
+      );
+    }
+
+    // Düzenleme dışı: metin sade bir Text olarak gösterilir. Böylece iç
+    // gesture tanıyıcıları (metin seçimi sürüklemesi) ile çakışma olmaz ve
+    // gövde sürüklemesi üst katmandaki pan tanıyıcısına temiz şekilde geçer.
+    // Dokunuş → düzenleme, sürükleme → taşıma.
+    final metin = widget.initialValue.trim();
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _duzenlemeyeGec,
+      child: Container(
+        width: widget.maxWidth,
+        decoration: decoration,
+        child: Text(
+          metin.isEmpty ? (widget.hint ?? '') : widget.initialValue,
+          maxLines: widget.maxLines,
+          textAlign: widget.textAlign,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: widget.fontSize,
+            height: 1.1,
+            color: metin.isEmpty ? Colors.grey : Colors.black,
+          ),
         ),
       ),
     );
@@ -1020,11 +1065,25 @@ class _RenderHandleOverflow extends RenderProxyBox {
       size.width + (overflowPadding * 2),
       size.height + (overflowPadding * 2),
     );
-    if (hitRect.contains(position)) {
-      if (hitTestChildren(result, position: position) || hitTestSelf(position)) {
+    if (!hitRect.contains(position)) return false;
+
+    // ÖNEMLİ: `child.hitTest(position)` çocuk Stack'in KENDİ boyut kutusunu
+    // (0,0 → size) kontrol eder ve kutunun dışına taşan mavi sürükleme
+    // tutamacını (left: -24) yutar. Bu yüzden Stack'in boyut kontrolünü
+    // atlayıp doğrudan alt çocuklarını hit-test ediyoruz; böylece tutamaç
+    // tam üzerine tıklandığı noktada yakalanır ve tüm alanlar (salt-okunur
+    // olmayanlar dahil) sürüklenebilir.
+    final RenderBox? child = this.child;
+    if (child != null) {
+      // ignore: invalid_use_of_protected_member
+      if (child.hitTestChildren(result, position: position)) {
         result.add(BoxHitTestEntry(this, position));
         return true;
       }
+    }
+    if (hitTestSelf(position)) {
+      result.add(BoxHitTestEntry(this, position));
+      return true;
     }
     return false;
   }
