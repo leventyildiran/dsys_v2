@@ -366,11 +366,10 @@ class FaturaKuyrukProvider extends ChangeNotifier {
         currentInvoice.adres = value.toString();
       case 'vergiDairesi':
         currentInvoice.vergiDairesi = value.toString();
+      case 'vergiNo':
+        currentInvoice.vergiNo = value.toString();
       case 'tarih':
-        final tStr = value.toString();
-        currentInvoice.tarih = tStr;
-        currentInvoice.irsaliyeTarihi = tStr;
-        dialogUpdateCounter++;
+        currentInvoice.tarih = value.toString();
       case 'irsaliyeTarihi':
         currentInvoice.irsaliyeTarihi = value.toString();
       case 'irsaliyeNo':
@@ -614,17 +613,19 @@ class FaturaKuyrukProvider extends ChangeNotifier {
     final birim = findBirim(birimIdOrAd);
     if (birim == null) return;
     final invoice = pendingInvoices[invoiceIndex];
-    _applyBirimModelToInvoice(invoice, birim, '');
+    _applyBirimModelToInvoice(invoice, birim, '', isInitialSelect: true);
     _queueChanged();
   }
 
   void _applyBirimModelToInvoice(
-      FaturaModel invoice, BirimModel birim, String isletmeVkn) {
+      FaturaModel invoice, BirimModel birim, String isletmeVkn,
+      {bool isInitialSelect = false}) {
     invoice.iban = birim.iban;
     invoice.hesapAdi = _formatHesapAdi(birim.hesapAdi, isletmeVkn);
     final ad = birim.ad.toLowerCase();
     final kisaAd = birim.kisaAd.toLowerCase();
-    if ((ad.contains('ubatam') || kisaAd == 'ubatam') &&
+    if (isInitialSelect &&
+        (ad.contains('ubatam') || kisaAd == 'ubatam') &&
         invoice.melbesKurumOnEki.trim().isEmpty) {
       invoice.melbesKurumOnEki = FaturaMatbuConfig.varsayilanMelbesKurumOnEki;
     }

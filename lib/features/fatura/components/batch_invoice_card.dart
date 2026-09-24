@@ -340,23 +340,18 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
                     invoice.tarih,
                     (v) => provider.updateField(index, 'tarih', v),
                     cardIndex: index,
-                    rebuildKey: ValueKey('tarih_${index}_$dialogCounter'),
                   ),
                   _field(
                     'İrsaliye Tarihi',
                     invoice.irsaliyeTarihi,
                     (v) => provider.updateField(index, 'irsaliyeTarihi', v),
                     cardIndex: index,
-                    rebuildKey: ValueKey(
-                      'irsaliye_tarihi_${index}_$dialogCounter',
-                    ),
                   ),
                   _field(
                     'İrsaliye No',
                     invoice.irsaliyeNo,
                     (v) => provider.updateField(index, 'irsaliyeNo', v),
                     cardIndex: index,
-                    rebuildKey: ValueKey('irsaliye_no_${index}_$dialogCounter'),
                   ),
                 ],
               ),

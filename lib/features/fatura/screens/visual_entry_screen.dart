@@ -185,61 +185,67 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
                     scrollDirection: Axis.horizontal,
                     physics: _surukleAktif ? const NeverScrollableScrollPhysics() : null,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 30),
+                      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 200),
                       child: Column(
                         children: List.generate(toplamSayfa, (sayfaIndex) {
                           final pageIndices = pagesOfIndices[sayfaIndex];
                           final pageOnizleme = provider.kalibrasyonBaskiOnizlemesi(sayfaIndex + 1);
 
-                          return _HandleOverflowHitTest(
-                            overflowPadding: 150.0,
-                            child: Container(
-                              width: FaturaMatbuConfig.a4Genislik,
-                              height: FaturaMatbuConfig.a4Yukseklik,
-                              margin: const EdgeInsets.only(bottom: 40),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.2),
-                                  blurRadius: 15,
-                                  spreadRadius: 5,
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 40),
+                            child: _OverflowHitTestStack(
+                              clipBehavior: Clip.none,
+                              overflowPadding: 1200.0,
+                              children: [
+                                // A4 Kağıdı (Beyaz zemin, gölge ve opsiyonel arka plan şablon görseli)
+                                SizedBox(
+                                  width: FaturaMatbuConfig.a4Genislik,
+                                  height: FaturaMatbuConfig.a4Yukseklik,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.2),
+                                          blurRadius: 15,
+                                          spreadRadius: 5,
+                                        ),
+                                      ],
+                                    ),
+                                    child: _arkaPlanGoster
+                                        ? Image.asset(
+                                            'assets/images/fatura_sablon.jpeg',
+                                            fit: BoxFit.fill,
+                                          )
+                                        : null,
+                                  ),
+                                ),
+
+                                // Sabit alanlar ilk sayfadaysa veya genel bilgiler
+                                ..._buildSabitAlanlar(
+                                  provider,
+                                  invoice,
+                                  pageOnizleme,
+                                  sonSayfa: sayfaIndex == toplamSayfa - 1,
+                                  sayfaIndex: sayfaIndex,
+                                  toplamSayfa: toplamSayfa,
+                                ),
+
+                                // Ekstra notlar yalnızca son sayfada
+                                if (sayfaIndex == toplamSayfa - 1)
+                                  ..._buildEkstraNotlar(provider, invoice),
+
+                                // Kalemler
+                                ..._buildKalemler(
+                                  provider,
+                                  invoice,
+                                  pageOnizleme,
+                                  pageIndices,
                                 ),
                               ],
                             ),
-                            child: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                // A4 Arkaplan
-                                if (_arkaPlanGoster)
-                                  Positioned.fill(
-                                    child: Image.asset(
-                                      'assets/images/fatura_sablon.jpeg',
-                                      fit: BoxFit.fill,
-                                    ),
-                                  ),
-                      
-                      // Sabit alanlar ilk sayfadaysa veya genel bilgiler
-                      ..._buildSabitAlanlar(
-                        provider,
-                        invoice,
-                        pageOnizleme,
-                        sonSayfa: sayfaIndex == toplamSayfa - 1,
-                        sayfaIndex: sayfaIndex,
-                        toplamSayfa: toplamSayfa,
-                      ),
-                      
-                      // Ekstra notlar yalnızca son sayfada
-                      if (sayfaIndex == toplamSayfa - 1)
-                        ..._buildEkstraNotlar(provider, invoice),
-
-                      // Kalemler
-                      ..._buildKalemler(provider, invoice, pageOnizleme, pageIndices),
-                    ],
-                  ),
-                ),
-              );
-            }),
+                          );
+                        }),
                       ),
                     ),
                   ),
@@ -273,15 +279,15 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       'irsaliyeNo': (invoice.irsaliyeNo, 'irsaliyeNo', 100.0, 1),
       'iban': (onizleme.alanlar['iban'] ?? invoice.iban ?? '', 'iban', 280.0, 1),
       'hesapAdi': (onizleme.alanlar['hesapAdi'] ?? invoice.hesapAdi ?? '', 'hesapAdi', 280.0, 2),
-      'numuneAciklama': (onizleme.alanlar['numuneAciklama'] ?? '', 'numuneAciklamasi', 250.0, 2),
+      'numuneAciklama': (invoice.numuneAciklamasi, 'numuneAciklamasi', 250.0, 2),
       'melbesKurum': (
-        onizleme.alanlar['melbesKurum'] ?? invoice.melbesKurumOnEki,
+        invoice.melbesKurumOnEki,
         'melbesKurumOnEki',
         250.0,
         2,
       ),
-      'melbes': (onizleme.alanlar['melbes'] ?? '', 'melbesNo', 200.0, 1),
-      'numuneNo': (onizleme.alanlar['numuneNo'] ?? '', 'numuneNo', 160.0, 1),
+      'melbes': (invoice.melbesNo, 'melbesNo', 200.0, 1),
+      'numuneNo': (invoice.numuneNo, 'numuneNo', 160.0, 1),
     };
 
     if (invoice.nakliYekunAktif) {
@@ -301,9 +307,6 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       if (FaturaMatbuConfig.altBolgeAlanMi(key) && !sonSayfa) return;
       
       final val = data.$1 as String;
-      if ((key == 'melbes' || key == 'numuneNo') && val.trim().isEmpty) {
-        return;
-      }
       final updateKey = data.$2;
       final maxW = data.$3;
       final lines = data.$4;
@@ -672,6 +675,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       provider: provider,
       alanKey: key,
       child: _MatbuEditableField(
+        key: ValueKey('editable_$key'),
         initialValue: initialValue,
         onChanged: onChanged,
         fontSize: fontSize,
@@ -876,19 +880,16 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       ),
     );
 
-    return _HandleOverflowHitTest(
-      overflowPadding: 35.0,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          fieldBox,
-          Positioned(
-            left: -24,
-            top: -2,
-            child: handle,
-          ),
-        ],
-      ),
+    return _OverflowHitTestStack(
+      overflowPadding: 50.0,
+      children: [
+        fieldBox,
+        Positioned(
+          left: -24,
+          top: -2,
+          child: handle,
+        ),
+      ],
     );
   }
 
@@ -913,6 +914,7 @@ class _MatbuEditableField extends StatefulWidget {
   final VoidCallback? onFocus;
 
   const _MatbuEditableField({
+    super.key,
     required this.initialValue,
     required this.onChanged,
     required this.fontSize,
@@ -1033,29 +1035,50 @@ class _MatbuEditableFieldState extends State<_MatbuEditableField> {
   }
 }
 
-/// A4 kağıdının kenarındaki veya kutuların solundaki taşan tutamaçların
-/// Flutter hit-test mekanizması tarafından yutulmasını önler ve tıklanabilir/sürüklenebilir kılar.
-class _HandleOverflowHitTest extends SingleChildRenderObjectWidget {
+/// A4 kağıdı üzerindeki veya etrafındaki gri çalışma alanına taşan öğelerin
+/// Flutter hit-test mekanizması tarafından yakalanmasını sağlar.
+/// Normal Stack, `_size.contains(position)` kontrolü yaparak kağıt dışına
+/// taşan öğelere yapılan tıklama ve sürükleme jestlerini iptal eder.
+/// Bu özel Stack, `hitRect` tamponu (1200px) kullanarak kağıt dışına park edilen
+/// alanların da tıklanıp tekrar kağıt içine sürüklenebilmesine imkan tanır.
+class _OverflowHitTestStack extends Stack {
   final double overflowPadding;
-  const _HandleOverflowHitTest({
-    super.key,
-    required Widget child,
-    this.overflowPadding = 40.0,
-  }) : super(child: child);
+  const _OverflowHitTestStack({
+    super.clipBehavior = Clip.none,
+    this.overflowPadding = 1200.0,
+    super.children,
+  });
 
   @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderHandleOverflow(overflowPadding: overflowPadding);
+  RenderStack createRenderObject(BuildContext context) {
+    return _RenderOverflowHitTestStack(
+      overflowPadding: overflowPadding,
+      alignment: alignment,
+      textDirection: textDirection ?? Directionality.maybeOf(context),
+      fit: fit,
+      clipBehavior: clipBehavior,
+    );
+  }
 
   @override
-  void updateRenderObject(BuildContext context, covariant _RenderHandleOverflow renderObject) {
+  void updateRenderObject(
+    BuildContext context,
+    covariant _RenderOverflowHitTestStack renderObject,
+  ) {
+    super.updateRenderObject(context, renderObject);
     renderObject.overflowPadding = overflowPadding;
   }
 }
 
-class _RenderHandleOverflow extends RenderProxyBox {
+class _RenderOverflowHitTestStack extends RenderStack {
   double overflowPadding;
-  _RenderHandleOverflow({this.overflowPadding = 40.0});
+  _RenderOverflowHitTestStack({
+    this.overflowPadding = 1200.0,
+    super.alignment,
+    super.textDirection,
+    super.fit,
+    super.clipBehavior,
+  });
 
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) {
@@ -1067,21 +1090,9 @@ class _RenderHandleOverflow extends RenderProxyBox {
     );
     if (!hitRect.contains(position)) return false;
 
-    // ÖNEMLİ: `child.hitTest(position)` çocuk Stack'in KENDİ boyut kutusunu
-    // (0,0 → size) kontrol eder ve kutunun dışına taşan mavi sürükleme
-    // tutamacını (left: -24) yutar. Bu yüzden Stack'in boyut kontrolünü
-    // atlayıp doğrudan alt çocuklarını hit-test ediyoruz; böylece tutamaç
-    // tam üzerine tıklandığı noktada yakalanır ve tüm alanlar (salt-okunur
-    // olmayanlar dahil) sürüklenebilir.
-    final RenderBox? child = this.child;
-    if (child != null) {
-      // ignore: invalid_use_of_protected_member
-      if (child.hitTestChildren(result, position: position)) {
-        result.add(BoxHitTestEntry(this, position));
-        return true;
-      }
-    }
-    if (hitTestSelf(position)) {
+    // Standart RenderStack `_size.contains(position)` kontrolü yapar.
+    // Biz burada o kısıtı atlayıp doğrudan çocukları hitTestChildren ile sınırsız test ediyoruz:
+    if (hitTestChildren(result, position: position) || hitTestSelf(position)) {
       result.add(BoxHitTestEntry(this, position));
       return true;
     }
