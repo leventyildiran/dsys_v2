@@ -185,20 +185,23 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
                     scrollDirection: Axis.horizontal,
                     physics: _surukleAktif ? const NeverScrollableScrollPhysics() : null,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 200),
+                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
                       child: Column(
                         children: List.generate(toplamSayfa, (sayfaIndex) {
                           final pageIndices = pagesOfIndices[sayfaIndex];
                           final pageOnizleme = provider.kalibrasyonBaskiOnizlemesi(sayfaIndex + 1);
 
                           return Container(
+                            width: FaturaMatbuConfig.a4Genislik + 600,
+                            height: FaturaMatbuConfig.a4Yukseklik + 400,
                             margin: const EdgeInsets.only(bottom: 40),
-                            child: _OverflowHitTestStack(
+                            child: Stack(
                               clipBehavior: Clip.none,
-                              overflowPadding: 1200.0,
                               children: [
-                                // A4 Kağıdı (Beyaz zemin, gölge ve opsiyonel arka plan şablon görseli)
-                                SizedBox(
+                                // A4 Kağıdı (300, 200) konumunda ortalı
+                                Positioned(
+                                  left: 300,
+                                  top: 200,
                                   width: FaturaMatbuConfig.a4Genislik,
                                   height: FaturaMatbuConfig.a4Yukseklik,
                                   child: Container(
@@ -537,7 +540,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     
     for (int i in pageIndices) {
       final satirDy = renderIndex * provider.kalemSatirAraligi;
-      final satirTop = cinsiBase.dy + provider.globalOffsetDy + satirDy;
+      final satirTop = cinsiBase.dy + provider.globalOffsetDy + 200 + satirDy;
       renderIndex++;
       
       final satirMap = kalemler[i];
@@ -545,7 +548,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       // Cinsi
       if (provider.coordinates.containsKey('cinsi')) {
           w.add(Positioned(
-            left: provider.coordinates['cinsi']!.dx + provider.globalOffsetDx,
+            left: provider.coordinates['cinsi']!.dx + provider.globalOffsetDx + 300,
             top: satirTop,
            child: _editableField(
              provider,
@@ -562,7 +565,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       // Miktar
       if (provider.coordinates.containsKey('miktar')) {
           w.add(Positioned(
-            left: provider.coordinates['miktar']!.dx + provider.globalOffsetDx,
+            left: provider.coordinates['miktar']!.dx + provider.globalOffsetDx + 300,
             top: satirTop,
            child: _editableField(
              provider,
@@ -580,7 +583,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       // Fiyat
       if (provider.coordinates.containsKey('fiyat')) {
           w.add(Positioned(
-            left: provider.coordinates['fiyat']!.dx + provider.globalOffsetDx,
+            left: provider.coordinates['fiyat']!.dx + provider.globalOffsetDx + 300,
             top: satirTop,
            child: _editableField(
              provider,
@@ -603,7 +606,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
          
          final metin = t > 0 ? TurkceFormat.paraKalem(t) : '';
          w.add(Positioned(
-           left: provider.coordinates['tutar']!.dx + provider.globalOffsetDx,
+           left: provider.coordinates['tutar']!.dx + provider.globalOffsetDx + 300,
            top: satirTop,
            child: _suruklenebilirAlan(
                    provider: provider,
@@ -657,7 +660,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
 
   Offset _konum(BatchFaturaProvider provider, String key) {
     final base = provider.coordinates[key] ?? Offset.zero;
-    return Offset(base.dx + provider.globalOffsetDx, base.dy + provider.globalOffsetDy);
+    return Offset(base.dx + provider.globalOffsetDx + 300, base.dy + provider.globalOffsetDy + 200);
   }
 
   Widget _editableField(
