@@ -90,7 +90,7 @@ class _DanismanlikDetayBody extends StatelessWidget {
     final provider = context.watch<DanismanlikDetayProvider>();
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1200),
@@ -98,7 +98,7 @@ class _DanismanlikDetayBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildSozlesmeAsamasi(context, provider),
-              const SizedBox(height: 48),
+              const SizedBox(height: 24),
               _buildUygulamaAsamasi(context, provider),
             ],
           ),
@@ -120,14 +120,14 @@ class _DanismanlikDetayBody extends StatelessWidget {
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
                 color: AppColors.primarySubtle,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.handshake_rounded, color: AppColors.primary, size: 22),
+              child: const Icon(Icons.handshake_rounded, color: AppColors.primary, size: 18),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,34 +135,36 @@ class _DanismanlikDetayBody extends StatelessWidget {
                   const Text(
                     '1. Aşama: Danışmanlık Sözleşmesi & Kurul Onayları',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 16,
                       fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     'Bağlı birim teklif yazısı, BYK kararı ve Döner Sermaye Yürütme Kurulu (YKK) onay kaydı',
-                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ],
               ),
             ),
             OutlinedButton.icon(
               onPressed: () => _showKurulKararlariDuzenleDialog(context, provider),
-              icon: const Icon(Icons.edit_note_rounded, size: 18),
-              label: const Text('Karar & Evrak Bilgilerini Düzenle'),
+              icon: const Icon(Icons.edit_note_rounded, size: 16),
+              label: const Text('Karar & Evrak Bilgilerini Düzenle', style: TextStyle(fontSize: 12)),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
                 side: const BorderSide(color: AppColors.borderStrong),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                visualDensity: VisualDensity.compact,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             IconButton(
-              icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.primary),
+              icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
               tooltip: 'Tüm Sözleşmeyi Düzenle',
+              visualDensity: VisualDensity.compact,
               onPressed: () async {
                 await Navigator.of(context).push(MaterialPageRoute(
                   builder: (context) => DanismanlikFormScreen(mevcutDanismanlik: d),
@@ -173,24 +175,25 @@ class _DanismanlikDetayBody extends StatelessWidget {
               },
             ),
             IconButton(
-              icon: const Icon(Icons.delete_outline_rounded, size: 20, color: AppColors.danger),
+              icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.danger),
               tooltip: 'Sözleşmeyi Sil',
+              visualDensity: VisualDensity.compact,
               onPressed: () => _showDeleteDialog(context, d),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.border),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x08000000),
-                blurRadius: 16,
-                offset: Offset(0, 4),
+                color: Color(0x06000000),
+                blurRadius: 10,
+                offset: Offset(0, 2),
               ),
             ],
           ),
@@ -240,29 +243,29 @@ class _DanismanlikDetayBody extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     Text(
                       d.firmaUnvan?.isNotEmpty == true ? d.firmaUnvan! : 'Firma Belirtilmemiş',
                       style: const TextStyle(
-                        fontSize: 20,
+                        fontSize: 16,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
                         letterSpacing: -0.2,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       d.konusu,
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         color: AppColors.textSecondary,
-                        height: 1.4,
+                        height: 1.35,
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: 6,
+                      runSpacing: 6,
                       children: [
                         _buildInfoChip(Icons.category_outlined, d.danismanlikTuru.displayName),
                         _buildInfoChip(Icons.timer_outlined, '${d.suresi} Ay'),
@@ -272,31 +275,31 @@ class _DanismanlikDetayBody extends StatelessWidget {
                       ],
                     ),
                     if (d.personeller.isNotEmpty) ...[
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       Text(
                         'Görevli Akademisyenler:',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textMuted),
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMuted),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
+                        spacing: 5,
+                        runSpacing: 5,
                         children: d.personeller.map((p) {
                           return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                             decoration: BoxDecoration(
                               color: AppColors.surfaceVariant,
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(5),
                             ),
                             child: Text(
                               '${p.personel.unvan} ${p.personel.adSoyad}${p.faaliyetPuani > 0 ? " (${p.faaliyetPuani.toInt()} Puan)" : ""}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
+                              style: const TextStyle(fontSize: 11.5, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
                             ),
                           );
                         }).toList(),
                       ),
                     ],
-                    const Divider(height: 32, color: AppColors.border),
+                    const Divider(height: 20, color: AppColors.border),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -306,16 +309,16 @@ class _DanismanlikDetayBody extends StatelessWidget {
                           children: [
                             Text(
                               'Sözleşme Toplam Bedeli (+KDV)',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted),
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textMuted),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 2),
                             Text(
                               TurkceFormat.para(d.toplamTutar),
                               style: const TextStyle(
-                                fontSize: 26,
+                                fontSize: 20,
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.primary,
-                                letterSpacing: -0.5,
+                                letterSpacing: -0.3,
                               ),
                             ),
                           ],
@@ -325,9 +328,9 @@ class _DanismanlikDetayBody extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 28),
-              Container(width: 1, height: 260, color: AppColors.border),
-              const SizedBox(width: 28),
+              const SizedBox(width: 18),
+              Container(width: 1, height: 210, color: AppColors.border),
+              const SizedBox(width: 18),
               // Sağ Kısım: Kurul Kararları ve EBYS Evrak Bilgileri
               Expanded(
                 flex: 6,
@@ -513,51 +516,63 @@ class _DanismanlikDetayBody extends StatelessWidget {
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
-              child: Icon(Icons.account_tree_rounded, color: Colors.green.shade600),
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: AppColors.primarySubtle,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.account_tree_rounded, color: AppColors.primary, size: 18),
             ),
-            const SizedBox(width: 12),
-            const Text('2. Aşama: Hizmet Uygulama ve Dağıtım Havuzları', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 10),
+            const Text(
+              '2. Aşama: Hizmet Uygulama ve Dağıtım Havuzları',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
             const Spacer(),
             ElevatedButton.icon(
               onPressed: () => _yeniTaksitDialog(context, provider),
-              icon: const Icon(Icons.add),
-              label: const Text('Yeni Havuz Ekle'),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Yeni Havuz Ekle', style: TextStyle(fontSize: 12.5)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green.shade600,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                visualDensity: VisualDensity.compact,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _buildBakiyeCari(provider),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         if (provider.taksitler.isEmpty)
           Container(
-            padding: const EdgeInsets.all(48),
+            padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.blueGrey.shade100, style: BorderStyle.solid),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
             ),
             child: Center(
               child: Column(
                 children: [
-                  Icon(Icons.inbox, size: 64, color: Colors.blueGrey.shade200),
-                  const SizedBox(height: 16),
-                  Text('Henüz bir ödeme havuzu başlatılmadı.', style: TextStyle(color: Colors.blueGrey.shade800, fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text('Hizmet verildikten ve fatura kesildikten sonra dağıtım havuzu ekleyebilirsiniz.', style: TextStyle(color: Colors.blueGrey.shade400, fontSize: 14)),
+                  Icon(Icons.inbox_outlined, size: 48, color: AppColors.textMuted),
+                  const SizedBox(height: 12),
+                  const Text('Henüz bir ödeme havuzu başlatılmadı.', style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text('Hizmet verildikten ve fatura kesildikten sonra dağıtım havuzu ekleyebilirsiniz.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                 ],
               ),
             ),
           )
         else
           ...provider.taksitler.map((t) => Padding(
-                padding: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.only(bottom: 16),
                 child: _buildTaksitCard(context, t, provider),
               )),
       ],
@@ -574,66 +589,67 @@ class _DanismanlikDetayBody extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blueGrey.shade200),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderStrong),
+        boxShadow: const [BoxShadow(color: Color(0x06000000), blurRadius: 10, offset: Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.blueGrey.shade50,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              border: Border(bottom: BorderSide(color: Colors.blueGrey.shade100)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: const BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(11)),
+              border: Border(bottom: BorderSide(color: AppColors.border)),
             ),
             child: Row(
               children: [
                 CircleAvatar(
-                  radius: 18,
-                  backgroundColor: Colors.indigo.shade600,
-                  child: Text('${taksit.ayNo}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  radius: 13,
+                  backgroundColor: AppColors.primary,
+                  child: Text('${taksit.ayNo}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
-                const SizedBox(width: 16),
-                Text('${taksit.ayNo}. Dağıtım Havuzu', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.blueGrey.shade900)),
-                const SizedBox(width: 16),
+                const SizedBox(width: 10),
+                Text('${taksit.ayNo}. Dağıtım Havuzu', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                const SizedBox(width: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blueGrey.shade200),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: Text(
                     taksit.durum.displayName,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.bold,
-                      color: taksit.durum == TaksitDurum.ykOnaylandi || taksit.durum == TaksitDurum.odendi ? Colors.green.shade700 : Colors.amber.shade700,
+                      color: taksit.durum == TaksitDurum.ykOnaylandi || taksit.durum == TaksitDurum.odendi ? AppColors.success : AppColors.warning,
                     ),
                   ),
                 ),
                 const Spacer(),
-                Text('Brüt Tutar: ', style: TextStyle(color: Colors.blueGrey.shade500, fontSize: 14)),
-                Text(TurkceFormat.para(taksit.brutTutar), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.indigo.shade700)),
-                const SizedBox(width: 24),
+                const Text('Brüt Tutar: ', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                Text(TurkceFormat.para(taksit.brutTutar), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                const SizedBox(width: 12),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  icon: const Icon(Icons.delete_outline, color: AppColors.danger, size: 18),
                   onPressed: () => provider.taksitSil(taksit.id),
                   tooltip: 'Havuzu Sil',
+                  visualDensity: VisualDensity.compact,
                 ),
               ],
             ),
           ),
           
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
-            child: TaksitPipeline(durum: taksit.durum, tur: d.tur, compact: false),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            child: TaksitPipeline(durum: taksit.durum, tur: d.tur, compact: true),
           ),
           
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Row(
               children: [
                 _buildDurumCheckbox(
@@ -964,32 +980,24 @@ class _DanismanlikDetayBody extends StatelessWidget {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: TextField(
+                        child: _buildDialogDateField(
+                          context: dialogCtx,
+                          label: 'Üst Yazı Tarihi',
                           controller: evrakTarihCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Üst Yazı Tarihi',
-                            hintText: 'gg.aa.yyyy',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   const Text('2. Birim Yönetim Kurulu Kararı (BYK)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary)),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
+                        child: _buildDialogDateField(
+                          context: dialogCtx,
+                          label: 'BYK Karar Tarihi',
                           controller: bykTarihCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'BYK Karar Tarihi',
-                            hintText: 'gg.aa.yyyy',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -1018,20 +1026,16 @@ class _DanismanlikDetayBody extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   const Text('3. Döner Sermaye Yürütme Kurulu Kabul Kararı (YKK)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary)),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
+                        child: _buildDialogDateField(
+                          context: dialogCtx,
+                          label: 'YKK Karar Tarihi',
                           controller: ykkTarihCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'YKK Karar Tarihi',
-                            hintText: 'gg.aa.yyyy',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -1105,6 +1109,52 @@ class _DanismanlikDetayBody extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildDialogDateField({
+    required BuildContext context,
+    required String label,
+    required TextEditingController controller,
+  }) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: 'gg.aa.yyyy',
+        border: const OutlineInputBorder(),
+        isDense: true,
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.calendar_month_outlined, size: 18),
+          tooltip: 'Takvimden Seç',
+          onPressed: () async {
+            DateTime initialDate = DateTime.now();
+            final raw = controller.text.trim();
+            if (raw.isNotEmpty) {
+              final parts = raw.split('.');
+              if (parts.length == 3) {
+                final d = int.tryParse(parts[0]);
+                final m = int.tryParse(parts[1]);
+                final y = int.tryParse(parts[2]);
+                if (d != null && m != null && y != null && y > 2000 && y < 2100) {
+                  initialDate = DateTime(y, m, d);
+                }
+              }
+            }
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: initialDate,
+              firstDate: DateTime(2020),
+              lastDate: DateTime(2035),
+            );
+            if (picked != null) {
+              final formatted =
+                  '${picked.day.toString().padLeft(2, '0')}.${picked.month.toString().padLeft(2, '0')}.${picked.year}';
+              controller.text = formatted;
+            }
+          },
+        ),
+      ),
     );
   }
 
@@ -1242,12 +1292,12 @@ class _TaksitKararFormState extends State<_TaksitKararForm> {
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _buildTextField('Birim Üst Yazı Tarihi (gg.aa.yyyy)', evrakTarih)),
-            const SizedBox(width: 16),
+            Expanded(child: _buildDateField('Birim Üst Yazı Tarihi', evrakTarih)),
+            const SizedBox(width: 12),
             Expanded(child: _buildTextField('Birim Üst Yazı (Evrak) No (Örn: E.450123)', evrakSayi)),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         const Text(
           '2. Dağıtım Teklifi Birim Yönetim Kurulu Kararı (BYK)',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
@@ -1255,14 +1305,14 @@ class _TaksitKararFormState extends State<_TaksitKararForm> {
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _buildTextField('Dağıtım BYK Tarihi', bykTarih)),
-            const SizedBox(width: 16),
+            Expanded(child: _buildDateField('Dağıtım BYK Tarihi', bykTarih)),
+            const SizedBox(width: 12),
             Expanded(child: _buildTextField('BYK Toplantı No', bykToplanti)),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             Expanded(child: _buildTextField('BYK Karar No', bykKarar)),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         const Text(
           '3. Dağıtım Onayı Döner Sermaye Yürütme Kurulu Kararı (YKK)',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
@@ -1270,14 +1320,14 @@ class _TaksitKararFormState extends State<_TaksitKararForm> {
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _buildTextField('Dağıtım YKK Tarihi', ykkTarih)),
-            const SizedBox(width: 16),
+            Expanded(child: _buildDateField('Dağıtım YKK Tarihi', ykkTarih)),
+            const SizedBox(width: 12),
             Expanded(child: _buildTextField('YKK Toplantı No', ykkToplanti)),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             Expanded(child: _buildTextField('YKK Karar No', ykkKarar)),
           ],
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
         Align(
           alignment: Alignment.centerRight,
           child: ElevatedButton.icon(
@@ -1304,11 +1354,56 @@ class _TaksitKararFormState extends State<_TaksitKararForm> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary, 
               foregroundColor: AppColors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDateField(String label, TextEditingController controller) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: 'gg.aa.yyyy',
+        isDense: true,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        filled: true,
+        fillColor: Colors.white,
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.calendar_month_outlined, size: 18),
+          tooltip: 'Takvimden Seç',
+          onPressed: () async {
+            DateTime initialDate = DateTime.now();
+            final raw = controller.text.trim();
+            if (raw.isNotEmpty) {
+              final parts = raw.split('.');
+              if (parts.length == 3) {
+                final d = int.tryParse(parts[0]);
+                final m = int.tryParse(parts[1]);
+                final y = int.tryParse(parts[2]);
+                if (d != null && m != null && y != null && y > 2000 && y < 2100) {
+                  initialDate = DateTime(y, m, d);
+                }
+              }
+            }
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: initialDate,
+              firstDate: DateTime(2020),
+              lastDate: DateTime(2035),
+            );
+            if (picked != null) {
+              final formatted =
+                  '${picked.day.toString().padLeft(2, '0')}.${picked.month.toString().padLeft(2, '0')}.${picked.year}';
+              controller.text = formatted;
+            }
+          },
+        ),
+      ),
     );
   }
 

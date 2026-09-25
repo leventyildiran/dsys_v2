@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/turkce_format.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../personel/models/personel_model.dart';
 import '../../personel/services/personel_service.dart';
@@ -219,66 +218,65 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<DanismanlikProvider>();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: Column(
         children: [
           DanismanlikLayout.kompaktBaslik(
-            baslik: 'Yeni Danışmanlık',
+            baslik: widget.mevcutDanismanlik != null
+                ? 'Danışmanlık Düzenle'
+                : 'Yeni Danışmanlık Sözleşmesi',
             altBaslik: widget.ykKarar != null
                 ? 'YK kararından oluşturuluyor'
-                : null,
-            aksiyon: IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => context.pop(),
+                : 'Sözleşme ve bağlı birim karar kayıt formu',
+            aksiyon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: provider.isSaving ? null : () => _kaydet(context, provider),
+                  icon: const Icon(Icons.check, size: 16),
+                  label: const Text('Kaydet'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2C3E50),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => context.pop(),
+                  tooltip: 'Kapat',
+                ),
+              ],
             ),
           ),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final previewW = DanismanlikLayout.sidebarGenislik(
-                  constraints.maxWidth,
-                );
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(
-                          DanismanlikLayout.sayfaPadding,
-                        ),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildKararBilgileriSection(context),
-                              const SizedBox(
-                                height: DanismanlikLayout.sectionGap,
-                              ),
-                              _buildFormSection(context),
-                              const SizedBox(
-                                height: DanismanlikLayout.sectionGap,
-                              ),
-                              _buildPersonelSection(context),
-                            ],
-                          ),
-                        ),
-                      ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1000),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildKararBilgileriSection(context),
+                        const SizedBox(height: 24),
+                        _buildFormSection(context),
+                        const SizedBox(height: 24),
+                        _buildPersonelSection(context),
+                        const SizedBox(height: 32),
+                        _buildKaydetSection(context, provider),
+                      ],
                     ),
-                    Container(
-                      width: previewW,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border(
-                          left: BorderSide(color: Colors.blueGrey.shade100),
-                        ),
-                      ),
-                      child: _buildPreviewPanel(context),
-                    ),
-                  ],
-                );
-              },
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -470,13 +468,10 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
           Row(
             children: [
               Expanded(
-                child: TextFormField(
+                child: _buildDateField(
+                  context: context,
+                  label: 'Birim Üst Yazı (Evrak) Tarihi',
                   controller: _birimEvrakTarihiController,
-                  decoration: const InputDecoration(
-                    labelText: 'Birim Üst Yazı (Evrak) Tarihi',
-                    hintText: 'gg.aa.yyyy',
-                    border: OutlineInputBorder(),
-                  ),
                   onChanged: provider.setBirimEvrakTarihi,
                 ),
               ),
@@ -487,6 +482,7 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Birim Üst Yazı (Evrak) Sayısı',
                     border: OutlineInputBorder(),
+                    isDense: true,
                   ),
                   onChanged: provider.setBirimEvrakSayisi,
                 ),
@@ -497,13 +493,10 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
           Row(
             children: [
               Expanded(
-                child: TextFormField(
+                child: _buildDateField(
+                  context: context,
+                  label: 'Birim Karar Tarihi',
                   controller: _birimKararTarihiController,
-                  decoration: const InputDecoration(
-                    labelText: 'Birim Karar Tarihi',
-                    hintText: 'gg.aa.yyyy',
-                    border: OutlineInputBorder(),
-                  ),
                   onChanged: provider.setBirimKurulTarihi,
                 ),
               ),
@@ -514,6 +507,7 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Birim Toplantı No',
                     border: OutlineInputBorder(),
+                    isDense: true,
                   ),
                   onChanged: provider.setBirimToplantiSayisi,
                 ),
@@ -525,21 +519,23 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Birim Karar Sayısı',
                     border: OutlineInputBorder(),
+                    isDense: true,
                   ),
                   onChanged: provider.setBirimKararNo,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           Text(
             'Yürütme Kurulu Kabul Kararı',
             style: TextStyle(
               fontWeight: FontWeight.w700,
+              fontSize: 13,
               color: Colors.blueGrey.shade700,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
@@ -548,19 +544,17 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                   decoration: const InputDecoration(
                     labelText: 'YK Toplantı No',
                     border: OutlineInputBorder(),
+                    isDense: true,
                   ),
                   onChanged: provider.setYkToplantiSayisi,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: TextFormField(
+                child: _buildDateField(
+                  context: context,
+                  label: 'YK Karar Tarihi',
                   controller: _ykKararTarihiController,
-                  decoration: const InputDecoration(
-                    labelText: 'YK Karar Tarihi',
-                    hintText: 'gg.aa.yyyy',
-                    border: OutlineInputBorder(),
-                  ),
                   onChanged: provider.setYkKararTarihi,
                 ),
               ),
@@ -571,6 +565,7 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                   decoration: const InputDecoration(
                     labelText: 'YK Karar No',
                     border: OutlineInputBorder(),
+                    isDense: true,
                   ),
                   onChanged: provider.setYkKararNo,
                 ),
@@ -579,6 +574,55 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDateField({
+    required BuildContext context,
+    required String label,
+    required TextEditingController controller,
+    required void Function(String) onChanged,
+  }) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: 'gg.aa.yyyy',
+        border: const OutlineInputBorder(),
+        isDense: true,
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.calendar_month_outlined, size: 20),
+          tooltip: 'Takvimden Seç',
+          onPressed: () async {
+            DateTime initialDate = DateTime.now();
+            final raw = controller.text.trim();
+            if (raw.isNotEmpty) {
+              final parts = raw.split('.');
+              if (parts.length == 3) {
+                final d = int.tryParse(parts[0]);
+                final m = int.tryParse(parts[1]);
+                final y = int.tryParse(parts[2]);
+                if (d != null && m != null && y != null && y > 2000 && y < 2100) {
+                  initialDate = DateTime(y, m, d);
+                }
+              }
+            }
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: initialDate,
+              firstDate: DateTime(2020),
+              lastDate: DateTime(2035),
+            );
+            if (picked != null) {
+              final formatted =
+                  '${picked.day.toString().padLeft(2, '0')}.${picked.month.toString().padLeft(2, '0')}.${picked.year}';
+              controller.text = formatted;
+              onChanged(formatted);
+            }
+          },
+        ),
+      ),
+      onChanged: onChanged,
     );
   }
 
@@ -641,27 +685,16 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                             children: [
                               Text(
                                 '${p.personel.unvan} ${p.personel.adSoyad}',
-                                style: const TextStyle(fontWeight: FontWeight.w600),
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                               ),
-                              if (provider.onizleme != null)
-                                Builder(builder: (_) {
-                                  final stats = provider.onizleme!.personelDagitimlari.where((dp) => dp.personelId == p.personel.id).firstOrNull;
-                                  if (stats == null) return const SizedBox.shrink();
-                                  final isKurs = provider.tur == DanismanlikTuru.egitimKuru;
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 4.0),
-                                    child: Text(
-                                      isKurs
-                                          ? 'Kat: ${stats.unvanKatsayisi} • Toplam Puan: ${stats.bireyselPuan.toStringAsFixed(0)}'
-                                          : 'Brüt Hakediş: ${TurkceFormat.para(stats.brutHakedis)} · Pay: %${p.payOrani}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.green.shade700,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  );
-                                }),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Katsayı: ${p.personel.unvanKatsayisi}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blueGrey.shade600,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -765,383 +798,99 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
     provider.personelEkle(personel);
   }
 
-  Widget _buildPreviewPanel(BuildContext context) {
-    final provider = context.watch<DanismanlikProvider>();
-    final onizleme = provider.onizleme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: Colors.blueGrey.shade200)),
-          ),
-          child: Text(
-            'Mali Analiz ve Karar Önizlemesi',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.blueGrey.shade800,
-            ),
-          ),
-        ),
-        if (onizleme == null)
-          Expanded(
-            child: Center(
-              child: Text(
-                'Hesaplama için Tutar ve Puan\nbilgilerini girin.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.blueGrey.shade400, fontSize: 16),
+  Widget _buildKaydetSection(BuildContext context, DanismanlikProvider provider) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blueGrey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (provider.saveError != null) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
               ),
-            ),
-          )
-        else
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  _buildSummaryCard(
-                    title: provider.tur == DanismanlikTuru.sanayiIsbirligi58k
-                        ? '2547 Madde 58/k Mali Analizi'
-                        : 'Kesintiler',
-                    content: Column(
-                      children: [
-                        _buildSummaryRow(
-                          'Sözleşme Tutarı (KDV Dahil):',
-                          TurkceFormat.para(onizleme.kdvDahilTutar),
-                          isBold: true,
-                          color: Colors.blueGrey.shade900,
-                        ),
-                        _buildSummaryRow(
-                          'KDV Tutarı (%${provider.kdvOrani}):',
-                          TurkceFormat.para(onizleme.kdvTutari),
-                          color: Colors.red.shade400,
-                        ),
-                        const Divider(),
-                        _buildSummaryRow(
-                          'KDV Hariç Matrah:',
-                          TurkceFormat.para(onizleme.kdvHaricMatrah),
-                          isBold: true,
-                        ),
-                        if (provider.tur == DanismanlikTuru.sanayiIsbirligi58k) ...[
-                          _buildSummaryRow(
-                            '%15 Yasal Kurum Kesintisi (A.G.P.):',
-                            TurkceFormat.para(onizleme.kesinti.aracGerecPayi),
-                            color: Colors.red.shade600,
-                            isBold: true,
-                          ),
-                          const Divider(),
-                          _buildSummaryRow(
-                            '%85 Net Dağıtılabilir Katkı Payı:',
-                            TurkceFormat.para(onizleme.kesinti.dagitilabilirTutar),
-                            isBold: true,
-                            color: const Color(0xFF047857),
-                          ),
-                          if (provider.suresi > 1) ...[
-                            const SizedBox(height: 4),
-                            _buildSummaryRow(
-                              'Aylık Dağıtılabilir Pay (${provider.suresi} Taksit):',
-                              TurkceFormat.para(onizleme.kesinti.dagitilabilirTutar / provider.suresi),
-                              isBold: true,
-                              color: const Color(0xFF0284C7),
-                            ),
-                          ],
-                        ] else ...[
-                          _buildSummaryRow(
-                            'Hazine Payı (%${provider.hazinePayiOrani}):',
-                            TurkceFormat.para(onizleme.kesinti.hazinePayi),
-                          ),
-                          _buildSummaryRow(
-                            'BAP Payı (%${provider.bapPayiOrani}):',
-                            TurkceFormat.para(onizleme.kesinti.bapPayi),
-                          ),
-                          _buildSummaryRow(
-                            'Araç Gereç Payı (%${provider.aracGerecPayiOrani}):',
-                            TurkceFormat.para(onizleme.kesinti.aracGerecPayi),
-                          ),
-                          const Divider(),
-                          _buildSummaryRow(
-                            'Dağıtılabilir Tutar:',
-                            TurkceFormat.para(
-                              onizleme.kesinti.dagitilabilirTutar,
-                            ),
-                            isBold: true,
-                            color: Colors.green,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  if (provider.tur != DanismanlikTuru.sanayiIsbirligi58k)
-                    Builder(
-                      builder: (context) {
-                        final toplamPuan = onizleme.personelDagitimlari.fold(0.0, (sum, p) => sum + p.bireyselPuan);
-                        final saglama = toplamPuan * onizleme.katsayi;
-                        final egitimPersoneli = onizleme.personelDagitimlari.where((p) => p.dersSaati > 0).toList();
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildSummaryCard(
-                              title: 'DÖNEM EK KATSAYI HESAPLAMA',
-                              content: Column(
-                                children: [
-                                  _buildSummaryRow(
-                                    'Dağıtılacak Maks. Akademik Pay:',
-                                    TurkceFormat.para(onizleme.kesinti.dagitilabilirTutar),
-                                    isBold: true,
-                                    color: Colors.green.shade700,
-                                  ),
-                                  _buildSummaryRow('Toplam Puan:', toplamPuan.toStringAsFixed(0)),
-                                  _buildSummaryRow('Dönem Ek Ödeme Katsayısı:', onizleme.katsayi.toStringAsFixed(6)),
-                                  _buildSummaryRow('Sağlaması (Puan x Katsayı):', TurkceFormat.para(saglama)),
-                                  _buildSummaryRow('Artık Bakiye:', TurkceFormat.para(onizleme.artikBakiye)),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            if (egitimPersoneli.isNotEmpty)
-                              _buildSummaryCard(
-                                title: 'KURSUN 1 SAATLİK ÜCRETİ HESAPLAMA',
-                                content: Column(
-                                  children: egitimPersoneli.map((p) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 8.0),
-                                    child: Column(
-                                      children: [
-                                        _buildSummaryRow(
-                                          'Personel:',
-                                          '${p.unvan} ${p.adSoyad}',
-                                          color: Colors.blueGrey.shade700,
-                                        ),
-                                        _buildSummaryRow('Bireysel Net Katkı Puanı:', p.bireyselPuan.toStringAsFixed(0)),
-                                        _buildSummaryRow('Verdiği Ders Saati:', p.dersSaati.toStringAsFixed(0)),
-                                        _buildSummaryRow(
-                                          'Kursun 1 Saatlik Ücreti:',
-                                          TurkceFormat.para(p.saatlikUcret),
-                                          isBold: true,
-                                        ),
-                                        const Divider(),
-                                      ],
-                                    ),
-                                  )).toList(),
-                                ),
-                              ),
-                            if (egitimPersoneli.isNotEmpty) const SizedBox(height: 16),
-                          ],
-                        );
-                      },
-                    ),
-                  _buildSummaryCard(
-                    title: provider.tur == DanismanlikTuru.sanayiIsbirligi58k
-                        ? 'Öğretim Elemanları Hakediş Dağılımı'
-                        : 'Personel Dağılımı (Excel Görünümü)',
-                    content: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: provider.tur == DanismanlikTuru.sanayiIsbirligi58k
-                          ? DataTable(
-                              headingRowColor: WidgetStateProperty.all(const Color(0xFFF0FDFA)),
-                              headingTextStyle: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF0F766E),
-                                fontSize: 13,
-                              ),
-                              dataTextStyle: TextStyle(
-                                color: Colors.blueGrey.shade800,
-                                fontSize: 13,
-                              ),
-                              columnSpacing: 20,
-                              horizontalMargin: 8,
-                              columns: [
-                                const DataColumn(label: Text('Öğretim Elemanı')),
-                                const DataColumn(label: Text('Ünvan')),
-                                const DataColumn(label: Text('Sözleşme Payı')),
-                                const DataColumn(label: Text('Toplam Net Hak Ediş')),
-                                if (provider.suresi > 1)
-                                  const DataColumn(label: Text('Aylık Taksit Hakedişi')),
-                              ],
-                              rows: onizleme.personelDagitimlari.map((d) {
-                                return DataRow(cells: [
-                                  DataCell(Text(d.adSoyad, style: const TextStyle(fontWeight: FontWeight.w600))),
-                                  DataCell(Text(d.unvan)),
-                                  DataCell(Text('%${d.payOrani}')),
-                                  DataCell(Text(
-                                    TurkceFormat.para(d.brutHakedis),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF047857)),
-                                  )),
-                                  if (provider.suresi > 1)
-                                    DataCell(Text(
-                                      TurkceFormat.para(d.brutHakedis / provider.suresi),
-                                      style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0284C7)),
-                                    )),
-                                ]);
-                              }).toList(),
-                            )
-                          : DataTable(
-                              headingRowColor: WidgetStateProperty.all(Colors.blueGrey.shade50),
-                              headingTextStyle: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blueGrey.shade800,
-                                fontSize: 13,
-                              ),
-                              dataTextStyle: TextStyle(
-                                color: Colors.blueGrey.shade700,
-                                fontSize: 13,
-                              ),
-                              columnSpacing: 16,
-                              horizontalMargin: 8,
-                              columns: const [
-                                DataColumn(label: Text('Personel')),
-                                DataColumn(label: Text('Puan')),
-                                DataColumn(label: Text('Kat.')),
-                                DataColumn(label: Text('Saat')),
-                                DataColumn(label: Text('B.Net')),
-                                DataColumn(label: Text('Brüt Hakediş')),
-                                DataColumn(label: Text('Havuz')),
-                              ],
-                              rows: onizleme.personelDagitimlari.map((d) {
-                                return DataRow(cells: [
-                                  DataCell(Text('${d.unvan} ${d.adSoyad}')),
-                                  DataCell(Text(d.faaliyetPuani.toString())),
-                                  DataCell(Text(d.unvanKatsayisi.toString())),
-                                  DataCell(Text(d.dersSaati > 0 ? d.dersSaati.toString() : '-')),
-                                  DataCell(Text(d.bireyselPuan.toStringAsFixed(0))),
-                                  DataCell(Text(
-                                    TurkceFormat.para(d.brutHakedis),
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
-                                  )),
-                                  DataCell(Text(
-                                    d.tavanAsimi ? TurkceFormat.para(d.havuzTutari) : '-',
-                                    style: TextStyle(
-                                      color: d.tavanAsimi ? Colors.red.shade600 : Colors.blueGrey.shade400,
-                                    ),
-                                  )),
-                                ]);
-                              }).toList(),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
-                      border: Border.all(color: Colors.amber.shade200),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                  Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
                     child: Text(
-                      onizleme.kararMetni,
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.5,
-                        color: Colors.amber.shade900,
-                      ),
+                      provider.saveError!,
+                      style: TextStyle(color: Colors.red.shade800, fontSize: 13),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: Colors.blueGrey.shade200)),
-          ),
-          child: ElevatedButton(
-            onPressed: provider.isSaving || onizleme == null
-                ? null
-                : () async {
-                    final aktifBirimId = context
-                        .read<AuthProvider>()
-                        .currentUserModel
-                        ?.birimId;
-                    final success = await provider.kaydet(
-                      fallbackBirimId: aktifBirimId,
-                    );
-                    if (!context.mounted) return;
-                    if (success) {
-                      context.pop();
-                    } else if (provider.saveError != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(provider.saveError!)),
-                      );
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+          ],
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              OutlinedButton(
+                onPressed: () => context.pop(),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('İptal / Vazgeç'),
               ),
-            ),
-            child: const Text(
-              'Danışmanlığı Başlat & Kaydet',
-              style: TextStyle(fontSize: 16),
-            ),
+              const SizedBox(width: 16),
+              ElevatedButton.icon(
+                onPressed: provider.isSaving ? null : () => _kaydet(context, provider),
+                icon: provider.isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_circle_outline_rounded, size: 20),
+                label: Text(
+                  widget.mevcutDanismanlik != null ? 'Değişiklikleri Kaydet' : 'Danışmanlık Sözleşmesini Kaydet',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2C3E50),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _kaydet(BuildContext context, DanismanlikProvider provider) async {
+    final aktifBirimId = context.read<AuthProvider>().currentUserModel?.birimId;
+    final success = await provider.kaydet(fallbackBirimId: aktifBirimId);
+    if (!context.mounted) return;
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Danışmanlık sözleşmesi başarıyla kaydedildi.'),
+          backgroundColor: Color(0xFF1E8E5A),
         ),
-      ],
-    );
-  }
-
-  Widget _buildSummaryCard({required String title, required Widget content}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blueGrey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blueGrey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.blueGrey.shade700,
-            ),
-          ),
-          const SizedBox(height: 12),
-          content,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSummaryRow(
-    String label,
-    String value, {
-    bool isBold = false,
-    Color? color,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.blueGrey.shade600,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              color: color ?? Colors.blueGrey.shade900,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
+      );
+      context.pop();
+    } else if (provider.saveError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.saveError!),
+          backgroundColor: const Color(0xFFC0392B),
+        ),
+      );
+    }
   }
 }
 
