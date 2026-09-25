@@ -433,7 +433,7 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
                   items: _birimler!.map((b) {
                     return DropdownMenuItem(
                       value: b,
-                      child: Text('${b.kisaAd} - ${b.ad}'),
+                      child: Text(b.kisaAd.trim() == b.ad.trim() ? b.ad : '${b.kisaAd} - ${b.ad}'),
                     );
                   }).toList(),
                   onChanged: (val) {

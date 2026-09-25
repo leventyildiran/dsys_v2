@@ -146,9 +146,8 @@ const BIRIM_KEYWORDS = [
   { key: 'USEM', id: 'aLr1bwm2M1p14KjnCpSf', ad: 'USEM', keywords: ['sürekli eğitim', 'usem'] },
   { key: 'DTS', id: 'qI3NiqtBINqj6gvzDgj8', ad: 'DTS', keywords: ['deri', 'tekstil', 'seramik', 'dts'] },
   { key: 'TADAUM', id: 'tdQTX1gs6FFx2uXibw39', ad: 'TADAUM', keywords: ['tarımsal ve doğa', 'tadaum'] },
-  { key: 'ADUM', id: 'N4UzFEc1vmsTpka8XEeY', ad: 'ADUM', keywords: ['ağız ve diş sağlığı', 'adum'] },
   { key: 'TÖMER', id: 'DQpBzkSDoCG2Qn1Ucjai', ad: 'TÖMER', keywords: ['türkçe öğretimi', 'tömer', 'tomer'] },
-  { key: 'Diş Hekimliği', id: 'N4UzFEc1vmsTpka8XEeY', ad: 'Diş Hekimliği', keywords: ['diş hekimliği fakültesi', 'diş hek. fak', 'diş hek fak', 'diş hekimliği', 'ortodonti', 'protez'] },
+  { key: 'Diş Hekimliği', id: 'N4UzFEc1vmsTpka8XEeY', ad: 'Diş Hekimliği', keywords: ['diş hekimliği fakültesi', 'diş hek. fak', 'diş hek fak', 'diş hekimliği', 'ortodonti', 'protez', 'ağız ve diş sağlığı', 'adum'] },
   { key: 'DSİM', id: 'bqv1J5dy9ldJZrUNnIpF', ad: 'DSİM', keywords: ['döner sermaye işletme', 'dsim'] },
   { key: 'UZEM', id: '8m40pBxUY1Kp9xu9WY9V', ad: 'UZEM', keywords: ['uzaktan eğitim', 'uzem'] },
 ];

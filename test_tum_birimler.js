@@ -17,7 +17,7 @@ const BASE_KARAR = path.join(__dirname, 'assets', 'templates', 'karar_sablonu.do
 const MIN_GUVEN_SKORU = 12;
 
 const BEKLENEN_BIRIMLER = [
-  'UBATAM', 'USEM', 'DTS', 'TADAUM', 'ADUM', 'TÖMER', 'Diş Hekimliği',
+  'UBATAM', 'USEM', 'DTS', 'TADAUM', 'TÖMER', 'Diş Hekimliği',
 ];
 
 // ── OOXML utils ─────────────────────────────────────────────────
