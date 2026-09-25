@@ -16,6 +16,7 @@ class DanismanlikDashboardScreen extends StatefulWidget {
 class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen> {
   String _searchQuery = '';
   DanismanlikDurum? _selectedDurum;
+  String? _selectedBirim;
 
   @override
   Widget build(BuildContext context) {
@@ -81,13 +82,28 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
         final countAktif = items.where((e) => e.durum == DanismanlikDurum.aktif).length;
         final countTamamlandi = items.where((e) => e.durum == DanismanlikDurum.tamamlandi).length;
 
+        // Collect all distinct birim names for filter
+        final distinctBirimler = items
+            .map((e) => e.birimKisaAd?.trim())
+            .where((b) => b != null && b.isNotEmpty)
+            .cast<String>()
+            .toSet()
+            .toList()..sort();
+
         // Filter & Search
         var filteredItems = items.where((e) {
-          final query = _searchQuery.toLowerCase();
-          final matchesSearch = (e.firmaUnvan?.toLowerCase().contains(query) ?? false) ||
-                                (e.konusu.toLowerCase().contains(query));
+          final query = _searchQuery.toLowerCase().trim();
+          final matchesSearch = query.isEmpty ||
+              (e.firmaUnvan?.toLowerCase().contains(query) ?? false) ||
+              (e.konusu.toLowerCase().contains(query)) ||
+              (e.birimKisaAd?.toLowerCase().contains(query) ?? false) ||
+              (e.birimEvrakSayisi?.toLowerCase().contains(query) ?? false) ||
+              (e.birimKararNo?.toLowerCase().contains(query) ?? false) ||
+              (e.ykKararNo?.toLowerCase().contains(query) ?? false) ||
+              e.personeller.any((p) => p.personel.adSoyad.toLowerCase().contains(query));
           final matchesDurum = _selectedDurum == null || e.durum == _selectedDurum;
-          return matchesSearch && matchesDurum;
+          final matchesBirim = _selectedBirim == null || e.birimKisaAd?.trim() == _selectedBirim;
+          return matchesSearch && matchesDurum && matchesBirim;
         }).toList();
 
         // Sort: newest first
@@ -126,7 +142,7 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                         ),
                       ),
                       Text(
-                        'Kayıtlı sözleşmeler, tahsilat vadeleri ve faturalama süreçleri',
+                        'Kayıtlı sözleşmeler, bağlı birim kararları, tahsilat vadeleri ve faturalama süreçleri',
                         style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                       ),
                     ],
@@ -153,13 +169,14 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
               // FILTER BAR (Pill Design)
               Row(
                 children: [
+                  // Arama Çubuğu
                   Expanded(
-                    flex: 2,
+                    flex: 4,
                     child: Container(
-                      height: 40,
+                      height: 42,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(21),
                         border: Border.all(color: Colors.blueGrey.shade100),
                         boxShadow: [
                           BoxShadow(
@@ -172,11 +189,11 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                       child: TextField(
                         style: const TextStyle(fontSize: 13),
                         decoration: InputDecoration(
-                          hintText: 'Firma Adı veya Konu Ara...',
-                          hintStyle: TextStyle(fontSize: 13, color: Colors.blueGrey.shade300),
+                          hintText: 'Firma, Konu, Birim, Evrak No veya Karar No Ara...',
+                          hintStyle: TextStyle(fontSize: 12.5, color: Colors.blueGrey.shade300),
                           prefixIcon: Icon(Icons.search, color: Colors.blueGrey.shade400, size: 18),
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
                         onChanged: (val) {
                           setState(() {
@@ -186,9 +203,69 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
+
+                  // Bağlı Birim Seçici
+                  Container(
+                    height: 42,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(21),
+                      border: Border.all(
+                        color: _selectedBirim != null ? Colors.indigo.shade400 : Colors.blueGrey.shade100,
+                        width: _selectedBirim != null ? 1.5 : 1.0,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String?>(
+                        value: _selectedBirim,
+                        icon: const Icon(Icons.arrow_drop_down, size: 18),
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.business_outlined, size: 15, color: Colors.blueGrey),
+                                SizedBox(width: 6),
+                                Text('Tüm Bağlı Birimler'),
+                              ],
+                            ),
+                          ),
+                          ...distinctBirimler.map((b) => DropdownMenuItem<String?>(
+                            value: b,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.account_balance_outlined, size: 15, color: Colors.indigo),
+                                const SizedBox(width: 6),
+                                Text(b),
+                              ],
+                            ),
+                          )),
+                        ],
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedBirim = val;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Durum Sekmeleri
                   Expanded(
-                    flex: 3,
+                    flex: 5,
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
@@ -236,12 +313,12 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                       ),
                       child: Row(
                         children: [
-                          Expanded(flex: 3, child: Text('Firma & Proje Özeti', style: _headerStyle())),
+                          Expanded(flex: 3, child: Text('Firma / Konu & Birim', style: _headerStyle())),
+                          Expanded(flex: 3, child: Text('Kurul Kararları & Evrak (BYK / YKK)', style: _headerStyle())),
                           Expanded(flex: 2, child: Text('Akademisyenler', style: _headerStyle())),
-                          Expanded(flex: 2, child: Text('Bütçe', style: _headerStyle())),
-                          Expanded(flex: 2, child: Text('Süre & İlerleme', style: _headerStyle())),
-                          Expanded(flex: 1, child: Text('Durum', style: _headerStyle())),
-                          SizedBox(width: 100, child: Text('İşlemler', style: _headerStyle(), textAlign: TextAlign.center)),
+                          Expanded(flex: 2, child: Text('Bütçe (+KDV)', style: _headerStyle())),
+                          Expanded(flex: 2, child: Text('Süre & Durum', style: _headerStyle())),
+                          SizedBox(width: 90, child: Text('İşlemler', style: _headerStyle(), textAlign: TextAlign.center)),
                         ],
                       ),
                     ),
@@ -340,7 +417,7 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Firma & Proje
+              // 1. Firma / Konu & Bağlı Birim
               Expanded(
                 flex: 3,
                 child: Column(
@@ -348,55 +425,178 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                   children: [
                     Text(
                       model.firmaUnvan?.isNotEmpty == true ? model.firmaUnvan! : 'Belirtilmemiş Firma',
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
                       model.konusu,
-                      style: TextStyle(color: Colors.blueGrey.shade500, fontSize: 13),
-                      maxLines: 2,
+                      style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.indigo.shade50,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        model.tur.displayName,
-                        style: TextStyle(fontSize: 11, color: Colors.indigo.shade700, fontWeight: FontWeight.w600),
-                      ),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        if (model.birimKisaAd?.isNotEmpty == true)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.account_balance_outlined, size: 11, color: Color(0xFF475569)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  model.birimKisaAd!,
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF334155), fontWeight: FontWeight.w700),
+                                ),
+                              ],
+                            ),
+                          ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEEF2FF),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: const Color(0xFFC7D2FE)),
+                          ),
+                          child: Text(
+                            model.tur.displayName,
+                            style: const TextStyle(fontSize: 10.5, color: Color(0xFF4338CA), fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              
-              // Akademisyenler
+
+              // 2. Kurul Kararları & Evrak (BYK / YKK)
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // BYK (Bağlı Birim Yönetim Kurulu Kararı)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(3.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: const Color(0xFFFDE68A)),
+                          ),
+                          child: const Icon(Icons.description_outlined, size: 12, color: Color(0xFFB45309)),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            (model.birimKararNo != null && model.birimKararNo!.isNotEmpty)
+                                ? 'BYK: ${model.birimKararTarihi?.isNotEmpty == true ? "${model.birimKararTarihi} / " : ""}No: ${model.birimKararNo}'
+                                : 'BYK: Karar Bekliyor',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: (model.birimKararNo != null && model.birimKararNo!.isNotEmpty) ? FontWeight.w700 : FontWeight.w500,
+                              color: (model.birimKararNo != null && model.birimKararNo!.isNotEmpty)
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFF94A3B8),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (model.birimEvrakSayisi != null && model.birimEvrakSayisi!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 22),
+                        child: Text(
+                          'Evrak: ${model.birimEvrakSayisi}',
+                          style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 5),
+                    // YKK (Döner Sermaye Yürütme Kurulu Kararı)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(3.5),
+                          decoration: BoxDecoration(
+                            color: model.ykKararNo?.isNotEmpty == true ? const Color(0xFFECFDF5) : const Color(0xFFFFF7ED),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: model.ykKararNo?.isNotEmpty == true ? const Color(0xFFA7F3D0) : const Color(0xFFFED7AA),
+                            ),
+                          ),
+                          child: Icon(
+                            model.ykKararNo?.isNotEmpty == true ? Icons.gavel : Icons.pending_actions,
+                            size: 12,
+                            color: model.ykKararNo?.isNotEmpty == true ? const Color(0xFF047857) : const Color(0xFFC2410C),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            model.ykKararNo?.isNotEmpty == true
+                                ? 'YKK: ${model.ykKararTarihi?.isNotEmpty == true ? "${model.ykKararTarihi} / " : ""}No: ${model.ykKararNo}'
+                                : 'YKK: Onay Bekliyor',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: model.ykKararNo?.isNotEmpty == true
+                                  ? const Color(0xFF047857)
+                                  : const Color(0xFFC2410C),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // 3. Akademisyenler
               Expanded(
                 flex: 2,
                 child: model.personeller.isEmpty
-                    ? Text('Atanmadı', style: TextStyle(color: Colors.grey.shade400, fontStyle: FontStyle.italic))
+                    ? const Text('Atanmadı', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontStyle: FontStyle.italic))
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: model.personeller.take(2).map((p) => 
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
+                            padding: const EdgeInsets.only(bottom: 3),
                             child: Row(
                               children: [
                                 CircleAvatar(
-                                  radius: 10,
-                                  backgroundColor: Colors.blue.shade100,
-                                  child: Text(p.personel.adSoyad.isNotEmpty ? p.personel.adSoyad.substring(0, 1).toUpperCase() : '', style: TextStyle(fontSize: 10, color: Colors.blue.shade800, fontWeight: FontWeight.bold)),
+                                  radius: 9,
+                                  backgroundColor: const Color(0xFFDBEAFE),
+                                  child: Text(
+                                    p.personel.adSoyad.isNotEmpty ? p.personel.adSoyad.substring(0, 1).toUpperCase() : '',
+                                    style: const TextStyle(fontSize: 9, color: Color(0xFF1E40AF), fontWeight: FontWeight.bold),
+                                  ),
                                 ),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 5),
                                 Expanded(
                                   child: Text(
                                     '${p.personel.unvan} ${p.personel.adSoyad}',
-                                    style: const TextStyle(fontSize: 13),
+                                    style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B)),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -406,12 +606,12 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                           )
                         ).toList().cast<Widget>()
                         ..addAll(model.personeller.length > 2 
-                          ? [Text('+ ${model.personeller.length - 2} kişi daha', style: TextStyle(fontSize: 11, color: Colors.grey.shade500))]
+                          ? [Text('+ ${model.personeller.length - 2} kişi daha', style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)))]
                           : []),
                       ),
               ),
-              
-              // Bütçe
+
+              // 4. Bütçe
               Expanded(
                 flex: 2,
                 child: Column(
@@ -419,45 +619,47 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                   children: [
                     Text(
                       TurkceFormat.para(model.toplamTutar),
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.black87),
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '+ %${model.kdvOrani} KDV',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                     ),
                   ],
                 ),
               ),
-              
-              // Süre & İlerleme
+
+              // 5. Süre & Durum
               Expanded(
                 flex: 2,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${model.suresi} Ay', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text('${model.suresi} Ay', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Color(0xFF1E293B))),
+                        const Spacer(),
+                        _buildStatusBadge(model.durum),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
                     _buildProgressBar(model),
                   ],
                 ),
               ),
-              
-              // Durum
-              Expanded(
-                flex: 1,
-                child: _buildStatusBadge(model.durum),
-              ),
-              
-              // İşlemler
+
+              // 6. İşlemler
               SizedBox(
-                width: 100,
+                width: 90,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.calculate_outlined, color: Colors.green),
+                      icon: const Icon(Icons.calculate_outlined, color: Color(0xFF107C41), size: 20),
                       tooltip: 'Hesaplama & Dağıtım Masası',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       onPressed: () {
                         context.push(
                           '/danismanlik/dagitim',
@@ -465,8 +667,12 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                         );
                       },
                     ),
+                    const SizedBox(width: 4),
                     IconButton(
-                      icon: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                      icon: const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF94A3B8)),
+                      tooltip: 'Detay Sayfası',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       onPressed: () => context.push('/danismanlik/detay/${model.id}'),
                     ),
                   ],

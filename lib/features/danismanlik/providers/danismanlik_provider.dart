@@ -346,6 +346,8 @@ class DanismanlikProvider extends ChangeNotifier {
     _ykKararTarihi = model.ykKararTarihi ?? '';
     _ykKararNo = model.ykKararNo ?? '';
     _ykToplantiSayisi = model.ykToplantiSayisi ?? '';
+    _birimEvrakTarihi = model.birimEvrakTarihi ?? '';
+    _birimEvrakSayisi = model.birimEvrakSayisi ?? '';
     _birimKurulTarihi = model.birimKararTarihi ?? '';
     _birimKararNo = model.birimKararNo ?? '';
     _birimToplantiSayisi = model.birimToplantiSayisi ?? '';
@@ -400,6 +402,12 @@ class DanismanlikProvider extends ChangeNotifier {
         ykToplantiSayisi: _ykToplantiSayisi.trim().isEmpty
             ? null
             : _ykToplantiSayisi,
+        birimEvrakTarihi: _birimEvrakTarihi.trim().isEmpty
+            ? null
+            : _birimEvrakTarihi.trim(),
+        birimEvrakSayisi: _birimEvrakSayisi.trim().isEmpty
+            ? null
+            : _birimEvrakSayisi.trim(),
         birimKararTarihi: _birimKurulTarihi.trim().isEmpty
             ? null
             : _birimKurulTarihi,

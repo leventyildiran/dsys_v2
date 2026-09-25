@@ -11,25 +11,72 @@ import '../models/dagitim_model.dart';
 import '../models/danismanlik_model.dart';
 import '../models/taksit_model.dart';
 import '../services/dagitim_service.dart';
+import '../services/danismanlik_service.dart';
 import '../services/danismanlik_excel_hesaplama.dart';
 import '../services/taksit_onay_akisi.dart';
 import '../services/taksit_service.dart';
 
 class DanismanlikDetayProvider extends ChangeNotifier {
   DanismanlikDetayProvider(
-    this.danismanlik, {
+    DanismanlikModel initialDanismanlik, {
     TaksitService? taksitService,
     DagitimService? dagitimService,
     PersonelHakedisService? hakedisService,
     YkKararService? ykKararService,
-  })  : _taksitService = taksitService ?? TaksitService(),
+  })  : _danismanlik = initialDanismanlik,
+        _taksitService = taksitService ?? TaksitService(),
         _dagitimService = dagitimService ?? DagitimService(),
         _hakedisService = hakedisService ?? PersonelHakedisService(),
         _ykKararService = ykKararService ?? YkKararService() {
     _initTaksitlerStream();
   }
 
-  final DanismanlikModel danismanlik;
+  DanismanlikModel _danismanlik;
+  DanismanlikModel get danismanlik => _danismanlik;
+
+  void danismanlikGuncelle(DanismanlikModel guncel) {
+    _danismanlik = guncel;
+    notifyListeners();
+  }
+
+  Future<bool> sozlesmeKararBilgileriniGuncelle({
+    String? birimKisaAd,
+    String? birimEvrakTarihi,
+    String? birimEvrakSayisi,
+    String? birimKararTarihi,
+    String? birimToplantiSayisi,
+    String? birimKararNo,
+    String? ykKararTarihi,
+    String? ykToplantiSayisi,
+    String? ykKararNo,
+  }) async {
+    _setLoading(true);
+    _error = null;
+    try {
+      final guncel = _danismanlik.copyWith(
+        birimKisaAd: birimKisaAd ?? _danismanlik.birimKisaAd,
+        birimEvrakTarihi: birimEvrakTarihi ?? _danismanlik.birimEvrakTarihi,
+        birimEvrakSayisi: birimEvrakSayisi ?? _danismanlik.birimEvrakSayisi,
+        birimKararTarihi: birimKararTarihi ?? _danismanlik.birimKararTarihi,
+        birimToplantiSayisi: birimToplantiSayisi ?? _danismanlik.birimToplantiSayisi,
+        birimKararNo: birimKararNo ?? _danismanlik.birimKararNo,
+        ykKararTarihi: ykKararTarihi ?? _danismanlik.ykKararTarihi,
+        ykToplantiSayisi: ykToplantiSayisi ?? _danismanlik.ykToplantiSayisi,
+        ykKararNo: ykKararNo ?? _danismanlik.ykKararNo,
+      );
+      final srv = DanismanlikService();
+      await srv.update(_danismanlik.id, guncel);
+      _danismanlik = guncel;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
   final TaksitService _taksitService;
   final DagitimService _dagitimService;
   final PersonelHakedisService _hakedisService;
@@ -479,21 +526,36 @@ class DanismanlikDetayProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Map<String, String?> _kararMetniVerileriHazirla(double katsayi, double dagitilabilirTutar) {
+  Map<String, String?> _kararMetniVerileriHazirla(
+    double katsayi,
+    double dagitilabilirTutar, {
+    TaksitModel? taksit,
+  }) {
     final isStandart = danismanlik.tur == DanismanlikTuru.standart;
     final hocaUnvan = danismanlik.personeller.isNotEmpty ? danismanlik.personeller.first.personel.unvan : '';
     final hocaAdSoyad = danismanlik.personeller.isNotEmpty ? danismanlik.personeller.first.personel.adSoyad : '';
 
+    final birimAd = danismanlik.birimKisaAd ?? 'Birim';
+    final evrakTarihi = taksit?.birimEvrakTarihi?.isNotEmpty == true ? taksit!.birimEvrakTarihi : danismanlik.birimEvrakTarihi;
+    final evrakSayisi = taksit?.birimEvrakSayisi?.isNotEmpty == true ? taksit!.birimEvrakSayisi : danismanlik.birimEvrakSayisi;
+    final kurulTarihi = taksit?.birimKurulTarihi?.isNotEmpty == true ? taksit!.birimKurulTarihi : danismanlik.birimKararTarihi;
+    final toplantiSayi = taksit?.birimToplantiSayisi?.isNotEmpty == true ? taksit!.birimToplantiSayisi : danismanlik.birimToplantiSayisi;
+    final kararNo = taksit?.birimKararNo?.isNotEmpty == true ? taksit!.birimKararNo : danismanlik.birimKararNo;
+
+    final ykTarihi = taksit?.ykKararTarihi?.isNotEmpty == true ? taksit!.ykKararTarihi : danismanlik.ykKararTarihi;
+    final ykToplanti = taksit?.ykToplantiSayisi?.isNotEmpty == true ? taksit!.ykToplantiSayisi : danismanlik.ykToplantiSayisi;
+    final ykKarar = taksit?.ykKararNo?.isNotEmpty == true ? taksit!.ykKararNo : danismanlik.ykKararNo;
+
     if (isStandart) {
       return {
-        'BIRIM_AD': danismanlik.birimKisaAd,
-        'BIRIM_EVRAK_TARIHI': null,
-        'BIRIM_EVRAK_SAYISI': null,
-        'BIRIM_KURUL_TARIHI': null,
-        'BIRIM_TOPLANTI_SAYI': null,
-        'BIRIM_KARAR_NO': null,
-        'YK_KARAR_TARIHI': danismanlik.ykKararTarihi,
-        'YK_KARAR_NO': danismanlik.ykKararNo,
+        'BIRIM_AD': birimAd,
+        'BIRIM_EVRAK_TARIHI': evrakTarihi,
+        'BIRIM_EVRAK_SAYISI': evrakSayisi,
+        'BIRIM_KURUL_TARIHI': kurulTarihi,
+        'BIRIM_TOPLANTI_SAYI': toplantiSayi,
+        'BIRIM_KARAR_NO': kararNo,
+        'YK_KARAR_TARIHI': ykTarihi,
+        'YK_KARAR_NO': ykKarar,
         'FIRMA_UNVAN': danismanlik.firmaUnvan,
         'ISIN_KONUSU': danismanlik.konusu,
         'DANISMANLIK_SURESI': danismanlik.suresi > 0 ? danismanlik.suresi.toString() : null,
@@ -503,9 +565,15 @@ class DanismanlikDetayProvider extends ChangeNotifier {
       };
     } else {
       return {
-        'UYK_KARAR_TARIHI': danismanlik.ykKararTarihi,
-        'UYK_TOPLANTI_SAYI': danismanlik.ykToplantiSayisi,
-        'UYK_KARAR_NO': danismanlik.ykKararNo,
+        'BIRIM_AD': birimAd,
+        'BIRIM_EVRAK_TARIHI': evrakTarihi,
+        'BIRIM_EVRAK_SAYISI': evrakSayisi,
+        'BIRIM_KURUL_TARIHI': kurulTarihi,
+        'BIRIM_TOPLANTI_SAYI': toplantiSayi,
+        'BIRIM_KARAR_NO': kararNo,
+        'UYK_KARAR_TARIHI': ykTarihi,
+        'UYK_TOPLANTI_SAYI': ykToplanti,
+        'UYK_KARAR_NO': ykKarar,
         'FIRMA_UNVAN': danismanlik.firmaUnvan,
         'HOCA_UNVAN': hocaUnvan,
         'HOCA_AD_SOYAD': hocaAdSoyad,

@@ -102,6 +102,8 @@ class DanismanlikModel {
     this.ykKararTarihi,
     this.ykKararNo,
     this.ykToplantiSayisi,
+    this.birimEvrakTarihi,
+    this.birimEvrakSayisi,
     this.birimKararTarihi,
     this.birimKararNo,
     this.birimToplantiSayisi,
@@ -136,7 +138,9 @@ class DanismanlikModel {
   final String? ykKararNo;
   final String? ykToplantiSayisi;
 
-  // Birim Yönetim Kurulu Karar Bilgileri
+  // Birim Evrak ve Yönetim Kurulu Karar Bilgileri (BYK)
+  final String? birimEvrakTarihi;
+  final String? birimEvrakSayisi;
   final String? birimKararTarihi;
   final String? birimKararNo;
   final String? birimToplantiSayisi;
@@ -183,6 +187,8 @@ class DanismanlikModel {
       ykKararTarihi: map['ykKararTarihi'] as String?,
       ykKararNo: map['ykKararNo'] as String?,
       ykToplantiSayisi: map['ykToplantiSayisi'] as String?,
+      birimEvrakTarihi: map['birimEvrakTarihi'] as String?,
+      birimEvrakSayisi: map['birimEvrakSayisi'] as String?,
       birimKararTarihi: map['birimKararTarihi'] as String?,
       birimKararNo: map['birimKararNo'] as String?,
       birimToplantiSayisi: map['birimToplantiSayisi'] as String?,
@@ -224,6 +230,8 @@ class DanismanlikModel {
       'ykKararTarihi': ykKararTarihi,
       'ykKararNo': ykKararNo,
       'ykToplantiSayisi': ykToplantiSayisi,
+      'birimEvrakTarihi': birimEvrakTarihi,
+      'birimEvrakSayisi': birimEvrakSayisi,
       'birimKararTarihi': birimKararTarihi,
       'birimKararNo': birimKararNo,
       'birimToplantiSayisi': birimToplantiSayisi,
@@ -257,6 +265,8 @@ class DanismanlikModel {
     String? ykKararTarihi,
     String? ykKararNo,
     String? ykToplantiSayisi,
+    String? birimEvrakTarihi,
+    String? birimEvrakSayisi,
     String? birimKararTarihi,
     String? birimKararNo,
     String? birimToplantiSayisi,
@@ -288,6 +298,8 @@ class DanismanlikModel {
       ykKararTarihi: ykKararTarihi ?? this.ykKararTarihi,
       ykKararNo: ykKararNo ?? this.ykKararNo,
       ykToplantiSayisi: ykToplantiSayisi ?? this.ykToplantiSayisi,
+      birimEvrakTarihi: birimEvrakTarihi ?? this.birimEvrakTarihi,
+      birimEvrakSayisi: birimEvrakSayisi ?? this.birimEvrakSayisi,
       birimKararTarihi: birimKararTarihi ?? this.birimKararTarihi,
       birimKararNo: birimKararNo ?? this.birimKararNo,
       birimToplantiSayisi: birimToplantiSayisi ?? this.birimToplantiSayisi,
