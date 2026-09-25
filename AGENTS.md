@@ -120,7 +120,7 @@ Tamamlanan:
 - Agent skill: `.cursor/skills/dsys-development/SKILL.md`
 
 Devam eden / manuel adım:
-- ADUM ve TÖMER Firestore `birimler` koleksiyonunda yok — şablonlar `birimAd` ile eşleşir
+- TÖMER (`DQpBzkSDoCG2Qn1Ucjai`) ve ADUM/Diş Hekimliği (`N4UzFEc1vmsTpka8XEeY`) Firestore şablonlarında hem `birimId` hem `birimAd` ile tam eşleştirildi.
 - DSİM/UZEM için kaynak Word arşivi `ornek/` klasöründe yok — birim arşivi üretilemez (ana şablon yeterli)
 - Birim arşivi (tablo birebir eşleştirme): isteğe bağlı `node import_yk_sablonlar.js --upload` — ana şablonun yerine geçmez
 
