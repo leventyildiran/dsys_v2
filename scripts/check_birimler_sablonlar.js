@@ -5,11 +5,12 @@ const db = admin.firestore();
 async function main() {
   console.log('1. Güncelleme başlıyor...');
   await db.collection('birimler').doc('N4UzFEc1vmsTpka8XEeY').set({
-    ad: 'Diş Hekimliği',
+    ad: 'Ağız ve Diş Sağlığı Uygulama ve Araştırma Merkezi',
     kisaAd: 'Diş Hekimliği',
+    hesapAdi: 'Kurum Tek İdare Tahsilat Alt Hesabı /Ağız ve Diş Sağlığı DSİ',
     aktif: true,
   }, { merge: true });
-  console.log('✓ birimler/N4UzFEc1vmsTpka8XEeY -> ad: Diş Hekimliği, kisaAd: Diş Hekimliği yapıldı.');
+  console.log('✓ birimler/N4UzFEc1vmsTpka8XEeY -> ad: Ağız ve Diş Sağlığı Uygulama ve Araştırma Merkezi, kisaAd: Diş Hekimliği yapıldı.');
 
   const sablonSnap = await db.collection('sistemSablonlari').get();
   for (const doc of sablonSnap.docs) {

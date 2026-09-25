@@ -103,10 +103,10 @@ class BirimModel {
     ),
     BirimModel(
       id: 'default_dis',
-      ad: 'Diş Hekimliği',
+      ad: 'Ağız ve Diş Sağlığı Uygulama ve Araştırma Merkezi',
       kisaAd: 'Diş Hekimliği',
       tur: BirimTuru.merkez,
-      hesapAdi: 'Kurum Tek İdare Tahsilat Alt Hesabı /Diş Hekimliği DSİ',
+      hesapAdi: 'Kurum Tek İdare Tahsilat Alt Hesabı /Ağız ve Diş Sağlığı DSİ',
       iban: 'TR880001001758890982805002',
       vkn: '8960475707',
       aktif: true,
@@ -176,9 +176,9 @@ class BirimAdlandirma {
       return 'Döner Sermaye İşletme Müdürlüğü (DÖSİM)';
     }
 
-    // 2. Diş Hekimliği (ADUM / Ağız ve Diş Sağlığı)
+    // 2. Ağız ve Diş Sağlığı (Kısa adı: Diş Hekimliği)
     if (s.contains('diş') || s.contains('dis') || s.contains('adum') || s.contains('ağız')) {
-      return 'Diş Hekimliği';
+      return 'Ağız ve Diş Sağlığı Uygulama ve Araştırma Merkezi';
     }
 
     // 3. UBATAM / Bilimsel Analiz
