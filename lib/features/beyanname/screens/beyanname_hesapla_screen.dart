@@ -789,6 +789,11 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     final k1 = provider.kdv1Sonuc;
     final k2 = provider.kdv2Sonuc;
     final m = provider.muhtasarSonuc;
+    final list = provider.birimIcmalListesi;
+    final topKdv2Dokuz = list.fold(0.0, (s, x) => s + x.kdv2DokuzBoluOn);
+    final topKdv2Yedi = list.fold(0.0, (s, x) => s + x.kdv2YediBoluOn);
+    final topKdv2Bes = list.fold(0.0, (s, x) => s + x.kdv2BesBoluOn);
+    final topKdv2Genel = list.fold(0.0, (s, x) => s + x.kdv2Toplam);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -920,23 +925,79 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
         ),
         const SizedBox(height: 16),
 
+        // --- 2.1 BİRİM BAZLI KDV 2 TEVKİFAT DAĞILIMI (9/10, 7/10, 5/10) ---
+        _buildSheetTitle('KDV 2 TEVKİFAT BİRİM DAĞILIMI (9/10, 7/10, 5/10 ORANLARI)', accentColor: const Color(0xFFD97706)),
+        const SizedBox(height: 6),
+        _buildTableContainer(
+          [
+            _headerRow(
+              [
+                'BİRİMLER',
+                '9 / 10 (%90)',
+                '7 / 10 (%70)',
+                '5 / 10 (%50)',
+                'TOPLAM KDV 2 TEVKİFAT',
+              ],
+              bg: const Color(0xFFFEF3C7),
+              textColor: const Color(0xFF92400E),
+            ),
+            ...list.map((b) {
+              final isDis = BirimAdlandirma.canonicalKey(b.birimAdi) == 'dis';
+              return TableRow(
+                decoration: BoxDecoration(
+                  color: isDis ? const Color(0xFFFEF08A).withValues(alpha: 0.3) : Colors.white,
+                ),
+                children: [
+                  _buildBirimCell(b.birimAdi),
+                  _cellText(TurkceFormat.para(b.kdv2DokuzBoluOn)),
+                  _cellText(TurkceFormat.para(b.kdv2YediBoluOn)),
+                  _cellText(TurkceFormat.para(b.kdv2BesBoluOn)),
+                  _cellText(TurkceFormat.para(b.kdv2Toplam), isBold: true, color: const Color(0xFFD97706)),
+                ],
+              );
+            }),
+            // KDV 2 Toplam Satırı
+            TableRow(
+              decoration: const BoxDecoration(color: Color(0xFFFEF3C7)),
+              children: [
+                _cellText('TOPLAM KDV 2 ÖDENECEK TEVKİFAT', isBold: true, align: TextAlign.left, color: const Color(0xFF92400E)),
+                _cellText(TurkceFormat.para(topKdv2Dokuz), isBold: true, color: const Color(0xFF92400E)),
+                _cellText(TurkceFormat.para(topKdv2Yedi), isBold: true, color: const Color(0xFF92400E)),
+                _cellText(TurkceFormat.para(topKdv2Bes), isBold: true, color: const Color(0xFF92400E)),
+                _cellText(TurkceFormat.para(topKdv2Genel), isBold: true, color: const Color(0xFFB45309)),
+              ],
+            ),
+          ],
+          borderColor: const Color(0xFFFDE68A),
+          gridColor: const Color(0xFFFEF3C7),
+          columnWidths: const {
+            0: FlexColumnWidth(2.8),
+            1: FlexColumnWidth(1.3),
+            2: FlexColumnWidth(1.3),
+            3: FlexColumnWidth(1.3),
+            4: FlexColumnWidth(1.5),
+          },
+        ),
+        const SizedBox(height: 16),
+
         // --- 3. FİRMA / KİŞİ BİLGİLERİ DÖKÜMÜ ---
         _buildSheetTitle('KDV 2 TEVKİFATLI FİRMA / KİŞİ BİLGİLERİ', accentColor: const Color(0xFFD97706)),
         const SizedBox(height: 6),
         _buildTableContainer(
           [
             _headerRow(
-              ['FİRMA / KİŞİ ADI', 'VERGİ / TC NO', 'TÜR / ORAN', 'MATRAH TUTARI', 'KDV TUTARI', 'TEVKİFAT TUTARI'],
+              ['FİRMA / KİŞİ ADI', 'VERGİ / TC NO', 'BİRİM', 'TÜR / ORAN', 'MATRAH TUTARI', 'KDV TUTARI', 'TEVKİFAT TUTARI'],
               bg: const Color(0xFFFEF3C7),
               textColor: const Color(0xFF92400E),
             ),
             if (provider.tevkifatKayitlari.isEmpty)
-              _singleCellRow('Kayıtlı tevkifat firması bulunmuyor.', 6)
+              _singleCellRow('Kayıtlı tevkifat firması bulunmuyor.', 7)
             else
               ...provider.tevkifatKayitlari.map((f) => TableRow(
                     children: [
                       _cellText(f.firmaAdi, isBold: true, align: TextAlign.left),
                       _cellText(f.vergiTcNo, align: TextAlign.center),
+                      _buildBirimCell(f.birimAdi ?? '—'),
                       _cellText('${f.tevkifatTuru.etiket} (%${f.kdvOrani})', align: TextAlign.center),
                       _cellText(TurkceFormat.para(f.matrahTutari)),
                       _cellText(TurkceFormat.para(f.kdvTutari)),
@@ -947,12 +1008,13 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           borderColor: const Color(0xFFFDE68A),
           gridColor: const Color(0xFFFFFBEB),
           columnWidths: const {
-            0: FlexColumnWidth(2.6),
-            1: FlexColumnWidth(1.4),
-            2: FlexColumnWidth(1.2),
-            3: FlexColumnWidth(1.3),
-            4: FlexColumnWidth(1.3),
-            5: FlexColumnWidth(1.4),
+            0: FlexColumnWidth(2.4),
+            1: FlexColumnWidth(1.2),
+            2: FlexColumnWidth(1.4),
+            3: FlexColumnWidth(1.1),
+            4: FlexColumnWidth(1.2),
+            5: FlexColumnWidth(1.2),
+            6: FlexColumnWidth(1.3),
           },
         ),
         const SizedBox(height: 16),
