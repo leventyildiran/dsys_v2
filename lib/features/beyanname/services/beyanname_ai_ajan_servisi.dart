@@ -230,10 +230,22 @@ class BeyannameAiAjanServisi {
       );
 
       final contentParts = <Part>[];
-      // Eğer aylık mizan PDF ise ve multimodal destekleniyorsa DataPart ekle
-      if (aylikMizanBelgesi != null && aylikMizanBelgesi.isPdf && aylikMizanBelgesi.dosyaBytes != null) {
-        contentParts.add(DataPart('application/pdf', aylikMizanBelgesi.dosyaBytes!));
+      // Multimodal: Taranmış veya dijital PDF/görselleri (Aylık mizan, Yıllık mizan, Ek belgeler/faturalar) Gemini'ye doğrudan ilet
+      void addMediaPartIfApplicable(BirimYuklenenBelge? doc) {
+        if (doc == null || doc.dosyaBytes == null || doc.dosyaBytes!.isEmpty) return;
+        final ext = doc.dosyaUzantisi.toLowerCase();
+        if (ext == 'pdf') {
+          contentParts.add(DataPart('application/pdf', doc.dosyaBytes!));
+        } else if (ext == 'png') {
+          contentParts.add(DataPart('image/png', doc.dosyaBytes!));
+        } else if (ext == 'jpg' || ext == 'jpeg') {
+          contentParts.add(DataPart('image/jpeg', doc.dosyaBytes!));
+        }
       }
+
+      addMediaPartIfApplicable(aylikMizanBelgesi);
+      addMediaPartIfApplicable(yillikMizanBelgesi);
+      addMediaPartIfApplicable(digerBelge);
       contentParts.add(TextPart(prompt));
 
       yield AjanLogMesaji(
@@ -472,6 +484,9 @@ ARANACAK HESAP KODLARI VE KURALLAR:
    - 191 hesabı alacak bakiyesi veriyor mu? -> "is191TersBakiye": true/false
    - 391 hesabı borç bakiyesi veriyor mu? -> "is391TersBakiye": true/false
    - 600 hesabı borç bakiyesi veriyor mu? -> "is600TersBakiye": true/false
+8. TEVKİFATLI FATURALAR VE BELGE-MİZAN MUTABAKATI:
+   - Ekli belgelerde/görsellerde (taranmış veya dijital) yer alan faturaları incele. Tevkifatlı olanları tespit et.
+   - Eğer fatura mevcut ancak mizandaki 600/391 hesaplarına henüz yansımamışsa veya tutarlar arasında mutabakatsızlık varsa "aciklama" alanına açıkça yaz (Örn: "X firmasına ait Y TL tevkifatlı fatura mizana henüz yansımamış").
 
 ÇIKTI FORMATI:
 SADECE VE SADECE aşağıdaki JSON formatında bir nesne döndür (Markdown backtick dışında hiçbir açıklama veya ek yazı yazma):
@@ -495,7 +510,8 @@ SADECE VE SADECE aşağıdaki JSON formatında bir nesne döndür (Markdown back
   "is191TersBakiye": false,
   "is391TersBakiye": false,
   "is600TersBakiye": false,
-  "tevkifatFaturalari": []
+  "tevkifatFaturalari": [],
+  "aciklama": ""
 }
 
 ---
