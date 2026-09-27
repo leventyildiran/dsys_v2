@@ -190,6 +190,9 @@ class BeyannameAiAjanTab extends StatelessWidget {
           ),
         ),
 
+        // ==================== GÜVENLİK VE DENETİM KALKANI REHBERİ ====================
+        _buildGuvenlikRehberi(),
+
         // ==================== CANLI AKIŞ TERMİNALİ ====================
         if (isCalisiyor) AiCanliAkisPaneli(provider: provider),
 
@@ -281,6 +284,194 @@ class BeyannameAiAjanTab extends StatelessWidget {
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
             child: const Text('Temizle', style: TextStyle(color: AppColors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuvenlikRehberi() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.primary.withAlpha(40)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(4),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Theme(
+        data: ThemeData(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: true,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          leading: Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: AppColors.primarySubtle,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(
+              Icons.verified_user_rounded,
+              size: 20,
+              color: AppColors.primary,
+            ),
+          ),
+          title: const Text(
+            '🛡️ Yapay Zeka Denetim & Doğruluk Kalkanı (Nasıl Korunuyorsunuz?)',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          subtitle: const Text(
+            'Yapay zeka tek başına karar vermez; okunan her veri 9 senaryolu matematiksel kural motorundan geçer ve onayınıza sunulur.',
+            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                children: [
+                  const Divider(height: 1, color: AppColors.border),
+                  const SizedBox(height: 12),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isNarrow = constraints.maxWidth < 800;
+                      final item1 = _buildRehberKarti(
+                        icon: Icons.calculate_rounded,
+                        renk: AppColors.info,
+                        bgRenk: AppColors.infoSubtle,
+                        baslik: '1. Matematiksel & Oran Kontrolü',
+                        aciklama:
+                            'AI\'ın okuduğu matrahlar otomatik olarak %20, %10 ve binde 9,48 ile çarpılarak kuruşu kuruşuna test edilir. 1 TL dahi tutarsızlık varsa sistem kırmızı uyarı verir, yanlış hesap beyannameye giremez.',
+                      );
+                      final item2 = _buildRehberKarti(
+                        icon: Icons.document_scanner_rounded,
+                        renk: AppColors.warning,
+                        bgRenk: AppColors.warningSubtle,
+                        baslik: '2. Taranmış Fatura & Mizan Çapraz Mutabakatı',
+                        aciklama:
+                            'Tarayıcıdan taranmış PDF ve fotoğraflar Vision AI ile optik okunur (OCR). Faturalar ile mizandaki 600/391 hesapları kıyaslanır; fatura kesilmiş ama mizana henüz yansımamışsa ekranda "Mizana Yansımamış Fatura" uyarısı çıkar.',
+                      );
+                      final item3 = _buildRehberKarti(
+                        icon: Icons.rule_rounded,
+                        renk: AppColors.primary,
+                        bgRenk: AppColors.primarySubtle,
+                        baslik: '3. Muhasebe Mantık Filtresi (Ters Bakiye & VKN)',
+                        aciklama:
+                            'Muhasebe kuralları gereği 191 asla alacak, 391 asla borç veremez. AI yanlış sütun okursa ters bakiye dedektörü devreye girer. Ayrıca tüm VKN ve TCKN\'ler Gelir İdaresi algoritmalarıyla doğrulanır.',
+                      );
+                      final item4 = _buildRehberKarti(
+                        icon: Icons.thumb_up_alt_rounded,
+                        renk: AppColors.success,
+                        bgRenk: AppColors.successSubtle,
+                        baslik: '4. Şeffaflık & İnsan Onayı (Human-in-the-Loop)',
+                        aciklama:
+                            'AI doğrudan beyannameye ASLA yazmaz. Önce "Nereden Nereye" şeffaf denetim raporu açılır. Siz gözünüzle inceleyip "Verileri Beyannameye Aktar" butonuna basana kadar hiçbir veri aktarılmaz. Aktarımdan sonra da tüm sayılar elle düzenlenebilir.',
+                      );
+
+                      if (isNarrow) {
+                        return Column(
+                          children: [
+                            item1,
+                            const SizedBox(height: 10),
+                            item2,
+                            const SizedBox(height: 10),
+                            item3,
+                            const SizedBox(height: 10),
+                            item4,
+                          ],
+                        );
+                      }
+
+                      return Column(
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: item1),
+                              const SizedBox(width: 12),
+                              Expanded(child: item2),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: item3),
+                              const SizedBox(width: 12),
+                              Expanded(child: item4),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRehberKarti({
+    required IconData icon,
+    required Color renk,
+    required Color bgRenk,
+    required String baslik,
+    required String aciklama,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bgRenk.withAlpha(70),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: renk.withAlpha(60)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: renk.withAlpha(30),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 16, color: renk),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  baslik,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.bold,
+                    color: renk,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  aciklama,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    color: AppColors.textPrimary,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
