@@ -19,10 +19,12 @@ class BirimBelgeKarti extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final aylikMizan = provider.getBelge(birimAdi, BirimBelgeSlotTuru.aylikMizan);
+    final yardimciMizan = provider.getBelge(birimAdi, BirimBelgeSlotTuru.yardimciMizan);
     final yillikMizan = provider.getBelge(birimAdi, BirimBelgeSlotTuru.yillikMizan);
     final digerBelge = provider.getBelge(birimAdi, BirimBelgeSlotTuru.diger);
 
     final yukluSayisi = (aylikMizan != null ? 1 : 0) +
+        (yardimciMizan != null ? 1 : 0) +
         (yillikMizan != null ? 1 : 0) +
         (digerBelge != null ? 1 : 0);
 
@@ -80,7 +82,9 @@ class BirimBelgeKarti extends StatelessWidget {
                       ),
                       Text(
                         isTamDolu
-                            ? 'Mizan belgeleri eksiksiz yüklendi'
+                            ? (yardimciMizan != null
+                                ? 'Aylık, Yardımcı ve Yıllık Mizan belgeleri hazır'
+                                : 'Mizan belgeleri eksiksiz yüklendi')
                             : (yukluSayisi > 0
                                 ? '$yukluSayisi/2 zorunlu mizan yüklendi'
                                 : 'Belge bekleniyor (Aylık ve Yıllık Mizan yükleyiniz)'),
@@ -104,32 +108,63 @@ class BirimBelgeKarti extends StatelessWidget {
             const Divider(height: 1, color: AppColors.border),
             const SizedBox(height: 12),
 
-            // 3'lü Slot Yuvaları
+            // 4'lü Slot Yuvaları (Aylık Mizan, Yardımcı Mizan, Yıllık Mizan, Diğer/Fatura)
             LayoutBuilder(
               builder: (context, constraints) {
-                final isNarrow = constraints.maxWidth < 650;
-                if (isNarrow) {
+                final slot1 = _buildSlotItem(
+                  context,
+                  slotTuru: BirimBelgeSlotTuru.aylikMizan,
+                  yuklenen: aylikMizan,
+                  zorunlu: true,
+                );
+                final slot2 = _buildSlotItem(
+                  context,
+                  slotTuru: BirimBelgeSlotTuru.yardimciMizan,
+                  yuklenen: yardimciMizan,
+                  zorunlu: false,
+                );
+                final slot3 = _buildSlotItem(
+                  context,
+                  slotTuru: BirimBelgeSlotTuru.yillikMizan,
+                  yuklenen: yillikMizan,
+                  zorunlu: true,
+                );
+                final slot4 = _buildSlotItem(
+                  context,
+                  slotTuru: BirimBelgeSlotTuru.diger,
+                  yuklenen: digerBelge,
+                  zorunlu: false,
+                );
+
+                if (constraints.maxWidth < 650) {
                   return Column(
                     children: [
-                      _buildSlotItem(
-                        context,
-                        slotTuru: BirimBelgeSlotTuru.aylikMizan,
-                        yuklenen: aylikMizan,
-                        zorunlu: true,
+                      slot1,
+                      const SizedBox(height: 8),
+                      slot2,
+                      const SizedBox(height: 8),
+                      slot3,
+                      const SizedBox(height: 8),
+                      slot4,
+                    ],
+                  );
+                } else if (constraints.maxWidth < 950) {
+                  return Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: slot1),
+                          const SizedBox(width: 8),
+                          Expanded(child: slot2),
+                        ],
                       ),
                       const SizedBox(height: 8),
-                      _buildSlotItem(
-                        context,
-                        slotTuru: BirimBelgeSlotTuru.yillikMizan,
-                        yuklenen: yillikMizan,
-                        zorunlu: true,
-                      ),
-                      const SizedBox(height: 8),
-                      _buildSlotItem(
-                        context,
-                        slotTuru: BirimBelgeSlotTuru.diger,
-                        yuklenen: digerBelge,
-                        zorunlu: false,
+                      Row(
+                        children: [
+                          Expanded(child: slot3),
+                          const SizedBox(width: 8),
+                          Expanded(child: slot4),
+                        ],
                       ),
                     ],
                   );
@@ -137,32 +172,13 @@ class BirimBelgeKarti extends StatelessWidget {
 
                 return Row(
                   children: [
-                    Expanded(
-                      child: _buildSlotItem(
-                        context,
-                        slotTuru: BirimBelgeSlotTuru.aylikMizan,
-                        yuklenen: aylikMizan,
-                        zorunlu: true,
-                      ),
-                    ),
+                    Expanded(child: slot1),
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildSlotItem(
-                        context,
-                        slotTuru: BirimBelgeSlotTuru.yillikMizan,
-                        yuklenen: yillikMizan,
-                        zorunlu: true,
-                      ),
-                    ),
+                    Expanded(child: slot2),
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildSlotItem(
-                        context,
-                        slotTuru: BirimBelgeSlotTuru.diger,
-                        yuklenen: digerBelge,
-                        zorunlu: false,
-                      ),
-                    ),
+                    Expanded(child: slot3),
+                    const SizedBox(width: 8),
+                    Expanded(child: slot4),
                   ],
                 );
               },

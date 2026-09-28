@@ -155,8 +155,20 @@ class BeyannameDenetimServisi {
         ));
       }
 
+      // 8. Yardımcı Mizan (Muavin) Alt Hesap Kanıtı
+      if (sonuc.yardimciMizanKullanildi) {
+        neredenNereye.add(NeredenNereyeKaydi(
+          birimAdi: birimAdi,
+          kaynakBelge: '$birimAdi - Yardımcı Mizan (Muavin)',
+          hesapKoduVeAdi: '391 / 191 / 600 Alt Hesap Kırılımları',
+          bulunanTutar: (sonuc.yardimciMizan391Toplam > 0 ? sonuc.yardimciMizan391Toplam : sonuc.toplamHesaplananKdv),
+          hedefAlan: 'KDV 1 Oran Ayrımı (%10 / %20) & Çapraz Teyit',
+          aciklama: 'Yardımcı mizan üzerinden oran ayrımı sağlandı (391 Toplamı: ${TurkceFormat.para(sonuc.yardimciMizan391Toplam)}, 191 Toplamı: ${TurkceFormat.para(sonuc.yardimciMizan191Toplam)}).',
+        ));
+      }
+
       // =======================================================================
-      // B) 9 SENARYOLU ÇAPRAZ DENETİM VE HATA ANALİZİ
+      // B) 10 SENARYOLU ÇAPRAZ DENETİM VE HATA ANALİZİ
       // =======================================================================
 
       // -----------------------------------------------------------------------
@@ -437,6 +449,92 @@ class BeyannameDenetimServisi {
               fark: beklenenTevkifat - tevkifatTutari,
               aciklama: '$firmaAdi: KDV ($kdvTutari) x $oranStr = $beklenenTevkifat TL olmalıdır. Belgede $tevkifatTutari TL yazmaktadır.',
               cozumOnerisi: 'Fatura üzerindeki tevkifat satırını teyit ediniz.',
+            ));
+          }
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // SENARYO 10: Ana Mizan & Yardımcı Mizan (Muavin) Çapraz Mutabakatı
+      // -----------------------------------------------------------------------
+      if (sonuc.yardimciMizanKullanildi) {
+        // 10a: 391 Hesaplanan KDV Mutabakatı
+        if (sonuc.yardimciMizan391Toplam > 0 && sonuc.toplamHesaplananKdv > 0) {
+          final kdv391Farki = (sonuc.yardimciMizan391Toplam - sonuc.toplamHesaplananKdv).abs();
+          if (kdv391Farki > 1.0) {
+            kontroller.add(MutabakatKontrolKaydi(
+              id: 'sen-10a-${kontrolIdSayac++}',
+              senaryoNo: 10,
+              birimAdi: birimAdi,
+              baslik: 'Ana Mizan 391 ile Yardımcı Mizan KDV Uyuşmazlığı',
+              seviye: DenetimSeviyesi.hata,
+              beklenenDeger: sonuc.toplamHesaplananKdv,
+              bulunanDeger: sonuc.yardimciMizan391Toplam,
+              fark: sonuc.yardimciMizan391Toplam - sonuc.toplamHesaplananKdv,
+              aciklama: 'Ana Mizan 391 Hesaplanan KDV (${TurkceFormat.para(sonuc.toplamHesaplananKdv)}) ile Yardımcı Mizan (%10 + %20) alt hesap toplamı (${TurkceFormat.para(sonuc.yardimciMizan391Toplam)}) birbirini tutmuyor. Fark: ${TurkceFormat.para(kdv391Farki)}.',
+              cozumOnerisi: 'Yardımcı mizandaki 391.10 ve 391.20 kırılımları ile ana mizan 391 alacak bakiyesini karşılaştırınız.',
+            ));
+          } else {
+            kontroller.add(MutabakatKontrolKaydi(
+              id: 'sen-10a-${kontrolIdSayac++}',
+              senaryoNo: 10,
+              birimAdi: birimAdi,
+              baslik: 'Yardımcı Mizan 391 (%10 / %20) Mutabakatı Başarılı',
+              seviye: DenetimSeviyesi.bilgi,
+              beklenenDeger: sonuc.toplamHesaplananKdv,
+              bulunanDeger: sonuc.yardimciMizan391Toplam,
+              fark: 0.0,
+              aciklama: 'Yardımcı mizan (%10 ve %20) kırılımları ana mizan 391 bakiyesi ile kuruşu kuruşuna örtüşüyor (${TurkceFormat.para(sonuc.yardimciMizan391Toplam)}).',
+            ));
+          }
+        }
+
+        // 10b: 191 İndirilecek KDV Mutabakatı
+        if (sonuc.yardimciMizan191Toplam > 0 && sonuc.toplamIndirilecekKdv > 0) {
+          final kdv191Farki = (sonuc.yardimciMizan191Toplam - sonuc.toplamIndirilecekKdv).abs();
+          if (kdv191Farki > 1.0) {
+            kontroller.add(MutabakatKontrolKaydi(
+              id: 'sen-10b-${kontrolIdSayac++}',
+              senaryoNo: 10,
+              birimAdi: birimAdi,
+              baslik: 'Ana Mizan 191 ile Yardımcı Mizan KDV Uyuşmazlığı',
+              seviye: DenetimSeviyesi.uyari,
+              beklenenDeger: sonuc.toplamIndirilecekKdv,
+              bulunanDeger: sonuc.yardimciMizan191Toplam,
+              fark: sonuc.yardimciMizan191Toplam - sonuc.toplamIndirilecekKdv,
+              aciklama: 'Ana Mizan 191 İndirilecek KDV (${TurkceFormat.para(sonuc.toplamIndirilecekKdv)}) ile Yardımcı Mizan 191 alt hesap toplamı (${TurkceFormat.para(sonuc.yardimciMizan191Toplam)}) farklıdır.',
+              cozumOnerisi: '191 alt hesap hareketlerini ve dönem borç toplamını inceleyiniz.',
+            ));
+          } else {
+            kontroller.add(MutabakatKontrolKaydi(
+              id: 'sen-10b-${kontrolIdSayac++}',
+              senaryoNo: 10,
+              birimAdi: birimAdi,
+              baslik: 'Yardımcı Mizan 191 İndirilecek KDV Mutabakatı Tam',
+              seviye: DenetimSeviyesi.bilgi,
+              beklenenDeger: sonuc.toplamIndirilecekKdv,
+              bulunanDeger: sonuc.yardimciMizan191Toplam,
+              fark: 0.0,
+              aciklama: 'Yardımcı mizan 191 alt hesapları ana mizan 191 bakiyesini tam olarak doğrulamaktadır.',
+            ));
+          }
+        }
+
+        // 10c: 600 Gelirler / Hasılat Mutabakatı
+        if (sonuc.yardimciMizan600Toplam > 0 && sonuc.hasilat600Aylik > 0) {
+          final gelirFarki = (sonuc.yardimciMizan600Toplam - sonuc.hasilat600Aylik).abs();
+          if (gelirFarki > 1.0) {
+            kontroller.add(MutabakatKontrolKaydi(
+              id: 'sen-10c-${kontrolIdSayac++}',
+              senaryoNo: 10,
+              birimAdi: birimAdi,
+              baslik: '600 Hasılat ile Yardımcı Mizan Gelir Uyuşmazlığı',
+              seviye: DenetimSeviyesi.uyari,
+              beklenenDeger: sonuc.hasilat600Aylik,
+              bulunanDeger: sonuc.yardimciMizan600Toplam,
+              fark: sonuc.yardimciMizan600Toplam - sonuc.hasilat600Aylik,
+              aciklama: 'Ana mizan 600 toplamı (${TurkceFormat.para(sonuc.hasilat600Aylik)}) ile yardımcı mizan gelir alt hesap toplamı (${TurkceFormat.para(sonuc.yardimciMizan600Toplam)}) arasında fark var.',
+              cozumOnerisi: '600.01 / 600.03 vb. alt hesapların mizan toplamıyla eşleştiğini kontrol ediniz.',
             ));
           }
         }

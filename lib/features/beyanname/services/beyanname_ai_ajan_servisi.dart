@@ -169,6 +169,7 @@ class BeyannameAiAjanServisi {
       );
 
       final aylikMizanBelgesi = birimBelgeleri[BirimBelgeSlotTuru.aylikMizan];
+      final yardimciMizanBelgesi = birimBelgeleri[BirimBelgeSlotTuru.yardimciMizan];
       final yillikMizanBelgesi = birimBelgeleri[BirimBelgeSlotTuru.yillikMizan];
       final digerBelge = birimBelgeleri[BirimBelgeSlotTuru.diger];
 
@@ -184,7 +185,19 @@ class BeyannameAiAjanServisi {
         aylikMizanMetni = await belgeMetniniCikar(aylikMizanBelgesi);
       }
 
-      // 2. Yıllık Mizan Metni
+      // 2. Yardımcı Mizan (Muavin) Metni
+      String yardimciMizanMetni = '';
+      if (yardimciMizanBelgesi != null) {
+        yield AjanLogMesaji(
+          zaman: DateTime.now(),
+          mesaj: '📑 [$birimAdi] Yardımcı Mizan (Muavin) (${yardimciMizanBelgesi.dosyaAdi}) okunuyor...',
+          birimAdi: birimAdi,
+          ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.10 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
+        );
+        yardimciMizanMetni = await belgeMetniniCikar(yardimciMizanBelgesi);
+      }
+
+      // 3. Yıllık Mizan Metni
       String yillikMizanMetni = '';
       if (yillikMizanBelgesi != null) {
         yield AjanLogMesaji(
@@ -196,7 +209,7 @@ class BeyannameAiAjanServisi {
         yillikMizanMetni = await belgeMetniniCikar(yillikMizanBelgesi);
       }
 
-      // 3. Diğer Belgeler (Fatura modülünün offline ayrıştırıcısı ile kontrol)
+      // 4. Diğer Belgeler (Fatura modülünün offline ayrıştırıcısı ile kontrol)
       String digerBelgeMetni = '';
       final tevkifatFaturaListesi = <Map<String, dynamic>>[];
       if (digerBelge != null) {
@@ -219,18 +232,19 @@ class BeyannameAiAjanServisi {
         } catch (_) {}
       }
 
-      // 4. Gemini AI İstemi Hazırlama
+      // 5. Gemini AI İstemi Hazırlama
       final prompt = _buildMizanPrompt(
         birimAdi: birimAdi,
         yil: yil,
         ay: ay,
         aylikMizanMetni: aylikMizanMetni,
+        yardimciMizanMetni: yardimciMizanMetni,
         yillikMizanMetni: yillikMizanMetni,
         digerBelgeMetni: digerBelgeMetni,
       );
 
       final contentParts = <Part>[];
-      // Multimodal: Taranmış veya dijital PDF/görselleri (Aylık mizan, Yıllık mizan, Ek belgeler/faturalar) Gemini'ye doğrudan ilet
+      // Multimodal: Taranmış veya dijital PDF/görselleri (Aylık mizan, Yardımcı mizan, Yıllık mizan, Ek belgeler/faturalar) Gemini'ye doğrudan ilet
       void addMediaPartIfApplicable(BirimYuklenenBelge? doc) {
         if (doc == null || doc.dosyaBytes == null || doc.dosyaBytes!.isEmpty) return;
         final ext = doc.dosyaUzantisi.toLowerCase();
@@ -244,6 +258,7 @@ class BeyannameAiAjanServisi {
       }
 
       addMediaPartIfApplicable(aylikMizanBelgesi);
+      addMediaPartIfApplicable(yardimciMizanBelgesi);
       addMediaPartIfApplicable(yillikMizanBelgesi);
       addMediaPartIfApplicable(digerBelge);
       contentParts.add(TextPart(prompt));
@@ -452,6 +467,7 @@ class BeyannameAiAjanServisi {
     required int yil,
     required int ay,
     required String aylikMizanMetni,
+    required String yardimciMizanMetni,
     required String yillikMizanMetni,
     required String digerBelgeMetni,
   }) {
@@ -459,7 +475,7 @@ class BeyannameAiAjanServisi {
 Sen Türkiye Cumhuriyeti Üniversiteleri Döner Sermaye İşletmeleri konusunda uzmanlaşmış kıdemli bir Mali Müşavir ve Beyanname Hazırlama Yapay Zeka Ajanısın.
 
 GÖREV:
-Aşağıda verilen "$birimAdi" birimine ait $yil yılı ${ay.toString().padLeft(2, '0')}. ay belgelerini (Aylık Mizan, Yıllık Kümülatif Mizan ve Ek Belgeler) incele.
+Aşağıda verilen "$birimAdi" birimine ait $yil yılı ${ay.toString().padLeft(2, '0')}. ay belgelerini (Aylık Mizan, Yardımcı Mizan / Muavin, Yıllık Kümülatif Mizan ve Ek Belgeler) incele.
 Belgelerdeki muhasebe hesap kodlarından KDV 1, Damga Vergisi, 600 Hasılat ve 123 Kredi Kartı beyanname verilerini hatasız ve kuruşu kuruşuna çıkar.
 
 ARANACAK HESAP KODLARI VE KURALLAR:
@@ -487,6 +503,13 @@ ARANACAK HESAP KODLARI VE KURALLAR:
 8. TEVKİFATLI FATURALAR VE BELGE-MİZAN MUTABAKATI:
    - Ekli belgelerde/görsellerde (taranmış veya dijital) yer alan faturaları incele. Tevkifatlı olanları tespit et.
    - Eğer fatura mevcut ancak mizandaki 600/391 hesaplarına henüz yansımamışsa veya tutarlar arasında mutabakatsızlık varsa "aciklama" alanına açıkça yaz (Örn: "X firmasına ait Y TL tevkifatlı fatura mizana henüz yansımamış").
+9. YARDIMCI MİZAN (MUAVİN / ALT HESAP MİZANI) MUTABAKATI:
+   - Eğer Yardımcı Mizan (Muavin) yüklenmişse; 391.20, 391.10 (%20 ve %10 KDV), 191.20, 191.10 ve 600 alt gelir kodlarını buradan kuruşu kuruşuna teyit et.
+   - Yardımcı mizan alt toplamları ile Ana Mizan bakiyelerini karşılaştır. Fark varsa "aciklama" alanına yaz.
+   - "yardimciMizanKullanildi": true/false,
+   - "yardimciMizan391Toplam": 0.0,
+   - "yardimciMizan191Toplam": 0.0,
+   - "yardimciMizan600Toplam": 0.0
 
 ÇIKTI FORMATI:
 SADECE VE SADECE aşağıdaki JSON formatında bir nesne döndür (Markdown backtick dışında hiçbir açıklama veya ek yazı yazma):
@@ -510,6 +533,10 @@ SADECE VE SADECE aşağıdaki JSON formatında bir nesne döndür (Markdown back
   "is191TersBakiye": false,
   "is391TersBakiye": false,
   "is600TersBakiye": false,
+  "yardimciMizanKullanildi": false,
+  "yardimciMizan391Toplam": 0.0,
+  "yardimciMizan191Toplam": 0.0,
+  "yardimciMizan600Toplam": 0.0,
   "tevkifatFaturalari": [],
   "aciklama": ""
 }
@@ -517,6 +544,10 @@ SADECE VE SADECE aşağıdaki JSON formatında bir nesne döndür (Markdown back
 ---
 AYLIK MİZAN METNİ:
 $aylikMizanMetni
+
+---
+YARDIMCI MİZAN (MUAVİN) METNİ:
+$yardimciMizanMetni
 
 ---
 YILLIK KÜMÜLATİF MİZAN METNİ:

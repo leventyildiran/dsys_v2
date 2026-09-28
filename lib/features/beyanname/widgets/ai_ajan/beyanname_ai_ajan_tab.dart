@@ -331,7 +331,7 @@ class BeyannameAiAjanTab extends StatelessWidget {
             ),
           ),
           subtitle: const Text(
-            'Yapay zeka tek başına karar vermez; okunan her veri 9 senaryolu matematiksel kural motorundan geçer ve onayınıza sunulur.',
+            'Yapay zeka tek başına karar vermez; okunan her veri 10 senaryolu matematiksel kural motorundan geçer ve onayınıza sunulur.',
             style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
           ),
           children: [
@@ -414,12 +414,340 @@ class BeyannameAiAjanTab extends StatelessWidget {
                       );
                     },
                   ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primary),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text(
+                            'Hangi belgeden hangi hesapların okunduğunu, nereye yazıldığını ve hangi kuralın denetlediğini ayrıntılı görmek için:',
+                            style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        ElevatedButton.icon(
+                          onPressed: () => _hesapHaritasiDialogGoster(context),
+                          icon: const Icon(Icons.table_chart_rounded, size: 15, color: AppColors.white),
+                          label: const Text(
+                            '🔍 Ne Neyi Okuyor? (Hesap Haritası)',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.white),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  void _hesapHaritasiDialogGoster(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          backgroundColor: AppColors.surface,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1050, maxHeight: 750),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primarySubtle,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.account_tree_rounded, size: 22, color: AppColors.primary),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '🔍 Ne Neyi Okuyor? — Beyanname Ajanı Detaylı Hesap & Belge Haritası',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Yapay zeka ajanı yüklediğiniz her belgeyi aşağıdaki katı muhasebe kurallarına göre tarar, süzer ve beyanname masasına bağlar.',
+                              style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                        tooltip: 'Kapat',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  const Divider(height: 1, color: AppColors.border),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _buildHaritaKarti(
+                            hesapKodu: '391.20',
+                            hesapAdi: 'Hesaplanan KDV (%20)',
+                            bakilanBelge: 'Aylık Mizan veya Yardımcı Mizan (Muavin)',
+                            tarananVeri: '391.20 Alacak Bakiyesi (veya 391 Bakiye Satırı)',
+                            hedefMasa: 'KDV 1 Masası ➔ Tablo 2 Satır 6 (%20 Matrah ve KDV)',
+                            denetimKurali: 'Matrah = KDV / 0,20 formülüyle test edilir. 1 TL fark olursa Senaryo 4/10 kalkanı devreye girer.',
+                            rozetRenk: AppColors.primary,
+                            rozetBg: AppColors.primarySubtle,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildHaritaKarti(
+                            hesapKodu: '391.10',
+                            hesapAdi: 'Hesaplanan KDV (%10)',
+                            bakilanBelge: 'Aylık Mizan veya Yardımcı Mizan (Muavin)',
+                            tarananVeri: '391.10 Alacak Bakiyesi',
+                            hedefMasa: 'KDV 1 Masası ➔ Tablo 2 Satır 4 (%10 Matrah ve KDV)',
+                            denetimKurali: 'Matrah = KDV / 0,10 formülüyle test edilir. Yardımcı mizan varsa ana mizanla çapraz teyit edilir.',
+                            rozetRenk: AppColors.primary,
+                            rozetBg: AppColors.primarySubtle,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildHaritaKarti(
+                            hesapKodu: '191',
+                            hesapAdi: 'İndirilecek KDV (Dönem Borç Hareketi)',
+                            bakilanBelge: 'Aylık Mizan / Yardımcı Mizan',
+                            tarananVeri: '191 Hesabı Borç Hareketi / Dönem Borç Bakiyesi',
+                            hedefMasa: 'KDV 1 Masası ➔ Tablo 5 Satır 34 (Bu Döneme Ait İndirilecek KDV)',
+                            denetimKurali: 'Borç bakiyesi kontrol edilir. Muhasebe kuralı: 191 asla alacak bakiyesi veremez (Senaryo 6b).',
+                            rozetRenk: AppColors.info,
+                            rozetBg: AppColors.infoSubtle,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildHaritaKarti(
+                            hesapKodu: '190',
+                            hesapAdi: 'Devreden KDV (Açılış Borç Bakiyesi)',
+                            bakilanBelge: 'Aylık Mizan (190 Borç Kalanı) & Önceki Ay Beyannamesi',
+                            tarananVeri: '190 Hesabı Açılış / Devir Bakiyesi',
+                            hedefMasa: 'KDV 1 Masası ➔ Tablo 5 Satır 33 (Önceki Dönemden Devreden KDV)',
+                            denetimKurali: 'Sistemde kayıtlı önceki ay beyannamesinin kapanış devir KDV\'si ile kuruşu kuruşuna eşitliği test edilir (Senaryo 5).',
+                            rozetRenk: AppColors.warning,
+                            rozetBg: AppColors.warningSubtle,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildHaritaKarti(
+                            hesapKodu: '600',
+                            hesapAdi: 'Gelirler / Hasılat (Aylık & Kümülatif)',
+                            bakilanBelge: 'Aylık Mizan & Yıllık Mizan',
+                            tarananVeri: '600 Alacak Bakiyesi (Dönem İçi ve Yıl Kümülatifi)',
+                            hedefMasa: 'KDV 1 Masası ➔ Tablo 8 (Teslim ve Hizmetlerin Karşılığını Teşkil Eden Bedel)',
+                            denetimKurali: 'Aylık 600 + Geçmiş Aylar Hasılatı = Yıllık Kümülatif 600 eşitliği denetlenir (Senaryo 2). 600 asla borç veremez (Senaryo 6c).',
+                            rozetRenk: AppColors.success,
+                            rozetBg: AppColors.successSubtle,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildHaritaKarti(
+                            hesapKodu: '123',
+                            hesapAdi: 'Kredi Kartı / POS Tahsilatları',
+                            bakilanBelge: 'Aylık Mizan (123 Borç Bakiyesi)',
+                            tarananVeri: '123 Hesabı Dönem Borç Hareketi / Bakiyesi',
+                            hedefMasa: 'KDV 1 Masası ➔ Tablo 11 Satır 45 (Kredi Kartı ile Tahsil Edilen Bedel)',
+                            denetimKurali: 'POS tahsilatı aylık hasılatın 1.5 katını aşarsa GİB izaha davet risk uyarısı üretilir (Senaryo 1).',
+                            rozetRenk: AppColors.neutral,
+                            rozetBg: AppColors.neutralSubtle,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildHaritaKarti(
+                            hesapKodu: '360.03.05',
+                            hesapAdi: 'Damga Vergisi (Döner Sermaye)',
+                            bakilanBelge: 'Aylık Mizan (360.03.05 Alacak Bakiyesi)',
+                            tarananVeri: 'Alacak Kalanı',
+                            hedefMasa: 'Damga Vergisi Masası & 301 Kodu İcmali',
+                            denetimKurali: 'Damga Vergisi / 0,00948 (Binde 9,48) matematiksel matrah sağlaması yapılır (Senaryo 7).',
+                            rozetRenk: AppColors.primary,
+                            rozetBg: AppColors.primarySubtle,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildHaritaKarti(
+                            hesapKodu: 'FATURA / SMM',
+                            hesapAdi: 'Tevkifatlı Faturalar & Ekler',
+                            bakilanBelge: 'PDF veya Taranmış Görüntü (OCR Destekli)',
+                            tarananVeri: 'Firma Adı, VKN/TCKN, Matrah, KDV Tutarı, Tevkifat Oranı (9/10, 7/10, 5/10 vb.)',
+                            hedefMasa: 'KDV 2 Masası ➔ Tablo 2 (Kesinti Listesi) & %20/%10 Birim Kırılımları',
+                            denetimKurali: 'GİB 10 haneli VKN / 11 haneli TCKN algoritma sağlaması ve KDV x Oran matematik testi (Senaryo 8).',
+                            rozetRenk: AppColors.danger,
+                            rozetBg: AppColors.dangerSubtle,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildHaritaKarti(
+                            hesapKodu: 'MUAVİN / Y.MİZAN',
+                            hesapAdi: 'Yardımcı Mizan Alt Hesapları',
+                            bakilanBelge: 'Yardımcı Mizan Yuvasına Yüklenen Belge',
+                            tarananVeri: '391.10 (%10), 391.20 (%20), 191.10, 191.20, 600 Gelir Kırılımları',
+                            hedefMasa: 'KDV 1 Oran Ayrımı ve KDV 2 Çapraz Teyidi',
+                            denetimKurali: 'Senaryo 10: 391 ve 191 alt hesap toplamlarının ana mizan 391/191 ile birebir eşitliği çapraz test edilir.',
+                            rozetRenk: AppColors.success,
+                            rozetBg: AppColors.successSubtle,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Divider(height: 1, color: AppColors.border),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      ),
+                      child: const Text('Anladım, Kapat', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHaritaKarti({
+    required String hesapKodu,
+    required String hesapAdi,
+    required String bakilanBelge,
+    required String tarananVeri,
+    required String hedefMasa,
+    required String denetimKurali,
+    required Color rozetRenk,
+    required Color rozetBg,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: rozetBg,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: rozetRenk.withAlpha(80)),
+                ),
+                child: Text(
+                  hesapKodu,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: rozetRenk,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  hesapAdi,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant.withAlpha(120),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHaritaSatir('📄 Bakılan Belge:', bakilanBelge),
+                const SizedBox(height: 4),
+                _buildHaritaSatir('🔍 Taranan Veri / Alan:', tarananVeri),
+                const SizedBox(height: 4),
+                _buildHaritaSatir('🎯 Aktarılan Masa & Satır:', hedefMasa),
+                const SizedBox(height: 4),
+                _buildHaritaSatir('🛡️ Güvenlik & Denetim Kuralı:', denetimKurali, isKural: true),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHaritaSatir(String baslik, String icerik, {bool isKural = false}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 170,
+          child: Text(
+            baslik,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: isKural ? AppColors.primary : AppColors.textSecondary,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            icerik,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: isKural ? FontWeight.w600 : FontWeight.normal,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

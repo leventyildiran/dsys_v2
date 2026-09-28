@@ -4,6 +4,7 @@ import 'dart:typed_data';
 /// Gelecekte muhtasar bordrosu veya fatura listesi eklenmesi için genişletilebilir.
 enum BirimBelgeSlotTuru {
   aylikMizan('Aylık Mizan', 'Seçili ayın resmi mizanı (PDF/Excel)', true),
+  yardimciMizan('Yardımcı Mizan', 'Muavin / Alt hesap mizanı (%10, %20 ve Gelir kırılımları)', false),
   yillikMizan('Yıllık Mizan', 'Ocak - Seçili ay kümülatif mizanı (PDF/Excel)', true),
   diger('Diğer / Ekstra', 'KDV dökümü, fatura listesi, ek protokoller', false),
   muhtasarBordro('Muhtasar Bordro', 'Birim bordro icmali / personel listesi', false),
@@ -115,6 +116,12 @@ class BirimMizanAnalizSonucu {
   // Diğer belgelerden veya mizandan varsa Tevkifatlı Faturalar
   final List<Map<String, dynamic>> tevkifatFaturalari;
 
+  // Yardımcı Mizan (Muavin) Mutabakat Bilgileri
+  final bool yardimciMizanKullanildi;
+  final double yardimciMizan391Toplam;
+  final double yardimciMizan191Toplam;
+  final double yardimciMizan600Toplam;
+
   // Ham AI yanıtı veya log notları
   final String? aciklama;
   final Map<String, dynamic>? hamJson;
@@ -139,6 +146,10 @@ class BirimMizanAnalizSonucu {
     this.muhtasarDamga360 = 0.0,
     this.devredenKdv190 = 0.0,
     this.tevkifatFaturalari = const [],
+    this.yardimciMizanKullanildi = false,
+    this.yardimciMizan391Toplam = 0.0,
+    this.yardimciMizan191Toplam = 0.0,
+    this.yardimciMizan600Toplam = 0.0,
     this.aciklama,
     this.hamJson,
   });
@@ -168,6 +179,10 @@ class BirimMizanAnalizSonucu {
         'muhtasarDamga360': muhtasarDamga360,
         'devredenKdv190': devredenKdv190,
         'tevkifatFaturalari': tevkifatFaturalari,
+        'yardimciMizanKullanildi': yardimciMizanKullanildi,
+        'yardimciMizan391Toplam': yardimciMizan391Toplam,
+        'yardimciMizan191Toplam': yardimciMizan191Toplam,
+        'yardimciMizan600Toplam': yardimciMizan600Toplam,
         'aciklama': aciklama,
       };
 
@@ -197,6 +212,10 @@ class BirimMizanAnalizSonucu {
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
           const [],
+      yardimciMizanKullanildi: map['yardimciMizanKullanildi'] as bool? ?? false,
+      yardimciMizan391Toplam: (map['yardimciMizan391Toplam'] as num?)?.toDouble() ?? 0.0,
+      yardimciMizan191Toplam: (map['yardimciMizan191Toplam'] as num?)?.toDouble() ?? 0.0,
+      yardimciMizan600Toplam: (map['yardimciMizan600Toplam'] as num?)?.toDouble() ?? 0.0,
       aciklama: map['aciklama'] as String?,
       hamJson: map,
     );
