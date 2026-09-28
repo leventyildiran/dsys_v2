@@ -195,6 +195,29 @@ class BeyannameExcelServisi {
       cell.cellStyle.borders.all.color = '#FDE68A';
     }
 
+    // %20 ve %10 Genel Toplamları
+    final genelDokuz20 = provider.tevkifatKayitlari
+        .where((f) => f.etiket == '9/10' && f.kdvOrani == 20)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
+    final genelYedi20 = provider.tevkifatKayitlari
+        .where((f) => f.etiket == '7/10' && f.kdvOrani == 20)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
+    final genelBes20 = provider.tevkifatKayitlari
+        .where((f) => f.etiket == '5/10' && f.kdvOrani == 20)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
+    final genelToplam20 = genelDokuz20 + genelYedi20 + genelBes20;
+
+    final genelDokuz10 = provider.tevkifatKayitlari
+        .where((f) => f.etiket == '9/10' && f.kdvOrani == 10)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
+    final genelYedi10 = provider.tevkifatKayitlari
+        .where((f) => f.etiket == '7/10' && f.kdvOrani == 10)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
+    final genelBes10 = provider.tevkifatKayitlari
+        .where((f) => f.etiket == '5/10' && f.kdvOrani == 10)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
+    final genelToplam10 = genelDokuz10 + genelYedi10 + genelBes10;
+
     row2++;
     for (final b in icmaller) {
       sheet1.getRangeByIndex(row2, 1).setText(b.birimAdi);
@@ -222,6 +245,115 @@ class BeyannameExcelServisi {
         final cell = sheet1.getRangeByIndex(row2, c);
         cell.cellStyle.borders.all.lineStyle = xlsio.LineStyle.thin;
         cell.cellStyle.borders.all.color = '#E2E8F0';
+      }
+      row2++;
+
+      if (b.kdv2Toplam > 0) {
+        final dKey = BirimAdlandirma.canonicalKey(b.birimAdi);
+        final dokuz20 = provider.tevkifatKayitlari
+            .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket == '9/10' && f.kdvOrani == 20)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+        final dokuz10 = provider.tevkifatKayitlari
+            .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket == '9/10' && f.kdvOrani == 10)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+
+        final yedi20 = provider.tevkifatKayitlari
+            .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket == '7/10' && f.kdvOrani == 20)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+        final yedi10 = provider.tevkifatKayitlari
+            .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket == '7/10' && f.kdvOrani == 10)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+
+        final bes20 = provider.tevkifatKayitlari
+            .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket == '5/10' && f.kdvOrani == 20)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+        final bes10 = provider.tevkifatKayitlari
+            .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket == '5/10' && f.kdvOrani == 10)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+
+        final bTop20 = dokuz20 + yedi20 + bes20;
+        final bTop10 = dokuz10 + yedi10 + bes10;
+
+        if (bTop20 > 0) {
+          sheet1.getRangeByIndex(row2, 1).setText('    ↳ %20 KDV Tevkifatı');
+          sheet1.getRangeByIndex(row2, 1).cellStyle.italic = true;
+          final v20 = [dokuz20, yedi20, bes20, bTop20];
+          for (int c = 0; c < v20.length; c++) {
+            final cell = sheet1.getRangeByIndex(row2, c + 2);
+            cell.setNumber(v20[c]);
+            cell.numberFormat = '#,##0.00';
+            cell.cellStyle.hAlign = xlsio.HAlignType.right;
+            cell.cellStyle.italic = true;
+          }
+          for (int c = 1; c <= 5; c++) {
+            final cell = sheet1.getRangeByIndex(row2, c);
+            cell.cellStyle.borders.all.lineStyle = xlsio.LineStyle.thin;
+            cell.cellStyle.borders.all.color = '#E2E8F0';
+          }
+          row2++;
+        }
+
+        if (bTop10 > 0) {
+          sheet1.getRangeByIndex(row2, 1).setText('    ↳ %10 KDV Tevkifatı');
+          sheet1.getRangeByIndex(row2, 1).cellStyle.italic = true;
+          final v10 = [dokuz10, yedi10, bes10, bTop10];
+          for (int c = 0; c < v10.length; c++) {
+            final cell = sheet1.getRangeByIndex(row2, c + 2);
+            cell.setNumber(v10[c]);
+            cell.numberFormat = '#,##0.00';
+            cell.cellStyle.hAlign = xlsio.HAlignType.right;
+            cell.cellStyle.italic = true;
+          }
+          for (int c = 1; c <= 5; c++) {
+            final cell = sheet1.getRangeByIndex(row2, c);
+            cell.cellStyle.borders.all.lineStyle = xlsio.LineStyle.thin;
+            cell.cellStyle.borders.all.color = '#E2E8F0';
+          }
+          row2++;
+        }
+      }
+    }
+
+    // Toplam %20 Satırı
+    if (genelToplam20 > 0) {
+      sheet1.getRangeByIndex(row2, 1).setText('TOPLAM %20 KDV TEVKİFAT');
+      sheet1.getRangeByIndex(row2, 1).cellStyle.bold = true;
+      final topVals20 = [genelDokuz20, genelYedi20, genelBes20, genelToplam20];
+      for (int c = 0; c < topVals20.length; c++) {
+        final cell = sheet1.getRangeByIndex(row2, c + 2);
+        cell.setNumber(topVals20[c]);
+        cell.numberFormat = '#,##0.00';
+        cell.cellStyle.bold = true;
+        cell.cellStyle.hAlign = xlsio.HAlignType.right;
+        cell.cellStyle.fontColor = '#92400E';
+      }
+      for (int c = 1; c <= 5; c++) {
+        final cell = sheet1.getRangeByIndex(row2, c);
+        cell.cellStyle.backColor = '#FEF9C3';
+        cell.cellStyle.borders.all.lineStyle = xlsio.LineStyle.thin;
+        cell.cellStyle.borders.all.color = '#FDE68A';
+      }
+      row2++;
+    }
+
+    // Toplam %10 Satırı
+    if (genelToplam10 > 0) {
+      sheet1.getRangeByIndex(row2, 1).setText('TOPLAM %10 KDV TEVKİFAT');
+      sheet1.getRangeByIndex(row2, 1).cellStyle.bold = true;
+      final topVals10 = [genelDokuz10, genelYedi10, genelBes10, genelToplam10];
+      for (int c = 0; c < topVals10.length; c++) {
+        final cell = sheet1.getRangeByIndex(row2, c + 2);
+        cell.setNumber(topVals10[c]);
+        cell.numberFormat = '#,##0.00';
+        cell.cellStyle.bold = true;
+        cell.cellStyle.hAlign = xlsio.HAlignType.right;
+        cell.cellStyle.fontColor = '#92400E';
+      }
+      for (int c = 1; c <= 5; c++) {
+        final cell = sheet1.getRangeByIndex(row2, c);
+        cell.cellStyle.backColor = '#FEF9C3';
+        cell.cellStyle.borders.all.lineStyle = xlsio.LineStyle.thin;
+        cell.cellStyle.borders.all.color = '#FDE68A';
       }
       row2++;
     }

@@ -926,58 +926,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
         const SizedBox(height: 16),
 
         // --- 2.1 BİRİM BAZLI KDV 2 TEVKİFAT DAĞILIMI (9/10, 7/10, 5/10) ---
-        _buildSheetTitle('KDV 2 TEVKİFAT BİRİM DAĞILIMI (9/10, 7/10, 5/10 ORANLARI)', accentColor: const Color(0xFFD97706)),
-        const SizedBox(height: 6),
-        _buildTableContainer(
-          [
-            _headerRow(
-              [
-                'BİRİMLER',
-                '9 / 10 (%90)',
-                '7 / 10 (%70)',
-                '5 / 10 (%50)',
-                'TOPLAM KDV 2 TEVKİFAT',
-              ],
-              bg: const Color(0xFFFEF3C7),
-              textColor: const Color(0xFF92400E),
-            ),
-            ...list.map((b) {
-              final isDis = BirimAdlandirma.canonicalKey(b.birimAdi) == 'dis';
-              return TableRow(
-                decoration: BoxDecoration(
-                  color: isDis ? const Color(0xFFFEF08A).withValues(alpha: 0.3) : Colors.white,
-                ),
-                children: [
-                  _buildBirimCell(b.birimAdi),
-                  _cellText(TurkceFormat.para(b.kdv2DokuzBoluOn)),
-                  _cellText(TurkceFormat.para(b.kdv2YediBoluOn)),
-                  _cellText(TurkceFormat.para(b.kdv2BesBoluOn)),
-                  _cellText(TurkceFormat.para(b.kdv2Toplam), isBold: true, color: const Color(0xFFD97706)),
-                ],
-              );
-            }),
-            // KDV 2 Toplam Satırı
-            TableRow(
-              decoration: const BoxDecoration(color: Color(0xFFFEF3C7)),
-              children: [
-                _cellText('TOPLAM KDV 2 ÖDENECEK TEVKİFAT', isBold: true, align: TextAlign.left, color: const Color(0xFF92400E)),
-                _cellText(TurkceFormat.para(topKdv2Dokuz), isBold: true, color: const Color(0xFF92400E)),
-                _cellText(TurkceFormat.para(topKdv2Yedi), isBold: true, color: const Color(0xFF92400E)),
-                _cellText(TurkceFormat.para(topKdv2Bes), isBold: true, color: const Color(0xFF92400E)),
-                _cellText(TurkceFormat.para(topKdv2Genel), isBold: true, color: const Color(0xFFB45309)),
-              ],
-            ),
-          ],
-          borderColor: const Color(0xFFFDE68A),
-          gridColor: const Color(0xFFFEF3C7),
-          columnWidths: const {
-            0: FlexColumnWidth(2.8),
-            1: FlexColumnWidth(1.3),
-            2: FlexColumnWidth(1.3),
-            3: FlexColumnWidth(1.3),
-            4: FlexColumnWidth(1.5),
-          },
-        ),
+        _buildBirimKdv2TevkifatTablosu(provider, list),
         const SizedBox(height: 16),
 
         // --- 3. FİRMA / KİŞİ BİLGİLERİ DÖKÜMÜ ---
@@ -1987,48 +1936,258 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
         const SizedBox(height: 24),
 
         // ==================== 2. TABLO: KDV 2 TEVKİFAT (9/10, 7/10, 5/10) ====================
-        _buildSheetTitle('KDV 2 Tevkifat Birim Dağılımı (9/10, 7/10, 5/10 Oranları)', accentColor: const Color(0xFFD97706)),
-        const SizedBox(height: 6),
-        _buildTableContainer(
-          [
-            _headerRow(
-              [
-                'BİRİMLER',
-                '9 / 10 (%90)',
-                '7 / 10 (%70)',
-                '5 / 10 (%50)',
-                'TOPLAM KDV 2',
-              ],
-              bg: const Color(0xFFFEF3C7),
-              textColor: const Color(0xFF92400E),
-            ),
-            ...list.map((b) {
-              final isDis = BirimAdlandirma.canonicalKey(b.birimAdi) == 'dis';
-              return TableRow(
-                decoration: BoxDecoration(
-                  color: isDis ? const Color(0xFFFEF08A).withValues(alpha: 0.3) : Colors.white,
-                ),
-                children: [
-                  _buildBirimCell(b.birimAdi),
-                  _cellText(TurkceFormat.para(b.kdv2DokuzBoluOn)),
-                  _cellText(TurkceFormat.para(b.kdv2YediBoluOn)),
-                  _cellText(TurkceFormat.para(b.kdv2BesBoluOn)),
-                  _cellText(TurkceFormat.para(b.kdv2Toplam), isBold: true, color: const Color(0xFFD97706)),
-                ],
-              );
-            }),
-            // KDV 2 Toplam Satırı
-            TableRow(
-              decoration: const BoxDecoration(color: Color(0xFFFEF3C7)),
-              children: [
-                _cellText('TOPLAM KDV 2 ÖDENECEK TEVKİFAT', isBold: true, align: TextAlign.left, color: const Color(0xFF92400E)),
-                _cellText(TurkceFormat.para(topKdv2Dokuz), isBold: true, color: const Color(0xFF92400E)),
-                _cellText(TurkceFormat.para(topKdv2Yedi), isBold: true, color: const Color(0xFF92400E)),
-                _cellText(TurkceFormat.para(topKdv2Bes), isBold: true, color: const Color(0xFF92400E)),
-                _cellText(TurkceFormat.para(topKdv2Genel), isBold: true, color: const Color(0xFFB45309)),
-              ],
+        _buildBirimKdv2TevkifatTablosu(
+          provider,
+          list,
+          title: 'KDV 2 Tevkifat Birim Dağılımı (9/10, 7/10, 5/10 Oranları)',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBirimKdv2TevkifatTablosu(
+    BeyannameProvider provider,
+    List<BirimVergiIcmalSatiri> list, {
+    String title = 'KDV 2 TEVKİFAT BİRİM DAĞILIMI (9/10, 7/10, 5/10 ORANLARI)',
+  }) {
+    final topKdv2Dokuz = list.fold(0.0, (s, x) => s + x.kdv2DokuzBoluOn);
+    final topKdv2Yedi = list.fold(0.0, (s, x) => s + x.kdv2YediBoluOn);
+    final topKdv2Bes = list.fold(0.0, (s, x) => s + x.kdv2BesBoluOn);
+    final topKdv2Genel = list.fold(0.0, (s, x) => s + x.kdv2Toplam);
+
+    final genelDokuz20 = provider.tevkifatKayitlari
+        .where((f) => f.etiket == '9/10' && f.kdvOrani == 20)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
+    final genelYedi20 = provider.tevkifatKayitlari
+        .where((f) => f.etiket == '7/10' && f.kdvOrani == 20)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
+    final genelBes20 = provider.tevkifatKayitlari
+        .where((f) => f.etiket == '5/10' && f.kdvOrani == 20)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
+    final genelToplam20 = genelDokuz20 + genelYedi20 + genelBes20;
+
+    final genelDokuz10 = provider.tevkifatKayitlari
+        .where((f) => f.etiket == '9/10' && f.kdvOrani == 10)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
+    final genelYedi10 = provider.tevkifatKayitlari
+        .where((f) => f.etiket == '7/10' && f.kdvOrani == 10)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
+    final genelBes10 = provider.tevkifatKayitlari
+        .where((f) => f.etiket == '5/10' && f.kdvOrani == 10)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
+    final genelToplam10 = genelDokuz10 + genelYedi10 + genelBes10;
+
+    final rows = <TableRow>[];
+
+    // Başlık
+    rows.add(
+      _headerRow(
+        [
+          'BİRİMLER',
+          '9 / 10 (%90)',
+          '7 / 10 (%70)',
+          '5 / 10 (%50)',
+          'TOPLAM KDV 2 TEVKİFAT',
+        ],
+        bg: const Color(0xFFFEF3C7),
+        textColor: const Color(0xFF92400E),
+      ),
+    );
+
+    for (final b in list) {
+      final isDis = BirimAdlandirma.canonicalKey(b.birimAdi) == 'dis';
+      final hasTevkifat = b.kdv2Toplam > 0;
+
+      rows.add(
+        TableRow(
+          decoration: BoxDecoration(
+            color: isDis
+                ? const Color(0xFFFEF08A).withValues(alpha: 0.3)
+                : (hasTevkifat ? const Color(0xFFFFFDF5) : Colors.white),
+          ),
+          children: [
+            _buildBirimCell(b.birimAdi),
+            _cellText(TurkceFormat.para(b.kdv2DokuzBoluOn), isBold: hasTevkifat),
+            _cellText(TurkceFormat.para(b.kdv2YediBoluOn), isBold: hasTevkifat),
+            _cellText(TurkceFormat.para(b.kdv2BesBoluOn), isBold: hasTevkifat),
+            _cellText(
+              TurkceFormat.para(b.kdv2Toplam),
+              isBold: true,
+              color: hasTevkifat ? const Color(0xFFD97706) : AppColors.textPrimary,
             ),
           ],
+        ),
+      );
+
+      if (hasTevkifat) {
+        final dKey = BirimAdlandirma.canonicalKey(b.birimAdi);
+        final dokuz20 = provider.tevkifatKayitlari
+            .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket == '9/10' && f.kdvOrani == 20)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+        final dokuz10 = provider.tevkifatKayitlari
+            .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket == '9/10' && f.kdvOrani == 10)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+
+        final yedi20 = provider.tevkifatKayitlari
+            .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket == '7/10' && f.kdvOrani == 20)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+        final yedi10 = provider.tevkifatKayitlari
+            .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket == '7/10' && f.kdvOrani == 10)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+
+        final bes20 = provider.tevkifatKayitlari
+            .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket == '5/10' && f.kdvOrani == 20)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+        final bes10 = provider.tevkifatKayitlari
+            .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket == '5/10' && f.kdvOrani == 10)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+
+        final bToplam20 = dokuz20 + yedi20 + bes20;
+        final bToplam10 = dokuz10 + yedi10 + bes10;
+
+        if (bToplam20 > 0) {
+          rows.add(
+            TableRow(
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 24, top: 4, bottom: 4),
+                  child: Row(
+                    children: [
+                      const Text('↳ ', style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: AppColors.primarySubtle,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: const Text(
+                          '%20 KDV Tevkifatı',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _cellText(TurkceFormat.para(dokuz20), color: AppColors.textSecondary),
+                _cellText(TurkceFormat.para(yedi20), color: AppColors.textSecondary),
+                _cellText(TurkceFormat.para(bes20), color: AppColors.textSecondary),
+                _cellText(TurkceFormat.para(bToplam20), color: AppColors.textPrimary, isBold: true),
+              ],
+            ),
+          );
+        }
+
+        if (bToplam10 > 0) {
+          rows.add(
+            TableRow(
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 24, top: 4, bottom: 4),
+                  child: Row(
+                    children: [
+                      const Text('↳ ', style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: AppColors.infoSubtle,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: const Text(
+                          '%10 KDV Tevkifatı',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.info),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _cellText(TurkceFormat.para(dokuz10), color: AppColors.textSecondary),
+                _cellText(TurkceFormat.para(yedi10), color: AppColors.textSecondary),
+                _cellText(TurkceFormat.para(bes10), color: AppColors.textSecondary),
+                _cellText(TurkceFormat.para(bToplam10), color: AppColors.textPrimary, isBold: true),
+              ],
+            ),
+          );
+        }
+      }
+    }
+
+    // Toplam %20 Satırı
+    if (genelToplam20 > 0) {
+      rows.add(
+        TableRow(
+          decoration: const BoxDecoration(color: Color(0xFFFEF9C3)),
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Row(
+                children: [
+                  Icon(Icons.subdirectory_arrow_right_rounded, size: 14, color: Color(0xFF92400E)),
+                  SizedBox(width: 4),
+                  Text('TOPLAM %20 KDV TEVKİFAT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
+                ],
+              ),
+            ),
+            _cellText(TurkceFormat.para(genelDokuz20), isBold: true, color: const Color(0xFF92400E)),
+            _cellText(TurkceFormat.para(genelYedi20), isBold: true, color: const Color(0xFF92400E)),
+            _cellText(TurkceFormat.para(genelBes20), isBold: true, color: const Color(0xFF92400E)),
+            _cellText(TurkceFormat.para(genelToplam20), isBold: true, color: const Color(0xFF92400E)),
+          ],
+        ),
+      );
+    }
+
+    // Toplam %10 Satırı
+    if (genelToplam10 > 0) {
+      rows.add(
+        TableRow(
+          decoration: const BoxDecoration(color: Color(0xFFFEF9C3)),
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Row(
+                children: [
+                  Icon(Icons.subdirectory_arrow_right_rounded, size: 14, color: Color(0xFF92400E)),
+                  SizedBox(width: 4),
+                  Text('TOPLAM %10 KDV TEVKİFAT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
+                ],
+              ),
+            ),
+            _cellText(TurkceFormat.para(genelDokuz10), isBold: true, color: const Color(0xFF92400E)),
+            _cellText(TurkceFormat.para(genelYedi10), isBold: true, color: const Color(0xFF92400E)),
+            _cellText(TurkceFormat.para(genelBes10), isBold: true, color: const Color(0xFF92400E)),
+            _cellText(TurkceFormat.para(genelToplam10), isBold: true, color: const Color(0xFF92400E)),
+          ],
+        ),
+      );
+    }
+
+    // Genel Toplam Satırı
+    rows.add(
+      TableRow(
+        decoration: const BoxDecoration(color: Color(0xFFFEF3C7)),
+        children: [
+          _cellText('TOPLAM KDV 2 ÖDENECEK TEVKİFAT', isBold: true, align: TextAlign.left, color: const Color(0xFF92400E)),
+          _cellText(TurkceFormat.para(topKdv2Dokuz), isBold: true, color: const Color(0xFF92400E)),
+          _cellText(TurkceFormat.para(topKdv2Yedi), isBold: true, color: const Color(0xFF92400E)),
+          _cellText(TurkceFormat.para(topKdv2Bes), isBold: true, color: const Color(0xFF92400E)),
+          _cellText(TurkceFormat.para(topKdv2Genel), isBold: true, color: const Color(0xFFB45309)),
+        ],
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildSheetTitle(title, accentColor: const Color(0xFFD97706)),
+        const SizedBox(height: 6),
+        _buildTableContainer(
+          rows,
           borderColor: const Color(0xFFFDE68A),
           gridColor: const Color(0xFFFEF3C7),
           columnWidths: const {
