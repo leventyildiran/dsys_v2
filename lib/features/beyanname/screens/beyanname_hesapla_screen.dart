@@ -111,7 +111,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                         : const SizedBox.shrink(),
                   ),
                 ),
-                _buildExcelTabs(provider),
+                _buildExcelTabs(),
                 Expanded(
                   child: Scrollbar(
                     controller: _scrollController,
@@ -377,6 +377,49 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               ),
             ),
           ),
+          // Daraltılmış (Tabloyu Genişlet) modunda üst barda anlık KDV 1 ve KDV 2 rozetleri
+          if (!_kpiPanelAcik) ...[
+            const SizedBox(width: 12),
+            Container(
+              height: 30,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('KDV 1: ', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                  Text(
+                    TurkceFormat.para(provider.kdv1Sonuc.odenecekKdv1),
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              height: 30,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD97706).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('KDV 2: ', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFD97706))),
+                  Text(
+                    TurkceFormat.para(provider.kdv2Sonuc.butunTevkifatlarToplami),
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
       actions: [
@@ -675,6 +718,35 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             ),
           ),
         ),
+        const SizedBox(width: 8),
+
+        // 4) TABLOYU GENİŞLET / ÖZETİ GÖSTER (ODAK MODU) BUTONU
+        SizedBox(
+          height: 30,
+          child: OutlinedButton.icon(
+            onPressed: () => setState(() => _kpiPanelAcik = !_kpiPanelAcik),
+            icon: Icon(
+              _kpiPanelAcik ? Icons.unfold_less_rounded : Icons.unfold_more_rounded,
+              size: 15,
+              color: _kpiPanelAcik ? AppColors.textPrimary : AppColors.primary,
+            ),
+            label: Text(
+              _kpiPanelAcik ? 'Tabloyu Genişlet' : 'Özeti Göster',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: _kpiPanelAcik ? AppColors.textPrimary : AppColors.primary,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              backgroundColor: _kpiPanelAcik ? AppColors.surfaceVariant : AppColors.primarySubtle,
+              side: BorderSide(
+                color: _kpiPanelAcik ? AppColors.borderStrong : AppColors.primary.withValues(alpha: 0.5),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+          ),
+        ),
         const SizedBox(width: 12),
       ],
     );
@@ -746,17 +818,14 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
 
 
   // ==================== SEKME BUTONLARI (EXCEL SHEET TABLARI) ====================
-  Widget _buildExcelTabs(BeyannameProvider provider) {
+  Widget _buildExcelTabs() {
     return Container(
       color: const Color(0xFFF1F5F9), // Zarif nötr zemin
       height: 42,
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0xFFCBD5E1))),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: ListView.builder(
+      child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               itemCount: _tabTitles.length,
@@ -857,123 +926,6 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                   ),
                 );
               },
-            ),
-          ),
-          _buildKpiToggleControls(provider),
-        ],
-      ),
-    );
-  }
-
-  // ==================== DARALABİLİR KPI KONTROL BUTONU & MİNİ ROZETLER ====================
-  Widget _buildKpiToggleControls(BeyannameProvider provider) {
-    final k1 = provider.kdv1Sonuc;
-    final k2 = provider.kdv2Sonuc;
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 8, left: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Daraltılmış modda mini özet çipleri
-          if (!_kpiPanelAcik) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2563EB).withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.25)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('KDV 1: ', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                  Text(
-                    TurkceFormat.para(k1.odenecekKdv1),
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFD97706).withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.25)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('KDV 2: ', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFD97706))),
-                  Text(
-                    TurkceFormat.para(k2.butunTevkifatlarToplami),
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-                  ),
-                ],
-              ),
-            ),
-            if (provider.isDonemKayitli) ...[
-              const SizedBox(width: 6),
-              Tooltip(
-                message: provider.duzenlemeKilidiAcik ? 'Dönem Kilidi Açık (Düzenlenebilir)' : 'Dönem Kilitli (Korumalı)',
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: provider.duzenlemeKilidiAcik ? AppColors.warningSubtle : AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: provider.duzenlemeKilidiAcik ? AppColors.warning : AppColors.border),
-                  ),
-                  child: Icon(
-                    provider.duzenlemeKilidiAcik ? Icons.lock_open_rounded : Icons.lock_rounded,
-                    size: 13,
-                    color: provider.duzenlemeKilidiAcik ? AppColors.warning : AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(width: 8),
-          ],
-
-          // Genişlet / Daralt Butonu
-          InkWell(
-            onTap: () => setState(() => _kpiPanelAcik = !_kpiPanelAcik),
-            borderRadius: BorderRadius.circular(4),
-            child: Tooltip(
-              message: _kpiPanelAcik
-                  ? 'Üst özet panellerini daralt ve tablo alanını genişlet'
-                  : 'Üst özet panellerini tekrar göster',
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                decoration: BoxDecoration(
-                  color: _kpiPanelAcik ? AppColors.surface : AppColors.primarySubtle,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: _kpiPanelAcik ? AppColors.borderStrong : AppColors.primary.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _kpiPanelAcik ? Icons.unfold_less_rounded : Icons.unfold_more_rounded,
-                      size: 14,
-                      color: _kpiPanelAcik ? AppColors.textPrimary : AppColors.primary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _kpiPanelAcik ? 'Tabloyu Genişlet' : 'Özeti Göster',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: _kpiPanelAcik ? AppColors.textPrimary : AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
