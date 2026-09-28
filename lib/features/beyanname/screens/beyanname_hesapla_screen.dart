@@ -28,6 +28,8 @@ class BeyannameHesaplaScreen extends StatefulWidget {
 class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
   int _activeTabIndex = 0;
   final ScrollController _scrollController = ScrollController();
+  bool _kpiPanelAcik = true;
+  double _lastScrollOffset = 0.0;
 
   final List<String> _aylar = const [
     'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
@@ -57,7 +59,28 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final offset = _scrollController.offset;
+    final delta = offset - _lastScrollOffset;
+    _lastScrollOffset = offset;
+    // Aşağıya 100px'den fazla kaydırıldıysa ve aşağı yönlü hareket varsa daralt
+    if (delta > 20 && offset > 100 && _kpiPanelAcik) {
+      setState(() => _kpiPanelAcik = false);
+    } else if (delta < -20 && offset <= 30 && !_kpiPanelAcik) {
+      // En üste yaklaşıldığında tekrar aç
+      setState(() => _kpiPanelAcik = true);
+    }
+  }
+
+  @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
   }
@@ -73,9 +96,22 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                _buildSummaryKpiBanner(provider),
-                if (provider.isDonemKayitli) _buildKilitDurumBari(context, provider),
-                _buildExcelTabs(),
+                ClipRect(
+                  child: AnimatedSize(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeInOutCubic,
+                    child: _kpiPanelAcik
+                        ? Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildSummaryKpiBanner(provider),
+                              if (provider.isDonemKayitli) _buildKilitDurumBari(context, provider),
+                            ],
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+                _buildExcelTabs(provider),
                 Expanded(
                   child: Scrollbar(
                     controller: _scrollController,
@@ -710,114 +746,234 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
 
 
   // ==================== SEKME BUTONLARI (EXCEL SHEET TABLARI) ====================
-  Widget _buildExcelTabs() {
+  Widget _buildExcelTabs(BeyannameProvider provider) {
     return Container(
       color: const Color(0xFFF1F5F9), // Zarif nötr zemin
       height: 42,
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0xFFCBD5E1))),
       ),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        itemCount: _tabTitles.length,
-        itemBuilder: (context, i) {
-          final isSelected = _activeTabIndex == i;
-          final tabColor = _tabColors[i];
-          final isAiTab = i == 7; // Akıllı Mizan & Belge Ajanı sekmesi
+      child: Row(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              itemCount: _tabTitles.length,
+              itemBuilder: (context, i) {
+                final isSelected = _activeTabIndex == i;
+                final tabColor = _tabColors[i];
+                final isAiTab = i == 7; // Akıllı Mizan & Belge Ajanı sekmesi
 
-          return Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: InkWell(
-              onTap: () => setState(() => _activeTabIndex = i),
-              borderRadius: BorderRadius.circular(6),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: InkWell(
+                    onTap: () => setState(() => _activeTabIndex = i),
+                    borderRadius: BorderRadius.circular(6),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        gradient: isAiTab
+                            ? (isSelected
+                                ? const LinearGradient(
+                                    colors: [Color(0xFF4338CA), Color(0xFF6D28D9)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  )
+                                : const LinearGradient(
+                                    colors: [Color(0xFFEEF2FF), Color(0xFFF5F3FF)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ))
+                            : null,
+                        color: isAiTab
+                            ? null
+                            : (isSelected ? Colors.white : Colors.transparent),
+                        borderRadius: BorderRadius.circular(6),
+                        border: isAiTab
+                            ? Border.all(
+                                color: isSelected ? const Color(0xFFA5B4FC) : const Color(0xFFC7D2FE),
+                                width: isSelected ? 1.8 : 1.2,
+                              )
+                            : (isSelected
+                                ? Border.all(color: tabColor, width: 1.5)
+                                : Border.all(color: Colors.transparent)),
+                        boxShadow: isAiTab
+                            ? [
+                                BoxShadow(
+                                  color: isSelected
+                                      ? const Color(0xFF6366F1).withValues(alpha: 0.35)
+                                      : const Color(0xFF6366F1).withValues(alpha: 0.1),
+                                  blurRadius: isSelected ? 8 : 4,
+                                  offset: const Offset(0, 1.5),
+                                )
+                              ]
+                            : (isSelected
+                                ? [BoxShadow(color: tabColor.withValues(alpha: 0.15), blurRadius: 4, offset: const Offset(0, 1))]
+                                : null),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _tabTitles[i],
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              color: isAiTab
+                                  ? (isSelected ? Colors.white : const Color(0xFF4338CA))
+                                  : (isSelected ? tabColor : const Color(0xFF475569)),
+                            ),
+                          ),
+                          if (isAiTab) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? Colors.white.withValues(alpha: 0.25)
+                                    : const Color(0xFF4338CA).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isSelected ? Colors.white : const Color(0xFF6366F1),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Text(
+                                isSelected ? '⚡ AKTİF' : 'AI ✨',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  color: isSelected ? Colors.white : const Color(0xFF4338CA),
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          _buildKpiToggleControls(provider),
+        ],
+      ),
+    );
+  }
+
+  // ==================== DARALABİLİR KPI KONTROL BUTONU & MİNİ ROZETLER ====================
+  Widget _buildKpiToggleControls(BeyannameProvider provider) {
+    final k1 = provider.kdv1Sonuc;
+    final k2 = provider.kdv2Sonuc;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8, left: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Daraltılmış modda mini özet çipleri
+          if (!_kpiPanelAcik) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('KDV 1: ', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                  Text(
+                    TurkceFormat.para(k1.odenecekKdv1),
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD97706).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('KDV 2: ', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFD97706))),
+                  Text(
+                    TurkceFormat.para(k2.butunTevkifatlarToplami),
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                  ),
+                ],
+              ),
+            ),
+            if (provider.isDonemKayitli) ...[
+              const SizedBox(width: 6),
+              Tooltip(
+                message: provider.duzenlemeKilidiAcik ? 'Dönem Kilidi Açık (Düzenlenebilir)' : 'Dönem Kilitli (Korumalı)',
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: provider.duzenlemeKilidiAcik ? AppColors.warningSubtle : AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: provider.duzenlemeKilidiAcik ? AppColors.warning : AppColors.border),
+                  ),
+                  child: Icon(
+                    provider.duzenlemeKilidiAcik ? Icons.lock_open_rounded : Icons.lock_rounded,
+                    size: 13,
+                    color: provider.duzenlemeKilidiAcik ? AppColors.warning : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(width: 8),
+          ],
+
+          // Genişlet / Daralt Butonu
+          InkWell(
+            onTap: () => setState(() => _kpiPanelAcik = !_kpiPanelAcik),
+            borderRadius: BorderRadius.circular(4),
+            child: Tooltip(
+              message: _kpiPanelAcik
+                  ? 'Üst özet panellerini daralt ve tablo alanını genişlet'
+                  : 'Üst özet panellerini tekrar göster',
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
-                  gradient: isAiTab
-                      ? (isSelected
-                          ? const LinearGradient(
-                              colors: [Color(0xFF4338CA), Color(0xFF6D28D9)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            )
-                          : const LinearGradient(
-                              colors: [Color(0xFFEEF2FF), Color(0xFFF5F3FF)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ))
-                      : null,
-                  color: isAiTab
-                      ? null
-                      : (isSelected ? Colors.white : Colors.transparent),
-                  borderRadius: BorderRadius.circular(6),
-                  border: isAiTab
-                      ? Border.all(
-                          color: isSelected ? const Color(0xFFA5B4FC) : const Color(0xFFC7D2FE),
-                          width: isSelected ? 1.8 : 1.2,
-                        )
-                      : (isSelected
-                          ? Border.all(color: tabColor, width: 1.5)
-                          : Border.all(color: Colors.transparent)),
-                  boxShadow: isAiTab
-                      ? [
-                          BoxShadow(
-                            color: isSelected
-                                ? const Color(0xFF6366F1).withValues(alpha: 0.35)
-                                : const Color(0xFF6366F1).withValues(alpha: 0.1),
-                            blurRadius: isSelected ? 8 : 4,
-                            offset: const Offset(0, 1.5),
-                          )
-                        ]
-                      : (isSelected
-                          ? [BoxShadow(color: tabColor.withValues(alpha: 0.15), blurRadius: 4, offset: const Offset(0, 1))]
-                          : null),
+                  color: _kpiPanelAcik ? AppColors.surface : AppColors.primarySubtle,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: _kpiPanelAcik ? AppColors.borderStrong : AppColors.primary.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    Icon(
+                      _kpiPanelAcik ? Icons.unfold_less_rounded : Icons.unfold_more_rounded,
+                      size: 14,
+                      color: _kpiPanelAcik ? AppColors.textPrimary : AppColors.primary,
+                    ),
+                    const SizedBox(width: 4),
                     Text(
-                      _tabTitles[i],
+                      _kpiPanelAcik ? 'Tabloyu Genişlet' : 'Özeti Göster',
                       style: TextStyle(
                         fontSize: 11,
-                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                        color: isAiTab
-                            ? (isSelected ? Colors.white : const Color(0xFF4338CA))
-                            : (isSelected ? tabColor : const Color(0xFF475569)),
+                        fontWeight: FontWeight.w700,
+                        color: _kpiPanelAcik ? AppColors.textPrimary : AppColors.primary,
                       ),
                     ),
-                    if (isAiTab) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? Colors.white.withValues(alpha: 0.25)
-                              : const Color(0xFF4338CA).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isSelected ? Colors.white : const Color(0xFF6366F1),
-                            width: 0.8,
-                          ),
-                        ),
-                        child: Text(
-                          isSelected ? '⚡ AKTİF' : 'AI ✨',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w900,
-                            color: isSelected ? Colors.white : const Color(0xFF4338CA),
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
