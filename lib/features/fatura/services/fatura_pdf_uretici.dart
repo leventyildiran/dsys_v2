@@ -342,14 +342,10 @@ class FaturaPdfUretici {
                 final numuneAciklamaMelbesSatiri =
                     numuneAciklamaAlt.toLowerCase().contains('melbes') &&
                         numuneAciklamaAlt.toLowerCase().contains('numune');
-                final ustAciklamalar = [
-                  if (numuneAciklamaAlt.isNotEmpty &&
-                      !numuneAciklamaMelbesSatiri)
-                    numuneAciklamaAlt,
-                  if (invoice.aciklama != null &&
-                      invoice.aciklama!.trim().isNotEmpty)
-                    invoice.aciklama!,
-                ].join(' | ');
+                final ustAciklamalar = (numuneAciklamaAlt.isNotEmpty &&
+                        !numuneAciklamaMelbesSatiri)
+                    ? numuneAciklamaAlt
+                    : '';
 
                 if (ustAciklamalar.isNotEmpty) {
                   children.add(pw.Positioned(
@@ -360,7 +356,8 @@ class FaturaPdfUretici {
                 }
 
                 final melbesKurum = invoice.melbesKurumOnEki.trim();
-                if (melbesKurum.isNotEmpty) {
+                final melbesNo = invoice.melbesNo.trim();
+                if (melbesKurum.isNotEmpty && melbesNo.isNotEmpty) {
                   children.add(pw.Positioned(
                     top: konum('melbesKurum').dy,
                     left: konum('melbesKurum').dx,

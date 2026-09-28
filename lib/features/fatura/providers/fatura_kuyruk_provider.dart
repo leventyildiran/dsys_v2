@@ -622,13 +622,6 @@ class FaturaKuyrukProvider extends ChangeNotifier {
       {bool isInitialSelect = false}) {
     invoice.iban = birim.iban;
     invoice.hesapAdi = _formatHesapAdi(birim.hesapAdi, isletmeVkn);
-    final ad = birim.ad.toLowerCase();
-    final kisaAd = birim.kisaAd.toLowerCase();
-    if (isInitialSelect &&
-        (ad.contains('ubatam') || kisaAd == 'ubatam') &&
-        invoice.melbesKurumOnEki.trim().isEmpty) {
-      invoice.melbesKurumOnEki = FaturaMatbuConfig.varsayilanMelbesKurumOnEki;
-    }
     final birimEtiket = birim.kisaAd.isNotEmpty ? birim.kisaAd : birim.ad;
     for (var i = 0; i < invoice.kalemler.length; i++) {
       invoice.kalemler[i] = {...invoice.kalemler[i], 'birimAdi': birimEtiket};

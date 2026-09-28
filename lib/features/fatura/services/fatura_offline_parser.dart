@@ -580,8 +580,6 @@ class FaturaOfflineParser {
     final numune = _numuneRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
     final irsaliyeTarihi = _irsaliyeTarihRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
     final melbesKurumOnEki = _melbesKurumOnEkiFromText(fullText);
-
-    final yaziyla = _yaziylaRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
     final aciklama = _numuneAciklama(fullText);
 
     final kursAdi = _kursAdiRegex.firstMatch(fullText)?.group(1)?.trim();
@@ -602,7 +600,7 @@ class FaturaOfflineParser {
       melbesNo: melbes,
       numuneNo: numune,
       melbesKurumOnEki: melbesKurumOnEki,
-      numuneAciklamasi: aciklama.isNotEmpty ? aciklama : yaziyla,
+      numuneAciklamasi: aciklama,
       kalemler: kalemler,
       isKdvMuaf: muaf,
       matrah: matrah,

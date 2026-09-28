@@ -153,15 +153,16 @@ class KalibrasyonBaskiOnizleme {
     final numuneAciklamaAlt = invoice.numuneAciklamasi.trim();
     final numuneMelbesSatir = numuneAciklamaAlt.toLowerCase().contains('melbes') &&
         numuneAciklamaAlt.toLowerCase().contains('numune');
-    final ustAciklamalar = [
-      if (numuneAciklamaAlt.isNotEmpty && !numuneMelbesSatir) numuneAciklamaAlt,
-      if (invoice.aciklama != null && invoice.aciklama!.trim().isNotEmpty)
-        invoice.aciklama!.trim(),
-    ].join(' | ');
+    final ustAciklamalar = (numuneAciklamaAlt.isNotEmpty && !numuneMelbesSatir)
+        ? numuneAciklamaAlt
+        : '';
 
+    final melbesNo = invoice.melbesNo.trim();
     final melbesYazi = FaturaMatbuConfig.formatMelbesMatbu(
-      invoice.melbesNo,
-      kurumOnEki: invoice.melbesKurumOnEki.trim().isNotEmpty ? invoice.melbesKurumOnEki : null,
+      melbesNo,
+      kurumOnEki: (melbesNo.isNotEmpty && invoice.melbesKurumOnEki.trim().isNotEmpty)
+          ? invoice.melbesKurumOnEki
+          : null,
     );
     final numuneYazi = FaturaMatbuConfig.formatNumuneNoMatbu(invoice.numuneNo);
 
@@ -192,7 +193,7 @@ class KalibrasyonBaskiOnizleme {
         'irsaliyeTarihi': invoice.irsaliyeTarihi,
         'irsaliyeNo': invoice.irsaliyeNo,
         'numuneAciklama': ustAciklamalar,
-        'melbesKurum': invoice.melbesKurumOnEki.trim(),
+        'melbesKurum': melbesNo.isNotEmpty ? invoice.melbesKurumOnEki.trim() : '',
         'melbes': melbesYazi,
         'numuneNo': numuneYazi,
         'matrah': (!canliVeri || sonSayfa) ? TurkceFormat.para(invoice.matrah) : (invoice.nakliYekunAktif ? TurkceFormat.para(araToplam) : ''),

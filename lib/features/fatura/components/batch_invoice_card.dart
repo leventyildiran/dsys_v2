@@ -364,7 +364,7 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
           invoice.melbesKurumOnEki,
           (v) => provider.updateField(index, 'melbesKurumOnEki', v),
           cardIndex: index,
-          hintText: 'Örn: Çevre Şehircilik ve İklim Değişikliği Bakanlığı',
+          hintText: 'İsteğe bağlı (Örn: Kurum / Bakanlık Adı)',
           rebuildKey: ValueKey('melbes_kurum_${index}_$dialogCounter'),
         ),
         Row(
