@@ -92,7 +92,7 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
             ),
             Tab(
               icon: const Icon(Icons.shield_outlined, size: 18),
-              text: '9 Senaryolu Çapraz Denetim (${rapor.denetimKontrolleri.length} Test)',
+              text: '10 Senaryolu Çapraz Denetim (${rapor.denetimKontrolleri.length} Test)',
             ),
           ],
         ),
