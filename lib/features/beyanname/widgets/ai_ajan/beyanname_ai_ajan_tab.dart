@@ -41,13 +41,17 @@ class BeyannameAiAjanTab extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 16),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.border),
+            gradient: const LinearGradient(
+              colors: [Colors.white, Color(0xFFF8FAFC)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withAlpha(6),
-                blurRadius: 6,
+                color: const Color(0xFF64748B).withValues(alpha: 0.08),
+                blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
             ],
@@ -58,18 +62,29 @@ class BeyannameAiAjanTab extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4F46E5).withAlpha(25),
-                      borderRadius: BorderRadius.circular(8),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: const Icon(
                       Icons.auto_awesome_rounded,
                       size: 24,
-                      color: Color(0xFF4F46E5),
+                      color: Colors.white,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,35 +92,37 @@ class BeyannameAiAjanTab extends StatelessWidget {
                         Row(
                           children: [
                             const Text(
-                              '🤖 Otomatik Beyanname Ajanı (Gemini Mizan & Belge Motoru)',
+                              '🤖 Akıllı Mizan & Beyanname Denetim Ajanı',
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF1E1B4B),
+                                letterSpacing: -0.2,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 10),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: AppColors.primarySubtle,
-                                borderRadius: BorderRadius.circular(4),
+                                color: const Color(0xFFEEF2FF),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFF818CF8), width: 1),
                               ),
                               child: Text(
                                 '${provider.seciliYil} / ${provider.seciliAy.toString().padLeft(2, '0')} Dönemi',
                                 style: const TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF4338CA),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         const Text(
                           'Birimlerin Aylık Mizan, Yardımcı Mizan (Muavin), Yıllık Kümülatif Mizan ve Ek Belgelerini yükleyin. Sistem tek tek derinlemesine inceler, 10 senaryolu çapraz denetim yapar ve beyannamenizi hatasız doldurur.',
-                          style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                          style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B), height: 1.35),
                         ),
                       ],
                     ),
@@ -113,7 +130,7 @@ class BeyannameAiAjanTab extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 14),
-              const Divider(height: 1, color: AppColors.border),
+              const Divider(height: 1, color: Color(0xFFE2E8F0)),
               const SizedBox(height: 14),
 
               // Butonlar ve İstatistikler
@@ -131,17 +148,22 @@ class BeyannameAiAjanTab extends StatelessWidget {
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
-                        : const Icon(Icons.play_arrow_rounded, size: 18),
+                        : const Icon(Icons.rocket_launch_rounded, size: 18),
                     label: Text(
-                      isCalisiyor ? 'Analiz Ediliyor...' : '🚀 Beyannameyi Otomatik Analiz Et ve Hazırla',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      isCalisiyor ? 'Derin Mizan Denetimi Yapılıyor...' : '🚀 Beyannameyi Otomatik Analiz Et ve Hazırla',
+                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4F46E5),
-                      foregroundColor: AppColors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: const Color(0xFFE2E8F0),
+                      disabledForegroundColor: const Color(0xFF94A3B8),
+                      elevation: (isCalisiyor || toplamEvrak == 0) ? 0 : 3,
+                      shadowColor: const Color(0xFF4F46E5).withValues(alpha: 0.4),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
 
@@ -294,14 +316,18 @@ class BeyannameAiAjanTab extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.primary.withAlpha(40)),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFAFAFE), Color(0xFFF1F5FD)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF818CF8), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(4),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
+            color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -309,85 +335,164 @@ class BeyannameAiAjanTab extends StatelessWidget {
         data: ThemeData(dividerColor: Colors.transparent),
         child: ExpansionTile(
           initiallyExpanded: true,
-          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           leading: Container(
-            padding: const EdgeInsets.all(7),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
-              color: AppColors.primarySubtle,
-              borderRadius: BorderRadius.circular(6),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: const Icon(
               Icons.verified_user_rounded,
-              size: 20,
-              color: AppColors.primary,
+              size: 22,
+              color: Colors.white,
             ),
           ),
-          title: const Text(
-            '🛡️ Yapay Zeka Denetim & Doğruluk Kalkanı (Nasıl Korunuyorsunuz?)',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+          title: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              const Text(
+                '🛡️ Yapay Zeka Denetim & Doğruluk Kalkanı',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1E1B4B),
+                  letterSpacing: -0.2,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDCFCE7),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF16A34A), width: 1),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF15803D)),
+                    SizedBox(width: 4),
+                    Text(
+                      '10 Senaryo Aktif',
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF15803D)),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEF2FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF6366F1), width: 1),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.auto_awesome, size: 12, color: Color(0xFF4F46E5)),
+                    SizedBox(width: 4),
+                    Text(
+                      'Vision OCR & Çapraz Mutabakat',
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF4F46E5)),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0F2FE),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF0284C7), width: 1),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.lock_person_rounded, size: 12, color: Color(0xFF0369A1)),
+                    SizedBox(width: 4),
+                    Text(
+                      '%100 İnsan Onaylı',
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF0369A1)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          subtitle: const Text(
-            'Yapay zeka tek başına karar vermez; okunan her veri 10 senaryolu matematiksel kural motorundan geçer ve onayınıza sunulur.',
-            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          subtitle: const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text(
+              'Yapay zeka asla tek başına karar verip doğrudan beyannameye yazmaz; okunan her veri 10 senaryolu matematiksel kural motorundan geçer ve onayınıza sunulur.',
+              style: TextStyle(fontSize: 11.5, color: Color(0xFF475569), fontWeight: FontWeight.w500),
+            ),
           ),
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Column(
                 children: [
-                  const Divider(height: 1, color: AppColors.border),
-                  const SizedBox(height: 12),
+                  const Divider(height: 1, color: Color(0xFFCBD5E1)),
+                  const SizedBox(height: 14),
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final isNarrow = constraints.maxWidth < 800;
                       final item1 = _buildRehberKarti(
                         icon: Icons.calculate_rounded,
-                        renk: AppColors.info,
-                        bgRenk: AppColors.infoSubtle,
+                        renk: const Color(0xFF0284C7),
+                        bgRenk: const Color(0xFFF0F9FF),
                         baslik: '1. Matematiksel & Oran Kontrolü',
                         aciklama:
                             'AI\'ın okuduğu matrahlar otomatik olarak %20, %10 ve binde 9,48 ile çarpılarak kuruşu kuruşuna test edilir. 1 TL dahi tutarsızlık varsa sistem kırmızı uyarı verir, yanlış hesap beyannameye giremez.',
                       );
                       final item2 = _buildRehberKarti(
                         icon: Icons.document_scanner_rounded,
-                        renk: AppColors.warning,
-                        bgRenk: AppColors.warningSubtle,
+                        renk: const Color(0xFFD97706),
+                        bgRenk: const Color(0xFFFFFBEB),
                         baslik: '2. Taranmış Fatura & OCR Mizan Çapraz Mutabakatı',
                         aciklama:
                             'Tarayıcıdan taranmış PDF ve fotoğraflar Vision AI ile optik okunur (OCR). Faturalar ile mizandaki 600/391 hesapları kıyaslanır; fatura kesilmiş ama mizana henüz yansımamışsa ekranda "Mizana Yansımamış Fatura" uyarısı çıkar.',
                       );
                       final item3 = _buildRehberKarti(
                         icon: Icons.account_balance_wallet_rounded,
-                        renk: AppColors.primary,
-                        bgRenk: AppColors.primarySubtle,
+                        renk: const Color(0xFF4F46E5),
+                        bgRenk: const Color(0xFFEEF2FF),
                         baslik: '3. Yardımcı Mizan (Muavin) & %10 / %20 KDV Ayrımı',
                         aciklama:
                             'Ana mizan 391 ve 191 hesaplarını tek kalemde toplar. Yardımcı Mizan yuvasına dosya yüklendiğinde, AI 391.10 ve 391.20 alt hesaplarını net olarak ayrıştırır ve Senaryo 10 kuralıyla ana mizanla eşitliğini kuruşu kuruşuna denetler.',
                       );
                       final item4 = _buildRehberKarti(
                         icon: Icons.rule_rounded,
-                        renk: AppColors.danger,
-                        bgRenk: AppColors.dangerSubtle,
+                        renk: const Color(0xFFDC2626),
+                        bgRenk: const Color(0xFFFEF2F2),
                         baslik: '4. Muhasebe Mantık Filtresi (Ters Bakiye, 600 Borç & VKN)',
                         aciklama:
                             'Muhasebe kuralları gereği 191 asla alacak, 391 ve 600 asla borç veremez. AI yanlış sütun okursa ters bakiye dedektörü devreye girer. Ayrıca tüm VKN ve TCKN\'ler Gelir İdaresi algoritmalarıyla doğrulanır.',
                       );
                       final item5 = _buildRehberKarti(
                         icon: Icons.security_rounded,
-                        renk: AppColors.neutral,
-                        bgRenk: AppColors.neutralSubtle,
+                        renk: const Color(0xFF7C3AED),
+                        bgRenk: const Color(0xFFFAF5FF),
                         baslik: '5. 10 Senaryolu Çapraz Denetim Kalkanı',
                         aciklama:
                             'Satır 45 POS tahsilatı 1.5 kat kuralı (izaha davet riski), 190 Devreden KDV geçmiş ay beyanname mutabakatı, aylık ve yıllık hasılat uyumu gibi 10 ayrı denetim senaryosu otomatik işletilir.',
                       );
                       final item6 = _buildRehberKarti(
                         icon: Icons.thumb_up_alt_rounded,
-                        renk: AppColors.success,
-                        bgRenk: AppColors.successSubtle,
+                        renk: const Color(0xFF15803D),
+                        bgRenk: const Color(0xFFF0FDF4),
                         baslik: '6. Şeffaflık & İnsan Onayı (Human-in-the-Loop)',
                         aciklama:
                             'AI doğrudan beyannameye ASLA yazmaz. Önce "Nereden Nereye" şeffaf denetim raporu açılır. Siz gözünüzle inceleyip "Verileri Beyannameye Aktar" butonuna basana kadar hiçbir veri aktarılmaz. Aktarımdan sonra da tüm sayılar elle düzenlenebilir.',
@@ -443,13 +548,26 @@ class BeyannameAiAjanTab extends StatelessWidget {
                       );
                     },
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
+
+                  // ==================== ŞEFFAF OKUMA POLİTİKASI BANDI ====================
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.primary.withAlpha(80), width: 1.5),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFF8FAFC), Color(0xFFEEF2FF)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF818CF8), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.06),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -457,89 +575,145 @@ class BeyannameAiAjanTab extends StatelessWidget {
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(6),
+                              padding: const EdgeInsets.all(7),
                               decoration: BoxDecoration(
-                                color: AppColors.primarySubtle,
-                                borderRadius: BorderRadius.circular(6),
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(Icons.verified_rounded, size: 18, color: AppColors.primary),
+                              child: const Icon(Icons.verified_rounded, size: 18, color: Colors.white),
                             ),
                             const SizedBox(width: 10),
                             const Expanded(
                               child: Text(
                                 '🎯 Şeffaf Okuma Politikası: Sistem Neleri Okur, Neleri Okumaz?',
                                 style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary,
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF1E1B4B),
                                 ),
                               ),
                             ),
                             ElevatedButton.icon(
                               onPressed: () => _hesapHaritasiDialogGoster(context),
-                              icon: const Icon(Icons.menu_book_rounded, size: 15, color: AppColors.white),
+                              icon: const Icon(Icons.menu_book_rounded, size: 16, color: Colors.white),
                               label: const Text(
-                                '🔍 Neyi Okur / Neyi Okumaz? (Detaylı Harita)',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.white),
+                                '🔍 Neyi Okur / Neyi Okumaz? (Detaylı Kılavuz)',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: AppColors.white,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                backgroundColor: const Color(0xFF4F46E5),
+                                foregroundColor: Colors.white,
+                                elevation: 2,
+                                shadowColor: const Color(0xFF4F46E5).withValues(alpha: 0.4),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
-                        const Divider(height: 1, color: AppColors.border),
-                        const SizedBox(height: 8),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Row(
+                        const SizedBox(height: 12),
+                        const Divider(height: 1, color: Color(0xFFCBD5E1)),
+                        const SizedBox(height: 12),
+                        LayoutBuilder(
+                          builder: (context, c) {
+                            final isMobile = c.maxWidth < 750;
+                            final solKutu = Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF0FDF4),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFF86EFAC), width: 1.2),
+                              ),
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.success),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: RichText(
-                                      text: const TextSpan(
-                                        style: TextStyle(fontSize: 11, color: AppColors.textPrimary, height: 1.35),
-                                        children: [
-                                          TextSpan(text: 'Sistem Neleri Otomatik Okur: ', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.success)),
-                                          TextSpan(text: '391 (%20, %10), 191 İndirilecek, 190 Devreden, 600 Hasılat (Aylık/Kümülatif), 123 Kredi Kartı POS, 360.03.05 Damga, Tevkifat Faturaları & Yardımcı Mizan.'),
-                                        ],
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF15803D)),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        'Sistem Neleri Otomatik Okur & Eşler:',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF15803D),
+                                        ),
                                       ),
-                                    ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  const Text(
+                                    '• 391 Hesap (%20 ve %10 KDV Alt Hesapları)\n'
+                                    '• 191 İndirilecek KDV & 190 Devreden KDV\n'
+                                    '• 600 Hasılat (Aylık Net ve Yıllık Kümülatif)\n'
+                                    '• 123 Kredi Kartı POS Tahsilatları\n'
+                                    '• 360.03.05 Damga Vergisi Kesintileri\n'
+                                    '• Tevkifatlı Faturalar & Yardımcı Mizan (Muavin)',
+                                    style: TextStyle(fontSize: 11, color: Color(0xFF166534), height: 1.4, fontWeight: FontWeight.w500),
                                   ),
                                 ],
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Row(
+                            );
+
+                            final sagKutu = Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFFBEB),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
+                              ),
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.warning),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: RichText(
-                                      text: const TextSpan(
-                                        style: TextStyle(fontSize: 11, color: AppColors.textPrimary, height: 1.35),
-                                        children: [
-                                          TextSpan(text: 'Sistem Neleri Okumaz / Size Bırakır: ', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.warning)),
-                                          TextSpan(text: 'Mizanda hesabı açılmamış istisnalar (KDVK 17 vb.), sisteme yüklenmemiş harici faturalar ve serbest fiş açıklamaları (Kullanıcı elle girebilir).'),
-                                        ],
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFFD97706)),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        'Sistem Neleri Okumaz / Size Bırakır:',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFFD97706),
+                                        ),
                                       ),
-                                    ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  const Text(
+                                    '• Mizanda alt hesabı açılmamış istisnalar (KDVK 17 vb.)\n'
+                                    '• Sisteme yüklenmemiş harici faturalar\n'
+                                    '• Serbest fiş ve açıklamalı manuel giderler\n'
+                                    '(Bu alanları kullanıcı dilediğinde beyanname masalarından elle girebilir veya değiştirebilir).',
+                                    style: TextStyle(fontSize: 11, color: Color(0xFF92400E), height: 1.4, fontWeight: FontWeight.w500),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
+                            );
+
+                            if (isMobile) {
+                              return Column(
+                                children: [
+                                  solKutu,
+                                  const SizedBox(height: 10),
+                                  sagKutu,
+                                ],
+                              );
+                            }
+
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(child: solKutu),
+                                const SizedBox(width: 12),
+                                Expanded(child: sagKutu),
+                              ],
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -1061,9 +1235,16 @@ class BeyannameAiAjanTab extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: const Color(0xFFFAFAFE),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF64748B).withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1073,15 +1254,26 @@ class BeyannameAiAjanTab extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.primarySubtle,
-                  borderRadius: BorderRadius.circular(4),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.25),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
                 ),
                 child: Text(
                   'Senaryo $senaryoNo',
                   style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -1091,8 +1283,8 @@ class BeyannameAiAjanTab extends StatelessWidget {
                   baslik,
                   style: const TextStyle(
                     fontSize: 12.5,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1E293B),
                   ),
                 ),
               ),
@@ -1127,24 +1319,46 @@ class BeyannameAiAjanTab extends StatelessWidget {
     required String aciklama,
   }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: bgRenk.withAlpha(70),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: renk.withAlpha(60)),
+        gradient: LinearGradient(
+          colors: [Colors.white, bgRenk],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: renk.withValues(alpha: 0.35), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: renk.withValues(alpha: 0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: renk.withAlpha(30),
+              gradient: LinearGradient(
+                colors: [renk, renk.withValues(alpha: 0.85)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: renk.withValues(alpha: 0.3),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: Icon(icon, size: 16, color: renk),
+            child: Icon(icon, size: 16, color: Colors.white),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1152,18 +1366,20 @@ class BeyannameAiAjanTab extends StatelessWidget {
                 Text(
                   baslik,
                   style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
                     color: renk,
+                    letterSpacing: -0.1,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 Text(
                   aciklama,
                   style: const TextStyle(
-                    fontSize: 10.5,
-                    color: AppColors.textPrimary,
-                    height: 1.35,
+                    fontSize: 11,
+                    color: Color(0xFF334155),
+                    height: 1.4,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],

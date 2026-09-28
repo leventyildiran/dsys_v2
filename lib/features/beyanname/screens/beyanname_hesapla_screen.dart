@@ -713,7 +713,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
   Widget _buildExcelTabs() {
     return Container(
       color: const Color(0xFFF1F5F9), // Zarif nötr zemin
-      height: 40,
+      height: 42,
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0xFFCBD5E1))),
       ),
@@ -724,31 +724,95 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
         itemBuilder: (context, i) {
           final isSelected = _activeTabIndex == i;
           final tabColor = _tabColors[i];
+          final isAiTab = i == 7; // Akıllı Mizan & Belge Ajanı sekmesi
+
           return Padding(
             padding: const EdgeInsets.only(right: 6),
             child: InkWell(
               onTap: () => setState(() => _activeTabIndex = i),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(6),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
+                duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(4),
-                  border: isSelected
-                      ? Border.all(color: tabColor, width: 1.5)
-                      : Border.all(color: Colors.transparent),
-                  boxShadow: isSelected
-                      ? [BoxShadow(color: tabColor.withValues(alpha: 0.15), blurRadius: 4, offset: const Offset(0, 1))]
+                  gradient: isAiTab
+                      ? (isSelected
+                          ? const LinearGradient(
+                              colors: [Color(0xFF4338CA), Color(0xFF6D28D9)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : const LinearGradient(
+                              colors: [Color(0xFFEEF2FF), Color(0xFFF5F3FF)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ))
                       : null,
+                  color: isAiTab
+                      ? null
+                      : (isSelected ? Colors.white : Colors.transparent),
+                  borderRadius: BorderRadius.circular(6),
+                  border: isAiTab
+                      ? Border.all(
+                          color: isSelected ? const Color(0xFFA5B4FC) : const Color(0xFFC7D2FE),
+                          width: isSelected ? 1.8 : 1.2,
+                        )
+                      : (isSelected
+                          ? Border.all(color: tabColor, width: 1.5)
+                          : Border.all(color: Colors.transparent)),
+                  boxShadow: isAiTab
+                      ? [
+                          BoxShadow(
+                            color: isSelected
+                                ? const Color(0xFF6366F1).withValues(alpha: 0.35)
+                                : const Color(0xFF6366F1).withValues(alpha: 0.1),
+                            blurRadius: isSelected ? 8 : 4,
+                            offset: const Offset(0, 1.5),
+                          )
+                        ]
+                      : (isSelected
+                          ? [BoxShadow(color: tabColor.withValues(alpha: 0.15), blurRadius: 4, offset: const Offset(0, 1))]
+                          : null),
                 ),
-                child: Text(
-                  _tabTitles[i],
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                    color: isSelected ? tabColor : const Color(0xFF475569),
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _tabTitles[i],
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        color: isAiTab
+                            ? (isSelected ? Colors.white : const Color(0xFF4338CA))
+                            : (isSelected ? tabColor : const Color(0xFF475569)),
+                      ),
+                    ),
+                    if (isAiTab) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.white.withValues(alpha: 0.25)
+                              : const Color(0xFF4338CA).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isSelected ? Colors.white : const Color(0xFF6366F1),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Text(
+                          isSelected ? '⚡ AKTİF' : 'AI ✨',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            color: isSelected ? Colors.white : const Color(0xFF4338CA),
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
