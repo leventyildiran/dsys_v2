@@ -39,13 +39,27 @@ class PersonelModel {
     return u.isNotEmpty ? '$u $ad' : ad;
   }
 
+  /// Akademik unvana göre varsayılan katsayı türetir.
+  static double varsayilanUnvanKatsayisi(String unvan) {
+    final lower = unvan.trim().toLowerCase();
+    if (lower.contains('prof')) return 3.0;
+    if (lower.contains('doç') || lower.contains('doc')) return 2.5;
+    if (lower.contains('dr. öğr') || lower.contains('dr.öğr') || lower.contains('öğretim üyesi') || lower.contains('ogretim uyesi') || lower.contains('yrd') || lower.contains('yard')) return 2.2;
+    if (lower.contains('öğr') || lower.contains('ogr') || lower.contains('arş') || lower.contains('ars') || lower.contains('uzman') || lower.contains('okutman')) return 2.0;
+    return 2.0;
+  }
+
   factory PersonelModel.fromMap(String id, Map<String, dynamic> map) {
+    final unvan = map['unvan'] as String? ?? '';
+    final kayitli = (map['unvanKatsayisi'] as num?)?.toDouble();
     return PersonelModel(
       id: id,
       tcKimlikNo: map['tcKimlikNo'] as String? ?? '',
       adSoyad: map['adSoyad'] as String? ?? '',
-      unvan: map['unvan'] as String? ?? '',
-      unvanKatsayisi: (map['unvanKatsayisi'] as num?)?.toDouble() ?? 1.0,
+      unvan: unvan,
+      unvanKatsayisi: (kayitli != null && kayitli > 1.0)
+          ? kayitli
+          : varsayilanUnvanKatsayisi(unvan),
       birimId: map['birimId'] as String? ?? '',
       birimAdi: map['birimAdi'] as String?,
       eposta: map['eposta'] as String?,

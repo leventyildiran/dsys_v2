@@ -25,6 +25,7 @@ class ManuelHesaplamaKaydi {
     required this.kdvHaricGelir,
     required this.dagitilabilirPay,
     this.sablonTuru = 'dts',
+    this.tavanUygula = true,
     DateTime? olusturmaTarihi,
     this.odemeTekSeferde = true,
     this.toplamTaksitSayisi = 3,
@@ -52,6 +53,7 @@ class ManuelHesaplamaKaydi {
   final double kdvHaricGelir;
   final double dagitilabilirPay;
   final String sablonTuru; // 'dts', '58k', 'usem', 'tomer', 'dosim'
+  final bool tavanUygula;
   final DateTime olusturmaTarihi;
   final bool odemeTekSeferde;
   final int toplamTaksitSayisi;
@@ -78,6 +80,7 @@ class ManuelHesaplamaKaydi {
     'kdvHaricGelir': kdvHaricGelir,
     'dagitilabilirPay': dagitilabilirPay,
     'sablonTuru': sablonTuru,
+    'tavanUygula': tavanUygula,
     'olusturmaTarihi': Timestamp.fromDate(olusturmaTarihi),
     'odemeTekSeferde': odemeTekSeferde,
     'toplamTaksitSayisi': toplamTaksitSayisi,
@@ -133,6 +136,7 @@ class ManuelHesaplamaKaydi {
       kdvHaricGelir: (map['kdvHaricGelir'] as num?)?.toDouble() ?? 0.0,
       dagitilabilirPay: (map['dagitilabilirPay'] as num?)?.toDouble() ?? 0.0,
       sablonTuru: map['sablonTuru'] as String? ?? 'dts',
+      tavanUygula: map['tavanUygula'] as bool? ?? true,
       olusturmaTarihi: tarih,
       odemeTekSeferde: map['odemeTekSeferde'] as bool? ?? true,
       toplamTaksitSayisi: (map['toplamTaksitSayisi'] as num?)?.toInt() ?? 3,

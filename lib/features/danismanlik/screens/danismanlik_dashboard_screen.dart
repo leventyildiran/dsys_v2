@@ -14,9 +14,38 @@ class DanismanlikDashboardScreen extends StatefulWidget {
 }
 
 class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen> {
+  final _service = DanismanlikService();
+  late final Stream<List<DanismanlikModel>> _stream;
+  final ScrollController _scrollController = ScrollController();
+
   String _searchQuery = '';
   DanismanlikDurum? _selectedDurum;
   String? _selectedBirim;
+
+  @override
+  void initState() {
+    super.initState();
+    _stream = _service.streamAll();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _koruScrollVeGuncelle(VoidCallback fn) {
+    final currentOffset = _scrollController.hasClients ? _scrollController.offset : 0.0;
+    setState(fn);
+    if (currentOffset > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          final target = currentOffset.clamp(0.0, _scrollController.position.maxScrollExtent);
+          _scrollController.jumpTo(target);
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,12 +90,10 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
   }
 
   Widget _buildBody() {
-    final service = DanismanlikService();
-
     return StreamBuilder<List<DanismanlikModel>>(
-      stream: service.streamAll(),
+      stream: _stream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
@@ -110,6 +137,8 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
         filteredItems = filteredItems.reversed.toList();
 
         return SingleChildScrollView(
+          key: const PageStorageKey('danismanlik_dashboard_scroll'),
+          controller: _scrollController,
           padding: const EdgeInsets.all(DanismanlikLayout.sayfaPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -196,7 +225,7 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
                         onChanged: (val) {
-                          setState(() {
+                          _koruScrollVeGuncelle(() {
                             _searchQuery = val;
                           });
                         },
@@ -254,7 +283,7 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                           )),
                         ],
                         onChanged: (val) {
-                          setState(() {
+                          _koruScrollVeGuncelle(() {
                             _selectedBirim = val;
                           });
                         },
@@ -288,6 +317,7 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
 
               // DATA GRID (Rich List)
               Container(
+                constraints: const BoxConstraints(minHeight: 450),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -325,8 +355,8 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
                     
                     // Table Body
                     if (filteredItems.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(48.0),
+                      const SizedBox(
+                        height: 350,
                         child: Center(
                           child: Text('Aradığınız kriterlere uygun danışmanlık bulunamadı.', style: TextStyle(color: Colors.grey, fontSize: 16)),
                         ),
@@ -790,7 +820,8 @@ class _DanismanlikDashboardScreenState extends State<DanismanlikDashboardScreen>
   Widget _buildFilterPill(String label, DanismanlikDurum? durum, bool isSelected) {
     return InkWell(
       onTap: () {
-        setState(() {
+        if (_selectedDurum == durum) return;
+        _koruScrollVeGuncelle(() {
           _selectedDurum = durum;
         });
       },

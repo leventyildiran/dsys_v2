@@ -21,7 +21,7 @@ class ManuelHesaplamaVerisi {
     required this.personeller,
     this.manuelDonemKatsayisi,
     this.memurMaasKatsayisi = 1.387871,
-    this.tavanUygula = false,
+    this.tavanUygula = true,
     this.is58k = false,
     this.is58e = false,
     this.gelirVergisiOrani = 15,
@@ -444,7 +444,7 @@ class ManuelHesaplamaPdfServisi {
                 'Adı Soyadı & Unvanı',
                 'Puan',
                 'Unvan K.',
-                'Saat',
+                'Saat / Mesai',
                 'Net Katkı Puanı',
                 'Saatlik Ücret',
                 'Ek Ders Tavanı',
@@ -457,7 +457,7 @@ class ManuelHesaplamaPdfServisi {
                     '${p.unvan} ${p.adSoyad}',
                     p.puan.toStringAsFixed(0),
                     p.unvanKatsayisi.toStringAsFixed(1),
-                    p.dersSaati.toStringAsFixed(0),
+                    '${p.dersSaati.toStringAsFixed(0)} Sa (${p.mesaiIci ? "Mesai İçi" : "Mesai Dışı"})',
                     s.bireyselNetKatkiPuani.toStringAsFixed(0),
                     TurkceFormat.para(s.kursSaatlikUcreti),
                     TurkceFormat.para(s.tavanSaatlikUcreti),
@@ -485,16 +485,18 @@ class ManuelHesaplamaPdfServisi {
                 pw.Text(
                   veri.is58k
                       ? '2547 Sayılı Kanun Madde 58/k Uyarınca Sözleşmeli Danışmanlık Şerhi:'
-                      : '2547 ve 2914 Sayılı Kanunlar Uyarınca 3,2 Katı Yasal Tavan Şerhi:',
+                      : '2547 ve 2914 Sayılı Kanunlar Uyarınca Ek Ders Yasal Tavan Şerhi:',
                   style: kalin(8),
                 ),
                 pw.SizedBox(height: 2),
                 pw.Text(
                   veri.is58k
                       ? 'İşbu ödeme, 2547 sayılı Kanun Madde 58/k uyarınca yapılan sanayi/bireysel danışmanlık sözleşmesine istinaden tahakkuk ettirilmiştir. Matrah üzerinden %15 kurum/araç-gereç payı kesildikten sonra kalan %85 tutar doğrudan danışmana ${veri.odemeTekSeferde ? "tek seferde" : "sözleşme taksitlerine bölünerek"} ödenmektedir. Puan hesabı ve saatlik ek ders tavanı aranmaz.'
-                      : (excel.herhangiBirTavanAsildi
-                          ? 'İşbu hesaplamada yer alan ve hesaplanan saatlik ücreti mesai dışı 3,2 katını (${TurkceFormat.para(excel.maksimumTavanSaatlik)}/Saat) aşan personele yasal tavan uygulanmış; tavanı aşan toplam ${TurkceFormat.para(excel.toplamTavanKesintisi)} tutar döner sermaye birim havuzuna devredilmiştir. Hiçbir personele yasal tavanın üzerinde ödeme yapılmamıştır.'
-                          : 'İşbu hesaplama icmalinde yer alan tüm öğretim elemanlarının saatlik ücretleri, 2914 sayılı Kanun uyarınca belirlenen mesai dışı ek ders ücreti tavanı olan 3,2 katını (${TurkceFormat.para(excel.maksimumTavanSaatlik)}/Saat) GEÇMEMİŞTİR. Dağıtım ve ödemeler mevzuata tam uygundur.'),
+                      : (!veri.tavanUygula
+                          ? 'İşbu hesaplama cetvelinde yasal saatlik ek ders tavanı sınırlaması uygulanmamış olup personele hak edilen brüt katkı payı tutarı tam olarak tahakkuk ettirilmiştir.'
+                          : (excel.herhangiBirTavanAsildi
+                              ? 'İşbu hesaplamada yer alan ve hesaplanan saatlik ücreti yasal tavanı (Mesai İçi 2.0x, Mesai Dışı 3.2x: ${TurkceFormat.para(excel.maksimumTavanSaatlik)}/Saat) aşan personele yasal tavan uygulanmış; tavanı aşan toplam ${TurkceFormat.para(excel.toplamTavanKesintisi)} tutar döner sermaye birim havuzuna devredilmiştir. Hiçbir personele yasal tavanın üzerinde ödeme yapılmamıştır.'
+                              : 'İşbu hesaplama icmalinde yer alan tüm öğretim elemanlarının saatlik ücretleri, 2914 sayılı Kanun uyarınca belirlenen ek ders ücreti tavanını (${TurkceFormat.para(excel.maksimumTavanSaatlik)}/Saat) GEÇMEMİŞTİR. Dağıtım ve ödemeler mevzuata tam uygundur.')),
                   style: normal(7.5),
                 ),
               ],
@@ -675,6 +677,7 @@ class ManuelHesaplamaPdfServisi {
                         'Puan',
                         'Unvan K.',
                         'Saat',
+                        'Mesai',
                         'Bireysel Net Katkı',
                         'Dönem Kats.',
                         'Kurs Saatlik Ücret',
@@ -734,6 +737,7 @@ class ManuelHesaplamaPdfServisi {
                             p.puan.toStringAsFixed(0),
                             p.unvanKatsayisi.toStringAsFixed(1),
                             p.dersSaati.toStringAsFixed(0),
+                            p.mesaiIci ? 'Mesai İçi' : 'Mesai Dışı',
                             s.bireyselNetKatkiPuani.toStringAsFixed(0),
                             TurkceFormat.katsayi(s.donemKatsayi),
                             TurkceFormat.para(s.kursSaatlikUcreti),
@@ -744,6 +748,7 @@ class ManuelHesaplamaPdfServisi {
                         }),
                         [
                           'TOPLAM',
+                          '',
                           '',
                           '',
                           '',

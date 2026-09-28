@@ -1,39 +1,18 @@
 import '../models/dagitim_model.dart';
+import 'danismanlik_excel_hesaplama.dart';
 
 class DanismanlikHesaplamaServisi {
   /// Memur maaş katsayısı (Şimdilik sabit, normalde veritabanından çekilebilir)
   static const double memurMaasKatsayisi = 1.387871;
 
-  /// Unvanlara göre Ek Gösterge haritası
-  static final Map<String, int> ekGostergeler = {
-    'Profesör': 300,
-    'Doçent': 250,
-    'Dr.Öğr.Üyesi': 200,
-    'Öğr.Gör.Dr.': 160,
-    'Öğr.Gör.': 160,
-    'Arş.Gör.Dr.': 160,
-    'Arş.Gör.': 160,
-  };
-
-  /// Unvanlara göre Unvan Katsayısı haritası
-  static final Map<String, double> unvanKatsayilari = {
-    'Profesör': 3.0,
-    'Doçent': 2.5,
-    'Dr.Öğr.Üyesi': 2.2,
-    'Öğr.Gör.Dr.': 2.0,
-    'Öğr.Gör.': 2.0,
-    'Arş.Gör.Dr.': 2.0,
-    'Arş.Gör.': 2.0,
-  };
-
   /// Unvandan Ek Gösterge getirir
   static int getEkGosterge(String unvan) {
-    return ekGostergeler[unvan] ?? 160;
+    return DanismanlikExcelHesaplama.ekGosterge(unvan);
   }
 
   /// Unvandan Unvan Katsayısı getirir
   static double getUnvanKatsayisi(String unvan) {
-    return unvanKatsayilari[unvan] ?? 1.0;
+    return DanismanlikExcelHesaplama.unvanKatsayisi(unvan);
   }
 
   /// KDV hariç toplam tutardan (matrah), kesintileri düşerek

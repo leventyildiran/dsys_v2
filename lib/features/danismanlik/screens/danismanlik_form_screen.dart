@@ -14,6 +14,7 @@ import '../widgets/danismanlik_layout.dart';
 import '../components/personel_secici_dialog.dart';
 import '../../birim/models/birim_model.dart';
 import '../../birim/services/birim_service.dart';
+import '../services/danismanlik_excel_hesaplama.dart';
 
 class DanismanlikFormScreen extends StatefulWidget {
   final YkKararModel? ykKarar;
@@ -193,11 +194,7 @@ class _DanismanlikFormScreenState extends State<DanismanlikFormScreen> {
   }
 
   double _varsayilanUnvanKatsayisi(String unvan) {
-    final lower = unvan.toLowerCase();
-    if (lower.contains('prof')) return 3;
-    if (lower.contains('doç') || lower.contains('doc')) return 2.5;
-    if (lower.contains('dr. öğr') || lower.contains('dr. ogr')) return 2;
-    return 1;
+    return DanismanlikExcelHesaplama.unvanKatsayisi(unvan);
   }
 
   void _syncControllers(DanismanlikProvider provider) {

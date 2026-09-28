@@ -52,64 +52,99 @@ class DanismanlikExcelHesaplama {
   static const Map<String, int> ekGostergeler = {
     'Profesör': 300,
     'Prof. Dr.': 300,
+    'Prof.Dr.': 300,
+    'Prof': 300,
     'Doçent': 250,
     'Doç. Dr.': 250,
+    'Doç.Dr.': 250,
+    'Doç': 250,
     'Dr.Öğr.Üyesi': 200,
     'Dr. Öğr. Üyesi': 200,
+    'Dr.Öğretim Üyesi': 200,
+    'Dr. Öğretim Üyesi': 200,
+    'Yrd. Doç. Dr.': 200,
+    'Yard. Doç. Dr.': 200,
     'Öğr.Gör.Dr.': 160,
     'Öğr. Gör. Dr.': 160,
+    'Öğretim Görevlisi Dr.': 160,
+    'Öğretim Görevlisi Dr': 160,
+    'Öğr. Görevlisi Dr.': 160,
     'Öğr.Gör.': 160,
     'Öğr. Gör.': 160,
+    'Öğretim Görevlisi': 160,
+    'Öğr. Görevlisi': 160,
     'Arş.Gör.Dr.': 160,
     'Arş. Gör. Dr.': 160,
+    'Araştırma Görevlisi Dr.': 160,
     'Arş.Gör.': 160,
+    'Arş. Gör.': 160,
+    'Araştırma Görevlisi': 160,
+    'Uzman': 160,
+    'Okutman': 160,
   };
 
   static const Map<String, double> unvanKatsayilari = {
     'Profesör': 3.0,
     'Prof. Dr.': 3.0,
+    'Prof.Dr.': 3.0,
+    'Prof': 3.0,
     'Doçent': 2.5,
     'Doç. Dr.': 2.5,
+    'Doç.Dr.': 2.5,
+    'Doç': 2.5,
     'Dr.Öğr.Üyesi': 2.2,
     'Dr. Öğr. Üyesi': 2.2,
+    'Dr.Öğretim Üyesi': 2.2,
+    'Dr. Öğretim Üyesi': 2.2,
+    'Yrd. Doç. Dr.': 2.2,
+    'Yard. Doç. Dr.': 2.2,
     'Öğr.Gör.Dr.': 2.0,
     'Öğr. Gör. Dr.': 2.0,
+    'Öğretim Görevlisi Dr.': 2.0,
+    'Öğretim Görevlisi Dr': 2.0,
+    'Öğr. Görevlisi Dr.': 2.0,
     'Öğr.Gör.': 2.0,
     'Öğr. Gör.': 2.0,
+    'Öğretim Görevlisi': 2.0,
+    'Öğr. Görevlisi': 2.0,
     'Arş.Gör.Dr.': 2.0,
     'Arş. Gör. Dr.': 2.0,
+    'Araştırma Görevlisi Dr.': 2.0,
     'Arş.Gör.': 2.0,
+    'Arş. Gör.': 2.0,
+    'Araştırma Görevlisi': 2.0,
+    'Uzman': 2.0,
+    'Okutman': 2.0,
   };
 
   static int ekGosterge(String unvan) {
-    if (ekGostergeler.containsKey(unvan)) return ekGostergeler[unvan]!;
-    final clean = unvan.replaceAll(' ', '').replaceAll('.', '').toLowerCase();
-    for (final e in ekGostergeler.entries) {
-      final keyClean = e.key.replaceAll(' ', '').replaceAll('.', '').toLowerCase();
-      if (clean == keyClean) return e.value;
-    }
-    for (final e in ekGostergeler.entries) {
-      if (unvan.startsWith(e.key) || unvan.contains(e.key.replaceAll('.', ''))) {
-        return e.value;
-      }
-    }
-    return ekGostergeler[unvan] ?? 160;
+    final trimmed = unvan.trim();
+    if (ekGostergeler.containsKey(trimmed)) return ekGostergeler[trimmed]!;
+    final lower = trimmed.toLowerCase();
+    if (lower.contains('prof')) return 300;
+    if (lower.contains('doç') || lower.contains('doc')) return 250;
+    if (lower.contains('dr. öğr') || lower.contains('dr.öğr') || lower.contains('öğretim üyesi') || lower.contains('ogretim uyesi') || lower.contains('yrd') || lower.contains('yard')) return 200;
+    if (lower.contains('öğr') || lower.contains('ogr') || lower.contains('arş') || lower.contains('ars') || lower.contains('uzman') || lower.contains('okutman')) return 160;
+    return 160;
   }
 
   static double unvanKatsayisi(String unvan, [double? kayitli]) {
-    if (unvanKatsayilari.containsKey(unvan)) {
-      return unvanKatsayilari[unvan]!;
+    final trimmed = unvan.trim();
+    if (unvanKatsayilari.containsKey(trimmed)) {
+      return unvanKatsayilari[trimmed]!;
     }
-    final clean = unvan.replaceAll(' ', '').replaceAll('.', '').toLowerCase();
-    for (final e in unvanKatsayilari.entries) {
-      final keyClean = e.key.replaceAll(' ', '').replaceAll('.', '').toLowerCase();
-      if (clean == keyClean) return e.value;
+    final lower = trimmed.toLowerCase();
+    if (lower.contains('prof')) return 3.0;
+    if (lower.contains('doç') || lower.contains('doc')) return 2.5;
+    if (lower.contains('dr. öğr') || lower.contains('dr.öğr') || lower.contains('öğretim üyesi') || lower.contains('ogretim uyesi') || lower.contains('yrd') || lower.contains('yard')) return 2.2;
+    if (lower.contains('öğr. gör') || lower.contains('öğr.gör') || lower.contains('öğretim görevlisi') || lower.contains('ogretim gorevlisi') || lower.contains('öğr. görevlisi') || lower.contains('ogr. gor') || lower.contains('arş') || lower.contains('ars') || lower.contains('uzman') || lower.contains('okutman')) {
+      return 2.0;
     }
-    if (kayitli != null && kayitli > 0 && kayitli <= 3.5) return kayitli;
-    for (final e in unvanKatsayilari.entries) {
-      if (unvan.startsWith(e.key)) return e.value;
+    // Akademik unvan tespit edilemediyse ve geçerli kayıtlı katsayı varsa
+    if (kayitli != null && kayitli > 0 && kayitli <= 4.0) {
+      return kayitli;
     }
-    return unvanKatsayilari[unvan] ?? kayitli ?? 2.0;
+    return 2.0;
   }
 
   /// DAĞ. MAKS. PAY — B11 üzerinden kesintiler (Excel ROUND formülleri).

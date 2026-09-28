@@ -40,6 +40,8 @@ class TabKatkiPayi extends StatelessWidget {
     this.danismanlikDonemi,
     this.onSozlesmeBaslangicDegisti,
     this.onDanismanlikDonemiDegisti,
+    this.tavanUygula = true,
+    this.onTavanUygulaDegisti,
   });
 
   final DanismanlikExcelSonuc excelSonuc;
@@ -74,6 +76,8 @@ class TabKatkiPayi extends StatelessWidget {
   final String? danismanlikDonemi;
   final ValueChanged<DateTime>? onSozlesmeBaslangicDegisti;
   final ValueChanged<String>? onDanismanlikDonemiDegisti;
+  final bool tavanUygula;
+  final ValueChanged<bool>? onTavanUygulaDegisti;
 
   static const List<String> unvanListesi = [
     'Profesör',
@@ -84,6 +88,20 @@ class TabKatkiPayi extends StatelessWidget {
     'Arş. Gör. Dr.',
     'Arş. Gör.',
   ];
+
+  /// Gelen herhangi bir unvan metnini resmi standart unvanListesi öğelerinden birine eşler.
+  static String unvanNormalize(String unvan) {
+    if (unvanListesi.contains(unvan)) return unvan;
+    final lower = unvan.trim().toLowerCase();
+    if (lower.contains('prof')) return 'Profesör';
+    if (lower.contains('doç') || lower.contains('doc')) return 'Doçent';
+    if (lower.contains('dr. öğr') || lower.contains('dr.öğr') || lower.contains('öğretim üyesi') || lower.contains('ogretim uyesi') || lower.contains('yrd') || lower.contains('yard')) return 'Dr. Öğr. Üyesi';
+    if ((lower.contains('öğr') || lower.contains('ogr')) && lower.contains('dr')) return 'Öğr. Gör. Dr.';
+    if (lower.contains('öğr') || lower.contains('ogr') || lower.contains('görevli') || lower.contains('gorevli')) return 'Öğr. Gör.';
+    if ((lower.contains('arş') || lower.contains('ars')) && lower.contains('dr')) return 'Arş. Gör. Dr.';
+    if (lower.contains('arş') || lower.contains('ars')) return 'Arş. Gör.';
+    return 'Öğr. Gör. Dr.';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -193,6 +211,20 @@ class TabKatkiPayi extends StatelessWidget {
                                 ),
                               ),
                             ],
+                            const SizedBox(width: 6),
+                            SizedBox(
+                              height: 26,
+                              child: OutlinedButton.icon(
+                                onPressed: () => _ekDersAyarlariDialogGoster(context),
+                                icon: const Icon(Icons.tune_rounded, size: 13, color: Color(0xFF0F766E)),
+                                label: const Text('Ayarlar', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF0F766E))),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  side: const BorderSide(color: Color(0xFF0F766E)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -375,10 +407,14 @@ class TabKatkiPayi extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: excelSonuc.herhangiBirTavanAsildi ? const Color(0xFFFFFBEB) : const Color(0xFFF0FDF4),
+              color: !tavanUygula
+                  ? const Color(0xFFF8FAFC)
+                  : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFFFFFBEB) : const Color(0xFFF0FDF4)),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: excelSonuc.herhangiBirTavanAsildi ? const Color(0xFFFDE68A) : const Color(0xFF86EFAC),
+                color: !tavanUygula
+                    ? const Color(0xFFCBD5E1)
+                    : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFFFDE68A) : const Color(0xFF86EFAC)),
                 width: 1.2,
               ),
             ),
@@ -388,37 +424,59 @@ class TabKatkiPayi extends StatelessWidget {
                 Row(
                   children: [
                     Icon(
-                      excelSonuc.herhangiBirTavanAsildi ? Icons.warning_amber_rounded : Icons.verified_outlined,
+                      !tavanUygula
+                          ? Icons.info_outline
+                          : (excelSonuc.herhangiBirTavanAsildi ? Icons.warning_amber_rounded : Icons.verified_outlined),
                       size: 18,
-                      color: excelSonuc.herhangiBirTavanAsildi ? const Color(0xFFD97706) : const Color(0xFF15803D),
+                      color: !tavanUygula
+                          ? const Color(0xFF64748B)
+                          : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFFD97706) : const Color(0xFF15803D)),
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      excelSonuc.herhangiBirTavanAsildi
-                          ? '3,2 KAT YASAL TAVAN KONTROLÜ (2547 ve 2914 Sayılı Kanunlar)'
-                          : 'YASAL TAVAN KONTROLÜ: TÜM HOCALAR MEVZUATA UYGUNDUR',
+                      !tavanUygula
+                          ? 'YASAL TAVAN KONTROLÜ: KAPALI (SINIRSIZ TAM ÖDEME)'
+                          : (excelSonuc.herhangiBirTavanAsildi
+                              ? '3,2 KAT YASAL TAVAN KONTROLÜ (2547 ve 2914 Sayılı Kanunlar)'
+                              : 'YASAL TAVAN KONTROLÜ: TÜM HOCALAR MEVZUATA UYGUNDUR'),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
-                        color: excelSonuc.herhangiBirTavanAsildi ? const Color(0xFF92400E) : const Color(0xFF166534),
+                        color: !tavanUygula
+                            ? const Color(0xFF334155)
+                            : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFF92400E) : const Color(0xFF166534)),
                       ),
                     ),
                     const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: excelSonuc.herhangiBirTavanAsildi ? const Color(0xFFFCD34D) : const Color(0xFF86EFAC),
+                    InkWell(
+                      onTap: () => _ekDersAyarlariDialogGoster(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: !tavanUygula
+                                ? const Color(0xFFCBD5E1)
+                                : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFFFCD34D) : const Color(0xFF86EFAC)),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        'Azami 3.2 Tavanı: ${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}/Saat',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: excelSonuc.herhangiBirTavanAsildi ? const Color(0xFFB45309) : const Color(0xFF15803D),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              !tavanUygula
+                                  ? 'Tavan: Kapalı (⚙️ Ayarla)'
+                                  : 'Azami 3.2 Tavanı: ${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}/Saat (⚙️ Ayarlar)',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: !tavanUygula
+                                    ? const Color(0xFF475569)
+                                    : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFFB45309) : const Color(0xFF15803D)),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -426,16 +484,20 @@ class TabKatkiPayi extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  excelSonuc.herhangiBirTavanAsildi
-                      ? 'Mevzuat gereğince mesai dışı saatlik ücret 3,2 katı tavanını geçemez. Hesaplanan saatlik ücret bu tavanı aştığı için personele en fazla tavan tutarı (${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}) ödenebilir; aşan toplam ${TurkceFormat.para(excelSonuc.toplamTavanKesintisi)} döner sermaye birim havuzuna devredilir.'
-                      : 'Hesaplanan tüm saatlik ücretler, yasal sınır olan 3,2 katı tavanının (${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}/Saat) altındadır. Kesinti olmaksızın tam ödeme yapılabilir.',
+                  !tavanUygula
+                      ? 'Yasal ek ders tavanı (mesai içi 2.0x, mesai dışı 3.2x) şu anda devre dışıdır. Personellere hesaplanan brüt hakediş sınırlama olmaksızın tam ödenmektedir. Tavanı aktifleştirmek için sağdaki butona veya "Ek Ders & Katsayı Ayarları"na tıklayabilirsiniz.'
+                      : (excelSonuc.herhangiBirTavanAsildi
+                          ? 'Mevzuat gereğince mesai dışı saatlik ücret 3,2 katı tavanını geçemez. Hesaplanan saatlik ücret bu tavanı aştığı için personele en fazla tavan tutarı (${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}) ödenebilir; aşan toplam ${TurkceFormat.para(excelSonuc.toplamTavanKesintisi)} döner sermaye birim havuzuna devredilir.'
+                          : 'Hesaplanan tüm saatlik ücretler, yasal sınır olan 3,2 katı tavanının (${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}/Saat) altındadır. Kesinti olmaksızın tam ödeme yapılabilir.'),
                   style: TextStyle(
                     fontSize: 11,
                     height: 1.3,
-                    color: excelSonuc.herhangiBirTavanAsildi ? const Color(0xFF78350F) : const Color(0xFF14532D),
+                    color: !tavanUygula
+                        ? const Color(0xFF475569)
+                        : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFF78350F) : const Color(0xFF14532D)),
                   ),
                 ),
-                if (excelSonuc.herhangiBirTavanAsildi) ...[
+                if (tavanUygula && excelSonuc.herhangiBirTavanAsildi) ...[
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -500,24 +562,24 @@ class TabKatkiPayi extends StatelessWidget {
                     ),
                   ),
                   ElevatedButton.icon(
-                    onPressed: onPersonelEkle,
-                    icon: const Icon(Icons.person_add_alt_1, size: 16),
-                    label: const Text('+ Kişi Ekle'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
                     onPressed: onCokluPersonelEkle,
-                    icon: const Icon(Icons.group_add, size: 16),
-                    label: const Text('👥 Çoklu Kişi Ekle'),
+                    icon: const Icon(Icons.person_add_alt_1, size: 16),
+                    label: const Text('+ Kişi / Hoca Ekle'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF107C41), // Excel Green
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => _ekDersAyarlariDialogGoster(context),
+                    icon: const Icon(Icons.tune_rounded, size: 16),
+                    label: const Text('⚙️ Ek Ders & Katsayı Ayarları'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F766E), // Teal
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),
                 ],
@@ -598,7 +660,7 @@ class TabKatkiPayi extends StatelessWidget {
                               child: Row(
                                 children: [
                                   DropdownButton<String>(
-                                    value: unvanListesi.contains(p.unvan) ? p.unvan : 'Öğr. Gör. Dr.',
+                                    value: unvanListesi.contains(p.unvan) ? p.unvan : unvanNormalize(p.unvan),
                                     underline: const SizedBox(),
                                     isDense: true,
                                     items: unvanListesi
@@ -662,7 +724,7 @@ class TabKatkiPayi extends StatelessWidget {
                               width: 70,
                               child: TextFormField(
                                 key: ValueKey('unvanK_${p.personelId}_${index}_${p.unvan}_${p.unvanKatsayisi}'),
-                                initialValue: p.unvanKatsayisi.toStringAsFixed(1),
+                                initialValue: (p.unvanKatsayisi > 1.0 ? p.unvanKatsayisi : DanismanlikExcelHesaplama.unvanKatsayisi(p.unvan, p.unvanKatsayisi)).toStringAsFixed(1),
                                 textAlign: TextAlign.center,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 decoration: const InputDecoration(
@@ -803,21 +865,26 @@ class TabKatkiPayi extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   child: Row(
                     children: [
-                      TextButton.icon(
-                        onPressed: onPersonelEkle,
-                        icon: const Icon(Icons.add_circle_outline, size: 18, color: Color(0xFF6366F1)),
+                      ElevatedButton.icon(
+                        onPressed: onCokluPersonelEkle,
+                        icon: const Icon(Icons.person_add_alt_1, size: 16),
                         label: const Text(
-                          '+ Tek Kişi Ekle',
-                          style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold, fontSize: 12),
+                          '+ Kişi / Hoca Ekle',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF107C41),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       TextButton.icon(
-                        onPressed: onCokluPersonelEkle,
-                        icon: const Icon(Icons.group_add_outlined, size: 18, color: Color(0xFF107C41)),
+                        onPressed: onPersonelEkle,
+                        icon: const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF64748B)),
                         label: const Text(
-                          '👥 Çoklu Kişi / Heyet Ekle',
-                          style: TextStyle(color: Color(0xFF107C41), fontWeight: FontWeight.bold, fontSize: 12),
+                          '+ Tabloya Boş Satır Aç',
+                          style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600, fontSize: 12),
                         ),
                       ),
                     ],
@@ -998,24 +1065,13 @@ class TabKatkiPayi extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
-                    onPressed: onPersonelEkle,
+                    onPressed: onCokluPersonelEkle,
                     icon: const Icon(Icons.person_add_alt_1, size: 16),
-                    label: const Text('Personel Ekle'),
+                    label: const Text('+ Kişi / Hoca Ekle'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: onCokluPersonelEkle,
-                    icon: const Icon(Icons.group_add_outlined, size: 16),
-                    label: const Text('Çoklu Ekle'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E),
-                      side: BorderSide(color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),
                 ],
@@ -1456,11 +1512,20 @@ class TabKatkiPayi extends StatelessWidget {
                             SizedBox(
                               width: 140,
                               child: DropdownButtonFormField<String>(
-                                initialValue: unvanListesi.contains(p.unvan) ? p.unvan : 'Dr. Öğr. Üyesi',
+                                initialValue: unvanListesi.contains(p.unvan) ? p.unvan : unvanNormalize(p.unvan),
                                 decoration: const InputDecoration(isDense: true, labelText: 'Unvan', border: OutlineInputBorder()),
                                 items: unvanListesi.map((u) => DropdownMenuItem(value: u, child: Text(u, style: const TextStyle(fontSize: 12)))).toList(),
                                 onChanged: (val) {
-                                  if (val != null) onPersonelGuncelle(index, p.copyWith(unvan: val));
+                                  if (val != null) {
+                                    onPersonelGuncelle(
+                                      index,
+                                      p.copyWith(
+                                        unvan: val,
+                                        unvanKatsayisi: DanismanlikExcelHesaplama.unvanKatsayisi(val),
+                                        ekGosterge: DanismanlikExcelHesaplama.ekGosterge(val),
+                                      ),
+                                    );
+                                  }
                                 },
                               ),
                             ),
@@ -1795,6 +1860,330 @@ class TabKatkiPayi extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  void _ekDersAyarlariDialogGoster(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final unvanOrnekleri = [
+              {'unvan': 'Profesör', 'gosterge': 300},
+              {'unvan': 'Doçent', 'gosterge': 250},
+              {'unvan': 'Dr. Öğr. Üyesi', 'gosterge': 200},
+              {'unvan': 'Öğr. Gör. Dr. / Öğretim Görevlisi', 'gosterge': 160},
+              {'unvan': 'Arş. Gör. / Araştırma Görevlisi', 'gosterge': 160},
+            ];
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F766E).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.tune_rounded, color: Color(0xFF0F766E), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ek Ders Saat Fiyatı & Katsayı Ayarları',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          '2547 ve 2914 Sayılı Kanunlara göre saatlik ek ders ve tavan hesaplama parametreleri',
+                          style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20, color: Color(0xFF94A3B8)),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 680,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // KART 1: Yasal Tavan Uygulama Switch
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: tavanUygula ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: tavanUygula ? const Color(0xFF86EFAC) : const Color(0xFFFECACA),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              tavanUygula ? Icons.verified_user_outlined : Icons.gpp_bad_outlined,
+                              color: tavanUygula ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    tavanUygula
+                                        ? 'Yasal Ek Ders Tavanı: AKTİF (Uygulanıyor)'
+                                        : 'Yasal Ek Ders Tavanı: KAPALI (Sınırsız Ödeme)',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF991B1B),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    tavanUygula
+                                        ? 'Mesai içi azami 2.0 katı, mesai dışı azami 3.2 katı yasal tavanı uygulanır. Tavanı aşan kısım birim havuzuna devredilir.'
+                                        : 'Saatlik tavan sınırlaması uygulanmaz; personelin hak ettiği brüt tutar tam olarak personele ödenir.',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: tavanUygula ? const Color(0xFF166534) : const Color(0xFF7F1D1D),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: tavanUygula,
+                              activeColor: const Color(0xFF16A34A),
+                              onChanged: (val) {
+                                onTavanUygulaDegisti?.call(val);
+                                setDialogState(() {});
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // KART 2: Memur Maaş Katsayısı
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Text(
+                                  'Memur Maaş Katsayısı',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E293B)),
+                                ),
+                                Spacer(),
+                                Text(
+                                  'Varsayılan: 1.387871',
+                                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Hazine ve Maliye Bakanlığı Genelgesi ile belirlenen katsayıdır. Değiştirildiğinde tüm saatlik tavan ücretleri anında güncellenir.',
+                              style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                SizedBox(
+                                  width: 140,
+                                  height: 36,
+                                  child: TextFormField(
+                                    controller: memurMaasKatsayisiController,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                    ),
+                                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                    onChanged: (val) {
+                                      final d = double.tryParse(val.replaceAll(',', '.').trim());
+                                      if (d != null && d > 0) {
+                                        onMemurMaasKatsayisiDegisti(d);
+                                        setDialogState(() {});
+                                      }
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                if (onMemurMaasKatsayisiKaydet != null)
+                                  ElevatedButton.icon(
+                                    onPressed: onMemurMaasKatsayisiKaydet,
+                                    icon: const Icon(Icons.save_outlined, size: 15),
+                                    label: const Text('Sisteme Kaydet', style: TextStyle(fontSize: 12)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF0F766E),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                    ),
+                                  ),
+                                const SizedBox(width: 8),
+                                TextButton(
+                                  onPressed: () {
+                                    memurMaasKatsayisiController.text = '1.387871';
+                                    onMemurMaasKatsayisiDegisti(1.387871);
+                                    setDialogState(() {});
+                                  },
+                                  child: const Text('Varsayılana Sıfırla', style: TextStyle(fontSize: 11)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // KART 3: Unvan Bazlı Saatlik Ücretler Canlı Tablosu
+                      const Text(
+                        'Unvan Bazlı Ek Göstergeler ve Hesaplanan Saatlik Tavan Ücretleri (Canlı)',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF1E293B)),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Table(
+                          columnWidths: const {
+                            0: FlexColumnWidth(2.2),
+                            1: FlexColumnWidth(1.2),
+                            2: FlexColumnWidth(2.0),
+                            3: FlexColumnWidth(2.0),
+                          },
+                          children: [
+                            TableRow(
+                              decoration: const BoxDecoration(color: Color(0xFFF1F5F9)),
+                              children: [
+                                _tabloHucre('Unvan', isHeader: true),
+                                _tabloHucre('Ek Gösterge', isHeader: true, align: TextAlign.center),
+                                _tabloHucre('Mesai İçi (2.0x)\nSaat Ücreti', isHeader: true, align: TextAlign.right),
+                                _tabloHucre('Mesai Dışı (3.2x)\nSaat Ücreti', isHeader: true, align: TextAlign.right),
+                              ],
+                            ),
+                            for (final item in unvanOrnekleri) ...[
+                              TableRow(
+                                decoration: BoxDecoration(
+                                  color: unvanOrnekleri.indexOf(item) % 2 == 0 ? Colors.white : const Color(0xFFF8FAFC),
+                                ),
+                                children: [
+                                  _tabloHucre(item['unvan'] as String),
+                                  _tabloHucre('${item['gosterge']}', align: TextAlign.center),
+                                  _tabloHucre(
+                                    TurkceFormat.para((item['gosterge'] as int) * memurMaasKatsayisi * 2),
+                                    align: TextAlign.right,
+                                    color: const Color(0xFF1D4ED8),
+                                    isBold: true,
+                                  ),
+                                  _tabloHucre(
+                                    TurkceFormat.para((item['gosterge'] as int) * memurMaasKatsayisi * 3.2),
+                                    align: TextAlign.right,
+                                    color: const Color(0xFFB45309),
+                                    isBold: true,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFBFDBFE)),
+                        ),
+                        child: const Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.info_outline, size: 16, color: Color(0xFF2563EB)),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Formül: Ek Gösterge × Memur Maaş Katsayısı × [Mesai İçi: 2.0 / Mesai Dışı: 3.2].\n'
+                                'Öğr. Gör. Dr. ve Öğretim Görevlileri 160 ek gösterge ve 2.0 unvan katsayısına tabidir.\n'
+                                'Hocanın alacağı tutar tavanı aşıyorsa tablodaki "Ders Saati" artırılarak alabileceği tutar yükseltilebilir.',
+                                style: TextStyle(fontSize: 11, color: Color(0xFF1E40AF), height: 1.35),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              actions: [
+                ElevatedButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F766E),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                  child: const Text('Tamam / Kapat'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  static Widget _tabloHucre(
+    String text, {
+    bool isHeader = false,
+    TextAlign align = TextAlign.left,
+    Color? color,
+    bool isBold = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      child: Text(
+        text,
+        textAlign: align,
+        style: TextStyle(
+          fontSize: isHeader ? 11 : 12,
+          fontWeight: isHeader || isBold ? FontWeight.bold : FontWeight.w500,
+          color: color ?? (isHeader ? const Color(0xFF475569) : const Color(0xFF1E293B)),
+        ),
       ),
     );
   }

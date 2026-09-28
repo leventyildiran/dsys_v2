@@ -83,6 +83,9 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
   double _memurMaasKatsayisi = 1.387871;
   final _memurMaasKatsayisiController = TextEditingController(text: '1.387871');
 
+  // Yasal Ek Ders Tavanı Uygulansın mı? (Mesai içi 2.0x, Mesai dışı 3.2x)
+  bool _tavanUygula = true;
+
   // Birim Listesi
   List<String> _birimler = [];
   final BirimService _birimService = BirimService();
@@ -288,6 +291,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
         kdvHaricGelir: veri.kdvHaricGelir,
         dagitilabilirPay: veri.kesintiSonuc.katkiPayi,
         sablonTuru: _aktifSablonTuru,
+        tavanUygula: _tavanUygula,
         odemeTekSeferde: _58kOdemeTekSeferde,
         toplamTaksitSayisi: _58kToplamTaksitSayisi,
         aktifTaksitNo: _58kAktifTaksitNo,
@@ -483,6 +487,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       _aracGerecOrani = k.aracGerecOrani;
       _memurMaasKatsayisi = k.memurMaasKatsayisi;
       _memurMaasKatsayisiController.text = k.memurMaasKatsayisi.toString();
+      _tavanUygula = k.tavanUygula;
       _manuelKatsayiAktif = k.manuelKatsayiAktif;
       _manuelKatsayiController.text = k.manuelKatsayi;
       _satirlar = List.from(k.satirlar);
@@ -583,13 +588,15 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
     // Personeller
     if (d.personeller.isNotEmpty) {
       _personeller = d.personeller.map((p) {
+        final unvanNorm = TabKatkiPayi.unvanNormalize(p.personel.unvan);
+        final unvanK = DanismanlikExcelHesaplama.unvanKatsayisi(unvanNorm, p.personel.unvanKatsayisi);
         return ExcelPersonelGirdi(
           personelId: p.personel.id,
           adSoyad: p.personel.adSoyad,
-          unvan: p.personel.unvan,
+          unvan: unvanNorm,
           puan: p.payOrani > 0 ? p.payOrani.toDouble() : (p.faaliyetPuani > 0 ? p.faaliyetPuani : 100.0),
-          unvanKatsayisi: p.personel.unvanKatsayisi > 0 ? p.personel.unvanKatsayisi : 2.0,
-          ekGosterge: DanismanlikExcelHesaplama.ekGosterge(p.personel.unvan),
+          unvanKatsayisi: unvanK,
+          ekGosterge: DanismanlikExcelHesaplama.ekGosterge(unvanNorm),
           dersSaati: p.dersSaati > 0 ? p.dersSaati : 1.0,
           mesaiIci: p.mesaiIci,
           faaliyetTuru: p.faaliyetTuru ?? (_aktifSablonTuru == 'usem' || _aktifSablonTuru == 'tomer' ? 'Kurs/Eğitim' : 'Danışmanlık'),
@@ -921,6 +928,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       ozelTaksitTutari: _58kOzelTaksitTutari,
       sozlesmeBaslangicTarihi: _58kSozlesmeBaslangic,
       danismanlikDonemi: _58kDonemMetni.isNotEmpty ? _58kDonemMetni : null,
+      tavanUygula: _tavanUygula,
     );
   }
 
@@ -1289,14 +1297,17 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                   onPersonelEkle: () {
                     setState(() {
                       final is58kOrE = _aktifSablonTuru == '58k' || _aktifSablonTuru == '58e';
+                      final unvan = is58kOrE ? 'Dr. Öğr. Üyesi' : 'Öğr. Gör. Dr.';
+                      final unvanK = DanismanlikExcelHesaplama.unvanKatsayisi(unvan);
+                      final ekGosterge = DanismanlikExcelHesaplama.ekGosterge(unvan);
                       _personeller.add(
                         ExcelPersonelGirdi(
                           personelId: '${_personeller.length + 1}',
                           adSoyad: '',
-                          unvan: is58kOrE ? 'Dr. Öğr. Üyesi' : 'Öğr. Gör. Dr.',
+                          unvan: unvan,
                           puan: is58kOrE ? 100.0 : 20.0,
-                          unvanKatsayisi: 2.0,
-                          ekGosterge: is58kOrE ? 200 : 160,
+                          unvanKatsayisi: unvanK,
+                          ekGosterge: ekGosterge,
                           dersSaati: is58kOrE ? 1.0 : 5.0,
                           mesaiIci: false,
                           faaliyetTuru: is58kOrE ? 'Danışmanlık' : 'Danışmanlık',
@@ -1347,6 +1358,8 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                     });
                   },
                   onDanismanlikDonemiDegisti: (val) => setState(() => _58kDonemMetni = val),
+                  tavanUygula: _tavanUygula,
+                  onTavanUygulaDegisti: (val) => setState(() => _tavanUygula = val),
                 ),
 
                 // Sekme 4: ÖZET İCMAL
