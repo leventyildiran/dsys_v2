@@ -1360,6 +1360,16 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                   onDanismanlikDonemiDegisti: (val) => setState(() => _58kDonemMetni = val),
                   tavanUygula: _tavanUygula,
                   onTavanUygulaDegisti: (val) => setState(() => _tavanUygula = val),
+                  hazineOrani: _hazineOrani,
+                  bapOrani: _bapOrani,
+                  aracGerecOrani: _aracGerecOrani,
+                  onKesintiOranlariDegisti: (h, b, ag) {
+                    setState(() {
+                      _hazineOrani = h;
+                      _bapOrani = b;
+                      _aracGerecOrani = ag;
+                    });
+                  },
                 ),
 
                 // Sekme 4: ÖZET İCMAL

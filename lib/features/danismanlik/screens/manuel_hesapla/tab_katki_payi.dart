@@ -42,11 +42,19 @@ class TabKatkiPayi extends StatelessWidget {
     this.onDanismanlikDonemiDegisti,
     this.tavanUygula = true,
     this.onTavanUygulaDegisti,
+    this.hazineOrani = 0,
+    this.bapOrani = 0,
+    this.aracGerecOrani = 0.15,
+    this.onKesintiOranlariDegisti,
   });
 
   final DanismanlikExcelSonuc excelSonuc;
   final List<ExcelPersonelGirdi> personeller;
   final double maksAkademikPay;
+  final int hazineOrani;
+  final int bapOrani;
+  final double aracGerecOrani;
+  final void Function(int hazine, int bap, double aracGerec)? onKesintiOranlariDegisti;
   final TextEditingController manuelKatsayiController;
   final bool manuelKatsayiAktif;
   final ValueChanged<bool> onManuelKatsayiDegisti;
@@ -979,10 +987,57 @@ class TabKatkiPayi extends StatelessWidget {
     );
   }
 
+  Widget _buildOranDropdown({
+    required String etiket,
+    required int deger,
+    required List<int> secenekler,
+    required ValueChanged<int> onSecildi,
+  }) {
+    final list = secenekler.contains(deger) ? secenekler : ([...secenekler, deger]..sort());
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$etiket: ',
+            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+          ),
+          DropdownButton<int>(
+            value: deger,
+            isDense: true,
+            underline: const SizedBox(),
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+            items: list.map((val) {
+              return DropdownMenuItem<int>(
+                value: val,
+                child: Text('%$val'),
+              );
+            }).toList(),
+            onChanged: (val) {
+              if (val != null) onSecildi(val);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _build58kView(BuildContext context) {
     final kdvHaric = kesinti?.kdvHaricGelir ?? 0.0;
-    final aracGerec15 = kesinti?.aracGerecPayi ?? 0.0;
-    final katkiPayi85 = kesinti?.katkiPayi ?? maksAkademikPay;
+    final hazineTutari = kesinti?.hazinePayi ?? 0.0;
+    final bapTutari = kesinti?.bapPayi ?? 0.0;
+    final aracGerecTutari = kesinti?.aracGerecPayi ?? 0.0;
+    final toplamKesintiTutari = hazineTutari + bapTutari + aracGerecTutari;
+    final katkiPayi = kesinti?.katkiPayi ?? maksAkademikPay;
+    final kurumOraniYuzde = (aracGerecOrani * 100).round();
+    final toplamKesintiOrani = hazineOrani + bapOrani + kurumOraniYuzde;
+    final kalanPayOrani = 100 - toplamKesintiOrani;
     final buAykiPay = excelSonuc.netOdemeToplam;
     final kalanBakiye = excelSonuc.artikBakiye;
 
@@ -1040,9 +1095,7 @@ class TabKatkiPayi extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                is58e
-                                    ? 'Dağıtılabilir Pay: %${kdvHaric > 0 ? ((katkiPayi85 / kdvHaric) * 100).toStringAsFixed(0) : '79'}'
-                                    : 'Kalan %${kdvHaric > 0 ? ((katkiPayi85 / kdvHaric) * 100).toStringAsFixed(0) : '85'} Doğrudan Ödenir',
+                                'Kalan %$kalanPayOrani Dağıtılır',
                                 style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -1051,10 +1104,8 @@ class TabKatkiPayi extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           is58e
-                              ? 'Üniversite imkânları kullanılmaksızın verilen danışmanlık ve hizmet gelirleri. '
-                                'KDV hariç matrahtan %1 Hazine, %5 BAP ve belirlenen Birim Payı kesildikten sonra kalan tutar personele dağıtılır. Gelir Vergisi ve Damga Vergisi kesintisine tabidir.'
-                              : 'Bu maddede puanlama, ek gösterge ve saat tavanı uygulanmaz. '
-                                'Yatan gelirden %15 kurum kesintisi yapıldıktan sonra kalan %85 sözleşme esaslarına göre doğrudan öğretim elemanına ödenir.',
+                              ? 'KDV hariç matrahtan %$hazineOrani Hazine, %$bapOrani BAP ve %$kurumOraniYuzde Birim/Kurum payı kesildikten sonra kalan tutar personele dağıtılır. Gelir Vergisi ve Damga Vergisi kesintisine tabidir.'
+                              : 'KDV hariç matrahtan %$hazineOrani Hazine, %$bapOrani BAP ve %$kurumOraniYuzde Kurum kesintisi yapıldıktan sonra kalan %$kalanPayOrani sözleşme esaslarına göre personele ödenir (Puan/ek gösterge/saat tavanı uygulanmaz).',
                           style: TextStyle(
                             fontSize: 12,
                             color: is58e ? Colors.indigo.shade900 : Colors.teal.shade900,
@@ -1078,9 +1129,117 @@ class TabKatkiPayi extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 14),
+
+          // 2. DİNAMİK YASAL VE KURUMSAL KESİNTİLER AYAR KARTI
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFCBD5E1)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: (is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.tune_rounded, size: 20, color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Yasal & Kurumsal Kesintiler:',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F172A)),
+                    ),
+                    Text(
+                      'Kesinti yüzdelerini buradan anında güncelleyin',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 18),
+
+                // 1. Hazine Payı
+                _buildOranDropdown(
+                  etiket: 'Hazine Payı',
+                  deger: hazineOrani,
+                  secenekler: const [0, 1, 2, 3, 5],
+                  onSecildi: (val) {
+                    onKesintiOranlariDegisti?.call(val, bapOrani, aracGerecOrani);
+                  },
+                ),
+                const SizedBox(width: 12),
+
+                // 2. BAP Payı
+                _buildOranDropdown(
+                  etiket: 'BAP Payı',
+                  deger: bapOrani,
+                  secenekler: const [0, 1, 2, 5, 10],
+                  onSecildi: (val) {
+                    onKesintiOranlariDegisti?.call(hazineOrani, val, aracGerecOrani);
+                  },
+                ),
+                const SizedBox(width: 12),
+
+                // 3. Birim / Kurum Payı
+                _buildOranDropdown(
+                  etiket: is58e ? 'Birim / Kurum' : 'Kurum / A.G.P.',
+                  deger: kurumOraniYuzde,
+                  secenekler: const [0, 5, 10, 15, 20, 25, 30, 35, 40, 50],
+                  onSecildi: (val) {
+                    onKesintiOranlariDegisti?.call(hazineOrani, bapOrani, val / 100.0);
+                  },
+                ),
+
+                const Spacer(),
+
+                // Özet Rozeti
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Toplam Kesinti: %$toplamKesintiOrani (${TurkceFormat.para(toplamKesintiTutari)})',
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5, color: Color(0xFFDC2626)),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Dağıtılabilir Pay: %$kalanPayOrani (${TurkceFormat.para(katkiPayi)})',
+                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF15803D)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
 
-          // 2. 3'LÜ KPI ÖZET KARTLARI
+          // 3. 3'LÜ KPI ÖZET KARTLARI
           Row(
             children: [
               // Kart 1: Gelir & Kesintiler
@@ -1119,11 +1278,11 @@ class TabKatkiPayi extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  is58e ? 'Toplam Kesintiler:' : '%15 Yasal Kesinti:',
+                                  'Toplam Kesinti (%$toplamKesintiOrani):',
                                   style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFDC2626)),
                                 ),
                                 Text(
-                                  TurkceFormat.para(is58e ? ((kesinti?.hazinePayi ?? 0) + (kesinti?.bapPayi ?? 0) + aracGerec15) : aracGerec15),
+                                  TurkceFormat.para(toplamKesintiTutari),
                                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFFDC2626)),
                                 ),
                               ],
@@ -1162,12 +1321,12 @@ class TabKatkiPayi extends StatelessWidget {
                           children: [
                             Text(
                               is58e
-                                  ? 'Toplam Dağıtılabilir Pay:'
-                                  : 'Sözleşme Toplam %${kdvHaric > 0 ? ((katkiPayi85 / kdvHaric) * 100).toStringAsFixed(0) : '85'} Pay:',
+                                  ? 'Toplam Dağıtılabilir Pay (%$kalanPayOrani):'
+                                  : 'Sözleşme Dağıtılabilir Pay (%$kalanPayOrani):',
                               style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
                             ),
                             const SizedBox(height: 2),
-                            Text(TurkceFormat.para(katkiPayi85), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF047857))),
+                            Text(TurkceFormat.para(katkiPayi), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF047857))),
                             Text(odemeTekSeferde ? 'Tek seferde ödenecek' : '$toplamTaksitSayisi aya bölünecek', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
                           ],
                         ),
@@ -1366,7 +1525,7 @@ class TabKatkiPayi extends StatelessWidget {
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               decoration: InputDecoration(
                                 isDense: true,
-                                hintText: TurkceFormat.para(katkiPayi85 / toplamTaksitSayisi),
+                                hintText: TurkceFormat.para(katkiPayi / toplamTaksitSayisi),
                                 suffixText: 'TL',
                                 border: const OutlineInputBorder(),
                               ),

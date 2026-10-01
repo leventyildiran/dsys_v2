@@ -161,7 +161,7 @@ class ManuelHesaplamaVerisi {
         odenecekTutar: buAykiDagitilacakPay58k,
         kalanBakiye: kalanDevredenBakiye58k,
         gelirVergisiOrani: gelirVergisiOrani,
-        tavanUygula: tavanUygula,
+        tavanUygula: false,
         memurMaasKatsayisi: memurMaasKatsayisi,
       );
     }

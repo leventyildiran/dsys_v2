@@ -505,22 +505,24 @@ class DanismanlikExcelHesaplama {
       final brutHakedis = _round(odenecekTutar * personelOrani, 2);
       brutToplam += brutHakedis;
 
-      // Tavan kontrolü
+      // Tavan kontrolü (58/e Danışmanlık ve Hizmet Sözleşmelerinde tavan uygulanmaz; isteğe bağlı tavanUygula == true ise uygulanır)
       final aktifMemurKatsayisi = memurMaasKatsayisi ?? memurMaasKatsayisiGuncel;
       final bazSaatlik = p.ekGosterge * aktifMemurKatsayisi;
       final tavanSaatlik = p.mesaiIci ? bazSaatlik * 2 : bazSaatlik * 3.2;
-      final tavanTutari = _round(tavanSaatlik * (p.dersSaati > 0 ? p.dersSaati : 10), 2);
+      final tavanTutari = (p.dersSaati > 0)
+          ? _round(tavanSaatlik * p.dersSaati, 2)
+          : brutHakedis;
 
-      final tavanAsildi = brutHakedis > tavanTutari && tavanTutari > 0;
+      final tavanAsildi = tavanUygula && brutHakedis > tavanTutari && tavanTutari > 0;
       double odenebilirBrut = brutHakedis;
       double havuz = 0.0;
 
-      if (tavanAsildi && tavanUygula) {
+      if (tavanAsildi) {
         odenebilirBrut = tavanTutari;
         havuz = _round(brutHakedis - odenebilirBrut, 2);
       }
 
-      // Vergi kesintileri
+      // Vergi kesintileri (Gelir Vergisi / Stopaj + Yasal Damga Vergisi)
       final gelirVergisi = _round(odenebilirBrut * (gelirVergisiOrani / 100), 2);
       final damgaVergisi = _round(odenebilirBrut * damgaVergisiOrani, 2);
       final netEleGecen = _round(odenebilirBrut - gelirVergisi - damgaVergisi, 2);
@@ -534,7 +536,7 @@ class DanismanlikExcelHesaplama {
           bireyselNetKatkiPuani: p.puan,
           donemKatsayi: 1.0,
           kursSaatlikUcreti: p.dersSaati > 0 ? _round(brutHakedis / p.dersSaati, 2) : 0,
-          tavanSaatlikUcreti: tavanSaatlik,
+          tavanSaatlikUcreti: tavanUygula ? tavanSaatlik : 0.0,
           brutHakedis: brutHakedis,
           odenebilirHakedis: netEleGecen,
           havuzTutari: havuz,
@@ -556,7 +558,7 @@ class DanismanlikExcelHesaplama {
           bireyselPuan: p.puan,
           brutHakedis: brutHakedis,
           tavanKontrol: tavanAsildi,
-          tavanLimitTutari: tavanTutari,
+          tavanLimitTutari: tavanUygula ? tavanTutari : brutHakedis,
           odenebilirHakedis: netEleGecen,
           fazlalikHavuzTutari: havuz,
         ),
