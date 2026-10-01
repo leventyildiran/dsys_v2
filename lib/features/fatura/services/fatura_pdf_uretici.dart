@@ -519,33 +519,33 @@ class FaturaPdfUretici {
                       ),
                     ),
                   ]);
+                }
 
-                  final hesapAdiHam =
-                      (invoice.hesapAdi?.trim().isNotEmpty == true)
-                          ? invoice.hesapAdi!
-                          : (sistemHesapAdi ?? '');
-                  final hesapAdi = FaturaMatbuConfig.formatHesapAdiMatbu(
-                    hesapAdiHam,
-                    fallbackVkn: isletmeVknFallback,
-                  );
-                  if (hesapAdi.isNotEmpty) {
-                    children.add(pw.Positioned(
-                      top: konum('hesapAdi').dy,
-                      left: konum('hesapAdi').dx,
-                      child: pw.Text(hesapAdi, style: metin()),
-                    ));
-                  }
+                final hesapAdiHam =
+                    (invoice.hesapAdi?.trim().isNotEmpty == true)
+                        ? invoice.hesapAdi!
+                        : (sistemHesapAdi ?? '');
+                final hesapAdi = FaturaMatbuConfig.formatHesapAdiMatbu(
+                  hesapAdiHam,
+                  fallbackVkn: isletmeVknFallback,
+                );
+                if (hesapAdi.isNotEmpty) {
+                  children.add(pw.Positioned(
+                    top: konum('hesapAdi').dy,
+                    left: konum('hesapAdi').dx,
+                    child: pw.Text(hesapAdi, style: metin()),
+                  ));
+                }
 
-                  final iban = (invoice.iban?.trim().isNotEmpty == true)
-                      ? invoice.iban!
-                      : (sistemIban ?? '');
-                  if (iban.isNotEmpty) {
-                    children.add(pw.Positioned(
-                      top: konum('iban').dy,
-                      left: konum('iban').dx,
-                      child: pw.Text(iban, style: metin()),
-                    ));
-                  }
+                final iban = (invoice.iban?.trim().isNotEmpty == true)
+                    ? invoice.iban!
+                    : (sistemIban ?? '');
+                if (iban.isNotEmpty) {
+                  children.add(pw.Positioned(
+                    top: konum('iban').dy,
+                    left: konum('iban').dx,
+                    child: pw.Text(iban, style: metin()),
+                  ));
                 }
 
                 if (toplamSayfa > 1) {
