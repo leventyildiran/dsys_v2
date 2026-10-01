@@ -1,5 +1,5 @@
 @JS()
-library tesseract_ocr;
+library;
 
 import 'dart:convert';
 import 'dart:js_interop';

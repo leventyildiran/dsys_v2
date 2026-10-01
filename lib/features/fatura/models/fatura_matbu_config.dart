@@ -265,7 +265,7 @@ class FaturaMatbuConfig {
   static String formatNumuneNoMatbu(String raw) {
     final n = raw.trim();
     if (n.isEmpty) return n;
-    if (n.toLowerCase().contains('numune')) return n;
+    if (n.toLowerCase().contains('numune') || n.toLowerCase().contains('rapor')) return n;
     return 'Numune No: $n';
   }
 

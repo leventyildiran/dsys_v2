@@ -158,12 +158,10 @@ class KalibrasyonBaskiOnizleme {
         : '';
 
     final melbesNo = invoice.melbesNo.trim();
-    final melbesYazi = FaturaMatbuConfig.formatMelbesMatbu(
-      melbesNo,
-      kurumOnEki: (melbesNo.isNotEmpty && invoice.melbesKurumOnEki.trim().isNotEmpty)
-          ? invoice.melbesKurumOnEki
-          : null,
-    );
+    final melbesKurum = invoice.melbesKurumOnEki.trim().isNotEmpty
+        ? invoice.melbesKurumOnEki.trim()
+        : (melbesNo.isNotEmpty ? FaturaMatbuConfig.varsayilanMelbesKurumOnEki : '');
+    final melbesYazi = FaturaMatbuConfig.formatMelbesMatbu(melbesNo);
     final numuneYazi = FaturaMatbuConfig.formatNumuneNoMatbu(invoice.numuneNo);
 
     final hesapHam = (invoice.hesapAdi?.trim().isNotEmpty == true)
@@ -193,7 +191,7 @@ class KalibrasyonBaskiOnizleme {
         'irsaliyeTarihi': invoice.irsaliyeTarihi,
         'irsaliyeNo': invoice.irsaliyeNo,
         'numuneAciklama': ustAciklamalar,
-        'melbesKurum': melbesNo.isNotEmpty ? invoice.melbesKurumOnEki.trim() : '',
+        'melbesKurum': melbesKurum,
         'melbes': melbesYazi,
         'numuneNo': numuneYazi,
         'matrah': (!canliVeri || sonSayfa) ? TurkceFormat.para(invoice.matrah) : (invoice.nakliYekunAktif ? TurkceFormat.para(araToplam) : ''),

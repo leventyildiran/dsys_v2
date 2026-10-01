@@ -112,7 +112,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
                   ],
                 ),
               );
-              if (confirm == true) {
+              if (confirm == true && context.mounted) {
                 final provider = context.read<BatchFaturaProvider>();
                 provider.varsayilanaSifirla();
                 if (context.mounted) {
@@ -284,13 +284,32 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
       'hesapAdi': (onizleme.alanlar['hesapAdi'] ?? invoice.hesapAdi ?? '', 'hesapAdi', 280.0, 2),
       'numuneAciklama': (invoice.numuneAciklamasi, 'numuneAciklamasi', 250.0, 2),
       'melbesKurum': (
-        invoice.melbesKurumOnEki,
+        onizleme.alanlar['melbesKurum'] ??
+            (invoice.melbesKurumOnEki.trim().isNotEmpty
+                ? invoice.melbesKurumOnEki.trim()
+                : (invoice.melbesNo.trim().isNotEmpty
+                    ? FaturaMatbuConfig.varsayilanMelbesKurumOnEki
+                    : '')),
         'melbesKurumOnEki',
         250.0,
         2,
       ),
-      'melbes': (invoice.melbesNo, 'melbesNo', 200.0, 1),
-      'numuneNo': (invoice.numuneNo, 'numuneNo', 160.0, 1),
+      'melbes': (
+        onizleme.alanlar['melbes']?.isNotEmpty == true
+            ? onizleme.alanlar['melbes']!
+            : FaturaMatbuConfig.formatMelbesMatbu(invoice.melbesNo),
+        'melbesNo',
+        200.0,
+        1,
+      ),
+      'numuneNo': (
+        onizleme.alanlar['numuneNo']?.isNotEmpty == true
+            ? onizleme.alanlar['numuneNo']!
+            : FaturaMatbuConfig.formatNumuneNoMatbu(invoice.numuneNo),
+        'numuneNo',
+        160.0,
+        1,
+      ),
     };
 
     if (invoice.nakliYekunAktif) {
@@ -1047,10 +1066,9 @@ class _MatbuEditableFieldState extends State<_MatbuEditableField> {
 class _OverflowHitTestStack extends Stack {
   final double overflowPadding;
   const _OverflowHitTestStack({
-    super.clipBehavior = Clip.none,
     this.overflowPadding = 1200.0,
     super.children,
-  });
+  }) : super(clipBehavior: Clip.none);
 
   @override
   RenderStack createRenderObject(BuildContext context) {

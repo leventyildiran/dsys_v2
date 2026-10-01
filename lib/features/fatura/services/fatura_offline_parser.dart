@@ -24,6 +24,10 @@ class FaturaOfflineParser {
     r'numune\s*no\s*[:.\-]?\s*([A-Z0-9\-/]+)',
     caseSensitive: false,
   );
+  static final RegExp _raporRegex = RegExp(
+    r'rapor\s*no\s*[:.\-]?\s*([^|\n\r]+)',
+    caseSensitive: false,
+  );
   static final RegExp _irsaliyeTarihRegex = RegExp(
     r'irsaliye\s*tarih(?:i)?\s*[:.\-]?\s*(\d{1,2}[./]\d{1,2}[./]\d{2,4})',
     caseSensitive: false,
@@ -31,7 +35,6 @@ class FaturaOfflineParser {
   static final RegExp _tarihRegex = RegExp(
     r'\b(\d{1,2})[./](\d{1,2})[./](\d{2,4})\b',
   );
-  static final RegExp _yaziylaRegex = RegExp(r'#\s*(.+?)\s*#');
   
   static final RegExp _kursAdiRegex = RegExp(
     r'kurs\s*(?:ad[ıi])?\s*[:.\-]?\s*(.+)',
@@ -576,10 +579,30 @@ class FaturaOfflineParser {
     }
     final kdvTutari = muaf ? 0.0 : matrah * (kdvOrani / 100.0);
 
-    final melbes = _melbesRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
-    final numune = _numuneRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
+    var melbes = _melbesRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
+    var numune = _numuneRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
+    if (numune.isEmpty) {
+      final raporMatch = _raporRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
+      if (raporMatch.isNotEmpty) {
+        numune = raporMatch.toLowerCase().contains('rapor')
+            ? raporMatch
+            : 'Rapor No: $raporMatch';
+      }
+    }
+    if (melbes.isNotEmpty && !melbes.toLowerCase().contains('melbes')) {
+      melbes = 'Melbes No: $melbes';
+    }
+    if (numune.isNotEmpty &&
+        !numune.toLowerCase().contains('numune') &&
+        !numune.toLowerCase().contains('rapor')) {
+      numune = 'Numune No: $numune';
+    }
+
     final irsaliyeTarihi = _irsaliyeTarihRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
-    final melbesKurumOnEki = _melbesKurumOnEkiFromText(fullText);
+    var melbesKurumOnEki = _melbesKurumOnEkiFromText(fullText);
+    if (melbesKurumOnEki.isEmpty && melbes.isNotEmpty) {
+      melbesKurumOnEki = FaturaMatbuConfig.varsayilanMelbesKurumOnEki;
+    }
     final aciklama = _numuneAciklama(fullText);
 
     final kursAdi = _kursAdiRegex.firstMatch(fullText)?.group(1)?.trim();
@@ -621,25 +644,43 @@ class FaturaOfflineParser {
     );
   }
 
-  /// MELBES satırında "Melbes Başvuru" öncesindeki kurum/bakanlık adını ayıklar.
+  /// Metinden kurum/bakanlık adını (ör. Çevre ve Şehircilik Bakanlığı) ayıklar.
   static String _melbesKurumOnEkiFromText(String fullText) {
+    // 1) Doğrudan bilinen bakanlık isimlerini ara (en güvenilir)
+    final bilinenBakanliklar = [
+      RegExp(r'(?:T\.?C\.?\s*)?Çevre[,\s]+Şehircilik\s+ve\s+İklim\s+Değişikliği\s+Bakanlığı', caseSensitive: false),
+      RegExp(r'(?:T\.?C\.?\s*)?Çevre\s+ve\s+Şehircilik\s+Bakanlığı', caseSensitive: false),
+      RegExp(r'(?:T\.?C\.?\s*)?Tarım\s+ve\s+Orman\s+Bakanlığı', caseSensitive: false),
+      RegExp(r'(?:T\.?C\.?\s*)?Sağlık\s+Bakanlığı', caseSensitive: false),
+      RegExp(r'(?:T\.?C\.?\s*)?Sanayi\s+ve\s+Teknoloji\s+Bakanlığı', caseSensitive: false),
+    ];
+    for (final reg in bilinenBakanliklar) {
+      final m = reg.firstMatch(fullText);
+      if (m != null) {
+        return m.group(0)!.trim();
+      }
+    }
+
+    // 2) MELBES satırında "Melbes" öncesindeki kurum/bakanlık adını ayıkla
     for (final line in fullText.split('\n')) {
       final l = line.trim();
       if (!RegExp(r'melbes', caseSensitive: false).hasMatch(l)) continue;
 
       final basvuruMatch = RegExp(
-        r'^(.*?)\s*melbes\s*ba[şs]vuru',
+        r'^(.*?)\s*melbes\s*(?:ba[şs]vuru)?',
         caseSensitive: false,
       ).firstMatch(l);
       if (basvuruMatch != null) {
         final kurum = basvuruMatch.group(1)!.trim();
-        if (kurum.isNotEmpty) return kurum;
+        final temizKurum = kurum.replaceAll(RegExp(r'^[\|\s\-,]+|[\|\s\-,]+$'), '').trim();
+        if (temizKurum.isNotEmpty && temizKurum.length > 3) return temizKurum;
       }
 
       final melbesMatch = RegExp(r'melbes', caseSensitive: false).firstMatch(l);
       if (melbesMatch != null && melbesMatch.start > 0) {
         final kurum = l.substring(0, melbesMatch.start).trim();
-        if (kurum.isNotEmpty) return kurum;
+        final temizKurum = kurum.replaceAll(RegExp(r'^[\|\s\-,]+|[\|\s\-,]+$'), '').trim();
+        if (temizKurum.isNotEmpty && temizKurum.length > 3) return temizKurum;
       }
     }
     return '';

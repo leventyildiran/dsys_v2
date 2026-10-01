@@ -153,10 +153,10 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
     "vergiNo": "Vergi veya TC No",
     "tarih": "Fatura veya İşlem Tarihi (DD.MM.YYYY vb. formatta)",
     "irsaliyeTarihi": "İrsaliye Tarihi (DD.MM.YYYY vb. formatta)",
-    "irsaliyeNo": "İrsaliye Numarası",
-    "melbesNo": "Melbes numarası (yalnızca numara, kurum adı hariç)",
-    "melbesKurumOnEki": "MELBES satırındaki kurum/bakanlık adı (Melbes kelimesinden önceki kısım)",
-    "numuneNo": "Numune Numarası",
+    "melbesNo": "Melbes numarası (varsa 'Melbes No: ...' veya sadece numara)",
+    "melbesKurumOnEki": "MELBES satırındaki kurum/bakanlık adı (Belgede Çevre, Şehircilik ve İklim Değişikliği Bakanlığı veya Çevre ve Şehircilik Bakanlığı geçiyorsa ya da Melbes varsa 'Çevre, Şehircilik ve İklim Değişikliği Bakanlığı')",
+    "numuneNo": "Numune Numarası (veya belgede Rapor No varsa 'Rapor No: ...')",
+    "raporNo": "Varsa belgedeki Rapor No",
     "numuneAciklamasi": "Varsa numune açıklaması",
     "tahminiBirim": "Belgeden anlaşılan Şube/Birim adı (TÖMER, UBATAM, TARIMSAL, SATIN ALMA vb.)",
     "hizmetTipi": "Aşağıdaki kurallara göre: EĞİTİM|DANIŞMANLIK|SATIŞ|ANALİZ|TEKSTİL_TASARIM|DİĞER",
@@ -188,7 +188,7 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
 3. Faturada birden fazla müşteri verisi varsa liste içine birden fazla obje koy.
 4. "kalemler" listesinde, "fiyat" kısmına virgülleri noktaya çevirerek bir Number koy (örn: 1540.50). 
 5. DİKKAT: Eğer bir alana dair veri (örneğin Melbes No, Numune No, İrsaliye No) belgede YOKSA, KESİNLİKLE uydurma yapma ve o alanı boş string ("") olarak bırak. Sadece metinde net olarak geçen değerleri kullan.
-6. Kurum/bakanlık adını (ör. "Çevre, Şehircilik ve İklim Değişikliği Bakanlığı") kalemler dizisine EKLEME. Bu bilgi yalnızca "melbesKurumOnEki" alanına yazılmalı; kalemler yalnızca gerçek analiz/hizmet satırlarını içermeli.
+6. Kurum/bakanlık adını (ör. "Çevre, Şehircilik ve İklim Değişikliği Bakanlığı") kalemler dizisine EKLEME. Bu bilgi yalnızca "melbesKurumOnEki" alanına yazılmalı; kalemler yalnızca gerçek analiz/hizmet satırlarını içermeli. Belgede Melbes veya çevre analizi geçiyorsa "melbesKurumOnEki" mutlaka "Çevre, Şehircilik ve İklim Değişikliği Bakanlığı" olmalı.
 7. "hizmetTipi" alanını aşağıdaki mantığa göre belirle:
    - Metinde "Analiz", "Test", "Ölçüm", "Numune", "Deney" geçiyorsa: ANALİZ
    - Metinde "Eğitim", "Kurs", "Ders", "TÖMER", "Sertifika", "Kayıt" geçiyorsa: EĞİTİM

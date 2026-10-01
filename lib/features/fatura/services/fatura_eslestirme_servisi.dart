@@ -1,3 +1,4 @@
+import '../models/fatura_matbu_config.dart';
 import '../models/fatura_model.dart';
 import '../models/fatura_parse_kaynaklari.dart';
 import 'fatura_offline_parser.dart';
@@ -169,7 +170,11 @@ class FaturaEslestirmeServisi {
       irsaliyeTarihi: parsedFatura?.irsaliyeTarihi ?? sablon.irsaliyeTarihi,
       irsaliyeNo: parsedFatura?.irsaliyeNo ?? '', // Yeni metinden
       melbesNo: parsedFatura?.melbesNo ?? '', // Yeni metinden
-      melbesKurumOnEki: parsedFatura?.melbesKurumOnEki ?? '',
+      melbesKurumOnEki: parsedFatura?.melbesKurumOnEki.trim().isNotEmpty == true
+          ? parsedFatura!.melbesKurumOnEki
+          : (parsedFatura?.melbesNo.trim().isNotEmpty == true
+              ? FaturaMatbuConfig.varsayilanMelbesKurumOnEki
+              : sablon.melbesKurumOnEki),
       numuneNo: parsedFatura?.numuneNo ?? '', // Yeni metinden
       numuneAciklamasi: parsedFatura?.numuneAciklamasi ?? '',
       iban: sablon.iban,

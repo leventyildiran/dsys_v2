@@ -1,4 +1,5 @@
 // KDV oranı dropdown seçenekleri
+import 'fatura_matbu_config.dart';
 import 'fatura_parse_kaynaklari.dart';
 const fKdvOranlari = [0.0, 1.0, 10.0, 20.0];
 
@@ -201,6 +202,18 @@ class FaturaModel {
   }
 
   factory FaturaModel.fromJson(Map<String, dynamic> json) {
+    final rawMelbes = json['melbesNo']?.toString().trim() ?? '';
+    var rawNumune = json['numuneNo']?.toString().trim() ?? '';
+    final rawRapor = json['raporNo']?.toString().trim() ?? '';
+    if (rawNumune.isEmpty && rawRapor.isNotEmpty) {
+      rawNumune = rawRapor.toLowerCase().contains('rapor') ? rawRapor : 'Rapor No: $rawRapor';
+    }
+
+    var rawKurum = json['melbesKurumOnEki']?.toString().trim() ?? '';
+    if (rawKurum.isEmpty && rawMelbes.isNotEmpty) {
+      rawKurum = FaturaMatbuConfig.varsayilanMelbesKurumOnEki;
+    }
+
     return FaturaModel(
       id: json['id']?.toString() ?? '',
       firmaAdi: json['firmaAdi']?.toString() ?? '',
@@ -210,9 +223,9 @@ class FaturaModel {
       tarih: json['tarih']?.toString() ?? '',
       irsaliyeTarihi: json['irsaliyeTarihi']?.toString() ?? '',
       irsaliyeNo: json['irsaliyeNo']?.toString() ?? '',
-      melbesNo: json['melbesNo']?.toString() ?? '',
-      numuneNo: json['numuneNo']?.toString() ?? '',
-      melbesKurumOnEki: json['melbesKurumOnEki']?.toString() ?? '',
+      melbesNo: rawMelbes,
+      numuneNo: rawNumune,
+      melbesKurumOnEki: rawKurum,
       numuneAciklamasi: json['numuneAciklamasi']?.toString() ?? '',
       matrah: _numParse(json['matrah']),
       kdvTutari: _numParse(json['kdvTutari']),

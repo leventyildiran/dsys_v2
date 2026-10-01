@@ -355,9 +355,11 @@ class FaturaPdfUretici {
                   ));
                 }
 
-                final melbesKurum = invoice.melbesKurumOnEki.trim();
                 final melbesNo = invoice.melbesNo.trim();
-                if (melbesKurum.isNotEmpty && melbesNo.isNotEmpty) {
+                final melbesKurum = invoice.melbesKurumOnEki.trim().isNotEmpty
+                    ? invoice.melbesKurumOnEki.trim()
+                    : (melbesNo.isNotEmpty ? FaturaMatbuConfig.varsayilanMelbesKurumOnEki : '');
+                if (melbesKurum.isNotEmpty) {
                   children.add(pw.Positioned(
                     top: konum('melbesKurum').dy,
                     left: konum('melbesKurum').dx,

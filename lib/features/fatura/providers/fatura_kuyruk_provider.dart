@@ -375,14 +375,25 @@ class FaturaKuyrukProvider extends ChangeNotifier {
       case 'irsaliyeNo':
         currentInvoice.irsaliyeNo = value.toString();
       case 'melbesNo':
-        currentInvoice.melbesNo = value.toString();
+        final s = value.toString().trim();
+        currentInvoice.melbesNo = (s.isNotEmpty && !s.toLowerCase().contains('melbes'))
+            ? 'Melbes No: $s'
+            : s;
+        if (currentInvoice.melbesKurumOnEki.trim().isEmpty && currentInvoice.melbesNo.isNotEmpty) {
+          currentInvoice.melbesKurumOnEki = FaturaMatbuConfig.varsayilanMelbesKurumOnEki;
+        }
       case 'melbesTam':
         currentInvoice.melbesNo = value.toString();
         currentInvoice.melbesKurumOnEki = ''; // Düzenleme yapıldığında öneki silip tamamını no'ya atıyoruz
       case 'melbesKurumOnEki':
         currentInvoice.melbesKurumOnEki = value.toString();
       case 'numuneNo':
-        currentInvoice.numuneNo = value.toString();
+        final s = value.toString().trim();
+        currentInvoice.numuneNo = (s.isNotEmpty &&
+                !s.toLowerCase().contains('numune') &&
+                !s.toLowerCase().contains('rapor'))
+            ? 'Numune No: $s'
+            : s;
       case 'numuneAciklamasi':
         currentInvoice.numuneAciklamasi = value.toString();
       case 'matrah':
