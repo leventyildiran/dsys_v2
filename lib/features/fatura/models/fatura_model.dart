@@ -191,6 +191,15 @@ class FaturaModel {
     return fVarsayilanKdvOrani;
   }
 
+  static double _numParse(dynamic v) {
+    if (v == null) return 0.0;
+    if (v is num) return v.toDouble();
+    if (v is String) {
+      return double.tryParse(v.replaceAll(',', '.').trim()) ?? 0.0;
+    }
+    return 0.0;
+  }
+
   factory FaturaModel.fromJson(Map<String, dynamic> json) {
     return FaturaModel(
       id: json['id']?.toString() ?? '',
@@ -205,9 +214,9 @@ class FaturaModel {
       numuneNo: json['numuneNo']?.toString() ?? '',
       melbesKurumOnEki: json['melbesKurumOnEki']?.toString() ?? '',
       numuneAciklamasi: json['numuneAciklamasi']?.toString() ?? '',
-      matrah: (json['matrah'] as num?)?.toDouble() ?? 0.0,
-      kdvTutari: (json['kdvTutari'] as num?)?.toDouble() ?? 0.0,
-      genelToplam: (json['genelToplam'] as num?)?.toDouble() ?? 0.0,
+      matrah: _numParse(json['matrah']),
+      kdvTutari: _numParse(json['kdvTutari']),
+      genelToplam: _numParse(json['genelToplam']),
       isKdvMuaf: json['isKdvMuaf'] == true,
       nakliYekunAktif: json['nakliYekunAktif'] == true,
       kdvOrani: _normalizeKdvOrani(json['kdvOrani']),
@@ -227,8 +236,19 @@ class FaturaModel {
       donem: json['donem']?.toString(),
       aciklama: json['aciklama']?.toString(),
       tahminiBirim: json['tahminiBirim']?.toString(),
-      kalemler: List<Map<String, dynamic>>.from(json['kalemler'] ?? []),
-      ekstraNotlar: List<String>.from(json['ekstraNotlar'] ?? []),
+      kalemler: (json['kalemler'] as List<dynamic>?)
+              ?.map((item) {
+                if (item is Map) {
+                  return Map<String, dynamic>.from(item);
+                }
+                return <String, dynamic>{};
+              })
+              .toList() ??
+          [],
+      ekstraNotlar: (json['ekstraNotlar'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
     );
   }
 
