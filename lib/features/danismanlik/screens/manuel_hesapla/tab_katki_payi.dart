@@ -987,44 +987,131 @@ class TabKatkiPayi extends StatelessWidget {
     );
   }
 
-  Widget _buildOranDropdown({
-    required String etiket,
-    required int deger,
-    required List<int> secenekler,
-    required ValueChanged<int> onSecildi,
-  }) {
-    final list = secenekler.contains(deger) ? secenekler : ([...secenekler, deger]..sort());
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '$etiket: ',
-            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
-          ),
-          DropdownButton<int>(
-            value: deger,
-            isDense: true,
-            underline: const SizedBox(),
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-            items: list.map((val) {
-              return DropdownMenuItem<int>(
-                value: val,
-                child: Text('%$val'),
-              );
-            }).toList(),
-            onChanged: (val) {
-              if (val != null) onSecildi(val);
-            },
-          ),
-        ],
-      ),
+  void _oranlariElleDuzenleDialog(BuildContext context) {
+    final hazineCtrl = TextEditingController(text: hazineOrani.toString());
+    final bapCtrl = TextEditingController(text: bapOrani.toString());
+    final kurumYuzde = (aracGerecOrani * 100);
+    final kurumCtrl = TextEditingController(
+      text: (kurumYuzde % 1 == 0) ? kurumYuzde.toInt().toString() : kurumYuzde.toStringAsFixed(1),
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            final hVal = int.tryParse(hazineCtrl.text.replaceAll(',', '.').trim()) ?? hazineOrani;
+            final bVal = int.tryParse(bapCtrl.text.replaceAll(',', '.').trim()) ?? bapOrani;
+            final kVal = double.tryParse(kurumCtrl.text.replaceAll(',', '.').trim()) ?? kurumYuzde;
+            final topKes = hVal + bVal + kVal;
+            final kalPay = 100 - topKes;
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              title: Row(
+                children: [
+                  Icon(Icons.tune, color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E), size: 22),
+                  const SizedBox(width: 8),
+                  const Text('Kesinti Oranlarını Elle Düzenle', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: SizedBox(
+                width: 380,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Kesintileri dilediğiniz oranda elle belirleyebilirsiniz (örn: Kurum Payı %18). Yapılan değişiklikler hesaplama tablosuna anında yansır.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: hazineCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Hazine Payı Oranı (%)',
+                        hintText: '0, 1, 2 vb.',
+                        prefixIcon: Icon(Icons.account_balance_outlined, size: 18),
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      onChanged: (_) => setDialogState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: bapCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'BAP Payı Oranı (%)',
+                        hintText: '0, 5, 10 vb.',
+                        prefixIcon: Icon(Icons.biotech_outlined, size: 18),
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      onChanged: (_) => setDialogState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: kurumCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(
+                        labelText: is58e ? 'Birim / Kurum Payı Oranı (%)' : 'Kurum / Araç-Gereç Payı Oranı (%)',
+                        hintText: '15, 18, 20 vb.',
+                        prefixIcon: const Icon(Icons.business_outlined, size: 18),
+                        border: const OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      onChanged: (_) => setDialogState(() {}),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Toplam Kesinti: %${topKes % 1 == 0 ? topKes.toInt() : topKes.toStringAsFixed(1)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFDC2626)),
+                          ),
+                          Text(
+                            'Dağıtılabilir Pay: %${kalPay % 1 == 0 ? kalPay.toInt() : kalPay.toStringAsFixed(1)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF15803D)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('İptal'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    final h = int.tryParse(hazineCtrl.text.replaceAll(',', '.').trim()) ?? hazineOrani;
+                    final b = int.tryParse(bapCtrl.text.replaceAll(',', '.').trim()) ?? bapOrani;
+                    final k = double.tryParse(kurumCtrl.text.replaceAll(',', '.').trim()) ?? kurumYuzde;
+                    onKesintiOranlariDegisti?.call(h, b, k / 100.0);
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Uygula'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1035,9 +1122,12 @@ class TabKatkiPayi extends StatelessWidget {
     final aracGerecTutari = kesinti?.aracGerecPayi ?? 0.0;
     final toplamKesintiTutari = hazineTutari + bapTutari + aracGerecTutari;
     final katkiPayi = kesinti?.katkiPayi ?? maksAkademikPay;
-    final kurumOraniYuzde = (aracGerecOrani * 100).round();
+    final kurumOraniYuzde = (aracGerecOrani * 100);
+    final kurumOraniYuzdeStr = (kurumOraniYuzde % 1 == 0) ? kurumOraniYuzde.toInt().toString() : kurumOraniYuzde.toStringAsFixed(1);
     final toplamKesintiOrani = hazineOrani + bapOrani + kurumOraniYuzde;
+    final toplamKesintiOraniStr = (toplamKesintiOrani % 1 == 0) ? toplamKesintiOrani.toInt().toString() : toplamKesintiOrani.toStringAsFixed(1);
     final kalanPayOrani = 100 - toplamKesintiOrani;
+    final kalanPayOraniStr = (kalanPayOrani % 1 == 0) ? kalanPayOrani.toInt().toString() : kalanPayOrani.toStringAsFixed(1);
     final buAykiPay = excelSonuc.netOdemeToplam;
     final kalanBakiye = excelSonuc.artikBakiye;
 
@@ -1095,7 +1185,7 @@ class TabKatkiPayi extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                'Kalan %$kalanPayOrani Dağıtılır',
+                                'Kalan %$kalanPayOraniStr Dağıtılır',
                                 style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -1104,8 +1194,8 @@ class TabKatkiPayi extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           is58e
-                              ? 'KDV hariç matrahtan %$hazineOrani Hazine, %$bapOrani BAP ve %$kurumOraniYuzde Birim/Kurum payı kesildikten sonra kalan tutar personele dağıtılır. Gelir Vergisi ve Damga Vergisi kesintisine tabidir.'
-                              : 'KDV hariç matrahtan %$hazineOrani Hazine, %$bapOrani BAP ve %$kurumOraniYuzde Kurum kesintisi yapıldıktan sonra kalan %$kalanPayOrani sözleşme esaslarına göre personele ödenir (Puan/ek gösterge/saat tavanı uygulanmaz).',
+                              ? 'KDV hariç matrahtan %$hazineOrani Hazine, %$bapOrani BAP ve %$kurumOraniYuzdeStr Birim/Kurum payı kesildikten sonra kalan tutar personele dağıtılır. Gelir Vergisi ve Damga Vergisi kesintisine tabidir.'
+                              : 'KDV hariç matrahtan %$hazineOrani Hazine, %$bapOrani BAP ve %$kurumOraniYuzdeStr Kurum kesintisi yapıldıktan sonra kalan %$kalanPayOraniStr sözleşme esaslarına göre personele ödenir (Puan/ek gösterge/saat tavanı uygulanmaz).',
                           style: TextStyle(
                             fontSize: 12,
                             color: is58e ? Colors.indigo.shade900 : Colors.teal.shade900,
@@ -1146,65 +1236,90 @@ class TabKatkiPayi extends StatelessWidget {
                 ),
               ],
             ),
-            child: Row(
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 10,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: (is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.tune_rounded, size: 20, color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Yasal & Kurumsal Kesintiler:',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F172A)),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: (is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.tune_rounded, size: 20, color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)),
                     ),
-                    Text(
-                      'Kesinti yüzdelerini buradan anında güncelleyin',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Yasal & Kurumsal Kesintiler:',
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F172A)),
+                        ),
+                        Text(
+                          'Oranları elle kutucuklara yazabilir veya listeden seçebilirsiniz',
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(width: 18),
 
-                // 1. Hazine Payı
-                _buildOranDropdown(
-                  etiket: 'Hazine Payı',
-                  deger: hazineOrani,
-                  secenekler: const [0, 1, 2, 3, 5],
-                  onSecildi: (val) {
-                    onKesintiOranlariDegisti?.call(val, bapOrani, aracGerecOrani);
-                  },
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 1. Hazine Payı
+                    _KesintiOranKutusu(
+                      etiket: 'Hazine',
+                      deger: hazineOrani,
+                      hazirSecenekler: const [0, 1, 2, 3, 5],
+                      onDegisti: (val) {
+                        onKesintiOranlariDegisti?.call(val.toInt(), bapOrani, aracGerecOrani);
+                      },
+                    ),
+                    const SizedBox(width: 8),
+
+                    // 2. BAP Payı
+                    _KesintiOranKutusu(
+                      etiket: 'BAP',
+                      deger: bapOrani,
+                      hazirSecenekler: const [0, 1, 2, 5, 10],
+                      onDegisti: (val) {
+                        onKesintiOranlariDegisti?.call(hazineOrani, val.toInt(), aracGerecOrani);
+                      },
+                    ),
+                    const SizedBox(width: 8),
+
+                    // 3. Birim / Kurum Payı
+                    _KesintiOranKutusu(
+                      etiket: is58e ? 'Birim/Kurum' : 'Kurum Payı',
+                      deger: (kurumOraniYuzde % 1 == 0) ? kurumOraniYuzde.toInt() : kurumOraniYuzde,
+                      hazirSecenekler: const [0, 5, 10, 15, 18, 20, 25, 30, 35, 40, 50],
+                      onDegisti: (val) {
+                        onKesintiOranlariDegisti?.call(hazineOrani, bapOrani, val.toDouble() / 100.0);
+                      },
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Elle Düzenle Butonu
+                    TextButton.icon(
+                      onPressed: () => _oranlariElleDuzenleDialog(context),
+                      icon: const Icon(Icons.edit, size: 15),
+                      label: const Text('Elle Düzenle', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
+                      style: TextButton.styleFrom(
+                        foregroundColor: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E),
+                        backgroundColor: (is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)).withValues(alpha: 0.08),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-
-                // 2. BAP Payı
-                _buildOranDropdown(
-                  etiket: 'BAP Payı',
-                  deger: bapOrani,
-                  secenekler: const [0, 1, 2, 5, 10],
-                  onSecildi: (val) {
-                    onKesintiOranlariDegisti?.call(hazineOrani, val, aracGerecOrani);
-                  },
-                ),
-                const SizedBox(width: 12),
-
-                // 3. Birim / Kurum Payı
-                _buildOranDropdown(
-                  etiket: is58e ? 'Birim / Kurum' : 'Kurum / A.G.P.',
-                  deger: kurumOraniYuzde,
-                  secenekler: const [0, 5, 10, 15, 20, 25, 30, 35, 40, 50],
-                  onSecildi: (val) {
-                    onKesintiOranlariDegisti?.call(hazineOrani, bapOrani, val / 100.0);
-                  },
-                ),
-
-                const Spacer(),
 
                 // Özet Rozeti
                 Container(
@@ -1221,12 +1336,12 @@ class TabKatkiPayi extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            'Toplam Kesinti: %$toplamKesintiOrani (${TurkceFormat.para(toplamKesintiTutari)})',
+                            'Toplam Kesinti: %$toplamKesintiOraniStr (${TurkceFormat.para(toplamKesintiTutari)})',
                             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5, color: Color(0xFFDC2626)),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Dağıtılabilir Pay: %$kalanPayOrani (${TurkceFormat.para(katkiPayi)})',
+                            'Dağıtılabilir Pay: %$kalanPayOraniStr (${TurkceFormat.para(katkiPayi)})',
                             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF15803D)),
                           ),
                         ],
@@ -1278,7 +1393,7 @@ class TabKatkiPayi extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Toplam Kesinti (%$toplamKesintiOrani):',
+                                  'Toplam Kesinti (%$toplamKesintiOraniStr):',
                                   style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFDC2626)),
                                 ),
                                 Text(
@@ -1321,8 +1436,8 @@ class TabKatkiPayi extends StatelessWidget {
                           children: [
                             Text(
                               is58e
-                                  ? 'Toplam Dağıtılabilir Pay (%$kalanPayOrani):'
-                                  : 'Sözleşme Dağıtılabilir Pay (%$kalanPayOrani):',
+                                  ? 'Toplam Dağıtılabilir Pay (%$kalanPayOraniStr):'
+                                  : 'Sözleşme Dağıtılabilir Pay (%$kalanPayOraniStr):',
                               style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
                             ),
                             const SizedBox(height: 2),
@@ -2128,7 +2243,7 @@ class TabKatkiPayi extends StatelessWidget {
                             ),
                             Switch(
                               value: tavanUygula,
-                              activeColor: const Color(0xFF16A34A),
+                              activeThumbColor: const Color(0xFF16A34A),
                               onChanged: (val) {
                                 onTavanUygulaDegisti?.call(val);
                                 setDialogState(() {});
@@ -2347,3 +2462,165 @@ class TabKatkiPayi extends StatelessWidget {
     );
   }
 }
+
+/// Kesinti oranını hem elle yazmaya hem de açılır listeden hızlı seçmeye izin veren girdi bileşeni.
+class _KesintiOranKutusu extends StatefulWidget {
+  final String etiket;
+  final num deger;
+  final List<num> hazirSecenekler;
+  final ValueChanged<num> onDegisti;
+
+  const _KesintiOranKutusu({
+    required this.etiket,
+    required this.deger,
+    required this.hazirSecenekler,
+    required this.onDegisti,
+  });
+
+  @override
+  State<_KesintiOranKutusu> createState() => _KesintiOranKutusuState();
+}
+
+class _KesintiOranKutusuState extends State<_KesintiOranKutusu> {
+  late TextEditingController _controller;
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _formatDeger(widget.deger));
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  String _formatDeger(num v) {
+    if (v == v.roundToDouble()) {
+      return v.toInt().toString();
+    }
+    return v.toString();
+  }
+
+  @override
+  void didUpdateWidget(covariant _KesintiOranKutusu oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.deger != widget.deger && !_focusNode.hasFocus) {
+      _controller.text = _formatDeger(widget.deger);
+    }
+  }
+
+  void _onFocusChange() {
+    if (!_focusNode.hasFocus) {
+      _degeriUygula();
+    }
+  }
+
+  void _degeriUygula() {
+    final raw = _controller.text.replaceAll(',', '.').trim();
+    final parsed = num.tryParse(raw);
+    if (parsed != null && parsed >= 0 && parsed <= 100) {
+      widget.onDegisti(parsed);
+    } else {
+      _controller.text = _formatDeger(widget.deger);
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final secenekler = widget.hazirSecenekler.contains(widget.deger)
+        ? widget.hazirSecenekler
+        : ([...widget.hazirSecenekler, widget.deger]..sort());
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${widget.etiket}: ',
+            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: const Color(0xFF94A3B8)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '%',
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                ),
+                const SizedBox(width: 2),
+                SizedBox(
+                  width: 32,
+                  height: 24,
+                  child: TextField(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                      border: InputBorder.none,
+                    ),
+                    onSubmitted: (_) => _degeriUygula(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 2),
+          PopupMenuButton<num>(
+            tooltip: 'Hazır Oran Seç',
+            icon: const Icon(Icons.arrow_drop_down, size: 18, color: Color(0xFF64748B)),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(maxHeight: 250),
+            onSelected: (val) {
+              _controller.text = _formatDeger(val);
+              widget.onDegisti(val);
+            },
+            itemBuilder: (ctx) => secenekler.map((val) {
+              final isSelected = (val == widget.deger);
+              return PopupMenuItem<num>(
+                value: val,
+                height: 30,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '%$val',
+                      style: TextStyle(
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                        fontSize: 12,
+                        color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF1E293B),
+                      ),
+                    ),
+                    if (isSelected) const Icon(Icons.check, size: 14, color: Color(0xFF4F46E5)),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
