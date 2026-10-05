@@ -21,7 +21,7 @@ class ManuelHesaplamaVerisi {
     required this.personeller,
     this.manuelDonemKatsayisi,
     this.memurMaasKatsayisi = 1.387871,
-    this.tavanUygula = true,
+    this.tavanUygula = false,
     this.is58k = false,
     this.is58e = false,
     this.gelirVergisiOrani = 15,
@@ -495,7 +495,9 @@ class ManuelHesaplamaPdfServisi {
                       : (!veri.tavanUygula
                           ? 'İşbu hesaplama cetvelinde yasal saatlik ek ders tavanı sınırlaması uygulanmamış olup personele hak edilen brüt katkı payı tutarı tam olarak tahakkuk ettirilmiştir.'
                           : (excel.herhangiBirTavanAsildi
-                              ? 'İşbu hesaplamada yer alan ve hesaplanan saatlik ücreti yasal tavanı (Mesai İçi 2.0x, Mesai Dışı 3.2x: ${TurkceFormat.para(excel.maksimumTavanSaatlik)}/Saat) aşan personele yasal tavan uygulanmış; tavanı aşan toplam ${TurkceFormat.para(excel.toplamTavanKesintisi)} tutar döner sermaye birim havuzuna devredilmiştir. Hiçbir personele yasal tavanın üzerinde ödeme yapılmamıştır.'
+                              ? (excel.katiKesintiUygula
+                                  ? 'İşbu hesaplamada yer alan ve hesaplanan saatlik ücreti yasal tavanı (Mesai İçi 2.0x, Mesai Dışı 3.2x: ${TurkceFormat.para(excel.maksimumTavanSaatlik)}/Saat) aşan personele yasal tavan uygulanmış; tavanı aşan toplam ${TurkceFormat.para(excel.toplamTavanKesintisi)} tutar döner sermaye birim havuzuna devredilmiştir.'
+                                  : 'İşbu hesaplamada 2547 sayılı Kanun Madde 58 uyarınca personelin hak ettiği brüt katkı payı tutarı tam olarak tahakkuk ettirilmiştir. 2914 sayılı Kanun m.11 saatlik ek ders tavan göstergesi (${TurkceFormat.para(excel.maksimumTavanSaatlik)}/Saat) mevzuat ve Sayıştay denetim incelemesi amacıyla bilgi notu olarak sunulmuştur.')
                               : 'İşbu hesaplama icmalinde yer alan tüm öğretim elemanlarının saatlik ücretleri, 2914 sayılı Kanun uyarınca belirlenen ek ders ücreti tavanını (${TurkceFormat.para(excel.maksimumTavanSaatlik)}/Saat) GEÇMEMİŞTİR. Dağıtım ve ödemeler mevzuata tam uygundur.')),
                   style: normal(7.5),
                 ),

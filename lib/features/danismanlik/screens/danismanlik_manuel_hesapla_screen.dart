@@ -116,11 +116,20 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
 
     // 1. Önce Firestore sistem ayarlarından çek (tüm cihazlar ve tarayıcılar için merkezi/kalıcı)
     try {
-      final ham = await _sistemAyarlari.getHamAlan('danismanlikGenelAyarlar');
-      if (ham != null && ham['memurMaasKatsayisi'] != null) {
-        katsayi = (ham['memurMaasKatsayisi'] as num).toDouble();
+      final ayarlar = await _sistemAyarlari.getAyarlar();
+      if (ayarlar.memurMaasKatsayisi > 0) {
+        katsayi = ayarlar.memurMaasKatsayisi;
       }
     } catch (_) {}
+
+    if (katsayi == null || katsayi <= 0) {
+      try {
+        final ham = await _sistemAyarlari.getHamAlan('danismanlikGenelAyarlar');
+        if (ham != null && ham['memurMaasKatsayisi'] != null) {
+          katsayi = (ham['memurMaasKatsayisi'] as num).toDouble();
+        }
+      } catch (_) {}
+    }
 
     // 2. Firestore'da henüz yoksa yerel SharedPreferences'tan oku
     if (katsayi == null || katsayi <= 0) {
@@ -158,6 +167,11 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
 
     try {
       // 1. Firestore sistem ayarlarına kalıcı kaydet (tüm kullanıcılar ve cihazlar için)
+      try {
+        final mevcut = await _sistemAyarlari.getAyarlar();
+        await _sistemAyarlari.saveAyarlar(mevcut.copyWith(memurMaasKatsayisi: d));
+      } catch (_) {}
+
       try {
         await _sistemAyarlari.kaydetHamAlan('danismanlikGenelAyarlar', {
           'memurMaasKatsayisi': d,
@@ -1005,6 +1019,44 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
     }
   }
 
+  void _tumSaatleriTavanaDengele() {
+    final excel = _mevcutVeriOlustur().excelSonuc;
+    bool degisti = false;
+    final yeniPersoneller = <ExcelPersonelGirdi>[];
+    for (var i = 0; i < _personeller.length; i++) {
+      final p = _personeller[i];
+      if (i < excel.personelSatirlari.length) {
+        final s = excel.personelSatirlari[i];
+        if (s.tavanAsildi && s.onerilenSaat > p.dersSaati) {
+          yeniPersoneller.add(p.copyWith(dersSaati: s.onerilenSaat));
+          degisti = true;
+          continue;
+        }
+      }
+      yeniPersoneller.add(p);
+    }
+    if (degisti) {
+      setState(() {
+        _personeller = yeniPersoneller;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚖️ Tüm personellerin çalışma saatleri yasal tavana göre otomatik dengelendi!'),
+          backgroundColor: Color(0xFF107C41),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tüm personellerin saatlik ücretleri zaten yasal tavanın altındadır.'),
+          backgroundColor: Color(0xFF0F766E),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final veri = _mevcutVeriOlustur();
@@ -1396,6 +1448,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                   onDanismanlikDonemiDegisti: (val) => setState(() => _58kDonemMetni = val),
                   tavanUygula: _tavanUygula,
                   onTavanUygulaDegisti: (val) => setState(() => _tavanUygula = val),
+                  onTumSaatleriTavanaDengele: _tumSaatleriTavanaDengele,
                   hazineOrani: _hazineOrani,
                   bapOrani: _bapOrani,
                   aracGerecOrani: _aracGerecOrani,

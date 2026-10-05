@@ -42,6 +42,7 @@ class TabKatkiPayi extends StatelessWidget {
     this.onDanismanlikDonemiDegisti,
     this.tavanUygula = false,
     this.onTavanUygulaDegisti,
+    this.onTumSaatleriTavanaDengele,
     this.hazineOrani = 0,
     this.bapOrani = 0,
     this.aracGerecOrani = 0.15,
@@ -86,6 +87,7 @@ class TabKatkiPayi extends StatelessWidget {
   final ValueChanged<String>? onDanismanlikDonemiDegisti;
   final bool tavanUygula;
   final ValueChanged<bool>? onTavanUygulaDegisti;
+  final VoidCallback? onTumSaatleriTavanaDengele;
 
   static const List<String> unvanListesi = [
     'Profesör',
@@ -234,38 +236,41 @@ class TabKatkiPayi extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            // Yasal Tavan Doğrudan Aç/Kapat Butonu
-                            InkWell(
-                              onTap: () => onTavanUygulaDegisti?.call(!tavanUygula),
-                              borderRadius: BorderRadius.circular(4),
-                              child: Container(
-                                height: 26,
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
-                                decoration: BoxDecoration(
-                                  color: tavanUygula ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                    color: tavanUygula ? const Color(0xFF16A34A) : const Color(0xFFCBD5E1),
+                            // Yasal Tavan Bilgi Notu Doğrudan Aç/Kapat Butonu
+                            MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: GestureDetector(
+                                onTap: () => onTavanUygulaDegisti?.call(!tavanUygula),
+                                child: Container(
+                                  height: 26,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  decoration: BoxDecoration(
+                                    color: tavanUygula ? const Color(0xFFDCFCE7) : Colors.white,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: tavanUygula ? const Color(0xFF16A34A) : const Color(0xFFCBD5E1),
+                                      width: 1.2,
+                                    ),
                                   ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      tavanUygula ? Icons.verified : Icons.do_not_disturb_on_outlined,
-                                      size: 13,
-                                      color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF64748B),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      tavanUygula ? 'Yasal Tavan: AÇIK' : 'Yasal Tavan: KAPALI',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w800,
-                                        color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF475569),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        tavanUygula ? Icons.verified : Icons.info_outline,
+                                        size: 13,
+                                        color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF64748B),
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        tavanUygula ? 'Yasal Tavan Notu: AÇIK' : 'Yasal Tavan Notu: KAPALI',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF475569),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -451,9 +456,9 @@ class TabKatkiPayi extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // 3,2 Katı Yasal Tavan Bilgilendirme ve Akıllı Mutemet Önerisi
+          // Yasal Tavan & Mevzuat Bilgi Notu / Analiz Kartı
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: !tavanUygula
                   ? const Color(0xFFF8FAFC)
@@ -463,7 +468,7 @@ class TabKatkiPayi extends StatelessWidget {
                 color: !tavanUygula
                     ? const Color(0xFFCBD5E1)
                     : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFFFDE68A) : const Color(0xFF86EFAC)),
-                width: 1.2,
+                width: 1.3,
               ),
             ),
             child: Column(
@@ -475,126 +480,161 @@ class TabKatkiPayi extends StatelessWidget {
                       !tavanUygula
                           ? Icons.info_outline
                           : (excelSonuc.herhangiBirTavanAsildi ? Icons.warning_amber_rounded : Icons.verified_outlined),
-                      size: 18,
+                      size: 20,
                       color: !tavanUygula
                           ? const Color(0xFF64748B)
                           : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFFD97706) : const Color(0xFF15803D)),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      !tavanUygula
-                          ? 'YASAL TAVAN KONTROLÜ: KAPALI (SINIRSIZ TAM ÖDEME)'
-                          : (excelSonuc.herhangiBirTavanAsildi
-                              ? '3,2 KAT YASAL TAVAN KONTROLÜ (2547 ve 2914 Sayılı Kanunlar)'
-                              : 'YASAL TAVAN KONTROLÜ: TÜM HOCALAR MEVZUATA UYGUNDUR'),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                        color: !tavanUygula
-                            ? const Color(0xFF334155)
-                            : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFF92400E) : const Color(0xFF166534)),
+                    Expanded(
+                      child: Text(
+                        !tavanUygula
+                            ? 'YASAL TAVAN ANALİZİ: KAPALI (SINIRSIZ TAM ÖDEME)'
+                            : (excelSonuc.herhangiBirTavanAsildi
+                                ? 'YASAL TAVAN BİLGİ NOTU & ANALİZİ (2547 s.k. m.58 & 2914 s.k.)'
+                                : 'YASAL TAVAN UYGUNLUK ANALİZİ: TÜM HOCALAR MEVZUATA UYGUNDUR'),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                          color: !tavanUygula
+                              ? const Color(0xFF334155)
+                              : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFF92400E) : const Color(0xFF166534)),
+                        ),
                       ),
                     ),
-                    const Spacer(),
-                    // Doğrudan Aç/Kapat Butonu
-                    InkWell(
-                      onTap: () => onTavanUygulaDegisti?.call(!tavanUygula),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: tavanUygula ? const Color(0xFFDCFCE7) : Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: tavanUygula ? const Color(0xFF16A34A) : const Color(0xFFCBD5E1),
-                            width: 1.2,
+                    // Aç/Kapat Butonu
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: () => onTavanUygulaDegisti?.call(!tavanUygula),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: tavanUygula ? const Color(0xFFDCFCE7) : Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: tavanUygula ? const Color(0xFF16A34A) : const Color(0xFFCBD5E1),
+                              width: 1.2,
+                            ),
                           ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              tavanUygula ? Icons.check_circle : Icons.power_settings_new,
-                              size: 14,
-                              color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF64748B),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              tavanUygula
-                                  ? 'Tavan: AÇIK (${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}/Saat)'
-                                  : 'Tavan: KAPALI (Açmak için tıklayın)',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w800,
-                                color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF475569),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                tavanUygula ? Icons.check_circle : Icons.power_settings_new,
+                                size: 14,
+                                color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF64748B),
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Text(
+                                tavanUygula
+                                    ? 'Bilgi Notu: AÇIK (${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}/Saat)'
+                                    : 'Bilgi Notu: KAPALI (Açmak için tıklayın)',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF475569),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 6),
-                    InkWell(
-                      onTap: () => _ekDersAyarlariDialogGoster(context),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFCBD5E1)),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.tune, size: 12, color: Color(0xFF0F766E)),
-                            SizedBox(width: 4),
-                            Text(
-                              '⚙️ Ayarlar',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0F766E),
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: () => _ekDersAyarlariDialogGoster(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFCBD5E1)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.tune, size: 13, color: Color(0xFF0F766E)),
+                              SizedBox(width: 4),
+                              Text(
+                                '⚙️ Ayarlar',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F766E),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   !tavanUygula
-                      ? 'Yasal ek ders tavanı (mesai içi 2.0x, mesai dışı 3.2x) şu anda devre dışıdır. Personellere hesaplanan brüt hakediş sınırlama olmaksızın tam ödenmektedir. Tavanı aktifleştirmek için sağdaki butona veya "Ek Ders & Katsayı Ayarları"na tıklayabilirsiniz.'
+                      ? 'Yasal ek ders tavanı analiz modu şu anda kapalıdır. Personellere hesaplanan brüt hakediş sınırlama olmaksızın tam ödenmektedir. Sayıştay ve yasal tavan analizini görüntülemek için sağdaki butondan bilgi notunu açabilirsiniz.'
                       : (excelSonuc.herhangiBirTavanAsildi
-                          ? 'Mevzuat gereğince mesai dışı saatlik ücret 3,2 katı tavanını geçemez. Hesaplanan saatlik ücret bu tavanı aştığı için personele en fazla tavan tutarı (${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}) ödenebilir; aşan toplam ${TurkceFormat.para(excelSonuc.toplamTavanKesintisi)} döner sermaye birim havuzuna devredilir.'
-                          : 'Hesaplanan tüm saatlik ücretler, yasal sınır olan 3,2 katı tavanının (${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}/Saat) altındadır. Kesinti olmaksızın tam ödeme yapılabilir.'),
+                          ? '2547 Sayılı Kanun Madde 58 uyarınca personelin hak ettiği brüt katkı payı tutarı personelin özlük hakkı olup havuza KESİNTİ YAPILMAKSIZIN TAM ÖDENMEKTEDİR (${TurkceFormat.para(excelSonuc.netOdemeToplam)}). 2914 Sayılı Kanun m.11 ek ders tavan göstergesi (${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}/Saat) mevzuat ve Sayıştay denetim incelemelerinde referans gösterge olarak analiz edilmektedir.'
+                          : 'Hesaplanan tüm saatlik ücretler, yasal sınır olan ek ders tavanının (${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}/Saat) altındadır. Kesinti olmaksızın tam ödeme yapılabilir ve mevzuata tam uygundur.'),
                   style: TextStyle(
                     fontSize: 11,
-                    height: 1.3,
+                    height: 1.35,
                     color: !tavanUygula
                         ? const Color(0xFF475569)
                         : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFF78350F) : const Color(0xFF14532D)),
                   ),
                 ),
                 if (tavanUygula && excelSonuc.herhangiBirTavanAsildi) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0xFFFCD34D)),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.lightbulb_outline, size: 16, color: Color(0xFFD97706)),
-                        SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            '💡 Mutemet Çözüm İpucu: Personelin hak ettiği tutarın tamamını (havuza kesinti olmadan) alabilmesi için tablodaki SAAT değerini artırabilirsiniz (Örn: 5 yerine 6 saat).',
-                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF92400E)),
+                        const Icon(Icons.lightbulb, size: 20, color: Color(0xFFD97706)),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '💡 Sayıştay ve Denetim İncelemesi İpucu:',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF92400E)),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Danışmanlık ve kurs hizmetlerinde girilen sembolik çalışma saati düşük olduğunda saatlik ücret yüksek görünebilir. Sayıştay denetiminde saatlik tavan şartını tam sağlamak için personellerin saatlerini tek tıkla yasal tavana dengeleyebilirsiniz (Hakediş tutarı kesinlikle değişmez).',
+                                style: TextStyle(fontSize: 10.5, color: Color(0xFF78350F), height: 1.3),
+                              ),
+                            ],
                           ),
                         ),
+                        if (onTumSaatleriTavanaDengele != null) ...[
+                          const SizedBox(width: 12),
+                          ElevatedButton.icon(
+                            onPressed: onTumSaatleriTavanaDengele,
+                            icon: const Icon(Icons.balance, size: 14),
+                            label: const Text(
+                              '⚡ Tüm Saatleri Tavana Dengele',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD97706),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -640,6 +680,19 @@ class TabKatkiPayi extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (tavanUygula && excelSonuc.herhangiBirTavanAsildi && onTumSaatleriTavanaDengele != null) ...[
+                    ElevatedButton.icon(
+                      onPressed: onTumSaatleriTavanaDengele,
+                      icon: const Icon(Icons.balance, size: 16),
+                      label: const Text('⚖️ Saatleri Dengele'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD97706),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   ElevatedButton.icon(
                     onPressed: onCokluPersonelEkle,
                     icon: const Icon(Icons.person_add_alt_1, size: 16),
@@ -882,14 +935,41 @@ class TabKatkiPayi extends StatelessWidget {
                             // Kurs 1 Saatlik Ücreti
                             SizedBox(
                               width: 90,
-                              child: Text(
-                                TurkceFormat.para(s.kursSaatlikUcreti),
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 11,
-                                  color: tavanAsildi ? Colors.redAccent : const Color(0xFF0F172A),
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    TurkceFormat.para(s.kursSaatlikUcreti),
+                                    textAlign: TextAlign.right,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 11,
+                                      color: (tavanUygula && tavanAsildi) ? const Color(0xFFD97706) : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  if (tavanUygula && tavanAsildi && s.onerilenSaat > p.dersSaati) ...[
+                                    const SizedBox(height: 2),
+                                    MouseRegion(
+                                      cursor: SystemMouseCursors.click,
+                                      child: GestureDetector(
+                                        onTap: () => onPersonelGuncelle(index, p.copyWith(dersSaati: s.onerilenSaat)),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFEF3C7),
+                                            borderRadius: BorderRadius.circular(3),
+                                            border: Border.all(color: const Color(0xFFFCD34D)),
+                                          ),
+                                          child: Text(
+                                            '⚖️ ${s.onerilenSaat.toInt()} Saat Yap',
+                                            style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                             const SizedBox(width: 6),
@@ -2322,8 +2402,8 @@ class TabKatkiPayi extends StatelessWidget {
                                 children: [
                                   Text(
                                     localTavan
-                                        ? 'Yasal Ek Ders Tavanı: AKTİF (Uygulanıyor)'
-                                        : 'Yasal Ek Ders Tavanı: KAPALI (Sınırsız Ödeme)',
+                                        ? 'Yasal Tavan Bilgi Notu & Analizi: AKTİF'
+                                        : 'Yasal Tavan Bilgi Notu: KAPALI',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,
@@ -2333,8 +2413,8 @@ class TabKatkiPayi extends StatelessWidget {
                                   const SizedBox(height: 2),
                                   Text(
                                     localTavan
-                                        ? 'Mesai içi azami 2.0 katı, mesai dışı azami 3.2 katı yasal tavanı uygulanır. Tavanı aşan kısım birim havuzuna devredilir.'
-                                        : 'Saatlik tavan sınırlaması uygulanmaz; personelin hak ettiği brüt tutar tam olarak personele ödenir.',
+                                        ? '2547 s.k. Madde 58 uyarınca hakediş tam ödenir; 2914 s.k. ek ders saatlik tavanı mevzuat ve denetim incelemesi amacıyla analiz edilir.'
+                                        : 'Saatlik tavan sınırlaması analiz edilmez; personelin hak ettiği brüt tutar tam olarak personele ödenir.',
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: localTavan ? const Color(0xFF166534) : const Color(0xFF7F1D1D),

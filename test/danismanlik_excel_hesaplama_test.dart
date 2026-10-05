@@ -118,4 +118,72 @@ void main() {
       );
     });
   });
+
+  group('Yasal Tavan Bilgi Notu Modu ve Otomatik Saat Dengeleme', () {
+    test('Bilgi Notu modunda personelin hakedişi kesilmez (tam ödenir), tavan analizi ve önerilen saat üretilir', () {
+      final kesinti = DanismanlikExcelHesaplama.kesintiler(kdvHaricGelir: 10000); // katkiPayi = 4900
+      final sonuc = DanismanlikExcelHesaplama.hesapla(
+        kesinti: kesinti,
+        tavanUygula: true,
+        katiKesintiUygula: false, // Bilgi Notu modu
+        personeller: const [
+          ExcelPersonelGirdi(
+            personelId: '1',
+            adSoyad: 'Test Hoca',
+            unvan: 'Prof. Dr.',
+            puan: 20,
+            unvanKatsayisi: 3,
+            ekGosterge: 300,
+            dersSaati: 2, // Sembolik az saat
+            mesaiIci: false,
+          ),
+        ],
+      );
+
+      final pSonuc = sonuc.personelSatirlari.first;
+      // 2547 s.k. Madde 58: Tam hakediş ödenmeli, havuza aktarılmamalı
+      expect(pSonuc.brutHakedis, closeTo(4900.0, 1.0));
+      expect(pSonuc.odenebilirHakedis, pSonuc.brutHakedis);
+      expect(pSonuc.havuzTutari, 0.0);
+      expect(sonuc.netOdemeToplam, pSonuc.brutHakedis);
+      expect(sonuc.artikBakiye, closeTo(0.40, 0.01));
+
+      // Tavan analizi kontrolü:
+      // tavanSaatlik = 300 * 1.387871 * 3.2 = 1332.356
+      // kursSaatlik = 4899.6 / 2 = 2449.8 > 1332.36 -> tavanAsildi == true
+      expect(pSonuc.tavanAsildi, isTrue);
+      expect(sonuc.herhangiBirTavanAsildi, isTrue);
+
+      // Önerilen saat: ceil(4899.6 / 1332.356) = 4 saat
+      expect(pSonuc.onerilenSaat, 4.0);
+    });
+
+    test('Önerilen saat (4 saat) uygulandığında saatlik ücret tavanın altına iner, tavanAsildi false olur ve hakediş tam kalır', () {
+      final kesinti = DanismanlikExcelHesaplama.kesintiler(kdvHaricGelir: 10000);
+      final dengeliSonuc = DanismanlikExcelHesaplama.hesapla(
+        kesinti: kesinti,
+        tavanUygula: true,
+        katiKesintiUygula: false,
+        personeller: const [
+          ExcelPersonelGirdi(
+            personelId: '1',
+            adSoyad: 'Test Hoca',
+            unvan: 'Prof. Dr.',
+            puan: 20,
+            unvanKatsayisi: 3,
+            ekGosterge: 300,
+            dersSaati: 4, // 4 saat yapıldı (dengelendi)
+            mesaiIci: false,
+          ),
+        ],
+      );
+
+      final pSonuc = dengeliSonuc.personelSatirlari.first;
+      expect(pSonuc.brutHakedis, closeTo(4900.0, 2.0));
+      expect(pSonuc.odenebilirHakedis, pSonuc.brutHakedis);
+      expect(pSonuc.kursSaatlikUcreti, closeTo(1224.6, 1.0)); // < 1332.36
+      expect(pSonuc.tavanAsildi, isFalse);
+      expect(dengeliSonuc.herhangiBirTavanAsildi, isFalse);
+    });
+  });
 }

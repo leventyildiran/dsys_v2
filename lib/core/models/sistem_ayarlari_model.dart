@@ -49,6 +49,7 @@ class SistemAyarlariModel {
   final String deepseekModel;
   final List<YkUyeModel> kurulUyeleri;
   final Map<String, double> unvanKatsayilari;
+  final double memurMaasKatsayisi;
 
   SistemAyarlariModel({
     this.kurumAdi = 'Uşak Üniversitesi',
@@ -65,6 +66,7 @@ class SistemAyarlariModel {
     required this.deepseekModel,
     this.kurulUyeleri = const [],
     this.unvanKatsayilari = _defaultUnvanlar,
+    this.memurMaasKatsayisi = 1.387871,
   });
 
   factory SistemAyarlariModel.fromJson(Map<String, dynamic> json) {
@@ -103,6 +105,7 @@ class SistemAyarlariModel {
               ),
             )
           : _defaultUnvanlar,
+      memurMaasKatsayisi: (json['memurMaasKatsayisi'] as num?)?.toDouble() ?? 1.387871,
     );
   }
 
@@ -122,7 +125,44 @@ class SistemAyarlariModel {
       'deepseekModel': deepseekModel,
       'kurulUyeleri': kurulUyeleri.map((e) => e.toJson()).toList(),
       'unvanKatsayilari': unvanKatsayilari,
+      'memurMaasKatsayisi': memurMaasKatsayisi,
     };
+  }
+
+  SistemAyarlariModel copyWith({
+    String? kurumAdi,
+    String? hesapAdi,
+    String? iban,
+    String? isletmeVkn,
+    double? varsayilanKdvOrani,
+    String? ebysDomain,
+    String? geminiApiKey,
+    String? geminiModel,
+    String? visionApiKey,
+    String? deepseekApiUrl,
+    String? deepseekApiKey,
+    String? deepseekModel,
+    List<YkUyeModel>? kurulUyeleri,
+    Map<String, double>? unvanKatsayilari,
+    double? memurMaasKatsayisi,
+  }) {
+    return SistemAyarlariModel(
+      kurumAdi: kurumAdi ?? this.kurumAdi,
+      hesapAdi: hesapAdi ?? this.hesapAdi,
+      iban: iban ?? this.iban,
+      isletmeVkn: isletmeVkn ?? this.isletmeVkn,
+      varsayilanKdvOrani: varsayilanKdvOrani ?? this.varsayilanKdvOrani,
+      ebysDomain: ebysDomain ?? this.ebysDomain,
+      geminiApiKey: geminiApiKey ?? this.geminiApiKey,
+      geminiModel: geminiModel ?? this.geminiModel,
+      visionApiKey: visionApiKey ?? this.visionApiKey,
+      deepseekApiUrl: deepseekApiUrl ?? this.deepseekApiUrl,
+      deepseekApiKey: deepseekApiKey ?? this.deepseekApiKey,
+      deepseekModel: deepseekModel ?? this.deepseekModel,
+      kurulUyeleri: kurulUyeleri ?? this.kurulUyeleri,
+      unvanKatsayilari: unvanKatsayilari ?? this.unvanKatsayilari,
+      memurMaasKatsayisi: memurMaasKatsayisi ?? this.memurMaasKatsayisi,
+    );
   }
 
   factory SistemAyarlariModel.empty() {
@@ -141,6 +181,7 @@ class SistemAyarlariModel {
       deepseekModel: '',
       kurulUyeleri: [],
       unvanKatsayilari: _defaultUnvanlar,
+      memurMaasKatsayisi: 1.387871,
     );
   }
 }

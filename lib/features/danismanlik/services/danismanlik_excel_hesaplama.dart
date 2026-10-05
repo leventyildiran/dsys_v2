@@ -252,6 +252,7 @@ class DanismanlikExcelHesaplama {
     double? manualDonemKatsayi,
     double? memurMaasKatsayisi,
     bool tavanUygula = false,
+    bool katiKesintiUygula = false,
     DanismanlikExcelProfili profil = DanismanlikExcelProfili.dtsDanismanlik,
   }) {
     if (personeller.isEmpty) {
@@ -262,6 +263,8 @@ class DanismanlikExcelHesaplama {
         saglama: 0,
         personelSatirlari: const [],
         artikBakiye: kesinti.katkiPayi,
+        tavanUygula: tavanUygula,
+        katiKesintiUygula: katiKesintiUygula,
       );
     }
 
@@ -311,7 +314,10 @@ class DanismanlikExcelHesaplama {
       double odenebilir = brutHakedis;
       double havuz = 0.0;
 
-      if (tavanAsildi && tavanUygula) {
+      // 2547 s.k. Madde 58 uyarınca danışmanlık/katkı payı ödemelerinde personelin hak ettiği brüt tutar
+      // mutemetlik esasları gereği tam tahakkuk ettirilir. Sadece kullanıcı açıkça katı tavan kesintisi
+      // seçtiğinde havuza kesinti aktarılır; aksi halde Bilgi Notu modunda tam hakediş korunur.
+      if (tavanAsildi && tavanUygula && katiKesintiUygula) {
         odenebilir = _round(tavanSaatlik * p.dersSaati, 2);
         havuz = _round(brutHakedis - odenebilir, 2);
       }
@@ -363,6 +369,8 @@ class DanismanlikExcelHesaplama {
       netOdemeToplam: _round(netOdemeToplam, 2),
       havuzToplam: _round(havuzToplam + artikBakiye, 2),
       artikBakiye: artikBakiye,
+      tavanUygula: tavanUygula,
+      katiKesintiUygula: katiKesintiUygula,
     );
   }
 
@@ -470,6 +478,7 @@ class DanismanlikExcelHesaplama {
     int gelirVergisiOrani = 15,
     double damgaVergisiOrani = 0.00759,
     bool tavanUygula = false,
+    bool katiKesintiUygula = false,
     double? memurMaasKatsayisi,
   }) {
     if (personeller.isEmpty) {
@@ -480,6 +489,8 @@ class DanismanlikExcelHesaplama {
         saglama: 0,
         personelSatirlari: const [],
         artikBakiye: kesinti.katkiPayi,
+        tavanUygula: tavanUygula,
+        katiKesintiUygula: katiKesintiUygula,
       );
     }
 
@@ -517,7 +528,7 @@ class DanismanlikExcelHesaplama {
       double odenebilirBrut = brutHakedis;
       double havuz = 0.0;
 
-      if (tavanAsildi) {
+      if (tavanAsildi && katiKesintiUygula) {
         odenebilirBrut = tavanTutari;
         havuz = _round(brutHakedis - odenebilirBrut, 2);
       }
@@ -536,7 +547,7 @@ class DanismanlikExcelHesaplama {
           bireyselNetKatkiPuani: p.puan,
           donemKatsayi: 1.0,
           kursSaatlikUcreti: p.dersSaati > 0 ? _round(brutHakedis / p.dersSaati, 2) : 0,
-          tavanSaatlikUcreti: tavanUygula ? tavanSaatlik : 0.0,
+          tavanSaatlikUcreti: tavanSaatlik,
           brutHakedis: brutHakedis,
           odenebilirHakedis: netEleGecen,
           havuzTutari: havuz,
@@ -578,6 +589,8 @@ class DanismanlikExcelHesaplama {
       netOdemeToplam: _round(netOdemeToplam, 2),
       havuzToplam: _round(havuzToplam, 2),
       artikBakiye: _round(nihaiArtikBakiye, 2),
+      tavanUygula: tavanUygula,
+      katiKesintiUygula: katiKesintiUygula,
     );
   }
 
@@ -751,6 +764,13 @@ class ExcelPersonelSonuc {
   final double odenebilirHakedis;
   final double havuzTutari;
 
+  bool get tavanAsildi => tavanSaatlikUcreti > 0 && kursSaatlikUcreti > tavanSaatlikUcreti;
+  double get saatlikFark => tavanAsildi ? (kursSaatlikUcreti - tavanSaatlikUcreti) : 0.0;
+  double get teorikKesinti => tavanAsildi ? (brutHakedis - (tavanSaatlikUcreti * girdi.dersSaati)) : 0.0;
+  double get onerilenSaat => tavanSaatlikUcreti > 0 && brutHakedis > 0
+      ? (brutHakedis / tavanSaatlikUcreti).ceilToDouble()
+      : girdi.dersSaati;
+
   ExcelPersonelSonuc copyWith({
     double? donemKatsayi,
     double? kursSaatlikUcreti,
@@ -783,6 +803,8 @@ class DanismanlikExcelSonuc {
     this.netOdemeToplam = 0,
     this.havuzToplam = 0,
     this.artikBakiye = 0,
+    this.tavanUygula = false,
+    this.katiKesintiUygula = false,
   });
 
   final ExcelKesintiSonuc kesinti;
@@ -794,11 +816,13 @@ class DanismanlikExcelSonuc {
   final double netOdemeToplam;
   final double havuzToplam;
   final double artikBakiye;
+  final bool tavanUygula;
+  final bool katiKesintiUygula;
 
   String get donemKatsayiMetin => TurkceFormat.katsayi(donemKatsayi);
 
   bool get herhangiBirTavanAsildi => personelSatirlari.any(
-        (s) => s.kursSaatlikUcreti > s.tavanSaatlikUcreti && s.tavanSaatlikUcreti > 0,
+        (s) => s.tavanAsildi,
       );
 
   double get maksimumTavanSaatlik => personelSatirlari.isEmpty
@@ -808,5 +832,10 @@ class DanismanlikExcelSonuc {
   double get toplamTavanKesintisi => personelSatirlari.fold<double>(
         0.0,
         (sum, s) => sum + s.havuzTutari,
+      );
+
+  double get toplamTeorikKesinti => personelSatirlari.fold<double>(
+        0.0,
+        (sum, s) => sum + s.teorikKesinti,
       );
 }
