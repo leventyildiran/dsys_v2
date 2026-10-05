@@ -40,7 +40,7 @@ class TabKatkiPayi extends StatelessWidget {
     this.danismanlikDonemi,
     this.onSozlesmeBaslangicDegisti,
     this.onDanismanlikDonemiDegisti,
-    this.tavanUygula = true,
+    this.tavanUygula = false,
     this.onTavanUygulaDegisti,
     this.hazineOrani = 0,
     this.bapOrani = 0,
@@ -233,6 +233,42 @@ class TabKatkiPayi extends StatelessWidget {
                                 ),
                               ),
                             ),
+                            const SizedBox(width: 6),
+                            // Yasal Tavan Doğrudan Aç/Kapat Butonu
+                            InkWell(
+                              onTap: () => onTavanUygulaDegisti?.call(!tavanUygula),
+                              borderRadius: BorderRadius.circular(4),
+                              child: Container(
+                                height: 26,
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: tavanUygula ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: tavanUygula ? const Color(0xFF16A34A) : const Color(0xFFCBD5E1),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      tavanUygula ? Icons.verified : Icons.do_not_disturb_on_outlined,
+                                      size: 13,
+                                      color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF64748B),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      tavanUygula ? 'Yasal Tavan: AÇIK' : 'Yasal Tavan: KAPALI',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF475569),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -253,6 +289,10 @@ class TabKatkiPayi extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 16),
+
+          // Yasal & Kurumsal Kesintiler Ayar Kartı (Tüm şablonlar: USEM, DTS, TÖMER, DÖSİM)
+          _buildKesintilerAyarKarti(context),
           const SizedBox(height: 16),
 
           // 3'lü Özet Kartları: Maks Pay, Toplam Puan, Dönem Katsayısı
@@ -456,32 +496,63 @@ class TabKatkiPayi extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
+                    // Doğrudan Aç/Kapat Butonu
                     InkWell(
-                      onTap: () => _ekDersAyarlariDialogGoster(context),
+                      onTap: () => onTavanUygulaDegisti?.call(!tavanUygula),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
+                          color: tavanUygula ? const Color(0xFFDCFCE7) : Colors.white,
+                          borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: !tavanUygula
-                                ? const Color(0xFFCBD5E1)
-                                : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFFFCD34D) : const Color(0xFF86EFAC)),
+                            color: tavanUygula ? const Color(0xFF16A34A) : const Color(0xFFCBD5E1),
+                            width: 1.2,
                           ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            Icon(
+                              tavanUygula ? Icons.check_circle : Icons.power_settings_new,
+                              size: 14,
+                              color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF64748B),
+                            ),
+                            const SizedBox(width: 4),
                             Text(
-                              !tavanUygula
-                                  ? 'Tavan: Kapalı (⚙️ Ayarla)'
-                                  : 'Azami 3.2 Tavanı: ${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}/Saat (⚙️ Ayarlar)',
+                              tavanUygula
+                                  ? 'Tavan: AÇIK (${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}/Saat)'
+                                  : 'Tavan: KAPALI (Açmak için tıklayın)',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF475569),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    InkWell(
+                      onTap: () => _ekDersAyarlariDialogGoster(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFCBD5E1)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.tune, size: 12, color: Color(0xFF0F766E)),
+                            SizedBox(width: 4),
+                            Text(
+                              '⚙️ Ayarlar',
+                              style: TextStyle(
+                                fontSize: 10.5,
                                 fontWeight: FontWeight.w700,
-                                color: !tavanUygula
-                                    ? const Color(0xFF475569)
-                                    : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFFB45309) : const Color(0xFF15803D)),
+                                color: Color(0xFF0F766E),
                               ),
                             ),
                           ],
@@ -1115,6 +1186,165 @@ class TabKatkiPayi extends StatelessWidget {
     );
   }
 
+  /// Tüm şablonlarda (USEM, DTS, TÖMER, DÖSİM, 58/k, 58/e) kesinti oranlarını dinamik
+  /// olarak gösteren ve hem elle yazmaya hem de hazır seçeneklerden seçmeye izin veren kart.
+  Widget _buildKesintilerAyarKarti(BuildContext context) {
+    final hazineTutari = kesinti?.hazinePayi ?? 0.0;
+    final bapTutari = kesinti?.bapPayi ?? 0.0;
+    final aracGerecTutari = kesinti?.aracGerecPayi ?? 0.0;
+    final toplamKesintiTutari = hazineTutari + bapTutari + aracGerecTutari;
+    final katkiPayi = kesinti?.katkiPayi ?? maksAkademikPay;
+
+    final kurumOraniYuzde = aracGerecOrani * 100;
+    final toplamKesintiOrani = hazineOrani + bapOrani + kurumOraniYuzde;
+    final toplamKesintiOraniStr = (toplamKesintiOrani % 1 == 0)
+        ? toplamKesintiOrani.toInt().toString()
+        : toplamKesintiOrani.toStringAsFixed(1);
+    final kalanPayOrani = 100 - toplamKesintiOrani;
+    final kalanPayOraniStr = (kalanPayOrani % 1 == 0)
+        ? kalanPayOrani.toInt().toString()
+        : kalanPayOrani.toStringAsFixed(1);
+
+    final temaRengi = is58e
+        ? const Color(0xFF4F46E5)
+        : (is58k ? const Color(0xFF0F766E) : const Color(0xFF6366F1));
+
+    final ucuncuEtiket = is58e
+        ? 'Birim/Kurum'
+        : (is58k ? 'Kurum Payı' : 'Birim/Araç Payı');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 10,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: temaRengi.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.tune_rounded, size: 20, color: temaRengi),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Yasal & Kurumsal Kesintiler:',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F172A)),
+                  ),
+                  Text(
+                    'Oranları elle kutucuklara yazabilir veya listeden seçebilirsiniz',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 1. Hazine Payı
+              _KesintiOranKutusu(
+                etiket: 'Hazine',
+                deger: hazineOrani,
+                hazirSecenekler: const [0, 1, 2, 3, 5],
+                onDegisti: (val) {
+                  onKesintiOranlariDegisti?.call(val.toInt(), bapOrani, aracGerecOrani);
+                },
+              ),
+              const SizedBox(width: 8),
+
+              // 2. BAP Payı
+              _KesintiOranKutusu(
+                etiket: 'BAP',
+                deger: bapOrani,
+                hazirSecenekler: const [0, 1, 2, 5, 10],
+                onDegisti: (val) {
+                  onKesintiOranlariDegisti?.call(hazineOrani, val.toInt(), aracGerecOrani);
+                },
+              ),
+              const SizedBox(width: 8),
+
+              // 3. Birim / Kurum / Araç-Gereç Payı
+              _KesintiOranKutusu(
+                etiket: ucuncuEtiket,
+                deger: (kurumOraniYuzde % 1 == 0) ? kurumOraniYuzde.toInt() : kurumOraniYuzde,
+                hazirSecenekler: const [0, 5, 10, 15, 18, 20, 25, 30, 35, 40, 44, 45, 50],
+                onDegisti: (val) {
+                  onKesintiOranlariDegisti?.call(hazineOrani, bapOrani, val.toDouble() / 100.0);
+                },
+              ),
+              const SizedBox(width: 8),
+
+              // Elle Düzenle Butonu
+              TextButton.icon(
+                onPressed: () => _oranlariElleDuzenleDialog(context),
+                icon: const Icon(Icons.edit, size: 15),
+                label: const Text('Elle Düzenle', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
+                style: TextButton.styleFrom(
+                  foregroundColor: temaRengi,
+                  backgroundColor: temaRengi.withValues(alpha: 0.08),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+              ),
+            ],
+          ),
+
+          // Özet Rozeti
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Toplam Kesinti: %$toplamKesintiOraniStr (${TurkceFormat.para(toplamKesintiTutari)})',
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5, color: Color(0xFFDC2626)),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Dağıtılabilir Pay: %$kalanPayOraniStr (${TurkceFormat.para(katkiPayi)})',
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF15803D)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _build58kView(BuildContext context) {
     final kdvHaric = kesinti?.kdvHaricGelir ?? 0.0;
     final hazineTutari = kesinti?.hazinePayi ?? 0.0;
@@ -1222,136 +1452,7 @@ class TabKatkiPayi extends StatelessWidget {
           const SizedBox(height: 14),
 
           // 2. DİNAMİK YASAL VE KURUMSAL KESİNTİLER AYAR KARTI
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFCBD5E1)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 12,
-              runSpacing: 10,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: (is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(Icons.tune_rounded, size: 20, color: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)),
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Yasal & Kurumsal Kesintiler:',
-                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F172A)),
-                        ),
-                        Text(
-                          'Oranları elle kutucuklara yazabilir veya listeden seçebilirsiniz',
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // 1. Hazine Payı
-                    _KesintiOranKutusu(
-                      etiket: 'Hazine',
-                      deger: hazineOrani,
-                      hazirSecenekler: const [0, 1, 2, 3, 5],
-                      onDegisti: (val) {
-                        onKesintiOranlariDegisti?.call(val.toInt(), bapOrani, aracGerecOrani);
-                      },
-                    ),
-                    const SizedBox(width: 8),
-
-                    // 2. BAP Payı
-                    _KesintiOranKutusu(
-                      etiket: 'BAP',
-                      deger: bapOrani,
-                      hazirSecenekler: const [0, 1, 2, 5, 10],
-                      onDegisti: (val) {
-                        onKesintiOranlariDegisti?.call(hazineOrani, val.toInt(), aracGerecOrani);
-                      },
-                    ),
-                    const SizedBox(width: 8),
-
-                    // 3. Birim / Kurum Payı
-                    _KesintiOranKutusu(
-                      etiket: is58e ? 'Birim/Kurum' : 'Kurum Payı',
-                      deger: (kurumOraniYuzde % 1 == 0) ? kurumOraniYuzde.toInt() : kurumOraniYuzde,
-                      hazirSecenekler: const [0, 5, 10, 15, 18, 20, 25, 30, 35, 40, 50],
-                      onDegisti: (val) {
-                        onKesintiOranlariDegisti?.call(hazineOrani, bapOrani, val.toDouble() / 100.0);
-                      },
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Elle Düzenle Butonu
-                    TextButton.icon(
-                      onPressed: () => _oranlariElleDuzenleDialog(context),
-                      icon: const Icon(Icons.edit, size: 15),
-                      label: const Text('Elle Düzenle', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
-                      style: TextButton.styleFrom(
-                        foregroundColor: is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E),
-                        backgroundColor: (is58e ? const Color(0xFF4F46E5) : const Color(0xFF0F766E)).withValues(alpha: 0.08),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Özet Rozeti
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Toplam Kesinti: %$toplamKesintiOraniStr (${TurkceFormat.para(toplamKesintiTutari)})',
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5, color: Color(0xFFDC2626)),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Dağıtılabilir Pay: %$kalanPayOraniStr (${TurkceFormat.para(katkiPayi)})',
-                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF15803D)),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildKesintilerAyarKarti(context),
           const SizedBox(height: 16),
 
           // 3. 3'LÜ KPI ÖZET KARTLARI
@@ -2139,6 +2240,7 @@ class TabKatkiPayi extends StatelessWidget {
   }
 
   void _ekDersAyarlariDialogGoster(BuildContext context) {
+    bool localTavan = tavanUygula;
     showDialog(
       context: context,
       builder: (ctx) {
@@ -2200,17 +2302,17 @@ class TabKatkiPayi extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: tavanUygula ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+                          color: localTavan ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: tavanUygula ? const Color(0xFF86EFAC) : const Color(0xFFFECACA),
+                            color: localTavan ? const Color(0xFF86EFAC) : const Color(0xFFFECACA),
                           ),
                         ),
                         child: Row(
                           children: [
                             Icon(
-                              tavanUygula ? Icons.verified_user_outlined : Icons.gpp_bad_outlined,
-                              color: tavanUygula ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                              localTavan ? Icons.verified_user_outlined : Icons.gpp_bad_outlined,
+                              color: localTavan ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
                               size: 24,
                             ),
                             const SizedBox(width: 12),
@@ -2219,34 +2321,36 @@ class TabKatkiPayi extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    tavanUygula
+                                    localTavan
                                         ? 'Yasal Ek Ders Tavanı: AKTİF (Uygulanıyor)'
                                         : 'Yasal Ek Ders Tavanı: KAPALI (Sınırsız Ödeme)',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,
-                                      color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF991B1B),
+                                      color: localTavan ? const Color(0xFF15803D) : const Color(0xFF991B1B),
                                     ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    tavanUygula
+                                    localTavan
                                         ? 'Mesai içi azami 2.0 katı, mesai dışı azami 3.2 katı yasal tavanı uygulanır. Tavanı aşan kısım birim havuzuna devredilir.'
                                         : 'Saatlik tavan sınırlaması uygulanmaz; personelin hak ettiği brüt tutar tam olarak personele ödenir.',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: tavanUygula ? const Color(0xFF166534) : const Color(0xFF7F1D1D),
+                                      color: localTavan ? const Color(0xFF166534) : const Color(0xFF7F1D1D),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                             Switch(
-                              value: tavanUygula,
+                              value: localTavan,
                               activeThumbColor: const Color(0xFF16A34A),
                               onChanged: (val) {
+                                setDialogState(() {
+                                  localTavan = val;
+                                });
                                 onTavanUygulaDegisti?.call(val);
-                                setDialogState(() {});
                               },
                             ),
                           ],
@@ -2325,11 +2429,11 @@ class TabKatkiPayi extends StatelessWidget {
                                 const SizedBox(width: 8),
                                 TextButton(
                                   onPressed: () {
-                                    memurMaasKatsayisiController.text = '1.387871';
-                                    onMemurMaasKatsayisiDegisti(1.387871);
+                                    memurMaasKatsayisiController.text = memurMaasKatsayisi.toString();
+                                    onMemurMaasKatsayisiDegisti(memurMaasKatsayisi);
                                     setDialogState(() {});
                                   },
-                                  child: const Text('Varsayılana Sıfırla', style: TextStyle(fontSize: 11)),
+                                  child: const Text('Kayıtlıya Dön', style: TextStyle(fontSize: 11)),
                                 ),
                               ],
                             ),

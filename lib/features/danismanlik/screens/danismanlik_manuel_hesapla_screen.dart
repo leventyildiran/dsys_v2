@@ -4,6 +4,7 @@ import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/services/birim_service.dart';
+import '../../../core/services/sistem_ayarlari_service.dart';
 import '../../../core/turkce_format.dart';
 import '../models/danismanlik_model.dart';
 import '../models/taksit_model.dart';
@@ -84,11 +85,12 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
   final _memurMaasKatsayisiController = TextEditingController(text: '1.387871');
 
   // Yasal Ek Ders Tavanı Uygulansın mı? (Mesai içi 2.0x, Mesai dışı 3.2x)
-  bool _tavanUygula = true;
+  bool _tavanUygula = false;
 
   // Birim Listesi
   List<String> _birimler = [];
   final BirimService _birimService = BirimService();
+  final SistemAyarlariService _sistemAyarlari = SistemAyarlariService();
 
   // Kayıt Servisi
   final DanismanlikManuelKayitServisi _kayitServisi = DanismanlikManuelKayitServisi();
@@ -110,16 +112,34 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
   }
 
   Future<void> _kayitliMemurKatsayisiYukle() async {
+    double? katsayi;
+
+    // 1. Önce Firestore sistem ayarlarından çek (tüm cihazlar ve tarayıcılar için merkezi/kalıcı)
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final katsayi = prefs.getDouble('dsys_memur_maas_katsayisi');
-      if (katsayi != null && katsayi > 0 && mounted) {
-        setState(() {
-          _memurMaasKatsayisi = katsayi;
-          _memurMaasKatsayisiController.text = katsayi.toString();
-        });
+      final ham = await _sistemAyarlari.getHamAlan('danismanlikGenelAyarlar');
+      if (ham != null && ham['memurMaasKatsayisi'] != null) {
+        katsayi = (ham['memurMaasKatsayisi'] as num).toDouble();
       }
     } catch (_) {}
+
+    // 2. Firestore'da henüz yoksa yerel SharedPreferences'tan oku
+    if (katsayi == null || katsayi <= 0) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        katsayi = prefs.getDouble('dsys_memur_maas_katsayisi');
+        if (katsayi == null) {
+          final str = prefs.getString('dsys_memur_maas_katsayisi_str');
+          if (str != null) katsayi = double.tryParse(str.replaceAll(',', '.'));
+        }
+      } catch (_) {}
+    }
+
+    if (katsayi != null && katsayi > 0 && mounted) {
+      setState(() {
+        _memurMaasKatsayisi = katsayi!;
+        _memurMaasKatsayisiController.text = katsayi.toString();
+      });
+    }
   }
 
   Future<void> _memurMaasKatsayisiKaydet() async {
@@ -137,11 +157,22 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
     }
 
     try {
+      // 1. Firestore sistem ayarlarına kalıcı kaydet (tüm kullanıcılar ve cihazlar için)
+      try {
+        await _sistemAyarlari.kaydetHamAlan('danismanlikGenelAyarlar', {
+          'memurMaasKatsayisi': d,
+        });
+      } catch (_) {}
+
+      // 2. Tarayıcı yerel hafızasına (SharedPreferences) kaydet
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble('dsys_memur_maas_katsayisi', d);
+      await prefs.setString('dsys_memur_maas_katsayisi_str', d.toString());
+
       if (mounted) {
         setState(() {
           _memurMaasKatsayisi = d;
+          _memurMaasKatsayisiController.text = d.toString();
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -159,13 +190,18 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
         );
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Kaydetme hatası: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        setState(() {
+          _memurMaasKatsayisi = d;
+          _memurMaasKatsayisiController.text = d.toString();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Memur maaş katsayısı yerel olarak güncellendi ($d).'),
+            backgroundColor: const Color(0xFF0F766E),
+          ),
+        );
+      }
     }
   }
 
@@ -756,8 +792,8 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       _hizmetBasligiController.text = 'GENEL İNGİLİZCE KURSU HİZMET GELİRLERİ HESAPLAMA CETVELİ';
       _kdvOrani = 10;
       _hazineOrani = 1;
-      _bapOrani = 0;
-      _aracGerecOrani = 0.49;
+      _bapOrani = 5;
+      _aracGerecOrani = 0.44;
       _satirlar = [
         ManuelListeSatiri(sn: 1, tc: '22787673956', aciklama: 'Cemre ARMAĞAN - Kursiyer Ücreti', tutar: 5000.0),
         ManuelListeSatiri(sn: 2, tc: '49756749382', aciklama: 'Emrah TORUN - Kursiyer Ücreti', tutar: 5000.0),
