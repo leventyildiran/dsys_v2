@@ -774,7 +774,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       _personeller = [
         const ExcelPersonelGirdi(
           personelId: '1',
-          adSoyad: 'Prof. Dr. Ahmet YILMAZ',
+          adSoyad: 'Ahmet YILMAZ',
           unvan: 'Prof. Dr.',
           puan: 100.0,
           unvanKatsayisi: 3.0,

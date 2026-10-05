@@ -145,11 +145,15 @@ class TabOzetIcmal extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            veri.is58k ? '2. SÖZLEŞME & TAKSİT İCMALİ (58/k)' : '2. KATSAYI VE HAKEDİŞ DAĞITIMI',
+                            veri.is58k
+                                ? '2. SÖZLEŞME & TAKSİT İCMALİ (58/k)'
+                                : (veri.is58e
+                                    ? '2. SÖZLEŞME & VERGİ İCMALİ (58/e)'
+                                    : '2. KATSAYI VE HAKEDİŞ DAĞITIMI'),
                             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF1E293B)),
                           ),
                           const Divider(height: 16),
-                          if (veri.is58k) ...[
+                          if (veri.is58k || veri.is58e) ...[
                             _satir('Ödeme Türü', veri.odemeTekSeferde ? 'Tek Seferde Tam Ödeme' : '${veri.toplamTaksitSayisi} Taksitli Ödeme', kalin: true),
                             if (!veri.odemeTekSeferde) ...[
                               _satir('Aktif Taksit No', '${veri.aktifTaksitNo} / ${veri.toplamTaksitSayisi}. Taksit', kalin: true, renk: const Color(0xFF2563EB)),
@@ -157,17 +161,26 @@ class TabOzetIcmal extends StatelessWidget {
                                 _satir('Danışmanlık Hizmet Dönemi', veri.aktifTaksitTarihAraligi, kalin: true, renk: const Color(0xFF0F766E)),
                               if (veri.aylarMetni.isNotEmpty)
                                 _satir('Danışmanlık Yapılan Aylar', veri.aylarMetni, kalin: false, renk: const Color(0xFF1E293B)),
-                              _satir('Bu Ayki Taksit Tutarı', TurkceFormat.para(veri.buAykiDagitilacakPay58k), kalin: true, renk: const Color(0xFF107C41)),
+                              _satir('Bu Ayki Brüt Taksit Tutarı', TurkceFormat.para(veri.buAykiDagitilacakPay58k), kalin: true, renk: const Color(0xFF107C41)),
                               _satir('Gelecek Aylara Kalan Bakiye', TurkceFormat.para(veri.kalanDevredenBakiye58k), kalin: true, renk: const Color(0xFFD97706)),
                             ] else ...[
                               if (veri.aktifTaksitTarihAraligi.isNotEmpty)
                                 _satir('Danışmanlık Hizmet Dönemi', veri.aktifTaksitTarihAraligi, kalin: true, renk: const Color(0xFF0F766E)),
-                              _satir('Net Ödenecek Hakediş Tutarı (%$akademikOranStr)', TurkceFormat.para(kesinti.katkiPayi), kalin: true, renk: const Color(0xFF107C41)),
+                              _satir('Brüt Dağıtılabilir Pay (%$akademikOranStr)', TurkceFormat.para(kesinti.katkiPayi), kalin: true, renk: const Color(0xFF107C41)),
+                            ],
+                            if (veri.is58e) ...[
+                              _satir('Gelir Vergisi (Stopaj)', '%${veri.gelirVergisiOrani}', kalin: false, renk: const Color(0xFFDC2626)),
+                              _satir('Damga Vergisi', '%0,759 (Yasal Sabit)', kalin: false, renk: const Color(0xFFDC2626)),
+                              _satir('Net Ele Geçecek Toplam', TurkceFormat.para(excel.netOdemeToplam), kalin: true, renk: const Color(0xFF047857)),
+                            ],
+                            if (veri.is58k) ...[
+                              _satir('Vergi Muafiyeti', 'Gelir & Damga Vergisi %0 (Muaf)', kalin: false, renk: const Color(0xFF0F766E)),
+                              _satir('Net Ödenecek Toplam', TurkceFormat.para(excel.netOdemeToplam), kalin: true, renk: const Color(0xFF047857)),
                             ],
                             if (veri.sozlesmeSuresiMetni.isNotEmpty)
                               _satir('Sözleşme Süresi & Kapsamı', veri.sozlesmeSuresiMetni, kalin: false, renk: const Color(0xFF475569)),
                             _satir('Puan & Dönem Katsayısı', 'Mevzuat Gereği Yoktur (Muaf)', kalin: false, renk: const Color(0xFF64748B)),
-                            _satir('3,2 Katı Saat Tavanı', 'Uygulanmaz (Doğrudan Hakediş)', kalin: false, renk: const Color(0xFF0F766E)),
+                            _satir('Saatlik Ek Ders Tavanı', 'Uygulanmaz (2547 m.58 tavan muafiyeti)', kalin: false, renk: const Color(0xFF0F766E)),
                           ] else ...[
                             _satir('Toplam Net Katkı Puanı', excel.toplamPuan.toStringAsFixed(0), kalin: true),
                             _satir('Dönem Ek Ödeme Katsayısı', TurkceFormat.katsayi(excel.donemKatsayi), kalin: true, renk: const Color(0xFF047857)),
@@ -204,7 +217,7 @@ class TabOzetIcmal extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     excel.saglama <= kesinti.katkiPayi + 0.01
-                                        ? (veri.is58k ? 'Güvenli: %$akademikOranStr net hakediş ve taksit tutarı sınır dahilindedir.' : 'Güvenli: Sağlama tutarı dağıtılabilir katkı payı tavanını aşmamaktadır.')
+                                        ? ((veri.is58k || veri.is58e) ? 'Güvenli: %$akademikOranStr hakediş ve taksit tutarı sınır dahilindedir.' : 'Güvenli: Sağlama tutarı dağıtılabilir katkı payı tavanını aşmamaktadır.')
                                         : 'UYARI: Dağıtılan tutar hak edilen payı aşmaktadır!',
                                     style: TextStyle(
                                       fontSize: 11,
@@ -228,7 +241,11 @@ class TabOzetIcmal extends StatelessWidget {
 
               // Personel Dağıtım Özeti Tablosu
               Text(
-                veri.is58k ? '3. PERSONEL SÖZLEŞMELİ HAKEDİŞ DAĞITIMI' : '3. PERSONEL DAĞITIM VE TAVAN İCMALİ',
+                veri.is58k
+                    ? '3. PERSONEL SÖZLEŞMELİ HAKEDİŞ DAĞITIMI'
+                    : (veri.is58e
+                        ? '3. PERSONEL HAKEDİŞ VE VERGİ KESİNTİLERİ (58/e)'
+                        : '3. PERSONEL DAĞITIM VE TAVAN İCMALİ'),
                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF1E293B)),
               ),
               const SizedBox(height: 8),
@@ -249,20 +266,31 @@ class TabOzetIcmal extends StatelessWidget {
                           if (veri.is58k) ...[
                             const SizedBox(width: 100, child: Text('Sözleşme Payı', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                             const SizedBox(width: 120, child: Text('Puan & Katsayı', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                            const SizedBox(width: 120, child: Text('Ödenecek Tutar (TL)', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF047857)))),
+                          ] else if (veri.is58e) ...[
+                            const SizedBox(width: 90, child: Text('Sözleşme Payı', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
+                            const SizedBox(width: 95, child: Text('Brüt Hakediş', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
+                            const SizedBox(width: 85, child: Text('Gelir Vergisi', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFFDC2626)))),
+                            const SizedBox(width: 80, child: Text('Damga Vergisi', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFFDC2626)))),
+                            const SizedBox(width: 110, child: Text('Net Tutar (TL)', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF047857)))),
                           ] else ...[
                             const SizedBox(width: 50, child: Text('Saat', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                             const SizedBox(width: 80, child: Text('Mesai', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                             const SizedBox(width: 70, child: Text('Net Puan', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                             const SizedBox(width: 85, child: Text('Saatlik Ücret', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                             const SizedBox(width: 85, child: Text('Ek Ders Tavan', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
+                            const SizedBox(width: 120, child: Text('Ödenecek Tutar (TL)', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF047857)))),
                           ],
-                          const SizedBox(width: 120, child: Text('Ödenecek Tutar (TL)', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF047857)))),
                         ],
                       ),
                     ),
                     const Divider(height: 1, thickness: 1),
                     ...excel.personelSatirlari.map((s) {
                       final p = s.girdi;
+                      final brut = s.brutHakedis;
+                      final gv = _round(brut * (veri.gelirVergisiOrani / 100), 2);
+                      final dv = _round(brut * 0.00759, 2);
+                      final net = _round(brut - gv - dv, 2);
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         child: Row(
@@ -270,7 +298,7 @@ class TabOzetIcmal extends StatelessWidget {
                             Expanded(
                               flex: 3,
                               child: Text(
-                                '${p.unvan} ${p.adSoyad}',
+                                _tamAdSoyad(p.unvan, p.adSoyad),
                                 style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
                               ),
                             ),
@@ -286,6 +314,43 @@ class TabOzetIcmal extends StatelessWidget {
                               const SizedBox(
                                 width: 120,
                                 child: Text('Muaf (Puan Yok)', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                              ),
+                              SizedBox(
+                                width: 120,
+                                child: Text(
+                                  TurkceFormat.para(s.odenebilirHakedis),
+                                  textAlign: TextAlign.right,
+                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF107C41)),
+                                ),
+                              ),
+                            ] else if (veri.is58e) ...[
+                              SizedBox(
+                                width: 90,
+                                child: Text(
+                                  '%${p.puan > 0 ? p.puan.toStringAsFixed(p.puan % 1 == 0 ? 0 : 1) : '100'}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4F46E5)),
+                                ),
+                              ),
+                              SizedBox(
+                                width: 95,
+                                child: Text(TurkceFormat.para(brut), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                              ),
+                              SizedBox(
+                                width: 85,
+                                child: Text(TurkceFormat.para(gv), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626))),
+                              ),
+                              SizedBox(
+                                width: 80,
+                                child: Text(TurkceFormat.para(dv), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626))),
+                              ),
+                              SizedBox(
+                                width: 110,
+                                child: Text(
+                                  TurkceFormat.para(net),
+                                  textAlign: TextAlign.right,
+                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF107C41)),
+                                ),
                               ),
                             ] else ...[
                               SizedBox(
@@ -323,15 +388,15 @@ class TabOzetIcmal extends StatelessWidget {
                                 width: 85,
                                 child: Text(TurkceFormat.para(s.tavanSaatlikUcreti), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                               ),
-                            ],
-                            SizedBox(
-                              width: 120,
-                              child: Text(
-                                TurkceFormat.para(s.odenebilirHakedis),
-                                textAlign: TextAlign.right,
-                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF107C41)),
+                              SizedBox(
+                                width: 120,
+                                child: Text(
+                                  TurkceFormat.para(s.odenebilirHakedis),
+                                  textAlign: TextAlign.right,
+                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF107C41)),
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       );
@@ -341,18 +406,18 @@ class TabOzetIcmal extends StatelessWidget {
               ),
 
               const SizedBox(height: 16),
-              // Yasal Şerh Kutusu (58/k veya 58/c)
+              // Yasal Şerh Kutusu (58/k, 58/e veya kurslar)
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: veri.is58k
+                  color: (veri.is58k || veri.is58e)
                       ? const Color(0xFFEFF6FF)
                       : (!veri.tavanUygula
                           ? const Color(0xFFF8FAFC)
                           : (excel.herhangiBirTavanAsildi ? const Color(0xFFFEF3C7) : const Color(0xFFF0FDF4))),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: veri.is58k
+                    color: (veri.is58k || veri.is58e)
                         ? const Color(0xFFBFDBFE)
                         : (!veri.tavanUygula
                             ? const Color(0xFFCBD5E1)
@@ -365,13 +430,13 @@ class TabOzetIcmal extends StatelessWidget {
                     Row(
                       children: [
                         Icon(
-                          veri.is58k
+                          (veri.is58k || veri.is58e)
                               ? Icons.assignment_turned_in_outlined
                               : (!veri.tavanUygula
                                   ? Icons.info_outline
                                   : (excel.herhangiBirTavanAsildi ? Icons.balance : Icons.verified_outlined)),
                           size: 20,
-                          color: veri.is58k
+                          color: (veri.is58k || veri.is58e)
                               ? const Color(0xFF1D4ED8)
                               : (!veri.tavanUygula
                                   ? const Color(0xFF64748B)
@@ -381,11 +446,13 @@ class TabOzetIcmal extends StatelessWidget {
                         Text(
                           veri.is58k
                               ? '2547 Sayılı Kanun Madde 58/k Uyarınca Sözleşmeli Danışmanlık Şerhi'
-                              : '2547 ve 2914 Sayılı Kanunlar Uyarınca Ek Ders Yasal Tavan Şerhi',
+                              : (veri.is58e
+                                  ? '2547 Sayılı Kanun Madde 58/e Uyarınca Danışmanlık ve Hizmet Şerhi'
+                                  : '2547 ve 2914 Sayılı Kanunlar Uyarınca Ek Ders Yasal Tavan Şerhi'),
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 12,
-                            color: veri.is58k
+                            color: (veri.is58k || veri.is58e)
                                 ? const Color(0xFF1E40AF)
                                 : (!veri.tavanUygula
                                     ? const Color(0xFF334155)
@@ -398,17 +465,19 @@ class TabOzetIcmal extends StatelessWidget {
                     Text(
                       veri.is58k
                           ? 'İşbu ödeme, 2547 sayılı Kanun Madde 58/k uyarınca yapılan sanayi/bireysel danışmanlık sözleşmesine istinaden tahakkuk ettirilmiştir. Matrah üzerinden %15 kurum/araç-gereç payı kesildikten sonra kalan %85 tutar doğrudan danışmana ${veri.odemeTekSeferde ? "tek seferde" : "sözleşme taksitlerine bölünerek"} ödenmektedir. Puan hesabı ve saatlik ek ders tavanı aranmaz.'
-                          : (!veri.tavanUygula
-                              ? 'İşbu hesaplama cetvelinde kullanıcı tercihi doğrultusunda yasal saatlik ek ders tavanı sınırlaması uygulanmamış olup personellere hak edilen brüt katkı payı tutarı tam olarak tahakkuk ettirilmiştir.'
-                              : (excel.herhangiBirTavanAsildi
-                                  ? (excel.katiKesintiUygula
-                                      ? 'İşbu hesaplamada yer alan ve hesaplanan saatlik ücreti yasal tavanı (Mesai İçi 2.0x, Mesai Dışı 3.2x: ${TurkceFormat.para(excel.maksimumTavanSaatlik)}/Saat) aşan personele yasal tavan uygulanmış; tavanı aşan toplam ${TurkceFormat.para(excel.toplamTavanKesintisi)} tutar döner sermaye birim havuzuna devredilmiştir.'
-                                      : 'İşbu hesaplamada 2547 sayılı Kanun Madde 58 uyarınca personelin hak ettiği brüt katkı payı tutarı personelin özlük hakkı olarak tam tahakkuk ettirilmiştir. 2914 sayılı Kanun m.11 ek ders tavan göstergesi (${TurkceFormat.para(excel.maksimumTavanSaatlik)}/Saat) mevzuat ve Sayıştay denetim incelemesi amacıyla bilgi notu olarak icmale eklenmiştir.')
-                                  : 'İşbu hesaplama icmalinde yer alan tüm öğretim elemanlarının saatlik ücretleri, 2914 sayılı Kanun uyarınca belirlenen ek ders ücreti tavanını (${TurkceFormat.para(excel.maksimumTavanSaatlik)}/Saat) GEÇMEMİŞTİR. Dağıtım ve ödemeler mevzuata tam uygundur.')),
+                          : (veri.is58e
+                              ? 'İşbu ödeme, 2547 sayılı Kanun Madde 58/e uyarınca üniversite imkânları kullanılmaksızın yürütülen hizmete istinaden tahakkuk ettirilmiştir. KDV hariç matrahtan yasal Hazine (%${veri.hazineOrani}), BAP (%${veri.bapOrani}) ve Birim/Kurum payı (%${(veri.aracGerecOrani * 100).toStringAsFixed(0)}) kesildikten sonra kalan tutar, 2547 sayılı Kanun Madde 58/e fıkrası hükmü uyarınca ek ders saat tavanı uygulanmaksızın, Gelir Vergisi (Stopaj: %${veri.gelirVergisiOrani}) ve Damga Vergisi (%0,759) kesilerek doğrudan personele tahakkuk ettirilmiştir.'
+                              : (!veri.tavanUygula
+                                  ? 'İşbu hesaplama cetvelinde kullanıcı tercihi doğrultusunda yasal saatlik ek ders tavanı sınırlaması uygulanmamış olup personellere hak edilen brüt katkı payı tutarı tam olarak tahakkuk ettirilmiştir.'
+                                  : (excel.herhangiBirTavanAsildi
+                                      ? (excel.katiKesintiUygula
+                                          ? 'İşbu hesaplamada yer alan ve hesaplanan saatlik ücreti yasal tavanı (Mesai İçi 2.0x, Mesai Dışı 3.2x: ${TurkceFormat.para(excel.maksimumTavanSaatlik)}/Saat) aşan personele yasal tavan uygulanmış; tavanı aşan toplam ${TurkceFormat.para(excel.toplamTavanKesintisi)} tutar döner sermaye birim havuzuna devredilmiştir.'
+                                          : 'İşbu hesaplamada 2547 sayılı Kanun Madde 58 uyarınca personelin hak ettiği brüt katkı payı tutarı personelin özlük hakkı olarak tam tahakkuk ettirilmiştir. 2914 sayılı Kanun m.11 ek ders tavan göstergesi (${TurkceFormat.para(excel.maksimumTavanSaatlik)}/Saat) mevzuat ve Sayıştay denetim incelemesi amacıyla bilgi notu olarak icmale eklenmiştir.')
+                                      : 'İşbu hesaplama icmalinde yer alan tüm öğretim elemanlarının saatlik ücretleri, 2914 sayılı Kanun uyarınca belirlenen ek ders ücreti tavanını (${TurkceFormat.para(excel.maksimumTavanSaatlik)}/Saat) GEÇMEMİŞTİR. Dağıtım ve ödemeler mevzuata tam uygundur.'))),
                       style: TextStyle(
                         fontSize: 11,
                         height: 1.4,
-                        color: veri.is58k
+                        color: (veri.is58k || veri.is58e)
                             ? const Color(0xFF1E3A8A)
                             : (!veri.tavanUygula
                                 ? const Color(0xFF475569)
@@ -467,5 +536,17 @@ class TabOzetIcmal extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static double _round(double val, [int decimals = 2]) {
+    return double.parse(val.toStringAsFixed(decimals));
+  }
+
+  static String _tamAdSoyad(String unvan, String adSoyad) {
+    final u = unvan.trim();
+    final a = adSoyad.trim();
+    if (u.isEmpty) return a;
+    if (a.toLowerCase().startsWith(u.toLowerCase())) return a;
+    return '$u $a';
   }
 }
