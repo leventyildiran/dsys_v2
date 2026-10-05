@@ -46,6 +46,7 @@ class TabKatkiPayi extends StatelessWidget {
     this.hazineOrani = 0,
     this.bapOrani = 0,
     this.aracGerecOrani = 0.15,
+    this.digerOrani = 0.0,
     this.onKesintiOranlariDegisti,
   });
 
@@ -55,7 +56,8 @@ class TabKatkiPayi extends StatelessWidget {
   final int hazineOrani;
   final int bapOrani;
   final double aracGerecOrani;
-  final void Function(int hazine, int bap, double aracGerec)? onKesintiOranlariDegisti;
+  final double digerOrani;
+  final void Function(int hazine, int bap, double aracGerec, [double? diger])? onKesintiOranlariDegisti;
   final TextEditingController manuelKatsayiController;
   final bool manuelKatsayiAktif;
   final ValueChanged<bool> onManuelKatsayiDegisti;
@@ -1145,6 +1147,10 @@ class TabKatkiPayi extends StatelessWidget {
     final kurumCtrl = TextEditingController(
       text: (kurumYuzde % 1 == 0) ? kurumYuzde.toInt().toString() : kurumYuzde.toStringAsFixed(1),
     );
+    final digerYuzde = (digerOrani * 100);
+    final digerCtrl = TextEditingController(
+      text: (digerYuzde % 1 == 0) ? digerYuzde.toInt().toString() : digerYuzde.toStringAsFixed(1),
+    );
 
     showDialog(
       context: context,
@@ -1154,7 +1160,8 @@ class TabKatkiPayi extends StatelessWidget {
             final hVal = int.tryParse(hazineCtrl.text.replaceAll(',', '.').trim()) ?? hazineOrani;
             final bVal = int.tryParse(bapCtrl.text.replaceAll(',', '.').trim()) ?? bapOrani;
             final kVal = double.tryParse(kurumCtrl.text.replaceAll(',', '.').trim()) ?? kurumYuzde;
-            final topKes = hVal + bVal + kVal;
+            final dVal = double.tryParse(digerCtrl.text.replaceAll(',', '.').trim()) ?? digerYuzde;
+            final topKes = hVal + bVal + kVal + dVal;
             final kalPay = 100 - topKes;
 
             return AlertDialog(
@@ -1172,7 +1179,7 @@ class TabKatkiPayi extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      'Kesintileri dilediğiniz oranda elle belirleyebilirsiniz (örn: Kurum Payı %18). Yapılan değişiklikler hesaplama tablosuna anında yansır.',
+                      'Kesintileri dilediğiniz oranda elle belirleyebilirsiniz (örn: Kurum Payı %18, Diğer %2). Yapılan değişiklikler hesaplama tablosuna anında yansır.',
                       style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                     ),
                     const SizedBox(height: 16),
@@ -1210,6 +1217,19 @@ class TabKatkiPayi extends StatelessWidget {
                         hintText: '15, 18, 20 vb.',
                         prefixIcon: const Icon(Icons.business_outlined, size: 18),
                         border: const OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      onChanged: (_) => setDialogState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: digerCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Diğer Kesinti Oranı (%)',
+                        hintText: '0, 1, 2, 5 vb.',
+                        prefixIcon: Icon(Icons.more_horiz, size: 18),
+                        border: OutlineInputBorder(),
                         isDense: true,
                       ),
                       onChanged: (_) => setDialogState(() {}),
@@ -1253,7 +1273,8 @@ class TabKatkiPayi extends StatelessWidget {
                     final h = int.tryParse(hazineCtrl.text.replaceAll(',', '.').trim()) ?? hazineOrani;
                     final b = int.tryParse(bapCtrl.text.replaceAll(',', '.').trim()) ?? bapOrani;
                     final k = double.tryParse(kurumCtrl.text.replaceAll(',', '.').trim()) ?? kurumYuzde;
-                    onKesintiOranlariDegisti?.call(h, b, k / 100.0);
+                    final d = double.tryParse(digerCtrl.text.replaceAll(',', '.').trim()) ?? digerYuzde;
+                    onKesintiOranlariDegisti?.call(h, b, k / 100.0, d / 100.0);
                     Navigator.pop(ctx);
                   },
                   child: const Text('Uygula'),
@@ -1272,11 +1293,13 @@ class TabKatkiPayi extends StatelessWidget {
     final hazineTutari = kesinti?.hazinePayi ?? 0.0;
     final bapTutari = kesinti?.bapPayi ?? 0.0;
     final aracGerecTutari = kesinti?.aracGerecPayi ?? 0.0;
-    final toplamKesintiTutari = hazineTutari + bapTutari + aracGerecTutari;
+    final digerTutari = kesinti?.digerPayi ?? 0.0;
+    final toplamKesintiTutari = hazineTutari + bapTutari + aracGerecTutari + digerTutari;
     final katkiPayi = kesinti?.katkiPayi ?? maksAkademikPay;
 
     final kurumOraniYuzde = aracGerecOrani * 100;
-    final toplamKesintiOrani = hazineOrani + bapOrani + kurumOraniYuzde;
+    final digerOraniYuzde = digerOrani * 100;
+    final toplamKesintiOrani = hazineOrani + bapOrani + kurumOraniYuzde + digerOraniYuzde;
     final toplamKesintiOraniStr = (toplamKesintiOrani % 1 == 0)
         ? toplamKesintiOrani.toInt().toString()
         : toplamKesintiOrani.toStringAsFixed(1);
@@ -1350,7 +1373,7 @@ class TabKatkiPayi extends StatelessWidget {
                 deger: hazineOrani,
                 hazirSecenekler: const [0, 1, 2, 3, 5],
                 onDegisti: (val) {
-                  onKesintiOranlariDegisti?.call(val.toInt(), bapOrani, aracGerecOrani);
+                  onKesintiOranlariDegisti?.call(val.toInt(), bapOrani, aracGerecOrani, digerOrani);
                 },
               ),
               const SizedBox(width: 8),
@@ -1361,7 +1384,7 @@ class TabKatkiPayi extends StatelessWidget {
                 deger: bapOrani,
                 hazirSecenekler: const [0, 1, 2, 5, 10],
                 onDegisti: (val) {
-                  onKesintiOranlariDegisti?.call(hazineOrani, val.toInt(), aracGerecOrani);
+                  onKesintiOranlariDegisti?.call(hazineOrani, val.toInt(), aracGerecOrani, digerOrani);
                 },
               ),
               const SizedBox(width: 8),
@@ -1372,7 +1395,18 @@ class TabKatkiPayi extends StatelessWidget {
                 deger: (kurumOraniYuzde % 1 == 0) ? kurumOraniYuzde.toInt() : kurumOraniYuzde,
                 hazirSecenekler: const [0, 5, 10, 15, 18, 20, 25, 30, 35, 40, 44, 45, 50],
                 onDegisti: (val) {
-                  onKesintiOranlariDegisti?.call(hazineOrani, bapOrani, val.toDouble() / 100.0);
+                  onKesintiOranlariDegisti?.call(hazineOrani, bapOrani, val.toDouble() / 100.0, digerOrani);
+                },
+              ),
+              const SizedBox(width: 8),
+
+              // 4. Diğer Kesinti Payı
+              _KesintiOranKutusu(
+                etiket: 'Diğer',
+                deger: (digerOraniYuzde % 1 == 0) ? digerOraniYuzde.toInt() : digerOraniYuzde,
+                hazirSecenekler: const [0, 1, 2, 3, 5, 10, 15],
+                onDegisti: (val) {
+                  onKesintiOranlariDegisti?.call(hazineOrani, bapOrani, aracGerecOrani, val.toDouble() / 100.0);
                 },
               ),
               const SizedBox(width: 8),

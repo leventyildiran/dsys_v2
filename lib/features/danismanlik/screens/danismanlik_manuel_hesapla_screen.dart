@@ -59,6 +59,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
   int _hazineOrani = 1;
   int _bapOrani = 5;
   double _aracGerecOrani = 0.45;
+  double _digerOrani = 0.0;
 
   // Dönem Katsayısı Manuel Müdahale
   bool _manuelKatsayiAktif = false;
@@ -332,6 +333,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
         hazineOrani: _hazineOrani,
         bapOrani: _bapOrani,
         aracGerecOrani: _aracGerecOrani,
+        digerOrani: _digerOrani,
         memurMaasKatsayisi: _memurMaasKatsayisi,
         manuelKatsayiAktif: _manuelKatsayiAktif,
         manuelKatsayi: _manuelKatsayiController.text,
@@ -535,6 +537,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       _hazineOrani = k.hazineOrani;
       _bapOrani = k.bapOrani;
       _aracGerecOrani = k.aracGerecOrani;
+      _digerOrani = k.digerOrani;
       _memurMaasKatsayisi = k.memurMaasKatsayisi;
       _memurMaasKatsayisiController.text = k.memurMaasKatsayisi.toString();
       _tavanUygula = k.tavanUygula;
@@ -582,6 +585,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       _aracGerecOrani = d.aracGerecPayiOrani > 0 ? (d.aracGerecPayiOrani / 100.0) : 0.45;
     }
 
+    _digerOrani = 0.0;
     _kdvOrani = d.kdvOrani;
 
     // Kurum ve Birim Başlıkları
@@ -692,6 +696,10 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       ];
 
       _aktifSablonTuru = 'dts';
+      _hazineOrani = 1;
+      _bapOrani = 5;
+      _aracGerecOrani = 0.45;
+      _digerOrani = 0.0;
       _manuelKatsayiAktif = false;
       _manuelKatsayiController.clear();
       _memurMaasKatsayisiController.text = _memurMaasKatsayisi.toString();
@@ -711,6 +719,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       _hazineOrani = 0;
       _bapOrani = 0;
       _aracGerecOrani = 0.15; // %15 A.G.P. -> Kalan %85 Katkı Payı!
+      _digerOrani = 0.0;
       _satirlar = [
         ManuelListeSatiri(
           sn: 1,
@@ -760,6 +769,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       _hazineOrani = 1;
       _bapOrani = 5;
       _aracGerecOrani = 0.15; // Kullanıcının istediği gibi düzenlenebilir (%15 varsayılan -> Kalan %79 Dağıtılabilir Pay)
+      _digerOrani = 0.0;
       _gelirVergisiOrani = 15;
       _satirlar = [
         ManuelListeSatiri(
@@ -809,6 +819,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       _hazineOrani = 1;
       _bapOrani = 5;
       _aracGerecOrani = 0.44;
+      _digerOrani = 0.0;
       _satirlar = [
         ManuelListeSatiri(sn: 1, tc: '22787673956', aciklama: 'Cemre ARMAĞAN - Kursiyer Ücreti', tutar: 5000.0),
         ManuelListeSatiri(sn: 2, tc: '49756749382', aciklama: 'Emrah TORUN - Kursiyer Ücreti', tutar: 5000.0),
@@ -846,6 +857,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       _hazineOrani = 1;
       _bapOrani = 5;
       _aracGerecOrani = 0.45;
+      _digerOrani = 0.0;
       _satirlar = [
         ManuelListeSatiri(sn: 1, tc: '', aciklama: 'Türkçe Eğitimi Kurs Geliri', tutar: 15000.0),
       ];
@@ -880,6 +892,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       _hazineOrani = 1;
       _bapOrani = 5;
       _aracGerecOrani = 0.45;
+      _digerOrani = 0.0;
       _satirlar = [
         ManuelListeSatiri(sn: 1, tc: '', aciklama: 'Uzer Makina Sanayi Danışmanlığı', tutar: 36000.0),
       ];
@@ -967,6 +980,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       hazineOrani: _hazineOrani,
       bapOrani: _bapOrani,
       aracGerecOrani: _aracGerecOrani,
+      digerOrani: _digerOrani,
       personeller: _personeller,
       manuelDonemKatsayisi: manuelKatsayi,
       memurMaasKatsayisi: _memurMaasKatsayisi,
@@ -1358,11 +1372,13 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                   hazineOrani: _hazineOrani,
                   bapOrani: _bapOrani,
                   aracGerecOrani: _aracGerecOrani,
-                  onOranlariGuncelle: (h, b, a) {
+                  digerOrani: _digerOrani,
+                  onOranlariGuncelle: (h, b, a, [d]) {
                     setState(() {
                       _hazineOrani = h;
                       _bapOrani = b;
                       _aracGerecOrani = a;
+                      if (d != null) _digerOrani = d;
                     });
                   },
                 ),
@@ -1453,11 +1469,13 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                   hazineOrani: _hazineOrani,
                   bapOrani: _bapOrani,
                   aracGerecOrani: _aracGerecOrani,
-                  onKesintiOranlariDegisti: (h, b, ag) {
+                  digerOrani: _digerOrani,
+                  onKesintiOranlariDegisti: (h, b, ag, [d]) {
                     setState(() {
                       _hazineOrani = h;
                       _bapOrani = b;
                       _aracGerecOrani = ag;
+                      if (d != null) _digerOrani = d;
                     });
                   },
                 ),

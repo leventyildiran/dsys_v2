@@ -18,6 +18,7 @@ class ManuelHesaplamaVerisi {
     required this.hazineOrani,
     required this.bapOrani,
     required this.aracGerecOrani,
+    this.digerOrani = 0.0,
     required this.personeller,
     this.manuelDonemKatsayisi,
     this.memurMaasKatsayisi = 1.387871,
@@ -44,6 +45,7 @@ class ManuelHesaplamaVerisi {
   final int hazineOrani;
   final int bapOrani;
   final double aracGerecOrani;
+  final double digerOrani;
   final List<ExcelPersonelGirdi> personeller;
   final double? manuelDonemKatsayisi;
   final double memurMaasKatsayisi;
@@ -128,6 +130,7 @@ class ManuelHesaplamaVerisi {
         hazineOrani: hazineOrani,
         bapOrani: bapOrani,
         aracGerecOrani: aracGerecOrani,
+        digerOrani: digerOrani,
       );
 
   double get buAykiDagitilacakPay58k {

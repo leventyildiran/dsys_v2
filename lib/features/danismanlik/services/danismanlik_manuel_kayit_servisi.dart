@@ -16,6 +16,7 @@ class ManuelHesaplamaKaydi {
     required this.hazineOrani,
     required this.bapOrani,
     required this.aracGerecOrani,
+    this.digerOrani = 0.0,
     required this.memurMaasKatsayisi,
     required this.manuelKatsayiAktif,
     required this.manuelKatsayi,
@@ -44,6 +45,7 @@ class ManuelHesaplamaKaydi {
   final int hazineOrani;
   final int bapOrani;
   final double aracGerecOrani;
+  final double digerOrani;
   final double memurMaasKatsayisi;
   final bool manuelKatsayiAktif;
   final String manuelKatsayi;
@@ -71,6 +73,7 @@ class ManuelHesaplamaKaydi {
     'hazineOrani': hazineOrani,
     'bapOrani': bapOrani,
     'aracGerecOrani': aracGerecOrani,
+    'digerOrani': digerOrani,
     'memurMaasKatsayisi': memurMaasKatsayisi,
     'manuelKatsayiAktif': manuelKatsayiAktif,
     'manuelKatsayi': manuelKatsayi,
@@ -127,6 +130,7 @@ class ManuelHesaplamaKaydi {
       hazineOrani: (map['hazineOrani'] as num?)?.toInt() ?? 1,
       bapOrani: (map['bapOrani'] as num?)?.toInt() ?? 5,
       aracGerecOrani: (map['aracGerecOrani'] as num?)?.toDouble() ?? 0.45,
+      digerOrani: (map['digerOrani'] as num?)?.toDouble() ?? 0.0,
       memurMaasKatsayisi: (map['memurMaasKatsayisi'] as num?)?.toDouble() ?? 1.387871,
       manuelKatsayiAktif: map['manuelKatsayiAktif'] as bool? ?? false,
       manuelKatsayi: map['manuelKatsayi'] as String? ?? '',

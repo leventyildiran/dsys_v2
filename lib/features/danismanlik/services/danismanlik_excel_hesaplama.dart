@@ -153,12 +153,14 @@ class DanismanlikExcelHesaplama {
     int hazineOrani = 1,
     int bapOrani = 5,
     double aracGerecOrani = 0.45,
+    double digerOrani = 0.0,
   }) {
     final hazine = _round(kdvHaricGelir * (hazineOrani / 100), 2);
     final bap = _round(kdvHaricGelir * (bapOrani / 100), 2);
     final aracGerec = _round(kdvHaricGelir * aracGerecOrani, 2);
-    // G18 = B11-(G15+G16+G17) — Excel birebir
-    final katkiPayi = _round(kdvHaricGelir - hazine - bap - aracGerec, 2);
+    final diger = _round(kdvHaricGelir * digerOrani, 2);
+    // G18 = B11-(G15+G16+G17+Diger) — Excel birebir
+    final katkiPayi = _round(kdvHaricGelir - hazine - bap - aracGerec - diger, 2);
     final dagMaksAkademikPay = katkiPayi;
 
     return ExcelKesintiSonuc(
@@ -166,9 +168,10 @@ class DanismanlikExcelHesaplama {
       hazinePayi: hazine,
       bapPayi: bap,
       aracGerecPayi: aracGerec,
+      digerPayi: diger,
       katkiPayi: katkiPayi,
       dagMaksAkademikPay: dagMaksAkademikPay,
-      toplam: hazine + bap + aracGerec + katkiPayi,
+      toplam: hazine + bap + aracGerec + diger + katkiPayi,
     );
   }
 
@@ -179,6 +182,7 @@ class DanismanlikExcelHesaplama {
     int hazineOrani = 1,
     int bapOrani = 5,
     double aracGerecOrani = 0.45,
+    double digerOrani = 0.0,
   }) {
     final matrah = HesaplamaMotoru.kdvHaricMatrahHesapla(brutTutar, kdvOrani);
     final sonuc = kesintiler(
@@ -186,6 +190,7 @@ class DanismanlikExcelHesaplama {
       hazineOrani: hazineOrani,
       bapOrani: bapOrani,
       aracGerecOrani: aracGerecOrani,
+      digerOrani: digerOrani,
     );
     return sonuc;
   }
@@ -658,6 +663,7 @@ class ExcelKesintiSonuc {
     required this.hazinePayi,
     required this.bapPayi,
     required this.aracGerecPayi,
+    this.digerPayi = 0.0,
     required this.katkiPayi,
     required this.dagMaksAkademikPay,
     required this.toplam,
@@ -667,6 +673,7 @@ class ExcelKesintiSonuc {
   final double hazinePayi;
   final double bapPayi;
   final double aracGerecPayi;
+  final double digerPayi;
   final double katkiPayi;
   final double dagMaksAkademikPay;
   final double toplam;

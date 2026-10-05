@@ -123,6 +123,8 @@ class TabOzetIcmal extends StatelessWidget {
                           _satir('• Hazine Payı (%${veri.hazineOrani})', TurkceFormat.para(kesinti.hazinePayi)),
                           _satir('• BAP Payı (%${veri.bapOrani})', TurkceFormat.para(kesinti.bapPayi)),
                           _satir('• Araç Gereç Payı (%${(veri.aracGerecOrani * 100).toStringAsFixed(0)})', TurkceFormat.para(kesinti.aracGerecPayi)),
+                          if (kesinti.digerPayi > 0 || veri.digerOrani > 0)
+                            _satir('• Diğer Kesintiler (%${(veri.digerOrani * 100).toStringAsFixed(0)})', TurkceFormat.para(kesinti.digerPayi)),
                           const Divider(height: 16),
                           _satir('Dağıtılabilir Katkı Payı', TurkceFormat.para(kesinti.katkiPayi), kalin: true, renk: const Color(0xFF4338CA)),
                           _satir('Maks. Akademik Pay (%$akademikOranStr)', TurkceFormat.para(kesinti.dagMaksAkademikPay), kalin: true, renk: const Color(0xFF3730A3)),

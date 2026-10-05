@@ -12,6 +12,7 @@ class TabDagMaksPay extends StatelessWidget {
     required this.hazineOrani,
     required this.bapOrani,
     required this.aracGerecOrani,
+    this.digerOrani = 0.0,
     required this.onOranlariGuncelle,
   });
 
@@ -22,13 +23,14 @@ class TabDagMaksPay extends StatelessWidget {
   final int hazineOrani;
   final int bapOrani;
   final double aracGerecOrani;
-  final void Function(int hazine, int bap, double aracGerec) onOranlariGuncelle;
+  final double digerOrani;
+  final void Function(int hazine, int bap, double aracGerec, [double? diger]) onOranlariGuncelle;
 
   @override
   Widget build(BuildContext context) {
     final double akademikOran = (kesinti.kdvHaricGelir > 0)
         ? ((kesinti.dagMaksAkademikPay / kesinti.kdvHaricGelir) * 100)
-        : (100.0 - hazineOrani - bapOrani - (aracGerecOrani * 100));
+        : (100.0 - hazineOrani - bapOrani - (aracGerecOrani * 100) - (digerOrani * 100));
     final akademikOranStr = akademikOran.toStringAsFixed(akademikOran % 1 == 0 ? 0 : 1);
 
     return SingleChildScrollView(
@@ -179,13 +181,23 @@ class TabDagMaksPay extends StatelessWidget {
                         tutar: kesinti.aracGerecPayi,
                         aciklama: 'Birim altyapı ve sarf giderleri payı',
                       ),
+                      if (digerOrani > 0 || kesinti.digerPayi > 0) ...[
+                        const SizedBox(height: 10),
+                        _paySatiri(
+                          etiket: 'DİĞER KESİNTİLER (%${(digerOrani * 100).toStringAsFixed(0)})',
+                          tutar: kesinti.digerPayi,
+                          aciklama: 'Kurumsal / Özel diğer yasal kesintiler',
+                        ),
+                      ],
                       const SizedBox(height: 10),
                       _paySatiri(
                         etiket: 'KATKI PAYI (KALAN)',
                         tutar: kesinti.katkiPayi,
                         kalin: true,
                         renk: const Color(0xFF4338CA),
-                        aciklama: 'Kalan dağıtılabilir pay (Gelir - Hazine - BAP - Araç)',
+                        aciklama: digerOrani > 0
+                            ? 'Kalan dağıtılabilir pay (Gelir - Hazine - BAP - Araç - Diğer)'
+                            : 'Kalan dağıtılabilir pay (Gelir - Hazine - BAP - Araç)',
                       ),
                       const Divider(thickness: 1, height: 20),
                       _bilgiSatiri('TOPLAM KESİNTİ VE PAYLAR', TurkceFormat.para(kesinti.toplam), kalin: true),
@@ -310,10 +322,12 @@ class TabDagMaksPay extends StatelessWidget {
     int yeniHazine = hazineOrani;
     int yeniBap = bapOrani;
     double yeniAracGerec = aracGerecOrani * 100;
+    double yeniDiger = digerOrani * 100;
 
     final hazineCtrl = TextEditingController(text: yeniHazine.toString());
     final bapCtrl = TextEditingController(text: yeniBap.toString());
     final aracCtrl = TextEditingController(text: yeniAracGerec.toStringAsFixed(0));
+    final digerCtrl = TextEditingController(text: yeniDiger.toStringAsFixed(0));
 
     showDialog(
       context: context,
@@ -323,7 +337,8 @@ class TabDagMaksPay extends StatelessWidget {
             final h = int.tryParse(hazineCtrl.text) ?? 0;
             final b = int.tryParse(bapCtrl.text) ?? 0;
             final a = double.tryParse(aracCtrl.text.replaceAll(',', '.')) ?? 0;
-            final kalanKatki = (100.0 - h - b - a).clamp(0.0, 100.0);
+            final d = double.tryParse(digerCtrl.text.replaceAll(',', '.')) ?? 0;
+            final kalanKatki = (100.0 - h - b - a - d).clamp(0.0, 100.0);
 
             return AlertDialog(
               title: const Row(
@@ -374,6 +389,19 @@ class TabDagMaksPay extends StatelessWidget {
                       ),
                       onChanged: (_) => setModalState(() {}),
                     ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: digerCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Diğer Kesinti Oranı (%)',
+                        suffixText: '%',
+                        helperText: 'Özel / Kurumsal ek kesinti oranı',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => setModalState(() {}),
+                    ),
                     const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.all(10),
@@ -407,13 +435,13 @@ class TabDagMaksPay extends StatelessWidget {
                     final hVal = int.tryParse(hazineCtrl.text) ?? hazineOrani;
                     final bVal = int.tryParse(bapCtrl.text) ?? bapOrani;
                     final aVal = (double.tryParse(aracCtrl.text.replaceAll(',', '.')) ?? (aracGerecOrani * 100)) / 100;
-                    onOranlariGuncelle(hVal, bVal, aVal);
+                    final dVal = (double.tryParse(digerCtrl.text.replaceAll(',', '.')) ?? (digerOrani * 100)) / 100;
+                    onOranlariGuncelle(hVal, bVal, aVal, dVal);
                     Navigator.pop(ctx);
                   },
                   child: const Text('Kaydet ve Güncelle'),
                 ),
               ],
-            );
           },
         );
       },
