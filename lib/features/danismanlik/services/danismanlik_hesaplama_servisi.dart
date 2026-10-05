@@ -2,8 +2,8 @@ import '../models/dagitim_model.dart';
 import 'danismanlik_excel_hesaplama.dart';
 
 class DanismanlikHesaplamaServisi {
-  /// Memur maaş katsayısı (Şimdilik sabit, normalde veritabanından çekilebilir)
-  static const double memurMaasKatsayisi = 1.387871;
+  /// Memur maaş katsayısı (DanismanlikExcelHesaplama ile senkronize dinamik)
+  static double get memurMaasKatsayisi => DanismanlikExcelHesaplama.memurMaasKatsayisi;
 
   /// Unvandan Ek Gösterge getirir
   static int getEkGosterge(String unvan) {
@@ -36,8 +36,10 @@ class DanismanlikHesaplamaServisi {
   /// Tablodaki personellerin hakedişlerini hesaplar ve güncel listeyi döndürür.
   static List<DagitimModel> hesaplaDagitimListesi(
     List<DagitimModel> personeller,
-    double kdvHaricTutar,
-  ) {
+    double kdvHaricTutar, {
+    bool tavanUygula = false,
+    bool katiKesinti = false,
+  }) {
     if (personeller.isEmpty) return [];
 
     // 1. Dağıtılacak Maksimum Akademik Pay
@@ -100,8 +102,11 @@ class DanismanlikHesaplamaServisi {
 
       if (saatlikBrutUcret > tavanSaatlik) {
         tavanKontrol = true;
-        odenebilirHakedis = tavanSaatlik * p.faaliyetAdeti;
-        fazlalikHavuzTutari = brutHakedis - odenebilirHakedis;
+        // Sadece katı kesinti açıkken parayı kes, Bilgi Notu modunda tam hakediş korunur
+        if (tavanUygula && katiKesinti) {
+          odenebilirHakedis = tavanSaatlik * p.faaliyetAdeti;
+          fazlalikHavuzTutari = brutHakedis - odenebilirHakedis;
+        }
       }
 
       sonListe.add(

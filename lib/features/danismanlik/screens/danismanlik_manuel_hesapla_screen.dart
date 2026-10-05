@@ -567,18 +567,19 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       _aktifSablonTuru = '58k';
       _hazineOrani = 0;
       _bapOrani = 0;
-      _aracGerecOrani = 0.15; // 2547 Madde 58/k uyarınca yasal %15 Kurum Payı
+      _aracGerecOrani = d.aracGerecPayiOrani > 0 ? (d.aracGerecPayiOrani / 100.0) : 0.15; // 2547 Madde 58/k uyarınca yasal %15 Kurum Payı
     } else if (d.tur == DanismanlikTuru.egitimKuru) {
       final birimLower = (d.birimKisaAd ?? '').toLowerCase();
-      _aktifSablonTuru = birimLower.contains('tömer') || birimLower.contains('tomer') ? 'tomer' : 'usem';
-      _hazineOrani = d.hazinePayiOrani;
-      _bapOrani = d.bapPayiOrani;
-      _aracGerecOrani = d.aracGerecPayiOrani / 100.0;
+      final isTomer = birimLower.contains('tömer') || birimLower.contains('tomer');
+      _aktifSablonTuru = isTomer ? 'tomer' : 'usem';
+      _hazineOrani = d.hazinePayiOrani > 0 ? d.hazinePayiOrani : 1;
+      _bapOrani = d.bapPayiOrani > 0 ? d.bapPayiOrani : 5;
+      _aracGerecOrani = d.aracGerecPayiOrani > 0 ? (d.aracGerecPayiOrani / 100.0) : (isTomer ? 0.45 : 0.44);
     } else {
       _aktifSablonTuru = 'dts';
-      _hazineOrani = d.hazinePayiOrani;
-      _bapOrani = d.bapPayiOrani;
-      _aracGerecOrani = d.aracGerecPayiOrani / 100.0;
+      _hazineOrani = d.hazinePayiOrani > 0 ? d.hazinePayiOrani : 1;
+      _bapOrani = d.bapPayiOrani > 0 ? d.bapPayiOrani : 5;
+      _aracGerecOrani = d.aracGerecPayiOrani > 0 ? (d.aracGerecPayiOrani / 100.0) : 0.45;
     }
 
     _kdvOrani = d.kdvOrani;
