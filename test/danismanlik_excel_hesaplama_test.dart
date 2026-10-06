@@ -185,5 +185,35 @@ void main() {
       expect(pSonuc.tavanAsildi, isFalse);
       expect(dengeliSonuc.herhangiBirTavanAsildi, isFalse);
     });
+
+    test('Müdür Kuralı (Tavana Göre Dağıt): Ders saatleri sabitken tavanı aşan personele yasal tavan ödenir, aşan tutar havuza kalır', () {
+      final kesinti = DanismanlikExcelHesaplama.kesintiler(kdvHaricGelir: 10000); // katkiPayi = 4900
+      final sonuc = DanismanlikExcelHesaplama.hesapla(
+        kesinti: kesinti,
+        tavanUygula: true,
+        katiKesintiUygula: true, // Müdür Kuralı: Tavana kilitli dağıtım
+        personeller: const [
+          ExcelPersonelGirdi(
+            personelId: '1',
+            adSoyad: 'Prof Hoca',
+            unvan: 'Prof. Dr.',
+            puan: 20,
+            unvanKatsayisi: 3,
+            ekGosterge: 300,
+            dersSaati: 2, // 2 saat -> tavanSaatlik = 1332.36 TL -> 2 * 1332.36 = 2664.71 TL
+            mesaiIci: false,
+          ),
+        ],
+      );
+
+      final p = sonuc.personelSatirlari.first;
+      expect(p.tavanAsildi, isTrue);
+      // Tavan sınırı: 2 saat * 1332.356 = 2664.71 TL
+      expect(p.odenebilirHakedis, closeTo(2664.71, 0.1));
+      // Havuza aktarılan bakiye: 4899.6 - 2664.71 = 2234.89 TL
+      expect(p.havuzTutari, closeTo(2234.89, 0.2));
+      expect(sonuc.netOdemeToplam, closeTo(2664.71, 0.1));
+      expect(sonuc.toplamTavanKesintisi, closeTo(2234.89, 0.2));
+    });
   });
 }

@@ -258,13 +258,13 @@ class TabKatkiPayi extends StatelessWidget {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
-                                        tavanUygula ? Icons.verified : Icons.info_outline,
+                                        tavanUygula ? Icons.balance : Icons.balance_outlined,
                                         size: 13,
                                         color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFF64748B),
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        tavanUygula ? 'Yasal Tavan Notu: AÇIK' : 'Yasal Tavan Notu: KAPALI',
+                                        tavanUygula ? '⚖️ Tavana Göre Dağıt: AÇIK' : '⚖️ Tavana Göre Dağıt: KAPALI',
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w800,
@@ -578,16 +578,16 @@ class TabKatkiPayi extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   !tavanUygula
-                      ? 'Yasal ek ders tavanı analiz modu şu anda kapalıdır. Personellere hesaplanan brüt hakediş sınırlama olmaksızın tam ödenmektedir. Sayıştay ve yasal tavan analizini görüntülemek için sağdaki butondan bilgi notunu açabilirsiniz.'
+                      ? 'Yasal ek ders tavanı dağıtımı şu anda kapalıdır. Personellere hesaplanan brüt hakediş sınırlama olmaksızın tam tahakkuk ettirilmektedir. Tavan sınırını uygulamak için "⚖️ Tavana Göre Dağıt" butonunu açabilirsiniz.'
                       : (excelSonuc.herhangiBirTavanAsildi
-                          ? '2547 Sayılı Kanun Madde 58 uyarınca personelin hak ettiği brüt katkı payı tutarı personelin özlük hakkı olup havuza KESİNTİ YAPILMAKSIZIN TAM ÖDENMEKTEDİR (${TurkceFormat.para(excelSonuc.netOdemeToplam)}). 2914 Sayılı Kanun m.11 ek ders tavan göstergesi (${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}/Saat) mevzuat ve Sayıştay denetim incelemelerinde referans gösterge olarak analiz edilmektedir.'
+                          ? 'Yönetim Kurulu Kararındaki ders saatleri korunarak yasal tavan kuralı uygulandı. Saatlik ücreti tavanı aşan personele yasal tavan ödendi (${TurkceFormat.para(excelSonuc.netOdemeToplam)}). Aşan ${TurkceFormat.para(excelSonuc.toplamTavanKesintisi)} tutar birim döner sermaye havuzuna aktarıldı.'
                           : 'Hesaplanan tüm saatlik ücretler, yasal sınır olan ek ders tavanının (${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}/Saat) altındadır. Kesinti olmaksızın tam ödeme yapılabilir ve mevzuata tam uygundur.'),
                   style: TextStyle(
                     fontSize: 11,
                     height: 1.35,
                     color: !tavanUygula
                         ? const Color(0xFF475569)
-                        : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFF78350F) : const Color(0xFF14532D)),
+                        : (excelSonuc.herhangiBirTavanAsildi ? const Color(0xFF15803D) : const Color(0xFF14532D)),
                   ),
                 ),
                 if (tavanUygula && excelSonuc.herhangiBirTavanAsildi) ...[
@@ -595,48 +595,30 @@ class TabKatkiPayi extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: const Color(0xFFF0FDF4),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFFCD34D)),
+                      border: Border.all(color: const Color(0xFF86EFAC)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.lightbulb, size: 20, color: Color(0xFFD97706)),
+                        const Icon(Icons.verified, size: 20, color: Color(0xFF16A34A)),
                         const SizedBox(width: 10),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                '💡 Sayıştay ve Denetim İncelemesi İpucu:',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF92400E)),
+                              const Text(
+                                '⚖️ Yasal Tavan Koruması Aktif (Müdür / Mutemetlik Kuralı):',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF15803D)),
                               ),
-                              SizedBox(height: 2),
+                              const SizedBox(height: 2),
                               Text(
-                                'Danışmanlık ve kurs hizmetlerinde girilen sembolik çalışma saati düşük olduğunda saatlik ücret yüksek görünebilir. Sayıştay denetiminde saatlik tavan şartını tam sağlamak için personellerin saatlerini tek tıkla yasal tavana dengeleyebilirsiniz (Hakediş tutarı kesinlikle değişmez).',
-                                style: TextStyle(fontSize: 10.5, color: Color(0xFF78350F), height: 1.3),
+                                'YK kararındaki ders saatleri sabit tutulmuş, saatlik ücreti tavanı aşan personellere yasal tavan (${TurkceFormat.para(excelSonuc.maksimumTavanSaatlik)}/Saat) kilitlenmiştir. Tavandan dolayı artan ${TurkceFormat.para(excelSonuc.toplamTavanKesintisi)} döner sermaye birim havuzuna bırakılmıştır.',
+                                style: const TextStyle(fontSize: 10.5, color: Color(0xFF166534), height: 1.3),
                               ),
                             ],
                           ),
                         ),
-                        if (onTumSaatleriTavanaDengele != null) ...[
-                          const SizedBox(width: 12),
-                          ElevatedButton.icon(
-                            onPressed: onTumSaatleriTavanaDengele,
-                            icon: const Icon(Icons.balance, size: 14),
-                            label: const Text(
-                              '⚡ Tüm Saatleri Tavana Dengele',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFD97706),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),
@@ -950,23 +932,23 @@ class TabKatkiPayi extends StatelessWidget {
                                       color: (tavanUygula && tavanAsildi) ? const Color(0xFFD97706) : const Color(0xFF0F172A),
                                     ),
                                   ),
-                                  if (tavanUygula && tavanAsildi && s.onerilenSaat > p.dersSaati) ...[
+                                  if (tavanAsildi) ...[
                                     const SizedBox(height: 2),
-                                    MouseRegion(
-                                      cursor: SystemMouseCursors.click,
-                                      child: GestureDetector(
-                                        onTap: () => onPersonelGuncelle(index, p.copyWith(dersSaati: s.onerilenSaat)),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFFEF3C7),
-                                            borderRadius: BorderRadius.circular(3),
-                                            border: Border.all(color: const Color(0xFFFCD34D)),
-                                          ),
-                                          child: Text(
-                                            '⚖️ ${s.onerilenSaat.toInt()} Saat Yap',
-                                            style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
-                                          ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: tavanUygula ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
+                                        borderRadius: BorderRadius.circular(3),
+                                        border: Border.all(color: tavanUygula ? const Color(0xFF86EFAC) : const Color(0xFFFCD34D)),
+                                      ),
+                                      child: Text(
+                                        tavanUygula
+                                            ? '⚖️ Tavan Kilitli (-${TurkceFormat.para(s.havuzTutari)})'
+                                            : '⚠️ Tavan Aşıldı',
+                                        style: TextStyle(
+                                          fontSize: 8.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: tavanUygula ? const Color(0xFF15803D) : const Color(0xFFB45309),
                                         ),
                                       ),
                                     ),

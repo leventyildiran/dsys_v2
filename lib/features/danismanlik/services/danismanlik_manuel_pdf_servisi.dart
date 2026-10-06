@@ -174,6 +174,7 @@ class ManuelHesaplamaVerisi {
       manualDonemKatsayi: manuelDonemKatsayisi,
       memurMaasKatsayisi: memurMaasKatsayisi,
       tavanUygula: tavanUygula,
+      katiKesintiUygula: tavanUygula,
     );
   }
 }

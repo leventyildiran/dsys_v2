@@ -1484,6 +1484,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                 TabOzetIcmal(
                   veri: veri,
                   onYazdir: _pdfYazdirVeyaIndir,
+                  onTavanUygulaDegisti: (val) => setState(() => _tavanUygula = val),
                 ),
               ],
             ),

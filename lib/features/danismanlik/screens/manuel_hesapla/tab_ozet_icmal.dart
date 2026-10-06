@@ -7,10 +7,12 @@ class TabOzetIcmal extends StatelessWidget {
     super.key,
     required this.veri,
     required this.onYazdir,
+    this.onTavanUygulaDegisti,
   });
 
   final ManuelHesaplamaVerisi veri;
   final VoidCallback onYazdir;
+  final ValueChanged<bool>? onTavanUygulaDegisti;
 
   @override
   Widget build(BuildContext context) {
@@ -242,13 +244,55 @@ class TabOzetIcmal extends StatelessWidget {
               const SizedBox(height: 20),
 
               // Personel Dağıtım Özeti Tablosu
-              Text(
-                veri.is58k
-                    ? '3. PERSONEL SÖZLEŞMELİ HAKEDİŞ DAĞITIMI'
-                    : (veri.is58e
-                        ? '3. PERSONEL HAKEDİŞ VE VERGİ KESİNTİLERİ (58/e)'
-                        : '3. PERSONEL DAĞITIM VE TAVAN İCMALİ'),
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF1E293B)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    veri.is58k
+                        ? '3. PERSONEL SÖZLEŞMELİ HAKEDİŞ DAĞITIMI'
+                        : (veri.is58e
+                            ? '3. PERSONEL HAKEDİŞ VE VERGİ KESİNTİLERİ (58/e)'
+                            : '3. PERSONEL DAĞITIM VE TAVAN İCMALİ'),
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF1E293B)),
+                  ),
+                  if (!veri.is58k && !veri.is58e && onTavanUygulaDegisti != null)
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: () => onTavanUygulaDegisti!(!veri.tavanUygula),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: veri.tavanUygula ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: veri.tavanUygula ? const Color(0xFF16A34A) : const Color(0xFFCBD5E1),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                veri.tavanUygula ? Icons.balance : Icons.balance_outlined,
+                                size: 14,
+                                color: veri.tavanUygula ? const Color(0xFF15803D) : const Color(0xFF64748B),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                veri.tavanUygula ? '⚖️ Tavana Göre Dağıt: AÇIK' : '⚖️ Tavana Göre Dağıt: KAPALI',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: veri.tavanUygula ? const Color(0xFF15803D) : const Color(0xFF475569),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 8),
               Container(
@@ -392,10 +436,22 @@ class TabOzetIcmal extends StatelessWidget {
                               ),
                               SizedBox(
                                 width: 120,
-                                child: Text(
-                                  TurkceFormat.para(s.odenebilirHakedis),
-                                  textAlign: TextAlign.right,
-                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF107C41)),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      TurkceFormat.para(s.odenebilirHakedis),
+                                      textAlign: TextAlign.right,
+                                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF107C41)),
+                                    ),
+                                    if (veri.tavanUygula && s.havuzTutari > 0)
+                                      Text(
+                                        'Tavan Kilitli (-${TurkceFormat.para(s.havuzTutari)})',
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                                      ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -406,6 +462,52 @@ class TabOzetIcmal extends StatelessWidget {
                   ],
                 ),
               ),
+              if (veri.tavanUygula && excel.toplamTavanKesintisi > 0) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF86EFAC)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.verified, color: Color(0xFF16A34A), size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Yasal Tavan Dağıtım İcmali (Müdür / Mutemetlik Kuralı)',
+                              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF15803D)),
+                            ),
+                            Text(
+                              'YK kararındaki ders saatleri sabit tutulmuş, saatlik ücreti tavanı aşan personellere yasal tavan ödenmiştir. Aşan ${TurkceFormat.para(excel.toplamTavanKesintisi)} döner sermaye birim havuzuna aktarılmıştır.',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF166534)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Personele Ödenecek: ${TurkceFormat.para(excel.netOdemeToplam)}',
+                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF15803D)),
+                          ),
+                          Text(
+                            'Birim Havuzuna Kalan: ${TurkceFormat.para(excel.toplamTavanKesintisi)}',
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5, color: Color(0xFFD97706)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 16),
               // Yasal Şerh Kutusu (58/k, 58/e veya kurslar)
