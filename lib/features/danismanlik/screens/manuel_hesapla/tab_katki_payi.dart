@@ -360,16 +360,22 @@ class TabKatkiPayi extends StatelessWidget {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
-                                  'Kalan Artık Bakiye:',
-                                  style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                                Text(
+                                  (tavanUygula && excelSonuc.toplamTavanKesintisi > 0)
+                                      ? 'Birim Havuzuna Kalan:'
+                                      : 'Kalan Artık Bakiye:',
+                                  style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
                                 ),
                                 Text(
-                                  TurkceFormat.para(excelSonuc.artikBakiye),
+                                  TurkceFormat.para((tavanUygula && excelSonuc.toplamTavanKesintisi > 0)
+                                      ? excelSonuc.havuzToplam
+                                      : excelSonuc.artikBakiye),
                                   style: TextStyle(
                                     fontSize: 10.5,
                                     fontWeight: FontWeight.w700,
-                                    color: excelSonuc.artikBakiye > 0 ? const Color(0xFFD97706) : const Color(0xFF64748B),
+                                    color: (excelSonuc.havuzToplam > 0 || excelSonuc.artikBakiye > 0)
+                                        ? const Color(0xFFD97706)
+                                        : const Color(0xFF64748B),
                                   ),
                                 ),
                               ],
@@ -440,16 +446,21 @@ class TabKatkiPayi extends StatelessWidget {
                             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF10B981)),
                           ),
                         )
-                      else
+                      else ...[
                         Text(
-                          TurkceFormat.katsayi(excelSonuc.donemKatsayi),
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20, color: Color(0xFF047857)),
+                          (tavanUygula && excelSonuc.toplamTavanKesintisi > 0)
+                              ? '${TurkceFormat.katsayi(excelSonuc.fiiliDonemKatsayisi)} (Fiili)'
+                              : TurkceFormat.katsayi(excelSonuc.donemKatsayi),
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF047857)),
                         ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Sağlama: ${TurkceFormat.para(excelSonuc.saglama)}',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF059669)),
-                      ),
+                        const SizedBox(height: 2),
+                        Text(
+                          (tavanUygula && excelSonuc.toplamTavanKesintisi > 0)
+                              ? 'Ham Gelir K.: ${TurkceFormat.katsayi(excelSonuc.donemKatsayi)} | Sağlama: ${TurkceFormat.para(excelSonuc.saglama)}'
+                              : 'Sağlama: ${TurkceFormat.para(excelSonuc.saglama)}',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF059669)),
+                        ),
+                      ],
                     ],
                   ),
                 ),

@@ -845,4 +845,8 @@ class DanismanlikExcelSonuc {
         0.0,
         (sum, s) => sum + s.teorikKesinti,
       );
+
+  double get fiiliDonemKatsayisi => toplamPuan > 0
+      ? double.parse((netOdemeToplam / toplamPuan).toStringAsFixed(2))
+      : donemKatsayi;
 }

@@ -187,10 +187,19 @@ class TabOzetIcmal extends StatelessWidget {
                             _satir('Saatlik Ek Ders Tavanı', 'Uygulanmaz (2547 m.58 tavan muafiyeti)', kalin: false, renk: const Color(0xFF0F766E)),
                           ] else ...[
                             _satir('Toplam Net Katkı Puanı', excel.toplamPuan.toStringAsFixed(0), kalin: true),
-                            _satir('Dönem Ek Ödeme Katsayısı', TurkceFormat.katsayi(excel.donemKatsayi), kalin: true, renk: const Color(0xFF047857)),
-                            _satir('Hesaplama Sağlaması (Puan x Katsayı)', TurkceFormat.para(excel.saglama)),
-                            _satir('Net Ödenecek Hakediş Toplamı', TurkceFormat.para(excel.netOdemeToplam), kalin: true, renk: const Color(0xFF107C41)),
-                            _satir('Artık Bakiye (Birim Havuzu)', TurkceFormat.para(excel.artikBakiye)),
+                            if (veri.tavanUygula && excel.toplamTavanKesintisi > 0) ...[
+                              _satir('Gelir Dağıtım Katsayısı (Ham)', TurkceFormat.katsayi(excel.donemKatsayi), kalin: false, renk: const Color(0xFF64748B)),
+                              _satir('Fiili Tavan Katsayısı (Ödenen)', TurkceFormat.katsayi(excel.fiiliDonemKatsayisi), kalin: true, renk: const Color(0xFF047857)),
+                              _satir('Hesaplama Sağlaması (Brüt Havuz)', TurkceFormat.para(excel.saglama)),
+                              _satir('Personele Ödenecek Hakediş', TurkceFormat.para(excel.netOdemeToplam), kalin: true, renk: const Color(0xFF107C41)),
+                              _satir('Yasal Tavan Kesintisi (Birim Payı)', TurkceFormat.para(excel.toplamTavanKesintisi), kalin: true, renk: const Color(0xFFD97706)),
+                              _satir('Birim Havuzuna Kalan Toplam', TurkceFormat.para(excel.havuzToplam), kalin: true, renk: const Color(0xFF0F766E)),
+                            ] else ...[
+                              _satir('Dönem Ek Ödeme Katsayısı', TurkceFormat.katsayi(excel.donemKatsayi), kalin: true, renk: const Color(0xFF047857)),
+                              _satir('Hesaplama Sağlaması (Puan x Katsayı)', TurkceFormat.para(excel.saglama)),
+                              _satir('Net Ödenecek Hakediş Toplamı', TurkceFormat.para(excel.netOdemeToplam), kalin: true, renk: const Color(0xFF107C41)),
+                              _satir('Artık Bakiye (Birim Havuzu)', TurkceFormat.para(excel.artikBakiye)),
+                            ],
                           ],
                           const SizedBox(height: 12),
                           Container(
@@ -220,11 +229,13 @@ class TabOzetIcmal extends StatelessWidget {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    excel.saglama <= kesinti.katkiPayi + 0.01
-                                        ? ((veri.is58k || veri.is58e) ? 'Güvenli: %$akademikOranStr hakediş ve taksit tutarı sınır dahilindedir.' : 'Güvenli: Sağlama tutarı dağıtılabilir katkı payı tavanını aşmamaktadır.')
-                                        : 'UYARI: Dağıtılan tutar hak edilen payı aşmaktadır!',
+                                    (veri.tavanUygula && excel.toplamTavanKesintisi > 0)
+                                        ? 'Güvenli: Yasal tavan koruması aktif. ${TurkceFormat.para(excel.netOdemeToplam)} personele tahakkuk ettirildi, ${TurkceFormat.para(excel.havuzToplam)} birim havuzunda emanete alındı.'
+                                        : (excel.saglama <= kesinti.katkiPayi + 0.01
+                                            ? ((veri.is58k || veri.is58e) ? 'Güvenli: %$akademikOranStr hakediş ve taksit tutarı sınır dahilindedir.' : 'Güvenli: Sağlama tutarı dağıtılabilir katkı payı tavanını aşmamaktadır.')
+                                            : 'UYARI: Dağıtılan tutar hak edilen payı aşmaktadır!'),
                                     style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 10.5,
                                       fontWeight: FontWeight.w600,
                                       color: excel.saglama <= kesinti.katkiPayi + 0.01
                                           ? const Color(0xFF065F46)
