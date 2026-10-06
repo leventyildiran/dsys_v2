@@ -344,8 +344,6 @@ class ManuelHesaplamaPdfServisi {
                         if (veri.tavanUygula) ...[
                           _pdfSatir('Dağıtılabilir Maksimum Pay', TurkceFormat.para(kesinti.katkiPayi), kalin: true, normal: normal, bold: kalin),
                           _pdfSatir('Dönem Dağıtım Katsayısı (Ortak)', TurkceFormat.katsayi(excel.donemKatsayi), kalin: true, normal: normal, bold: kalin),
-                          if (excel.enYuksekUnvanAciklama.isNotEmpty)
-                            _pdfSatir('Katsayı Dayanağı', excel.enYuksekUnvanAciklama, normal: normal, bold: kalin),
                           _pdfSatir('Bütçe Gelir Katsayısı (Ham)', TurkceFormat.katsayi(excel.hamDonemKatsayi), normal: normal, bold: kalin),
                           _pdfSatir('Puan x Katsayı Sağlaması', TurkceFormat.para(excel.saglama), normal: normal, bold: kalin),
                           _pdfSatir('Personele Ödenecek Hakediş', TurkceFormat.para(excel.netOdemeToplam), kalin: true, normal: normal, bold: kalin),

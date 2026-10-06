@@ -212,8 +212,6 @@ class TabOzetIcmal extends StatelessWidget {
                             if (veri.tavanUygula) ...[
                               _satir('Dağıtılabilir Maksimum Pay', TurkceFormat.para(kesinti.katkiPayi), kalin: true, renk: const Color(0xFF4338CA)),
                               _satir('Dönem Dağıtım Katsayısı (Ortak)', TurkceFormat.katsayi(excel.donemKatsayi), kalin: true, renk: const Color(0xFF047857)),
-                              if (excel.enYuksekUnvanAciklama.isNotEmpty)
-                                _satir('Katsayı Dayanağı', excel.enYuksekUnvanAciklama, kalin: false, renk: const Color(0xFF0F766E)),
                               _satir('Dönem Gelir Katsayısı (Ham Bütçe)', TurkceFormat.katsayi(excel.hamDonemKatsayi), kalin: false, renk: const Color(0xFF64748B)),
                               _satir('Puan x Katsayı Sağlaması (${excel.toplamPuan.toStringAsFixed(0)} x ${TurkceFormat.katsayi(excel.donemKatsayi)})', TurkceFormat.para(excel.saglama)),
                               _satir('Personele Ödenecek Hakediş', TurkceFormat.para(excel.netOdemeToplam), kalin: true, renk: const Color(0xFF107C41)),
