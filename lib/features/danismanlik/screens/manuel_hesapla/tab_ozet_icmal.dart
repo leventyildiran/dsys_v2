@@ -210,9 +210,10 @@ class TabOzetIcmal extends StatelessWidget {
                           ] else ...[
                             _satir('Toplam Net Katkı Puanı', excel.toplamPuan.toStringAsFixed(0), kalin: true),
                             if (veri.tavanUygula && excel.toplamTavanKesintisi > 0) ...[
+                              _satir('Dağıtılabilir Maksimum Pay', TurkceFormat.para(kesinti.katkiPayi), kalin: true, renk: const Color(0xFF4338CA)),
                               _satir('Gelir Dağıtım Katsayısı (Ham)', TurkceFormat.katsayi(excel.donemKatsayi), kalin: false, renk: const Color(0xFF64748B)),
                               _satir('Fiili Tavan Katsayısı (Ödenen)', TurkceFormat.katsayi(excel.fiiliDonemKatsayisi), kalin: true, renk: const Color(0xFF047857)),
-                              _satir('Hesaplama Sağlaması (Brüt Havuz)', TurkceFormat.para(excel.saglama)),
+                              _satir('Puan x Katsayı Sağlaması (299 x 119,18)', TurkceFormat.para(excel.saglama)),
                               _satir('Personele Ödenecek Hakediş', TurkceFormat.para(excel.netOdemeToplam), kalin: true, renk: const Color(0xFF107C41)),
                               _satir('Yasal Tavan Kesintisi (Birim Payı)', TurkceFormat.para(excel.toplamTavanKesintisi), kalin: true, renk: const Color(0xFFD97706)),
                               _satir('Birim Havuzuna Kalan Toplam', TurkceFormat.para(excel.havuzToplam), kalin: true, renk: const Color(0xFF0F766E)),

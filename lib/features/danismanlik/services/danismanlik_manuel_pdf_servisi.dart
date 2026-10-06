@@ -342,13 +342,15 @@ class ManuelHesaplamaPdfServisi {
                       ] else ...[
                         _pdfSatir('Toplam Net Katkı Puanı', excel.toplamPuan.toStringAsFixed(0), kalin: true, normal: normal, bold: kalin),
                         if (veri.tavanUygula && excel.toplamTavanKesintisi > 0) ...[
+                          _pdfSatir('Dağıtılabilir Maksimum Pay', TurkceFormat.para(kesinti.katkiPayi), kalin: true, normal: normal, bold: kalin),
                           _pdfSatir('Gelir Dağıtım Katsayısı (Ham)', TurkceFormat.katsayi(excel.donemKatsayi), normal: normal, bold: kalin),
                           _pdfSatir('Fiili Tavan Katsayısı (Ödenen)', TurkceFormat.katsayi(excel.fiiliDonemKatsayisi), kalin: true, normal: normal, bold: kalin),
-                          _pdfSatir('Hesaplama Sağlaması (Brüt Havuz)', TurkceFormat.para(excel.saglama), normal: normal, bold: kalin),
+                          _pdfSatir('Puan x Katsayı Sağlaması', TurkceFormat.para(excel.saglama), normal: normal, bold: kalin),
                           _pdfSatir('Personele Ödenecek Hakediş', TurkceFormat.para(excel.netOdemeToplam), kalin: true, normal: normal, bold: kalin),
                           _pdfSatir('Yasal Tavan Kesintisi (Birim Payı)', TurkceFormat.para(excel.toplamTavanKesintisi), kalin: true, normal: normal, bold: kalin),
                           _pdfSatir('Birim Havuzuna Kalan Toplam', TurkceFormat.para(excel.havuzToplam), kalin: true, normal: normal, bold: kalin),
-                        ] else ...[
+                        ]
+ else ...[
                           _pdfSatir('Dönem Ek Ödeme Katsayısı', TurkceFormat.katsayi(excel.donemKatsayi), kalin: true, normal: normal, bold: kalin),
                           _pdfSatir('Hesaplama Sağlaması (Puan x Katsayı)', TurkceFormat.para(excel.saglama), normal: normal, bold: kalin),
                           _pdfSatir('Net Ödenecek Hakediş Toplamı', TurkceFormat.para(excel.netOdemeToplam), kalin: true, normal: normal, bold: kalin),
