@@ -8,11 +8,13 @@ class TabOzetIcmal extends StatelessWidget {
     required this.veri,
     required this.onYazdir,
     this.onTavanUygulaDegisti,
+    this.onHizmetBasligiDegisti,
   });
 
   final ManuelHesaplamaVerisi veri;
   final VoidCallback onYazdir;
   final ValueChanged<bool>? onTavanUygulaDegisti;
+  final ValueChanged<String>? onHizmetBasligiDegisti;
 
   @override
   Widget build(BuildContext context) {
@@ -71,16 +73,36 @@ class TabOzetIcmal extends StatelessWidget {
                             textAlign: TextAlign.center,
                           ),
                         const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1E293B),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            veri.hizmetBasligi,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11),
-                            textAlign: TextAlign.center,
+                        InkWell(
+                          onTap: onHizmetBasligiDegisti == null
+                              ? null
+                              : () => _hizmetBasligiDegistirDialog(context),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E293B),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  veri.hizmetBasligi.isEmpty
+                                      ? '(Personel ve Hizmet Başlığı Belirtilmemiş - Düzenlemek için tıklayın)'
+                                      : veri.hizmetBasligi,
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11),
+                                  textAlign: TextAlign.center,
+                                ),
+                                if (onHizmetBasligiDegisti != null) ...[
+                                  const SizedBox(width: 8),
+                                  const Tooltip(
+                                    message: 'Başlığı Düzenle',
+                                    child: Icon(Icons.edit, size: 13, color: Colors.white70),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -622,6 +644,39 @@ class TabOzetIcmal extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _hizmetBasligiDegistirDialog(BuildContext context) {
+    final controller = TextEditingController(text: veri.hizmetBasligi);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Personel ve Hizmet Başlığını Düzenle', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        content: SizedBox(
+          width: 450,
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Personel ve Hizmet Başlığı',
+              hintText: 'Örn: DANIŞMANLIK HİZMET GELİRİ HESAPLAMA TABLOSU',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF107C41), foregroundColor: Colors.white),
+            onPressed: () {
+              onHizmetBasligiDegisti?.call(controller.text.trim());
+              Navigator.pop(ctx);
+            },
+            child: const Text('Güncelle'),
+          ),
+        ],
       ),
     );
   }

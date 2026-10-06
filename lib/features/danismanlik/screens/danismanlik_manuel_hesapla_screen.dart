@@ -101,6 +101,18 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _hizmetBasligiController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _mudurlukController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _rektorlukController.addListener(() {
+      if (mounted) setState(() {});
+    });
     if (widget.danismanlik != null) {
       _sozlesmedenYukle(widget.danismanlik!, widget.taksit);
     } else if (widget.initialSablon != null && widget.initialSablon!.isNotEmpty) {
@@ -1231,6 +1243,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                   flex: 4,
                   child: TextFormField(
                     controller: _mudurlukController,
+                    onChanged: (val) => setState(() {}),
                     decoration: InputDecoration(
                       labelText: 'Birim / Merkez Müdürlüğü',
                       isDense: true,
@@ -1275,6 +1288,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                   flex: 5,
                   child: TextFormField(
                     controller: _hizmetBasligiController,
+                    onChanged: (val) => setState(() {}),
                     decoration: const InputDecoration(
                       labelText: 'Personel ve Hizmet Başlığı',
                       isDense: true,
@@ -1485,6 +1499,11 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                   veri: veri,
                   onYazdir: _pdfYazdirVeyaIndir,
                   onTavanUygulaDegisti: (val) => setState(() => _tavanUygula = val),
+                  onHizmetBasligiDegisti: (val) {
+                    setState(() {
+                      _hizmetBasligiController.text = val;
+                    });
+                  },
                 ),
               ],
             ),
