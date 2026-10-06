@@ -8,12 +8,16 @@ class TabOzetIcmal extends StatelessWidget {
     required this.veri,
     required this.onYazdir,
     this.onTavanUygulaDegisti,
+    this.onTavanKilidiEsnekDegisti,
+    this.onUnvanBazliDagitimDegisti,
     this.onHizmetBasligiDegisti,
   });
 
   final ManuelHesaplamaVerisi veri;
   final VoidCallback onYazdir;
   final ValueChanged<bool>? onTavanUygulaDegisti;
+  final ValueChanged<bool>? onTavanKilidiEsnekDegisti;
+  final ValueChanged<bool>? onUnvanBazliDagitimDegisti;
   final ValueChanged<String>? onHizmetBasligiDegisti;
 
   @override
@@ -327,6 +331,84 @@ class TabOzetIcmal extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (veri.tavanUygula) ...[
+                      const SizedBox(width: 8),
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () => onTavanKilidiEsnekDegisti?.call(!veri.tavanKilidiEsnek),
+                          child: Container(
+                            height: 28,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              color: veri.tavanKilidiEsnek ? const Color(0xFFEFF6FF) : const Color(0xFFFFFBEB),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: veri.tavanKilidiEsnek ? const Color(0xFF3B82F6) : const Color(0xFFF59E0B),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  veri.tavanKilidiEsnek ? Icons.lock_open_rounded : Icons.lock_rounded,
+                                  size: 13,
+                                  color: veri.tavanKilidiEsnek ? const Color(0xFF2563EB) : const Color(0xFFD97706),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  veri.tavanKilidiEsnek ? '🔓 Tavan Kilidi: ESNEK (Tam Dağıtım)' : '🔒 Tavan Kilidi: KATI (Müdür Kuralı)',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: veri.tavanKilidiEsnek ? const Color(0xFF2563EB) : const Color(0xFFB45309),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () => onUnvanBazliDagitimDegisti?.call(!veri.unvanBazliDagitim),
+                          child: Container(
+                            height: 28,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              color: veri.unvanBazliDagitim ? const Color(0xFFF5F3FF) : Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: veri.unvanBazliDagitim ? const Color(0xFF8B5CF6) : const Color(0xFFCBD5E1),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.school_rounded,
+                                  size: 13,
+                                  color: veri.unvanBazliDagitim ? const Color(0xFF7C3AED) : const Color(0xFF64748B),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  veri.unvanBazliDagitim ? '🎓 Her Unvana Ayrı Katsayı: AÇIK' : '🎓 Her Unvana Ayrı Katsayı: KAPALI',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: veri.unvanBazliDagitim ? const Color(0xFF7C3AED) : const Color(0xFF475569),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                 ],
               ),
               const SizedBox(height: 8),
@@ -530,7 +612,11 @@ class TabOzetIcmal extends StatelessWidget {
                               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF15803D)),
                             ),
                             Text(
-                              'YK kararındaki ders saatleri sabit tutulmuş, saatlik ücreti tavanı aşan personellere yasal tavan ödenmiştir. Aşan ${TurkceFormat.para(excel.toplamTavanKesintisi)} döner sermaye birim havuzuna aktarılmıştır.',
+                              excel.tavanKilidiEsnek
+                                  ? 'Ortak katsayı (${TurkceFormat.katsayi(excel.donemKatsayi)}) üzerinden tavan kilidi esnetilerek tam tahakkuk sağlanmıştır. Kalan ${TurkceFormat.para(excel.havuzToplam)} döner sermaye birim havuzuna aktarılmıştır.'
+                                  : (excel.unvanBazliDagitim
+                                      ? 'Her unvana kendi yasal ek ders tavanına denk gelen bireysel unvan katsayısı uygulanmıştır. Kalan ${TurkceFormat.para(excel.havuzToplam)} döner sermaye birim havuzuna aktarılmıştır.'
+                                      : 'YK kararındaki ders saatleri sabit tutulmuş, saatlik ücreti tavanı aşan personellere yasal tavan ödenmiştir. Aşan fark ve bakiye toplamı (${TurkceFormat.para(excel.havuzToplam)}) döner sermaye birim havuzuna aktarılmıştır.'),
                               style: const TextStyle(fontSize: 11, color: Color(0xFF166534)),
                             ),
                           ],
@@ -545,7 +631,7 @@ class TabOzetIcmal extends StatelessWidget {
                             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF15803D)),
                           ),
                           Text(
-                            'Birim Havuzuna Kalan: ${TurkceFormat.para(excel.toplamTavanKesintisi)}',
+                            'Birim Havuzuna Kalan: ${TurkceFormat.para(excel.havuzToplam)}',
                             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5, color: Color(0xFFD97706)),
                           ),
                         ],

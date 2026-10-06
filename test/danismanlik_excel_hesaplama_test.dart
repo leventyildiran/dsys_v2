@@ -265,5 +265,94 @@ void main() {
       expect(aysen.odenebilirHakedis, 787.75);
       expect(aysen.havuzTutari, 0.0);
     });
+
+    test('Esnek Tavan Modu (tavanKilidiEsnek: true) — Ortak katsayıda tavan kesintisi yapılmaz, puan tam ödenir', () {
+      final kesinti = DanismanlikExcelHesaplama.kesintiler(
+        kdvHaricGelir: 72727.27, // katkiPayi = 35636.36 TL
+      );
+
+      final sonuc = DanismanlikExcelHesaplama.hesapla(
+        kesinti: kesinti,
+        tavanUygula: true,
+        katiKesintiUygula: true,
+        tavanKilidiEsnek: true, // Esnek Tavan Modu
+        memurMaasKatsayisi: 1.575525,
+        personeller: const [
+          ExcelPersonelGirdi(
+            personelId: '1',
+            adSoyad: 'Ayşen Melda ÇOLAK',
+            unvan: 'Doçent',
+            puan: 10,
+            unvanKatsayisi: 2.5,
+            ekGosterge: 250,
+            dersSaati: 1,
+            mesaiIci: true,
+          ),
+          ExcelPersonelGirdi(
+            personelId: '2',
+            adSoyad: 'Alkan AKKAYA',
+            unvan: 'Öğr. Gör.',
+            puan: 10,
+            unvanKatsayisi: 2.0,
+            ekGosterge: 160,
+            dersSaati: 5, // 100 puan
+            mesaiIci: true,
+          ),
+        ],
+      );
+
+      expect(sonuc.donemKatsayi, 31.51);
+      final alkan = sonuc.personelSatirlari[1];
+      // 100 * 31.51 = 3151.0 TL tam ödenir, tavan kesintisi yapılmaz!
+      expect(alkan.odenebilirHakedis, 3151.0);
+      expect(alkan.havuzTutari, 0.0);
+      expect(sonuc.toplamTavanKesintisi, 0.0);
+    });
+
+    test('Her Unvana Ayrı Katsayı Modu (unvanBazliDagitim: true) — Her unvan kendi tavanına tam denk gelen katsayıyı alır', () {
+      final kesinti = DanismanlikExcelHesaplama.kesintiler(
+        kdvHaricGelir: 72727.27,
+      );
+
+      final sonuc = DanismanlikExcelHesaplama.hesapla(
+        kesinti: kesinti,
+        tavanUygula: true,
+        katiKesintiUygula: true,
+        unvanBazliDagitim: true, // Her Unvana Özel Katsayı
+        memurMaasKatsayisi: 1.575525,
+        personeller: const [
+          ExcelPersonelGirdi(
+            personelId: '1',
+            adSoyad: 'Ayşen Melda ÇOLAK',
+            unvan: 'Doçent',
+            puan: 10,
+            unvanKatsayisi: 2.5,
+            ekGosterge: 250,
+            dersSaati: 1,
+            mesaiIci: true,
+          ),
+          ExcelPersonelGirdi(
+            personelId: '2',
+            adSoyad: 'Alkan AKKAYA',
+            unvan: 'Dr. Öğr. Üyesi',
+            puan: 10,
+            unvanKatsayisi: 2.2,
+            ekGosterge: 200,
+            dersSaati: 1,
+            mesaiIci: true,
+          ),
+        ],
+      );
+
+      final aysen = sonuc.personelSatirlari[0];
+      final alkan = sonuc.personelSatirlari[1];
+      // Doçent tavan katsayısı: 787.76 / 25 = 31.51
+      expect(aysen.donemKatsayi, 31.51);
+      // Dr. Öğr. Üyesi tavan katsayısı: 630.21 / 22 = 28.65
+      expect(alkan.donemKatsayi, 28.65);
+      // İkisi de tam tavan hakkını alır, tavan kesintisi olmaz!
+      expect(aysen.havuzTutari, 0.0);
+      expect(alkan.havuzTutari, 0.0);
+    });
   });
 }

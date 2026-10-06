@@ -258,6 +258,9 @@ class DanismanlikExcelHesaplama {
     double? memurMaasKatsayisi,
     bool tavanUygula = false,
     bool katiKesintiUygula = false,
+    bool tavanKilidiEsnek = false,
+    bool unvanBazliDagitim = false,
+    Map<String, double>? unvanOzelKatsayilari,
     DanismanlikExcelProfili profil = DanismanlikExcelProfili.dtsDanismanlik,
   }) {
     if (personeller.isEmpty) {
@@ -270,6 +273,8 @@ class DanismanlikExcelHesaplama {
         artikBakiye: kesinti.katkiPayi,
         tavanUygula: tavanUygula,
         katiKesintiUygula: katiKesintiUygula,
+        tavanKilidiEsnek: tavanKilidiEsnek,
+        unvanBazliDagitim: unvanBazliDagitim,
       );
     }
 
@@ -352,12 +357,30 @@ class DanismanlikExcelHesaplama {
       final s = satirlar[i];
       final p = s.girdi;
 
+      // Personelin kullanılacak katsayısı:
+      // 1. unvanBazliDagitim veya özel unvan katsayısı varsa: unvana özel katsayı
+      // 2. Aksi halde: donemKatsayi
+      double pKatsayi = donemKatsayi;
+      if (unvanBazliDagitim || (unvanOzelKatsayilari != null && unvanOzelKatsayilari.isNotEmpty)) {
+        if (unvanOzelKatsayilari != null && unvanOzelKatsayilari.containsKey(p.unvan)) {
+          pKatsayi = unvanOzelKatsayilari[p.unvan]!;
+        } else {
+          // Otomatik unvan tavan katsayısı (her unvan kendi tavanını tam alır)
+          final bazSaatlik = p.ekGosterge * aktifMemurKatsayisi;
+          final tavanSaatlik = p.mesaiIci ? bazSaatlik * 2 : bazSaatlik * 3.2;
+          final saatlikNetPuan = p.puan * p.unvanKatsayisi;
+          if (saatlikNetPuan > 0) {
+            pKatsayi = _round(tavanSaatlik / saatlikNetPuan, 2);
+          }
+        }
+      }
+
       // Brüt hakediş = bireysel × katsayı (Excel sağlama satırı)
-      final brutHakedis = _round(s.bireyselNetKatkiPuani * donemKatsayi, 2);
+      final brutHakedis = _round(s.bireyselNetKatkiPuani * pKatsayi, 2);
 
       // D27 = A27*B27/C27 — Kursun 1 saatlik ücreti
       final kursSaatlik = p.dersSaati > 0
-          ? _round(s.bireyselNetKatkiPuani * donemKatsayi / p.dersSaati, 2)
+          ? _round(s.bireyselNetKatkiPuani * pKatsayi / p.dersSaati, 2)
           : 0.0;
 
       // C32 = A32*B32*2, D32 = C32*1.6  → mesai dışı = A*B*3.2
@@ -370,9 +393,10 @@ class DanismanlikExcelHesaplama {
       double havuz = 0.0;
 
       // 2547 s.k. Madde 58 uyarınca danışmanlık/katkı payı ödemelerinde personelin hak ettiği brüt tutar
-      // mutemetlik esasları gereği tam tahakkuk ettirilir. Sadece kullanıcı açıkça katı tavan kesintisi
-      // seçtiğinde havuza kesinti aktarılır; aksi halde Bilgi Notu modunda tam hakediş korunur.
-      if (tavanAsildi && tavanUygula && katiKesintiUygula) {
+      // mutemetlik esasları gereği tam tahakkuk ettirilir.
+      // Sadece katı tavan kilitli modda (tavanKilidiEsnek == false) tavan aşımı kesilir.
+      // Esnek modda (tavanKilidiEsnek == true) veya unvan bazlı modda kesinti yapılmaz.
+      if (tavanAsildi && tavanUygula && katiKesintiUygula && !tavanKilidiEsnek && !unvanBazliDagitim) {
         odenebilir = _round(tavanSaatlik * p.dersSaati, 2);
         havuz = _round(brutHakedis - odenebilir, 2);
       }
@@ -402,7 +426,7 @@ class DanismanlikExcelHesaplama {
       );
 
       satirlar[i] = s.copyWith(
-        donemKatsayi: donemKatsayi,
+        donemKatsayi: pKatsayi,
         kursSaatlikUcreti: kursSaatlik,
         tavanSaatlikUcreti: tavanSaatlik,
         brutHakedis: brutHakedis,
@@ -434,6 +458,8 @@ class DanismanlikExcelHesaplama {
       artikBakiye: artikBakiye,
       tavanUygula: tavanUygula,
       katiKesintiUygula: katiKesintiUygula,
+      tavanKilidiEsnek: tavanKilidiEsnek,
+      unvanBazliDagitim: unvanBazliDagitim,
     );
   }
 
@@ -875,6 +901,8 @@ class DanismanlikExcelSonuc {
     this.artikBakiye = 0,
     this.tavanUygula = false,
     this.katiKesintiUygula = false,
+    this.tavanKilidiEsnek = false,
+    this.unvanBazliDagitim = false,
     this.hamDonemKatsayi = 0,
     this.enYuksekUnvanAdi = '',
     this.enYuksekUnvanKatsayisi,
@@ -892,6 +920,8 @@ class DanismanlikExcelSonuc {
   final double artikBakiye;
   final bool tavanUygula;
   final bool katiKesintiUygula;
+  final bool tavanKilidiEsnek;
+  final bool unvanBazliDagitim;
   final double hamDonemKatsayi;
   final String enYuksekUnvanAdi;
   final double? enYuksekUnvanKatsayisi;

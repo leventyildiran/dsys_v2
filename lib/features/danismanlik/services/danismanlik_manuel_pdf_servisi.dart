@@ -23,6 +23,9 @@ class ManuelHesaplamaVerisi {
     this.manuelDonemKatsayisi,
     this.memurMaasKatsayisi = 1.387871,
     this.tavanUygula = false,
+    this.tavanKilidiEsnek = true,
+    this.unvanBazliDagitim = false,
+    this.unvanOzelKatsayilari,
     this.is58k = false,
     this.is58e = false,
     this.gelirVergisiOrani = 15,
@@ -50,6 +53,9 @@ class ManuelHesaplamaVerisi {
   final double? manuelDonemKatsayisi;
   final double memurMaasKatsayisi;
   final bool tavanUygula;
+  final bool tavanKilidiEsnek;
+  final bool unvanBazliDagitim;
+  final Map<String, double>? unvanOzelKatsayilari;
   final bool is58k;
   final bool is58e;
   final int gelirVergisiOrani;
@@ -175,6 +181,9 @@ class ManuelHesaplamaVerisi {
       memurMaasKatsayisi: memurMaasKatsayisi,
       tavanUygula: tavanUygula,
       katiKesintiUygula: tavanUygula,
+      tavanKilidiEsnek: tavanKilidiEsnek,
+      unvanBazliDagitim: unvanBazliDagitim,
+      unvanOzelKatsayilari: unvanOzelKatsayilari,
     );
   }
 }

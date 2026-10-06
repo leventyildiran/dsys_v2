@@ -87,6 +87,8 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
 
   // Yasal Ek Ders Tavanı Uygulansın mı? (Mesai içi 2.0x, Mesai dışı 3.2x)
   bool _tavanUygula = false;
+  bool _tavanKilidiEsnek = true;
+  bool _unvanBazliDagitim = false;
 
   // Birim Listesi
   List<String> _birimler = [];
@@ -1006,6 +1008,8 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       sozlesmeBaslangicTarihi: _58kSozlesmeBaslangic,
       danismanlikDonemi: _58kDonemMetni.isNotEmpty ? _58kDonemMetni : null,
       tavanUygula: _tavanUygula,
+      tavanKilidiEsnek: _tavanKilidiEsnek,
+      unvanBazliDagitim: _unvanBazliDagitim,
     );
   }
 
@@ -1499,6 +1503,8 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                   veri: veri,
                   onYazdir: _pdfYazdirVeyaIndir,
                   onTavanUygulaDegisti: (val) => setState(() => _tavanUygula = val),
+                  onTavanKilidiEsnekDegisti: (val) => setState(() => _tavanKilidiEsnek = val),
+                  onUnvanBazliDagitimDegisti: (val) => setState(() => _unvanBazliDagitim = val),
                   onHizmetBasligiDegisti: (val) {
                     setState(() {
                       _hizmetBasligiController.text = val;
