@@ -376,9 +376,20 @@ class TabOzetIcmal extends StatelessWidget {
                           children: [
                             Expanded(
                               flex: 3,
-                              child: Text(
-                                _tamAdSoyad(p.unvan, p.adSoyad),
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _tamAdSoyad(p.unvan, p.adSoyad),
+                                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+                                  ),
+                                  if (!veri.is58k && !veri.is58e)
+                                    Text(
+                                      'Ek Ders Gös: ${p.ekGosterge} · Unvan K: ${p.unvanKatsayisi.toStringAsFixed(1)}',
+                                      style: const TextStyle(fontSize: 9.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                    ),
+                                ],
                               ),
                             ),
                             if (veri.is58k) ...[

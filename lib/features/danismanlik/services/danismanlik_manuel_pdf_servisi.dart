@@ -457,8 +457,8 @@ class ManuelHesaplamaPdfServisi {
             pw.TableHelper.fromTextArray(
               headers: const [
                 'Adı Soyadı & Unvanı',
-                'Puan',
                 'Unvan K.',
+                'Ek Ders Gös.',
                 'Saat / Mesai',
                 'Net Puan',
                 'Dönem Kats.',
@@ -471,8 +471,8 @@ class ManuelHesaplamaPdfServisi {
                   final p = s.girdi;
                   return [
                     '${p.unvan} ${p.adSoyad}',
-                    p.puan.toStringAsFixed(0),
                     p.unvanKatsayisi.toStringAsFixed(1),
+                    p.ekGosterge.toString(),
                     '${p.dersSaati.toStringAsFixed(0)} Sa (${p.mesaiIci ? "Mesai İçi" : "Mesai Dışı"})',
                     s.bireyselNetKatkiPuani.toStringAsFixed(0),
                     TurkceFormat.katsayi(s.donemKatsayi),
@@ -498,10 +498,19 @@ class ManuelHesaplamaPdfServisi {
               headerStyle: kalin(7),
               cellStyle: normal(7),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 3.5, vertical: 3),
+              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 3),
             ),
 
-          pw.SizedBox(height: 8),
+          pw.SizedBox(height: 4),
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+            child: pw.Text(
+              '2914 Sayılı Kanun Ek Ders Göstergeleri: Profesör: 300 · Doçent: 250 · Dr. Öğr. Üyesi: 200 · Öğr. Gör. / Arş. Gör.: 160 (Memur Maaş Katsayısı: ${TurkceFormat.katsayi(veri.memurMaasKatsayisi, 6)})',
+              style: kalin(6.5),
+            ),
+          ),
+          pw.SizedBox(height: 6),
           pw.Container(
             padding: const pw.EdgeInsets.all(6),
             decoration: pw.BoxDecoration(
@@ -706,8 +715,8 @@ class ManuelHesaplamaPdfServisi {
                       ]
                     : const [
                         'Adı Soyadı',
-                        'Puan',
                         'Unvan K.',
+                        'Ek Ders Gös.',
                         'Saat',
                         'Mesai',
                         'Bireysel Net Katkı',
@@ -766,8 +775,8 @@ class ManuelHesaplamaPdfServisi {
                           final p = s.girdi;
                           return [
                             '${p.unvan} ${p.adSoyad}',
-                            p.puan.toStringAsFixed(0),
                             p.unvanKatsayisi.toStringAsFixed(1),
+                            p.ekGosterge.toString(),
                             p.dersSaati.toStringAsFixed(0),
                             p.mesaiIci ? 'Mesai İçi' : 'Mesai Dışı',
                             s.bireyselNetKatkiPuani.toStringAsFixed(0),
