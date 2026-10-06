@@ -508,7 +508,7 @@ class ManuelHesaplamaPdfServisi {
             padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             decoration: const pw.BoxDecoration(color: PdfColors.grey200),
             child: pw.Text(
-              '2914 Sayılı Kanun Ek Ders Göstergeleri: Profesör: 300 · Doçent: 250 · Dr. Öğr. Üyesi: 200 · Öğr. Gör. / Arş. Gör.: 160 (Memur Maaş Katsayısı: ${TurkceFormat.katsayi(veri.memurMaasKatsayisi, 6)})',
+              '2914 Sayılı Kanun Ek Ders Göstergeleri: Profesör: 300 · Doçent: 250 · Dr. Öğr. Üyesi: 200 · Öğr. Gör. / Arş. Gör.: 160 (Memur Maaş Katsayısı: ${veri.memurMaasKatsayisi.toStringAsFixed(6)})',
               style: kalin(6.5),
             ),
           ),
