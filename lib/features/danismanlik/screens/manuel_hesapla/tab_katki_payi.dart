@@ -448,15 +448,13 @@ class TabKatkiPayi extends StatelessWidget {
                         )
                       else ...[
                         Text(
-                          (tavanUygula && excelSonuc.toplamTavanKesintisi > 0)
-                              ? '${TurkceFormat.katsayi(excelSonuc.fiiliDonemKatsayisi)} (Fiili)'
-                              : TurkceFormat.katsayi(excelSonuc.donemKatsayi),
+                          TurkceFormat.katsayi(excelSonuc.donemKatsayi),
                           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF047857)),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          (tavanUygula && excelSonuc.toplamTavanKesintisi > 0)
-                              ? 'Ham Gelir K.: ${TurkceFormat.katsayi(excelSonuc.donemKatsayi)} | Sağlama: ${TurkceFormat.para(excelSonuc.saglama)}'
+                          tavanUygula && excelSonuc.enYuksekUnvanAciklama.isNotEmpty
+                              ? '${excelSonuc.enYuksekUnvanAciklama} | Sağlama: ${TurkceFormat.para(excelSonuc.saglama)}'
                               : 'Sağlama: ${TurkceFormat.para(excelSonuc.saglama)}',
                           style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF059669)),
                         ),

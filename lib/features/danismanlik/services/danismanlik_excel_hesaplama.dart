@@ -285,18 +285,68 @@ class DanismanlikExcelHesaplama {
       );
     }
 
+    final aktifMemurKatsayisi =
+        memurMaasKatsayisi ?? profil.varsayilanMemurMaasKatsayisi;
+
     final maksPay = kesinti.katkiPayi;
-    final donemKatsayi = manualDonemKatsayi != null
-        ? double.parse(manualDonemKatsayi.toStringAsFixed(2))
-        : _donemKatsayiSaglama(maksPay, toplamPuan, satirlar);
+    final hamDonemKatsayi = _donemKatsayiSaglama(maksPay, toplamPuan, satirlar);
+
+    // Listede en yüksek unvanlı personeli tespit et (ekGosterge > unvanKatsayisi)
+    ExcelPersonelGirdi? enYuksekUnvanliPersonel;
+    for (final s in satirlar) {
+      final p = s.girdi;
+      if (enYuksekUnvanliPersonel == null) {
+        enYuksekUnvanliPersonel = p;
+      } else {
+        if (p.ekGosterge > enYuksekUnvanliPersonel.ekGosterge) {
+          enYuksekUnvanliPersonel = p;
+        } else if (p.ekGosterge == enYuksekUnvanliPersonel.ekGosterge) {
+          if (p.unvanKatsayisi > enYuksekUnvanliPersonel.unvanKatsayisi) {
+            enYuksekUnvanliPersonel = p;
+          }
+        }
+      }
+    }
+
+    double? enYuksekUnvanKatsayisi;
+    String enYuksekUnvanAdi = '';
+    String enYuksekUnvanAciklama = '';
+
+    if (enYuksekUnvanliPersonel != null) {
+      enYuksekUnvanAdi = enYuksekUnvanliPersonel.unvan;
+      final bazSaatlik = enYuksekUnvanliPersonel.ekGosterge * aktifMemurKatsayisi;
+      final tavanSaatlik = enYuksekUnvanliPersonel.mesaiIci ? bazSaatlik * 2 : bazSaatlik * 3.2;
+      final saatlikNetPuan = enYuksekUnvanliPersonel.puan * enYuksekUnvanliPersonel.unvanKatsayisi;
+      if (saatlikNetPuan > 0) {
+        enYuksekUnvanKatsayisi = _round(tavanSaatlik / saatlikNetPuan, 2);
+        enYuksekUnvanAciklama = 'Listede en yüksek unvanlı öğretim elemanı (${enYuksekUnvanliPersonel.unvan} ${enYuksekUnvanliPersonel.adSoyad}) baz alınmıştır.';
+      }
+    }
+
+    final double donemKatsayi;
+    if (manualDonemKatsayi != null) {
+      donemKatsayi = double.parse(manualDonemKatsayi.toStringAsFixed(2));
+    } else if (tavanUygula &&
+        katiKesintiUygula &&
+        personeller.length > 1 &&
+        enYuksekUnvanKatsayisi != null &&
+        enYuksekUnvanKatsayisi > 0 &&
+        enYuksekUnvanKatsayisi <= hamDonemKatsayi) {
+      // Ortak tek katsayı: Listede birden fazla personel olduğunda en yüksek unvanlı personelin tavan katsayısı baz alınır (örn: Doçent 31,51)
+      donemKatsayi = enYuksekUnvanKatsayisi;
+    } else {
+      donemKatsayi = hamDonemKatsayi;
+    }
+
+    if (donemKatsayi != enYuksekUnvanKatsayisi) {
+      enYuksekUnvanAciklama = '';
+    }
+
     final saglama = _round(toplamPuan * donemKatsayi, 2);
 
     double netOdemeToplam = 0;
     double havuzToplam = 0;
     final dagitimlar = <DagitimModel>[];
-
-    final aktifMemurKatsayisi =
-        memurMaasKatsayisi ?? profil.varsayilanMemurMaasKatsayisi;
 
     for (var i = 0; i < satirlar.length; i++) {
       final s = satirlar[i];
@@ -362,17 +412,25 @@ class DanismanlikExcelHesaplama {
     }
 
     final brutToplam = satirlar.fold<double>(0, (s, x) => s + x.brutHakedis);
+    final dagitilmayanKatki = _round(maksPay - netOdemeToplam, 2);
     final artikBakiye = _round(maksPay - brutToplam, 2);
+    final nihaiHavuzToplam = dagitilmayanKatki > 0
+        ? dagitilmayanKatki
+        : _round(havuzToplam + artikBakiye, 2);
 
     return DanismanlikExcelSonuc(
       kesinti: kesinti,
       toplamPuan: toplamPuan,
       donemKatsayi: donemKatsayi,
+      hamDonemKatsayi: hamDonemKatsayi,
+      enYuksekUnvanAdi: enYuksekUnvanAdi,
+      enYuksekUnvanKatsayisi: enYuksekUnvanKatsayisi,
+      enYuksekUnvanAciklama: enYuksekUnvanAciklama,
       saglama: saglama,
       personelSatirlari: satirlar,
       dagitimlar: dagitimlar,
       netOdemeToplam: _round(netOdemeToplam, 2),
-      havuzToplam: _round(havuzToplam + artikBakiye, 2),
+      havuzToplam: nihaiHavuzToplam,
       artikBakiye: artikBakiye,
       tavanUygula: tavanUygula,
       katiKesintiUygula: katiKesintiUygula,
@@ -778,6 +836,11 @@ class ExcelPersonelSonuc {
       ? (brutHakedis / tavanSaatlikUcreti).ceilToDouble()
       : girdi.dersSaati;
 
+  /// Personelin fiilen aldığı hakedişe karşılık gelen bireysel katsayısı
+  double get fiiliKatsayi => bireyselNetKatkiPuani > 0
+      ? double.parse((odenebilirHakedis / bireyselNetKatkiPuani).toStringAsFixed(2))
+      : donemKatsayi;
+
   ExcelPersonelSonuc copyWith({
     double? donemKatsayi,
     double? kursSaatlikUcreti,
@@ -812,6 +875,10 @@ class DanismanlikExcelSonuc {
     this.artikBakiye = 0,
     this.tavanUygula = false,
     this.katiKesintiUygula = false,
+    this.hamDonemKatsayi = 0,
+    this.enYuksekUnvanAdi = '',
+    this.enYuksekUnvanKatsayisi,
+    this.enYuksekUnvanAciklama = '',
   });
 
   final ExcelKesintiSonuc kesinti;
@@ -825,6 +892,10 @@ class DanismanlikExcelSonuc {
   final double artikBakiye;
   final bool tavanUygula;
   final bool katiKesintiUygula;
+  final double hamDonemKatsayi;
+  final String enYuksekUnvanAdi;
+  final double? enYuksekUnvanKatsayisi;
+  final String enYuksekUnvanAciklama;
 
   String get donemKatsayiMetin => TurkceFormat.katsayi(donemKatsayi);
 

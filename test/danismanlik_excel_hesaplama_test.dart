@@ -215,5 +215,55 @@ void main() {
       expect(sonuc.netOdemeToplam, closeTo(2664.71, 0.1));
       expect(sonuc.toplamTavanKesintisi, closeTo(2234.89, 0.2));
     });
+
+    test('Ortak Tek Katsayı (Listede En Yüksek Unvan Bazlı - Doçent 31,51)', () {
+      final kesinti = DanismanlikExcelHesaplama.kesintiler(
+        kdvHaricGelir: 72727.27, // katkiPayi = 35636.36 TL
+      );
+
+      // Memur maaş katsayısı: 1.575525
+      // Ayşen Melda Çolak: Doçent (250 ek gosterge), unvan katsayisi 2.5, puan 10, ders saati 1, mesai içi
+      // 1 saatlik tavan: 250 * 1.575525 * 2 = 787.76 TL
+      // 1 saatlik net puan: 10 * 2.5 = 25 puan
+      // En yüksek unvan katsayısı: 787.76 / 25 = 31.51!
+      final sonuc = DanismanlikExcelHesaplama.hesapla(
+        kesinti: kesinti,
+        tavanUygula: true,
+        katiKesintiUygula: true,
+        memurMaasKatsayisi: 1.575525,
+        personeller: const [
+          ExcelPersonelGirdi(
+            personelId: '1',
+            adSoyad: 'Ayşen Melda ÇOLAK',
+            unvan: 'Doçent',
+            puan: 10,
+            unvanKatsayisi: 2.5,
+            ekGosterge: 250,
+            dersSaati: 1,
+            mesaiIci: true,
+          ),
+          ExcelPersonelGirdi(
+            personelId: '2',
+            adSoyad: 'Alkan AKKAYA',
+            unvan: 'Öğr. Gör.',
+            puan: 10,
+            unvanKatsayisi: 2.0,
+            ekGosterge: 160,
+            dersSaati: 6.5,
+            mesaiIci: true,
+          ),
+        ],
+      );
+
+      expect(sonuc.donemKatsayi, 31.51);
+      expect(sonuc.enYuksekUnvanAdi, 'Doçent');
+      expect(sonuc.enYuksekUnvanKatsayisi, 31.51);
+      expect(sonuc.enYuksekUnvanAciklama, contains('Ayşen Melda ÇOLAK'));
+
+      final aysen = sonuc.personelSatirlari.first;
+      // 25 * 31.51 = 787.75 TL (Tam tavanını alır, tavana takılmaz)
+      expect(aysen.odenebilirHakedis, 787.75);
+      expect(aysen.havuzTutari, 0.0);
+    });
   });
 }

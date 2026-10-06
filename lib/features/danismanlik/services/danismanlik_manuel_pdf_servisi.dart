@@ -341,16 +341,18 @@ class ManuelHesaplamaPdfServisi {
                           _pdfSatir('Sözleşme Kapsamı & Süresi', veri.sozlesmeSuresiMetni, normal: normal, bold: kalin),
                       ] else ...[
                         _pdfSatir('Toplam Net Katkı Puanı', excel.toplamPuan.toStringAsFixed(0), kalin: true, normal: normal, bold: kalin),
-                        if (veri.tavanUygula && excel.toplamTavanKesintisi > 0) ...[
+                        if (veri.tavanUygula) ...[
                           _pdfSatir('Dağıtılabilir Maksimum Pay', TurkceFormat.para(kesinti.katkiPayi), kalin: true, normal: normal, bold: kalin),
-                          _pdfSatir('Gelir Dağıtım Katsayısı (Ham)', TurkceFormat.katsayi(excel.donemKatsayi), normal: normal, bold: kalin),
-                          _pdfSatir('Fiili Tavan Katsayısı (Ödenen)', TurkceFormat.katsayi(excel.fiiliDonemKatsayisi), kalin: true, normal: normal, bold: kalin),
+                          _pdfSatir('Dönem Dağıtım Katsayısı (Ortak)', TurkceFormat.katsayi(excel.donemKatsayi), kalin: true, normal: normal, bold: kalin),
+                          if (excel.enYuksekUnvanAciklama.isNotEmpty)
+                            _pdfSatir('Katsayı Dayanağı', excel.enYuksekUnvanAciklama, normal: normal, bold: kalin),
+                          _pdfSatir('Bütçe Gelir Katsayısı (Ham)', TurkceFormat.katsayi(excel.hamDonemKatsayi), normal: normal, bold: kalin),
                           _pdfSatir('Puan x Katsayı Sağlaması', TurkceFormat.para(excel.saglama), normal: normal, bold: kalin),
                           _pdfSatir('Personele Ödenecek Hakediş', TurkceFormat.para(excel.netOdemeToplam), kalin: true, normal: normal, bold: kalin),
-                          _pdfSatir('Yasal Tavan Kesintisi (Birim Payı)', TurkceFormat.para(excel.toplamTavanKesintisi), kalin: true, normal: normal, bold: kalin),
+                          if (excel.toplamTavanKesintisi > 0)
+                            _pdfSatir('Yasal Tavan Kesintisi (Fark)', TurkceFormat.para(excel.toplamTavanKesintisi), kalin: true, normal: normal, bold: kalin),
                           _pdfSatir('Birim Havuzuna Kalan Toplam', TurkceFormat.para(excel.havuzToplam), kalin: true, normal: normal, bold: kalin),
-                        ]
- else ...[
+                        ] else ...[
                           _pdfSatir('Dönem Ek Ödeme Katsayısı', TurkceFormat.katsayi(excel.donemKatsayi), kalin: true, normal: normal, bold: kalin),
                           _pdfSatir('Hesaplama Sağlaması (Puan x Katsayı)', TurkceFormat.para(excel.saglama), normal: normal, bold: kalin),
                           _pdfSatir('Net Ödenecek Hakediş Toplamı', TurkceFormat.para(excel.netOdemeToplam), kalin: true, normal: normal, bold: kalin),
@@ -370,15 +372,15 @@ class ManuelHesaplamaPdfServisi {
                             pw.Text('Dağıtım Güvence Kontrolü:', style: kalin(8.5)),
                             pw.SizedBox(height: 2),
                             pw.Text(
-                              (veri.tavanUygula && excel.toplamTavanKesintisi > 0)
-                                  ? '✓ Yasal tavan koruması aktif. ${TurkceFormat.para(excel.netOdemeToplam)} personele tahakkuk ettirildi, ${TurkceFormat.para(excel.havuzToplam)} birim havuzuna devredildi.'
+                              veri.tavanUygula
+                                  ? '✓ Yasal tavan korumalı ortak katsayı (${TurkceFormat.katsayi(excel.donemKatsayi)}) uygulandı. ${excel.enYuksekUnvanAciklama.isNotEmpty ? "${excel.enYuksekUnvanAciklama} " : ""}${TurkceFormat.para(excel.netOdemeToplam)} personele tahakkuk ettirildi, ${TurkceFormat.para(excel.havuzToplam)} birim havuzuna devredildi.'
                                   : (excel.saglama <= kesinti.katkiPayi + 0.01
                                       ? ((veri.is58k || veri.is58e) ? '✓ Dağıtılan tutar hak edilen payı aşmamaktadır.' : '✓ Sağlama tutarı dağıtılabilir payı aşmamaktadır.')
                                       : '⚠ DİKKAT: Dağıtılan tutar hak edilen payı aşmaktadır!'),
                               style: pw.TextStyle(
                                 font: fontRegular,
                                 fontSize: 7.5,
-                                color: excel.saglama <= kesinti.katkiPayi + 0.01 ? PdfColors.green800 : PdfColors.red800,
+                                color: (veri.tavanUygula || excel.saglama <= kesinti.katkiPayi + 0.01) ? PdfColors.green800 : PdfColors.red800,
                               ),
                             ),
                           ],
@@ -489,9 +491,7 @@ class ManuelHesaplamaPdfServisi {
                   '',
                   '',
                   excel.toplamPuan.toStringAsFixed(0),
-                  (veri.tavanUygula && excel.toplamTavanKesintisi > 0)
-                      ? '${TurkceFormat.katsayi(excel.fiiliDonemKatsayisi)} (Fiili)'
-                      : TurkceFormat.katsayi(excel.donemKatsayi),
+                  TurkceFormat.katsayi(excel.donemKatsayi),
                   '',
                   '',
                   TurkceFormat.para(excel.netOdemeToplam),
@@ -507,9 +507,19 @@ class ManuelHesaplamaPdfServisi {
           pw.Container(
             padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-            child: pw.Text(
-              '2914 Sayılı Kanun Ek Ders Göstergeleri: Profesör: 300 · Doçent: 250 · Dr. Öğr. Üyesi: 200 · Öğr. Gör. / Arş. Gör.: 160 (Memur Maaş Katsayısı: ${veri.memurMaasKatsayisi.toStringAsFixed(6)})',
-              style: kalin(6.5),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  '2914 Sayılı Kanun Ek Ders Göstergeleri: Profesör: 300 · Doçent: 250 · Dr. Öğr. Üyesi: 200 · Öğr. Gör. / Arş. Gör.: 160 (Memur Maaş Katsayısı: ${veri.memurMaasKatsayisi.toStringAsFixed(6)})',
+                  style: kalin(6.5),
+                ),
+                if (excel.enYuksekUnvanAciklama.isNotEmpty)
+                  pw.Text(
+                    '• Ortak Dönem Dağıtım Katsayısı (${TurkceFormat.katsayi(excel.donemKatsayi)}): ${excel.enYuksekUnvanAciklama}',
+                    style: kalin(6.5),
+                  ),
+              ],
             ),
           ),
           pw.SizedBox(height: 6),

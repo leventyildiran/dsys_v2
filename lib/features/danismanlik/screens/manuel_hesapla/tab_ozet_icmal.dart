@@ -209,13 +209,16 @@ class TabOzetIcmal extends StatelessWidget {
                             _satir('Saatlik Ek Ders Tavanı', 'Uygulanmaz (2547 m.58 tavan muafiyeti)', kalin: false, renk: const Color(0xFF0F766E)),
                           ] else ...[
                             _satir('Toplam Net Katkı Puanı', excel.toplamPuan.toStringAsFixed(0), kalin: true),
-                            if (veri.tavanUygula && excel.toplamTavanKesintisi > 0) ...[
+                            if (veri.tavanUygula) ...[
                               _satir('Dağıtılabilir Maksimum Pay', TurkceFormat.para(kesinti.katkiPayi), kalin: true, renk: const Color(0xFF4338CA)),
-                              _satir('Gelir Dağıtım Katsayısı (Ham)', TurkceFormat.katsayi(excel.donemKatsayi), kalin: false, renk: const Color(0xFF64748B)),
-                              _satir('Fiili Tavan Katsayısı (Ödenen)', TurkceFormat.katsayi(excel.fiiliDonemKatsayisi), kalin: true, renk: const Color(0xFF047857)),
-                              _satir('Puan x Katsayı Sağlaması (299 x 119,18)', TurkceFormat.para(excel.saglama)),
+                              _satir('Dönem Dağıtım Katsayısı (Ortak)', TurkceFormat.katsayi(excel.donemKatsayi), kalin: true, renk: const Color(0xFF047857)),
+                              if (excel.enYuksekUnvanAciklama.isNotEmpty)
+                                _satir('Katsayı Dayanağı', excel.enYuksekUnvanAciklama, kalin: false, renk: const Color(0xFF0F766E)),
+                              _satir('Dönem Gelir Katsayısı (Ham Bütçe)', TurkceFormat.katsayi(excel.hamDonemKatsayi), kalin: false, renk: const Color(0xFF64748B)),
+                              _satir('Puan x Katsayı Sağlaması (${excel.toplamPuan.toStringAsFixed(0)} x ${TurkceFormat.katsayi(excel.donemKatsayi)})', TurkceFormat.para(excel.saglama)),
                               _satir('Personele Ödenecek Hakediş', TurkceFormat.para(excel.netOdemeToplam), kalin: true, renk: const Color(0xFF107C41)),
-                              _satir('Yasal Tavan Kesintisi (Birim Payı)', TurkceFormat.para(excel.toplamTavanKesintisi), kalin: true, renk: const Color(0xFFD97706)),
+                              if (excel.toplamTavanKesintisi > 0)
+                                _satir('Yasal Tavan Kesintisi (Fark)', TurkceFormat.para(excel.toplamTavanKesintisi), kalin: true, renk: const Color(0xFFD97706)),
                               _satir('Birim Havuzuna Kalan Toplam', TurkceFormat.para(excel.havuzToplam), kalin: true, renk: const Color(0xFF0F766E)),
                             ] else ...[
                               _satir('Dönem Ek Ödeme Katsayısı', TurkceFormat.katsayi(excel.donemKatsayi), kalin: true, renk: const Color(0xFF047857)),
@@ -252,8 +255,8 @@ class TabOzetIcmal extends StatelessWidget {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    (veri.tavanUygula && excel.toplamTavanKesintisi > 0)
-                                        ? 'Güvenli: Yasal tavan koruması aktif. ${TurkceFormat.para(excel.netOdemeToplam)} personele tahakkuk ettirildi, ${TurkceFormat.para(excel.havuzToplam)} birim havuzunda emanete alındı.'
+                                    veri.tavanUygula
+                                        ? 'Güvenli: Ortak katsayı (${TurkceFormat.katsayi(excel.donemKatsayi)}) uygulandı. ${excel.enYuksekUnvanAciklama.isNotEmpty ? "${excel.enYuksekUnvanAciklama} " : ""}${TurkceFormat.para(excel.netOdemeToplam)} personele tahakkuk ettirildi, ${TurkceFormat.para(excel.havuzToplam)} birim havuzuna devredildi.'
                                         : (excel.saglama <= kesinti.katkiPayi + 0.01
                                             ? ((veri.is58k || veri.is58e) ? 'Güvenli: %$akademikOranStr hakediş ve taksit tutarı sınır dahilindedir.' : 'Güvenli: Sağlama tutarı dağıtılabilir katkı payı tavanını aşmamaktadır.')
                                             : 'UYARI: Dağıtılan tutar hak edilen payı aşmaktadır!'),
