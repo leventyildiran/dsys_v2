@@ -442,6 +442,7 @@ class TabDagMaksPay extends StatelessWidget {
                   child: const Text('Kaydet ve Güncelle'),
                 ),
               ],
+            );
           },
         );
       },
