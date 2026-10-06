@@ -341,10 +341,19 @@ class ManuelHesaplamaPdfServisi {
                           _pdfSatir('Sözleşme Kapsamı & Süresi', veri.sozlesmeSuresiMetni, normal: normal, bold: kalin),
                       ] else ...[
                         _pdfSatir('Toplam Net Katkı Puanı', excel.toplamPuan.toStringAsFixed(0), kalin: true, normal: normal, bold: kalin),
-                        _pdfSatir('Dönem Ek Ödeme Katsayısı', TurkceFormat.katsayi(excel.donemKatsayi), kalin: true, normal: normal, bold: kalin),
-                        _pdfSatir('Hesaplama Sağlaması (Puan x Katsayı)', TurkceFormat.para(excel.saglama), normal: normal, bold: kalin),
-                        _pdfSatir('Net Ödenecek Hakediş Toplamı', TurkceFormat.para(excel.netOdemeToplam), kalin: true, normal: normal, bold: kalin),
-                        _pdfSatir('Artık Bakiye / Birim Havuzu', TurkceFormat.para(excel.artikBakiye), normal: normal, bold: kalin),
+                        if (veri.tavanUygula && excel.toplamTavanKesintisi > 0) ...[
+                          _pdfSatir('Gelir Dağıtım Katsayısı (Ham)', TurkceFormat.katsayi(excel.donemKatsayi), normal: normal, bold: kalin),
+                          _pdfSatir('Fiili Tavan Katsayısı (Ödenen)', TurkceFormat.katsayi(excel.fiiliDonemKatsayisi), kalin: true, normal: normal, bold: kalin),
+                          _pdfSatir('Hesaplama Sağlaması (Brüt Havuz)', TurkceFormat.para(excel.saglama), normal: normal, bold: kalin),
+                          _pdfSatir('Personele Ödenecek Hakediş', TurkceFormat.para(excel.netOdemeToplam), kalin: true, normal: normal, bold: kalin),
+                          _pdfSatir('Yasal Tavan Kesintisi (Birim Payı)', TurkceFormat.para(excel.toplamTavanKesintisi), kalin: true, normal: normal, bold: kalin),
+                          _pdfSatir('Birim Havuzuna Kalan Toplam', TurkceFormat.para(excel.havuzToplam), kalin: true, normal: normal, bold: kalin),
+                        ] else ...[
+                          _pdfSatir('Dönem Ek Ödeme Katsayısı', TurkceFormat.katsayi(excel.donemKatsayi), kalin: true, normal: normal, bold: kalin),
+                          _pdfSatir('Hesaplama Sağlaması (Puan x Katsayı)', TurkceFormat.para(excel.saglama), normal: normal, bold: kalin),
+                          _pdfSatir('Net Ödenecek Hakediş Toplamı', TurkceFormat.para(excel.netOdemeToplam), kalin: true, normal: normal, bold: kalin),
+                          _pdfSatir('Artık Bakiye / Birim Havuzu', TurkceFormat.para(excel.artikBakiye), normal: normal, bold: kalin),
+                        ],
                       ],
                       pw.SizedBox(height: 10),
                       pw.Container(
@@ -359,12 +368,14 @@ class ManuelHesaplamaPdfServisi {
                             pw.Text('Dağıtım Güvence Kontrolü:', style: kalin(8.5)),
                             pw.SizedBox(height: 2),
                             pw.Text(
-                              excel.saglama <= kesinti.katkiPayi + 0.01
-                                  ? ((veri.is58k || veri.is58e) ? '✓ Dağıtılan tutar hak edilen payı aşmamaktadır.' : '✓ Sağlama tutarı dağıtılabilir payı aşmamaktadır.')
-                                  : '⚠ DİKKAT: Dağıtılan tutar hak edilen payı aşmaktadır!',
+                              (veri.tavanUygula && excel.toplamTavanKesintisi > 0)
+                                  ? '✓ Yasal tavan koruması aktif. ${TurkceFormat.para(excel.netOdemeToplam)} personele tahakkuk ettirildi, ${TurkceFormat.para(excel.havuzToplam)} birim havuzuna devredildi.'
+                                  : (excel.saglama <= kesinti.katkiPayi + 0.01
+                                      ? ((veri.is58k || veri.is58e) ? '✓ Dağıtılan tutar hak edilen payı aşmamaktadır.' : '✓ Sağlama tutarı dağıtılabilir payı aşmamaktadır.')
+                                      : '⚠ DİKKAT: Dağıtılan tutar hak edilen payı aşmaktadır!'),
                               style: pw.TextStyle(
                                 font: fontRegular,
-                                fontSize: 8,
+                                fontSize: 7.5,
                                 color: excel.saglama <= kesinti.katkiPayi + 0.01 ? PdfColors.green800 : PdfColors.red800,
                               ),
                             ),
@@ -449,8 +460,9 @@ class ManuelHesaplamaPdfServisi {
                 'Puan',
                 'Unvan K.',
                 'Saat / Mesai',
-                'Net Katkı Puanı',
-                'Saatlik Ücret',
+                'Net Puan',
+                'Dönem Kats.',
+                'Saatlik Gelir',
                 'Ek Ders Tavanı',
                 'Alacağı Tutar (TL)',
               ],
@@ -463,16 +475,30 @@ class ManuelHesaplamaPdfServisi {
                     p.unvanKatsayisi.toStringAsFixed(1),
                     '${p.dersSaati.toStringAsFixed(0)} Sa (${p.mesaiIci ? "Mesai İçi" : "Mesai Dışı"})',
                     s.bireyselNetKatkiPuani.toStringAsFixed(0),
+                    TurkceFormat.katsayi(s.donemKatsayi),
                     TurkceFormat.para(s.kursSaatlikUcreti),
                     TurkceFormat.para(s.tavanSaatlikUcreti),
                     TurkceFormat.para(s.odenebilirHakedis),
                   ];
                 }),
+                [
+                  'TOPLAM',
+                  '',
+                  '',
+                  '',
+                  excel.toplamPuan.toStringAsFixed(0),
+                  (veri.tavanUygula && excel.toplamTavanKesintisi > 0)
+                      ? '${TurkceFormat.katsayi(excel.fiiliDonemKatsayisi)} (Fiili)'
+                      : TurkceFormat.katsayi(excel.donemKatsayi),
+                  '',
+                  '',
+                  TurkceFormat.para(excel.netOdemeToplam),
+                ],
               ],
-              headerStyle: kalin(8),
-              cellStyle: normal(8),
+              headerStyle: kalin(7),
+              cellStyle: normal(7),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 3.5, vertical: 3),
             ),
 
           pw.SizedBox(height: 8),
@@ -759,7 +785,9 @@ class ManuelHesaplamaPdfServisi {
                           '',
                           '',
                           excel.toplamPuan.toStringAsFixed(0),
-                          TurkceFormat.katsayi(excel.donemKatsayi),
+                          (veri.tavanUygula && excel.toplamTavanKesintisi > 0)
+                              ? '${TurkceFormat.katsayi(excel.fiiliDonemKatsayisi)} (Fiili)'
+                              : TurkceFormat.katsayi(excel.donemKatsayi),
                           '',
                           '',
                           TurkceFormat.para(excel.saglama),
