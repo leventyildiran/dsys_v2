@@ -458,15 +458,16 @@ class FaturaOfflineParser {
   }
 
   static String _extractAdres(List<String> lines, String firmaAdi) {
-    // 1. "Adres:" veya "Adres -" içeren satırlar
+    // 1. "Adres:", "Adres -", "Müşteri Adresi:" vb. ön ekli satırlar
+    final prefixRegex = RegExp(
+      r'^(?:m[üu][şs]teri\s*)?(?:fatura\s*)?(?:teslimat\s*)?adres[ıi]?\s*[:.\-]\s*',
+      caseSensitive: false,
+    );
     for (final line in lines) {
-      final l = line.toLowerCase();
-      if (l.contains('adres') && (l.contains(':') || l.contains('-'))) {
-        final parts = line.split(RegExp(r'[:\-]'));
-        if (parts.length > 1 && parts[1].trim().length > 3) {
-          final res = parts.sublist(1).join(':').trim();
-          if (res.length > 3 && res != firmaAdi) return res;
-        }
+      final trimmed = line.trim();
+      if (prefixRegex.hasMatch(trimmed)) {
+        final res = trimmed.replaceFirst(prefixRegex, '').trim();
+        if (res.length > 3 && res != firmaAdi) return res;
       }
     }
 

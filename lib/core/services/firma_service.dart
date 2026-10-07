@@ -53,18 +53,33 @@ class FirmaService {
     _invalidateCache();
   }
 
+  static String _temizleVkn(String? v) =>
+      (v ?? '').replaceAll(RegExp(r'\D'), '');
+
+  static String _normalizeFirmaAdi(String s) {
+    return s
+        .replaceAll('İ', 'i')
+        .replaceAll('I', 'ı')
+        .toLowerCase()
+        .replaceAll(RegExp(r'[.,\-_/\\()]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
   /// Firmanın kayıtlı olup olmadığını VKN veya tam ada göre kontrol eder.
   Future<FirmaModel?> firmaBul({required String firmaAdi, String? vergiNo}) async {
     final firmalar = await getAllFirmalar();
-    final vClean = (vergiNo ?? '').replaceAll(RegExp(r'\s+'), '');
-    final fClean = firmaAdi.trim().toLowerCase();
+    final vClean = _temizleVkn(vergiNo);
+    final fNorm = _normalizeFirmaAdi(firmaAdi);
 
     for (final f in firmalar) {
-      final fVClean = f.vergiNo.replaceAll(RegExp(r'\s+'), '');
+      final fVClean = _temizleVkn(f.vergiNo);
+      // 1. VKN ile tam eşleşme (en güvenilir kimlik)
       if (vClean.length >= 10 && fVClean.length >= 10 && fVClean == vClean) {
         return f;
       }
-      if (fClean.isNotEmpty && f.firmaAdi.trim().toLowerCase() == fClean) {
+      // 2. Normalize edilmiş firma unvanı ile eşleşme
+      if (fNorm.isNotEmpty && _normalizeFirmaAdi(f.firmaAdi) == fNorm) {
         return f;
       }
     }

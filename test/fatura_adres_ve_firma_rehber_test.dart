@@ -105,5 +105,20 @@ Toplam Tutar: 3.000,00
       expect(f.vergiDairesi, 'Muratpaşa');
       expect(f.vergiNo, '1234567891');
     });
+
+    test('6. FaturaOfflineParser adresteki tire ve blok no gibi işaretleri bozmadan korumalı', () {
+      final metin = '''
+Firma Adı: TEST MÜHENDİSLİK LTD. ŞTİ.
+Adres: Kükürtlü Mah. Çiçek Sok. A-Blok No: 4/B Osmangazi / BURSA
+Tarih: 07.10.2026
+Kalem 1   1   100,00 TL
+Toplam: 100,00 TL
+''';
+
+      final faturalar = FaturaOfflineParser.parse(metin);
+      expect(faturalar.isNotEmpty, isTrue);
+      final f = faturalar.first;
+      expect(f.adres, equals('Kükürtlü Mah. Çiçek Sok. A-Blok No: 4/B Osmangazi / BURSA'));
+    });
   });
 }
