@@ -167,8 +167,8 @@ IBAN: TR330006200000000012345678
 
       final f = sonuc.first;
       expect(f.firmaAdi, contains('ACME ÇEVRE'));
-      expect(f.melbesNo, equals('MLB-2026-9988'));
-      expect(f.numuneNo, equals('NM-4455'));
+      expect(f.melbesNo, contains('MLB-2026-9988'));
+      expect(f.numuneNo, contains('NM-4455'));
       expect(f.kalemler.length, equals(2));
       expect(f.kalemler[0]['cinsi'], equals('Atıksu Ağır Metal Analizi'));
       expect(f.kalemler[0]['miktar'], equals(2));

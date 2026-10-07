@@ -464,7 +464,8 @@ class FaturaOfflineParser {
       if (l.contains('adres') && (l.contains(':') || l.contains('-'))) {
         final parts = line.split(RegExp(r'[:\-]'));
         if (parts.length > 1 && parts[1].trim().length > 3) {
-          return parts.sublist(1).join(':').trim();
+          final res = parts.sublist(1).join(':').trim();
+          if (res.length > 3 && res != firmaAdi) return res;
         }
       }
     }
@@ -479,10 +480,24 @@ class FaturaOfflineParser {
 
     for (final line in lines) {
       final l = line.toLowerCase().trim();
-      if (line.trim() == firmaAdi.trim() || _isMetadataLine(l)) continue;
+      if (line.trim() == firmaAdi.trim()) continue;
+      // Salt fatura, tarih, tutar, vkn başlıklarını atla
+      if (l.startsWith('fatura no') ||
+          l.startsWith('tarih') ||
+          l.startsWith('toplam') ||
+          l.startsWith('matrah') ||
+          l.startsWith('kdv') ||
+          l.startsWith('vkn') ||
+          l.startsWith('iban')) {
+        continue;
+      }
       for (final kw in adresKeywords) {
-        if (l.contains(kw) && line.trim().length > 8) {
-          return line.trim();
+        if (l.contains(kw) && line.trim().length > 6) {
+          final temiz = line.replaceAll(
+            RegExp(r'^(?:m[üu][şs]teri\s*)?(?:fatura\s*)?adres[ıi]?\s*[:.\-]?\s*', caseSensitive: false),
+            '',
+          ).trim();
+          return temiz.isNotEmpty ? temiz : line.trim();
         }
       }
     }
@@ -495,11 +510,20 @@ class FaturaOfflineParser {
       if (fIdx != -1 && fIdx + 1 < lines.length) {
         final nextLine = lines[fIdx + 1].trim();
         final lNext = nextLine.toLowerCase();
-        if (!_isMetadataLine(lNext) &&
-            nextLine.length > 10 &&
-            !lNext.contains('fatura') &&
-            !lNext.contains('tarih')) {
-          return nextLine;
+        final isOtherField = lNext.startsWith('tarih') ||
+            lNext.startsWith('fatura no') ||
+            lNext.startsWith('vkn') ||
+            lNext.startsWith('tc') ||
+            lNext.startsWith('vergi no') ||
+            lNext.startsWith('vergi dairesi') ||
+            lNext.startsWith('vd') ||
+            lNext.startsWith('toplam');
+        if (!isOtherField && nextLine.length > 8) {
+          final temiz = nextLine.replaceAll(
+            RegExp(r'^(?:adres[ıi]?)\s*[:.\-]?\s*', caseSensitive: false),
+            '',
+          ).trim();
+          return temiz.isNotEmpty ? temiz : nextLine;
         }
       }
     }

@@ -64,5 +64,46 @@ Toplam Tutar: 1500,00 TL
       expect(parsed.firmaAdi, firma.firmaAdi);
       expect(parsed.vergiNo, firma.vergiNo);
     });
+
+    test('4. FaturaOfflineParser firma adından sonraki satırdaki açık adresi yakalamalı', () {
+      final metin = '''
+Firma Adı: KAYA MAKİNA SANAYİ LTD. ŞTİ.
+Organize Sanayi Bölgesi Pembe Cadde No 18 Nilüfer BURSA
+Vergi Dairesi: Nilüfer
+VKN: 5432167890
+Tarih: 07.10.2026
+
+Numune Analizi   1   2500,00 TL
+Toplam: 2500,00 TL
+''';
+
+      final faturalar = FaturaOfflineParser.parse(metin);
+      expect(faturalar.isNotEmpty, isTrue);
+      final f = faturalar.first;
+      expect(f.firmaAdi, contains('KAYA MAKİNA'));
+      expect(f.adres, contains('Organize Sanayi Bölgesi Pembe Cadde No 18 Nilüfer BURSA'));
+    });
+
+    test('5. FaturaOfflineParser Talep Formu bloklarından adres ve vergi bilgilerini çıkarmalı', () {
+      final metin = '''
+MELBES NO: MEL-2026-999
+NUMUNE NO: NUM-888
+Sayın: AKDENİZ GIDA A.Ş.
+Adres: Çallı Mah. Vatan Cad. No:10 Muratpaşa / ANTALYA
+Vergi Dairesi: Muratpaşa
+Vergi No: 1234567891
+Tarih: 01.10.2026
+Su Analiz Raporu   1   3.000,00
+Toplam Tutar: 3.000,00
+''';
+
+      final faturalar = FaturaOfflineParser.parse(metin);
+      expect(faturalar.isNotEmpty, isTrue);
+      final f = faturalar.first;
+      expect(f.firmaAdi, contains('AKDENİZ GIDA'));
+      expect(f.adres, contains('Çallı Mah. Vatan Cad. No:10 Muratpaşa / ANTALYA'));
+      expect(f.vergiDairesi, 'Muratpaşa');
+      expect(f.vergiNo, '1234567891');
+    });
   });
 }

@@ -103,7 +103,7 @@ class FirmaService {
       degisti = true;
     }
 
-    if (degisti) {
+    if (degisti && mevcut.id.isNotEmpty) {
       await updateFirma(mevcut);
     }
     return false; // Zaten mevcuttu

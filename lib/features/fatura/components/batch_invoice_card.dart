@@ -213,70 +213,110 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            OutlinedButton.icon(
-              icon: const Icon(Icons.business, size: 18),
-              label: const Text('Kayıtlı Firma'),
-              onPressed: () => _showFirmaSecici(context, provider, index),
-            ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.bookmark_add_outlined, size: 18),
-              label: const Text('Firmayı Kaydet'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.teal.shade800,
-                side: BorderSide(color: Colors.teal.shade300),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 650;
+            final birimDropdown = DropdownButtonFormField<String>(
+              key: ValueKey(
+                'birim_${index}_${provider.gecerliSeciliBirimFor(index)}',
               ),
-              onPressed: () => _kaydetFirmayiRehbere(context, invoice),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                key: ValueKey(
-                  'birim_${index}_${provider.gecerliSeciliBirimFor(index)}',
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: 'Birim (IBAN otomatik)',
+                border: const OutlineInputBorder(),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
                 ),
-                isExpanded: true,
-                decoration: InputDecoration(
-                  labelText: 'Birim (IBAN otomatik)',
-                  border: const OutlineInputBorder(),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  suffixIcon: (invoice.iban?.trim().isNotEmpty == true)
-                      ? Icon(
-                          Icons.check_circle,
-                          color: Colors.green.shade600,
-                          size: 18,
-                        )
-                      : null,
-                ),
-                initialValue: provider.gecerliSeciliBirimFor(index),
-                items: provider.birimler
-                    .map(
-                      (b) => DropdownMenuItem(
-                        value: b.id,
-                        child: Text(
-                          '${b.kisaAd} — ${b.ad}',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: (b.iban?.trim().isNotEmpty == true)
-                                ? null
-                                : Colors.orange.shade800,
-                          ),
+                suffixIcon: (invoice.iban?.trim().isNotEmpty == true)
+                    ? Icon(
+                        Icons.check_circle,
+                        color: Colors.green.shade600,
+                        size: 18,
+                      )
+                    : null,
+              ),
+              initialValue: provider.gecerliSeciliBirimFor(index),
+              items: provider.birimler
+                  .map(
+                    (b) => DropdownMenuItem(
+                      value: b.id,
+                      child: Text(
+                        '${b.kisaAd} — ${b.ad}',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: (b.iban?.trim().isNotEmpty == true)
+                              ? null
+                              : Colors.orange.shade800,
                         ),
                       ),
-                    )
-                    .toList(),
-                onChanged: (val) {
-                  if (val == null) return;
-                  provider.setSeciliBirim(index, val);
-                },
-              ),
-            ),
-          ],
+                    ),
+                  )
+                  .toList(),
+              onChanged: (val) {
+                if (val == null) return;
+                provider.setSeciliBirim(index, val);
+              },
+            );
+
+            if (isNarrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.business, size: 18),
+                          label: const Text('Kayıtlı Firma'),
+                          onPressed: () =>
+                              _showFirmaSecici(context, provider, index),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+                          label: const Text('Firmayı Kaydet'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.teal.shade800,
+                            side: BorderSide(color: Colors.teal.shade300),
+                          ),
+                          onPressed: () =>
+                              _kaydetFirmayiRehbere(context, invoice),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  birimDropdown,
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.business, size: 18),
+                  label: const Text('Kayıtlı Firma'),
+                  onPressed: () => _showFirmaSecici(context, provider, index),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+                  label: const Text('Firmayı Kaydet'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.teal.shade800,
+                    side: BorderSide(color: Colors.teal.shade300),
+                  ),
+                  onPressed: () => _kaydetFirmayiRehbere(context, invoice),
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: birimDropdown),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 12),
 
