@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
-import 'excel_web_parser.dart';
+import 'excel_web_parser_stub.dart'
+    if (dart.library.js_interop) 'excel_web_parser.dart';
 
 /// Tüm platformlarda (Windows, Web, Linux, macOS, Android, iOS)
 /// hiçbir harici CDN veya SheetJS zorunluluğu olmadan çalışan evrensel Excel ayrıştırıcı.

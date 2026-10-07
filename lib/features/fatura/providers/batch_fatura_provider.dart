@@ -331,7 +331,7 @@ class BatchFaturaProvider extends ChangeNotifier {
         : 'Sıradaki fatura';
     return KalibrasyonBaskiOnizleme.fromFatura(
       fatura,
-      isletmeVkn: _isletmeVknFallback(),
+      isletmeVkn: _invoiceVknFallback(fatura),
       sistemHesapAdi: sistemAyarlari?.hesapAdi,
       sistemIban: sistemAyarlari?.iban,
       sayfaNo: sayfaNo ?? _aktifKalibrasyonSayfasi,
@@ -492,6 +492,15 @@ class BatchFaturaProvider extends ChangeNotifier {
     return vkn.isNotEmpty ? vkn : FaturaMatbuConfig.varsayilanIsletmeVkn;
   }
 
+  String _invoiceVknFallback(FaturaModel invoice) {
+    final birimId = seciliBirimByFaturaId[invoice.id];
+    final birim = birimId != null ? findBirim(birimId) : null;
+    if (birim?.vkn != null && birim!.vkn!.trim().isNotEmpty) {
+      return birim.vkn!.trim();
+    }
+    return _isletmeVknFallback();
+  }
+
   // ─────────────────────────────────────────────────────────
   // Arşiv Yönetimi
   // ─────────────────────────────────────────────────────────
@@ -615,7 +624,7 @@ class BatchFaturaProvider extends ChangeNotifier {
       satirLimit: _matbuProvider.satirLimit,
       nakliYekunUstMetin: _matbuProvider.nakliYekunUstMetin,
       nakliYekunAltMetin: _matbuProvider.nakliYekunAltMetin,
-      isletmeVknFallback: _isletmeVknFallback(),
+      isletmeVknFallback: _invoiceVknFallback(invoice),
       sistemHesapAdi: sistemAyarlari?.hesapAdi,
       sistemIban: sistemAyarlari?.iban,
     );
@@ -642,7 +651,7 @@ class BatchFaturaProvider extends ChangeNotifier {
       satirLimit: _matbuProvider.satirLimit,
       nakliYekunUstMetin: _matbuProvider.nakliYekunUstMetin,
       nakliYekunAltMetin: _matbuProvider.nakliYekunAltMetin,
-      isletmeVknFallback: _isletmeVknFallback(),
+      isletmeVknFallback: _invoiceVknFallback(invoice),
       sistemHesapAdi: sistemAyarlari?.hesapAdi,
       sistemIban: sistemAyarlari?.iban,
     );

@@ -89,11 +89,12 @@ XYZ A.Ş.;9876543210;12000,00;2400,00
       final tomer = BirimModel.varsayilanBirimler.firstWhere((b) => b.kisaAd == 'TÖMER');
       expect(tomer.iban, 'TR040001001758672359525003');
       expect(tomer.vkn, '8960466329');
-      expect(tomer.hesapAdi, 'Kurum Tek İdare Tahsilat Alt Hesabı /Türkçe Öğrenimi DSİ');
+      expect(tomer.hesapAdi, 'Türkçe Öğrenimi DSİ');
 
-      final adum = BirimModel.varsayilanBirimler.firstWhere((b) => b.kisaAd == 'ADUM');
+      final adum = BirimModel.varsayilanBirimler.firstWhere((b) => b.kisaAd == 'ADUM' || b.kisaAd == 'Diş Hekimliği');
       expect(adum.iban, 'TR880001001758890982805002');
       expect(adum.vkn, '8960475707');
+      expect(adum.hesapAdi, 'Ağız ve Diş Sağlığı DSİ');
     });
   });
 }

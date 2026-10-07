@@ -96,7 +96,7 @@ class BirimModel {
       ad: 'Türkçe Öğretimi Uygulama ve Araştırma Merkezi (TÖMER)',
       kisaAd: 'TÖMER',
       tur: BirimTuru.merkez,
-      hesapAdi: 'Kurum Tek İdare Tahsilat Alt Hesabı /Türkçe Öğrenimi DSİ',
+      hesapAdi: 'Türkçe Öğrenimi DSİ',
       iban: 'TR040001001758672359525003',
       vkn: '8960466329',
       aktif: true,
@@ -106,7 +106,7 @@ class BirimModel {
       ad: 'Ağız ve Diş Sağlığı Uygulama ve Araştırma Merkezi',
       kisaAd: 'Diş Hekimliği',
       tur: BirimTuru.merkez,
-      hesapAdi: 'Kurum Tek İdare Tahsilat Alt Hesabı /Ağız ve Diş Sağlığı DSİ',
+      hesapAdi: 'Ağız ve Diş Sağlığı DSİ',
       iban: 'TR880001001758890982805002',
       vkn: '8960475707',
       aktif: true,
@@ -116,7 +116,7 @@ class BirimModel {
       ad: 'Bilimsel Analiz ve Teknolojik Uygulama ve Araştırma Merkezi (UBATAM)',
       kisaAd: 'UBATAM',
       tur: BirimTuru.merkez,
-      hesapAdi: 'Kurum Tek İdare Tahsilat Alt Hesabı /Bilimsel Analiz ve Teknolojik DSİ',
+      hesapAdi: 'Bilimsel Analiz ve Teknolojik DSİ',
       iban: 'TR290001001758672359025003',
       vkn: '8960466311',
       aktif: true,
@@ -126,7 +126,7 @@ class BirimModel {
       ad: 'Sürekli Eğitim Uygulama ve Araştırma Merkezi (USEM)',
       kisaAd: 'USEM',
       tur: BirimTuru.merkez,
-      hesapAdi: 'Kurum Tek İdare Tahsilat Alt Hesabı /Sürekli Eğitim DSİ',
+      hesapAdi: 'Sürekli Eğitim DSİ',
       iban: 'TR500001001758672355695003',
       vkn: '8960466257',
       aktif: true,
@@ -136,7 +136,7 @@ class BirimModel {
       ad: 'Deri, Tekstil ve Seramik Tasarım Uygulama ve Araştırma Merkezi (DTS)',
       kisaAd: 'DTS',
       tur: BirimTuru.merkez,
-      hesapAdi: 'Kurum Tek İdare Tahsilat Alt Hesabı /Deri, Tekstil ve Seramik DSİ',
+      hesapAdi: 'Deri, Tekstil ve Seramik DSİ',
       iban: 'TR090001001758975714095007',
       vkn: '2931062663',
       aktif: true,
@@ -146,7 +146,7 @@ class BirimModel {
       ad: 'Tarımsal ve Doğa Araştırmaları Uygulama ve Araştırma Merkezi (TADAUM)',
       kisaAd: 'TADAUM',
       tur: BirimTuru.merkez,
-      hesapAdi: 'Kurum Tek İdare Tahsilat Alt Hesabı /Tarımsal ve Doğa Araştırmaları DSİ',
+      hesapAdi: 'Tarımsal ve Doğa Araştırmaları DSİ',
       iban: 'TR190001001758982110835002',
       vkn: '8240526649',
       aktif: true,
@@ -156,7 +156,7 @@ class BirimModel {
       ad: 'Döner Sermaye İşletme Müdürlüğü (DÖSİM)',
       kisaAd: 'DÖSİM',
       tur: BirimTuru.merkez,
-      hesapAdi: 'Kurum Tek İdare Tahsilat Alt Hesabı /DÖSİM',
+      hesapAdi: 'DÖSİM',
       iban: 'TR850001001758517844115013',
       vkn: '8960453664',
       aktif: true,
@@ -243,5 +243,19 @@ class BirimAdlandirma {
       case 'uzem': return 'UZEM';
       default: return input?.trim() ?? '';
     }
+  }
+
+  /// "Kurum Tek İdare Tahsilat Alt Hesabı /" gibi ön ekleri temizler ve sadece resmi hesap adını döndürür.
+  static String temizleHesapAdi(String? input) {
+    if (input == null || input.trim().isEmpty) return '';
+    var s = input.trim();
+    s = s.replaceAll(
+      RegExp(r'Kurum\s+Tek\s+İdare\s+Tahsilat\s+Alt\s+Hesab[ıi]\s*/?\s*', caseSensitive: false),
+      '',
+    ).trim();
+    if (s.startsWith('/')) {
+      s = s.substring(1).trim();
+    }
+    return s;
   }
 }

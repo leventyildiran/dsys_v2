@@ -50,28 +50,35 @@ class BirimService {
   List<BirimModel> _mergeAndDeduplicate(List<BirimModel> fromDb) {
     final Map<String, BirimModel> canonicalMap = {};
 
-    // 1. DB'deki birimleri ekle
+    // 1. DB'deki birimleri ekle (hesap adını temizle)
     for (final b in fromDb) {
       final rawName = b.ad.isNotEmpty ? b.ad : b.kisaAd;
       final key = BirimAdlandirma.canonicalKey(rawName);
       final stdAd = BirimAdlandirma.tamAdGetir(rawName);
       final stdKisaAd = BirimAdlandirma.kisaAdGetir(b.kisaAd.isNotEmpty ? b.kisaAd : rawName);
-      canonicalMap[key] = b.copyWith(ad: stdAd, kisaAd: stdKisaAd);
+      final temizHesap = BirimAdlandirma.temizleHesapAdi(b.hesapAdi);
+      canonicalMap[key] = b.copyWith(
+        ad: stdAd,
+        kisaAd: stdKisaAd,
+        hesapAdi: temizHesap.isNotEmpty ? temizHesap : b.hesapAdi,
+      );
     }
 
-    // 2. Varsayılan resmi birimleri eksikse ekle, varsa resmi tam ad ve eksik alanları birleştir
+    // 2. Varsayılan resmi birimleri eksikse ekle, varsa resmi tam ad, resmi VKN, resmi IBAN ve temiz hesap adını birleştir
     for (final def in BirimModel.varsayilanBirimler) {
       final key = BirimAdlandirma.canonicalKey(def.ad);
       if (!canonicalMap.containsKey(key)) {
         canonicalMap[key] = def;
       } else {
         final existing = canonicalMap[key]!;
+        final cleanedExistingHesap = BirimAdlandirma.temizleHesapAdi(existing.hesapAdi);
         canonicalMap[key] = existing.copyWith(
           ad: def.ad, // Daima resmi tam adı koru
           kisaAd: def.kisaAd,
-          iban: (existing.iban != null && existing.iban!.isNotEmpty) ? existing.iban : def.iban,
-          vkn: (existing.vkn != null && existing.vkn!.isNotEmpty) ? existing.vkn : def.vkn,
-          hesapAdi: (existing.hesapAdi != null && existing.hesapAdi!.isNotEmpty) ? existing.hesapAdi : def.hesapAdi,
+          iban: (def.iban != null && def.iban!.isNotEmpty) ? def.iban : existing.iban,
+          // Resmi bilinen birimler için resmi VKN'yi kilitli tut
+          vkn: (def.vkn != null && def.vkn!.isNotEmpty) ? def.vkn : existing.vkn,
+          hesapAdi: cleanedExistingHesap.isNotEmpty ? cleanedExistingHesap : def.hesapAdi,
         );
       }
     }

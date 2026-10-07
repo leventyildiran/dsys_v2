@@ -162,14 +162,58 @@ class FaturaMatbuConfig {
     };
   }
 
-  /// Uşak Üniversitesi Döner Sermaye işletme VKN (birim hesap adında yoksa kullanılır).
-  static const String varsayilanIsletmeVkn = '2931062663';
+  /// Uşak Üniversitesi Döner Sermaye işletme VKN (DÖSİM genel işletme VKN'si).
+  static const String varsayilanIsletmeVkn = '8960453664';
 
-  /// Matbu faturada işletme hesabı: birim adı üst satır, işletme VKN alt satır.
+  /// Birim adına göre resmi VKN tespiti
+  static String? birimAdindanVknBul(String text) {
+    final s = text.toLowerCase();
+    if (s.contains('sürekli') || s.contains('usem')) return '8960466257';
+    if (s.contains('diş') || s.contains('dis') || s.contains('ağız')) return '8960475707';
+    if (s.contains('türkçe') || s.contains('turkce') || s.contains('tömer') || s.contains('tomer')) return '8960466329';
+    if (s.contains('bilimsel') || s.contains('ubatam')) return '8960466311';
+    if (s.contains('deri') || s.contains('tekstil') || s.contains('seramik') || s.contains('dts')) return '2931062663';
+    if (s.contains('tarım') || s.contains('tarim') || s.contains('tadaum')) return '8240526649';
+    if (s.contains('dösim') || s.contains('dosim') || s.contains('döner')) return '8960453664';
+    return null;
+  }
+
+  /// Sürekli Eğitim DSİ ve alt tahsilat hesapları için potansiyel VKN kontrolü
+  static bool _isPotansiyelVkn(String text) {
+    final s = text.toLowerCase();
+    return s.contains('sürekli') || s.contains('usem');
+  }
+
+  /// Matbu faturada işletme hesabı: birim adı üst satır, işletme/potansiyel VKN alt satır.
   /// [fallbackVkn] verilir ve metinde VKN yoksa alt satır otomatik eklenir.
   static String formatHesapAdiMatbu(String raw, {String? fallbackVkn}) {
-    final trimmed = raw.replaceAll('\r\n', '\n').trim();
+    var trimmed = raw.replaceAll('\r\n', '\n').trim();
     if (trimmed.isEmpty) return trimmed;
+
+    // "Kurum Tek İdare Tahsilat Alt Hesabı" ön ekini her halükarda temizle
+    trimmed = trimmed.replaceAll(
+      RegExp(r'Kurum\s+Tek\s+İdare\s+Tahsilat\s+Alt\s+Hesab[ıi]\s*/?\s*', caseSensitive: false),
+      '',
+    ).trim();
+    if (trimmed.startsWith('/')) {
+      trimmed = trimmed.substring(1).trim();
+    }
+    if (trimmed.isEmpty) return trimmed;
+
+    final isPotansiyel = _isPotansiyelVkn(trimmed);
+    final knownBirimVkn = birimAdindanVknBul(trimmed);
+
+    // Eğer eski hatalı DTS VKN'si (2931062663) kalmışsa ve bu birim DTS değilse doğru VKN ile güncelle
+    final isDts = trimmed.toLowerCase().contains('deri') ||
+        trimmed.toLowerCase().contains('tekstil') ||
+        trimmed.toLowerCase().contains('seramik') ||
+        trimmed.toLowerCase().contains('dts');
+    if (!isDts && trimmed.contains('2931062663')) {
+      final correctVkn = (fallbackVkn != null && fallbackVkn.trim().isNotEmpty)
+          ? fallbackVkn.trim()
+          : (knownBirimVkn ?? varsayilanIsletmeVkn);
+      trimmed = trimmed.replaceAll('2931062663', correctVkn);
+    }
 
     final lines = trimmed
         .split('\n')
@@ -180,7 +224,7 @@ class FaturaMatbuConfig {
     String result;
 
     if (lines.length >= 2) {
-      final vknSatir = _normalizeVknSatir(lines.sublist(1).join(' '));
+      final vknSatir = _normalizeVknSatir(lines.sublist(1).join(' '), potansiyel: isPotansiyel);
       if (vknSatir != null) {
         result = '${lines.first}\n$vknSatir';
       } else {
@@ -188,7 +232,7 @@ class FaturaMatbuConfig {
       }
     } else {
       final vknBlok = RegExp(
-        r'\s*\(VKN\s*:.*\)\s*$',
+        r'\s*\((Potansiyel\s+)?VKN\s*:.*\)\s*$',
         caseSensitive: false,
       ).firstMatch(trimmed);
       if (vknBlok != null) {
@@ -201,24 +245,30 @@ class FaturaMatbuConfig {
     }
 
     if (!_metindeVknVar(result)) {
-      final vkn = (fallbackVkn ?? varsayilanIsletmeVkn).trim();
+      final vkn = (fallbackVkn != null && fallbackVkn.trim().isNotEmpty)
+          ? fallbackVkn.trim()
+          : (knownBirimVkn ?? varsayilanIsletmeVkn);
       if (vkn.isNotEmpty) {
         final ad = _hesapAdiSadeceAd(result);
-        if (ad.isNotEmpty) return '$ad\n(VKN:$vkn)';
+        final prefix = (isPotansiyel || _isPotansiyelVkn(ad)) ? 'Potansiyel VKN:' : 'VKN:';
+        if (ad.isNotEmpty) return '$ad\n($prefix$vkn)';
       }
+    } else if (isPotansiyel && !result.toLowerCase().contains('potansiyel')) {
+      // Sürekli Eğitim DSİ için mevcut VKN varsa "Potansiyel VKN:" etiketine dönüştür
+      result = result.replaceAll(RegExp(r'\(VKN\s*:', caseSensitive: false), '(Potansiyel VKN:');
     }
 
     return result;
   }
 
   static bool _metindeVknVar(String text) {
-    return RegExp(r'\(VKN\s*:', caseSensitive: false).hasMatch(text) ||
-        RegExp(r'(?<!\()VKN\s*:', caseSensitive: false).hasMatch(text);
+    return RegExp(r'\((Potansiyel\s+)?VKN\s*:', caseSensitive: false).hasMatch(text) ||
+        RegExp(r'(?<!\()(Potansiyel\s+)?VKN\s*:', caseSensitive: false).hasMatch(text);
   }
 
   static String _hesapAdiSadeceAd(String text) {
     final vknBlok = RegExp(
-      r'\s*\(VKN\s*:.*\)\s*$',
+      r'\s*\((Potansiyel\s+)?VKN\s*:.*\)\s*$',
       caseSensitive: false,
     ).firstMatch(text);
     if (vknBlok != null) {
@@ -227,14 +277,15 @@ class FaturaMatbuConfig {
     return text.split('\n').first.trim();
   }
 
-  static String? _normalizeVknSatir(String line) {
+  static String? _normalizeVknSatir(String line, {bool potansiyel = false}) {
     final t = line.trim();
     if (t.isEmpty) return null;
-    if (RegExp(r'^\(VKN\s*:', caseSensitive: false).hasMatch(t)) return t;
-    if (RegExp(r'^VKN\s*:', caseSensitive: false).hasMatch(t)) return '($t)';
+    if (RegExp(r'^\((Potansiyel\s+)?VKN\s*:', caseSensitive: false).hasMatch(t)) return t;
+    if (RegExp(r'^(Potansiyel\s+)?VKN\s*:', caseSensitive: false).hasMatch(t)) return '($t)';
     final digits = t.replaceAll(RegExp(r'\D'), '');
     if (digits.length == 10 || digits.length == 11) {
-      return '(VKN:$digits)';
+      final prefix = potansiyel ? 'Potansiyel VKN:' : 'VKN:';
+      return '($prefix$digits)';
     }
     return null;
   }

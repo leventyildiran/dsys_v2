@@ -97,6 +97,12 @@ class FaturaKuyrukProvider extends ChangeNotifier {
         return;
       }
 
+      for (final inv in invoices) {
+        if (inv.hesapAdi != null && inv.hesapAdi!.isNotEmpty) {
+          inv.hesapAdi = FaturaMatbuConfig.formatHesapAdiMatbu(inv.hesapAdi!);
+        }
+      }
+
       pendingInvoices = invoices;
       currentIndex = (data['currentIndex'] as int?) ?? 0;
       if (currentIndex >= pendingInvoices.length) currentIndex = 0;
@@ -616,7 +622,7 @@ class FaturaKuyrukProvider extends ChangeNotifier {
     if (raw == null || raw.trim().isEmpty) return null;
     return FaturaMatbuConfig.formatHesapAdiMatbu(
       raw,
-      fallbackVkn: isletmeVkn,
+      fallbackVkn: isletmeVkn.trim().isNotEmpty ? isletmeVkn.trim() : null,
     );
   }
 
@@ -624,15 +630,18 @@ class FaturaKuyrukProvider extends ChangeNotifier {
     final birim = findBirim(birimIdOrAd);
     if (birim == null) return;
     final invoice = pendingInvoices[invoiceIndex];
-    _applyBirimModelToInvoice(invoice, birim, '', isInitialSelect: true);
+    _applyBirimModelToInvoice(invoice, birim, birim.vkn ?? '', isInitialSelect: true);
     _queueChanged();
   }
 
   void _applyBirimModelToInvoice(
       FaturaModel invoice, BirimModel birim, String isletmeVkn,
       {bool isInitialSelect = false}) {
+    final effectiveVkn = (birim.vkn != null && birim.vkn!.trim().isNotEmpty)
+        ? birim.vkn!.trim()
+        : isletmeVkn.trim();
     invoice.iban = birim.iban;
-    invoice.hesapAdi = _formatHesapAdi(birim.hesapAdi, isletmeVkn);
+    invoice.hesapAdi = _formatHesapAdi(birim.hesapAdi, effectiveVkn);
     final birimEtiket = birim.kisaAd.isNotEmpty ? birim.kisaAd : birim.ad;
     for (var i = 0; i < invoice.kalemler.length; i++) {
       invoice.kalemler[i] = {...invoice.kalemler[i], 'birimAdi': birimEtiket};
@@ -643,10 +652,9 @@ class FaturaKuyrukProvider extends ChangeNotifier {
     if (_birimlerById.isEmpty || pendingInvoices.isEmpty) return;
     for (var i = 0; i < pendingInvoices.length; i++) {
       final invoice = pendingInvoices[i];
-      final birimId = seciliBirimByFaturaId[invoice.id];
-      final birim = birimId == null ? null : _birimlerById[birimId];
+      final birim = _invoiceBirim(invoice);
       if (birim == null) continue;
-      _applyBirimModelToInvoice(invoice, birim, '');
+      _applyBirimModelToInvoice(invoice, birim, birim.vkn ?? '');
     }
     if (scheduleSave) _scheduleKuyrukKaydet();
   }
@@ -675,7 +683,7 @@ class FaturaKuyrukProvider extends ChangeNotifier {
       invoice.iban = birim.iban;
     }
     if (birim.hesapAdi != null && birim.hesapAdi!.isNotEmpty) {
-      invoice.hesapAdi = _formatHesapAdi(birim.hesapAdi, '');
+      invoice.hesapAdi = _formatHesapAdi(birim.hesapAdi, birim.vkn ?? '');
     }
   }
 
