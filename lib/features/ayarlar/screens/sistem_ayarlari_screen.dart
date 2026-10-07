@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/models/sistem_ayarlari_model.dart';
 import '../../../core/services/sistem_ayarlari_service.dart';
 import '../../admin/screens/admin_dashboard_screen.dart';
 import '../../beyanname/screens/beyanname_konfigurasyon_screen.dart';
 import '../../birim/screens/birim_yonetim_screen.dart';
+import '../../fatura/providers/batch_fatura_provider.dart';
 import 'sablon_yonetim_screen.dart';
 
 class SistemAyarlariScreen extends StatefulWidget {
@@ -26,6 +28,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
   late TextEditingController _ebysDomainController;
   late TextEditingController _hesapAdiController;
   late TextEditingController _ibanController;
+  late TextEditingController _isletmeVknController;
   late TextEditingController _geminiKeyController;
   late TextEditingController _geminiModelController;
   late TextEditingController _visionKeyController;
@@ -33,7 +36,6 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
   late TextEditingController _deepseekKeyController;
   late TextEditingController _deepseekModelController;
   List<YkUyeModel> _kurulUyeleri = [];
-  String _isletmeVkn = '';
   bool _geminiKeyGizli = true;
   bool _visionKeyGizli = true;
   bool _deepseekKeyGizli = true;
@@ -48,6 +50,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
     _ebysDomainController = TextEditingController();
     _hesapAdiController = TextEditingController();
     _ibanController = TextEditingController();
+    _isletmeVknController = TextEditingController();
     _geminiKeyController = TextEditingController();
     _geminiModelController = TextEditingController();
     _visionKeyController = TextEditingController();
@@ -65,13 +68,13 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
       _ebysDomainController.text = ayarlar.ebysDomain;
       _hesapAdiController.text = ayarlar.hesapAdi;
       _ibanController.text = ayarlar.iban;
+      _isletmeVknController.text = ayarlar.isletmeVkn.isNotEmpty ? ayarlar.isletmeVkn : '8960453664';
       _geminiKeyController.text = ayarlar.geminiApiKey;
       _geminiModelController.text = ayarlar.geminiModel.isNotEmpty ? ayarlar.geminiModel : 'gemini-3.6-flash';
       _visionKeyController.text = ayarlar.visionApiKey;
       _deepseekUrlController.text = ayarlar.deepseekApiUrl;
       _deepseekKeyController.text = ayarlar.deepseekApiKey;
       _deepseekModelController.text = ayarlar.deepseekModel;
-      _isletmeVkn = ayarlar.isletmeVkn;
       _kurulUyeleri = List.from(ayarlar.kurulUyeleri);
       _unvanControllers = ayarlar.unvanKatsayilari.entries.map((e) => {
         'unvan': TextEditingController(text: e.key),
@@ -90,7 +93,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
         kurumAdi: _kurumAdiController.text.trim(),
         hesapAdi: _hesapAdiController.text.trim(),
         iban: _ibanController.text.trim(),
-        isletmeVkn: _isletmeVkn,
+        isletmeVkn: _isletmeVknController.text.trim(),
         varsayilanKdvOrani: double.tryParse(_varsayilanKdvController.text.replaceAll(',', '.')) ?? 20.0,
         ebysDomain: _ebysDomainController.text.trim(),
         geminiApiKey: _geminiKeyController.text.trim(),
@@ -110,6 +113,9 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
       );
       await _service.saveAyarlar(ayarlar);
       if (mounted) {
+        try {
+          context.read<BatchFaturaProvider>().refreshSistemAyarlari();
+        } catch (_) {}
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Ayarlar başarıyla kaydedildi!'), backgroundColor: Colors.green),
         );
@@ -132,6 +138,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
     _ebysDomainController.dispose();
     _hesapAdiController.dispose();
     _ibanController.dispose();
+    _isletmeVknController.dispose();
     _geminiKeyController.dispose();
     _geminiModelController.dispose();
     _visionKeyController.dispose();
@@ -367,6 +374,18 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
           border: OutlineInputBorder(),
           prefixIcon: Icon(Icons.credit_card_outlined),
         ),
+      ),
+      const SizedBox(height: 20),
+      TextFormField(
+        controller: _isletmeVknController,
+        decoration: const InputDecoration(
+          labelText: 'Döner Sermaye İşletme Vergi Kimlik No (VKN)',
+          hintText: 'Örn: 8960453664',
+          helperText: 'Birim bazlı özel VKN tanımlanmamış faturalarda kullanılan merkezi işletme VKN.',
+          border: OutlineInputBorder(),
+          prefixIcon: Icon(Icons.numbers_outlined),
+        ),
+        keyboardType: TextInputType.number,
       ),
     ];
   }

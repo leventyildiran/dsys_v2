@@ -72,12 +72,14 @@ class BirimService {
       } else {
         final existing = canonicalMap[key]!;
         final cleanedExistingHesap = BirimAdlandirma.temizleHesapAdi(existing.hesapAdi);
+        final userVkn = existing.vkn?.trim();
+        final userIban = existing.iban?.trim();
         canonicalMap[key] = existing.copyWith(
           ad: def.ad, // Daima resmi tam adı koru
           kisaAd: def.kisaAd,
-          iban: (def.iban != null && def.iban!.isNotEmpty) ? def.iban : existing.iban,
-          // Resmi bilinen birimler için resmi VKN'yi kilitli tut
-          vkn: (def.vkn != null && def.vkn!.isNotEmpty) ? def.vkn : existing.vkn,
+          iban: (userIban != null && userIban.isNotEmpty) ? userIban : def.iban,
+          // Kullanıcının Sistem Ayarları / Birim Yönetiminde girdiği VKN varsa onu al, boşsa resmi varsayılanı kullan
+          vkn: (userVkn != null && userVkn.isNotEmpty) ? userVkn : def.vkn,
           hesapAdi: cleanedExistingHesap.isNotEmpty ? cleanedExistingHesap : def.hesapAdi,
         );
       }

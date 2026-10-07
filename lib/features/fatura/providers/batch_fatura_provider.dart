@@ -487,6 +487,13 @@ class BatchFaturaProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Sistem Ayarları güncellendiğinde fatura sağlayıcısını yeniler.
+  Future<void> refreshSistemAyarlari() async {
+    await _loadSistemAyarlari();
+    await _kuyrukProvider.refreshBirimler();
+    notifyListeners();
+  }
+
   String _isletmeVknFallback() {
     final vkn = sistemAyarlari?.isletmeVkn.trim() ?? '';
     return vkn.isNotEmpty ? vkn : FaturaMatbuConfig.varsayilanIsletmeVkn;
