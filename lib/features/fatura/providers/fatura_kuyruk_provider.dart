@@ -15,6 +15,8 @@ import '../models/fatura_onay_sonucu.dart';
 import '../models/fatura_parse_kaynaklari.dart';
 import '../models/fatura_prefs_keys.dart';
 import '../services/fatura_service.dart';
+import '../../../core/models/firma_model.dart';
+import '../../../core/services/firma_service.dart';
 
 /// Kuyruk (pending invoices) yönetimi + fatura CRUD + birim işlemleri.
 ///
@@ -245,6 +247,23 @@ class FaturaKuyrukProvider extends ChangeNotifier {
       _validateInvoice(invoice);
     }
     await _faturaService.saveFatura(invoice);
+    final fAdi = invoice.firmaAdi.trim();
+    if (fAdi.isNotEmpty) {
+      unawaited(
+        FirmaService().kaydetVeyaGuncelle(
+          FirmaModel(
+            id: '',
+            firmaAdi: fAdi,
+            adres: invoice.adres.trim(),
+            vergiDairesi: invoice.vergiDairesi.trim(),
+            vergiNo: invoice.vergiNo.trim(),
+          ),
+        ).catchError((e) {
+          debugPrint('Firma oto-kayıt hatası: $e');
+          return false;
+        }),
+      );
+    }
     final removedId = invoice.id;
     pendingInvoices.removeAt(index);
     seciliBirimByFaturaId.remove(removedId);
@@ -282,6 +301,22 @@ class FaturaKuyrukProvider extends ChangeNotifier {
 
     if (kaydedilecekler.isNotEmpty) {
       await _faturaService.saveBatchFaturalar(kaydedilecekler);
+      for (final inv in kaydedilecekler) {
+        final fAdi = inv.firmaAdi.trim();
+        if (fAdi.isNotEmpty) {
+          unawaited(
+            FirmaService().kaydetVeyaGuncelle(
+              FirmaModel(
+                id: '',
+                firmaAdi: fAdi,
+                adres: inv.adres.trim(),
+                vergiDairesi: inv.vergiDairesi.trim(),
+                vergiNo: inv.vergiNo.trim(),
+              ),
+            ).catchError((_) => false),
+          );
+        }
+      }
       final kaydedilenIdler = kaydedilecekler.map((e) => e.id).toSet();
       pendingInvoices.removeWhere((inv) {
         if (kaydedilenIdler.contains(inv.id)) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/turkce_format.dart';
 import '../../../core/models/firma_model.dart';
+import '../../../core/services/firma_service.dart';
 import '../../../core/models/hizmet_model.dart';
 import '../models/fatura_model.dart';
 import '../models/fatura_parse_kaynaklari.dart';
@@ -218,6 +219,16 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
               icon: const Icon(Icons.business, size: 18),
               label: const Text('Kayıtlı Firma'),
               onPressed: () => _showFirmaSecici(context, provider, index),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+              label: const Text('Firmayı Kaydet'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.teal.shade800,
+                side: BorderSide(color: Colors.teal.shade300),
+              ),
+              onPressed: () => _kaydetFirmayiRehbere(context, invoice),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -1011,9 +1022,15 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
     BatchFaturaProvider provider,
     int index,
   ) async {
+    final inv = provider.pendingInvoices[index];
     final firma = await showDialog<FirmaModel>(
       context: context,
-      builder: (_) => const FirmaSeciciDialog(),
+      builder: (_) => FirmaSeciciDialog(
+        initialFirmaAdi: inv.firmaAdi,
+        initialAdres: inv.adres,
+        initialVergiDairesi: inv.vergiDairesi,
+        initialVergiNo: inv.vergiNo,
+      ),
     );
     if (firma == null) return;
     provider.updateField(index, 'firmaAdi', firma.firmaAdi);
@@ -1021,6 +1038,57 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
     provider.updateField(index, 'vergiDairesi', firma.vergiDairesi);
     provider.updateField(index, 'vergiNo', firma.vergiNo);
     provider.notifyDialogReturn();
+  }
+
+  Future<void> _kaydetFirmayiRehbere(
+    BuildContext context,
+    FaturaModel invoice,
+  ) async {
+    final firmaAdi = invoice.firmaAdi.trim();
+    if (firmaAdi.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Firma adı boş olduğundan rehbere kaydedilemez.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final firmaService = FirmaService();
+      final yeniMi = await firmaService.kaydetVeyaGuncelle(
+        FirmaModel(
+          id: '',
+          firmaAdi: firmaAdi,
+          adres: invoice.adres.trim(),
+          vergiDairesi: invoice.vergiDairesi.trim(),
+          vergiNo: invoice.vergiNo.trim(),
+        ),
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              yeniMi
+                  ? '✓ "$firmaAdi" kayıtlı firmalar rehberine eklendi.'
+                  : '✓ "$firmaAdi" rehberde güncellendi / zaten mevcut.',
+            ),
+            backgroundColor: Colors.green.shade700,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Rehbere kaydedilirken hata: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _showHizmetSecici(

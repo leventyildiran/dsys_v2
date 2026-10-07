@@ -3,7 +3,18 @@ import '../../../core/models/firma_model.dart';
 import '../../../core/services/firma_service.dart';
 
 class FirmaSeciciDialog extends StatefulWidget {
-  const FirmaSeciciDialog({super.key});
+  const FirmaSeciciDialog({
+    super.key,
+    this.initialFirmaAdi,
+    this.initialAdres,
+    this.initialVergiDairesi,
+    this.initialVergiNo,
+  });
+
+  final String? initialFirmaAdi;
+  final String? initialAdres;
+  final String? initialVergiDairesi;
+  final String? initialVergiNo;
 
   @override
   State<FirmaSeciciDialog> createState() => _FirmaSeciciDialogState();
@@ -64,11 +75,20 @@ class _FirmaSeciciDialogState extends State<FirmaSeciciDialog> {
     final duzenleme = firma != null;
     final formKey = GlobalKey<FormState>();
     final adController = TextEditingController(
-      text: firma?.firmaAdi ?? _searchQuery,
+      text: firma?.firmaAdi ??
+          (_searchQuery.isNotEmpty
+              ? _searchQuery
+              : (widget.initialFirmaAdi ?? '')),
     );
-    final adresController = TextEditingController(text: firma?.adres ?? '');
-    final vdController = TextEditingController(text: firma?.vergiDairesi ?? '');
-    final vknController = TextEditingController(text: firma?.vergiNo ?? '');
+    final adresController = TextEditingController(
+      text: firma?.adres ?? (widget.initialAdres ?? ''),
+    );
+    final vdController = TextEditingController(
+      text: firma?.vergiDairesi ?? (widget.initialVergiDairesi ?? ''),
+    );
+    final vknController = TextEditingController(
+      text: firma?.vergiNo ?? (widget.initialVergiNo ?? ''),
+    );
 
     showDialog(
       context: context,
@@ -134,14 +154,15 @@ class _FirmaSeciciDialogState extends State<FirmaSeciciDialog> {
                 if (!dialogCtx.mounted) return;
                 Navigator.pop(dialogCtx);
                 if (!mounted) return;
+                if (!duzenleme) {
+                  // Yeni kaydedilen firmayı doğrudan seç ve dön
+                  Navigator.pop(context, kayit);
+                  return;
+                }
                 _loadFirmalar(forceRefresh: true);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      duzenleme
-                          ? 'Firma bilgileri güncellendi.'
-                          : 'Yeni firma kaydedildi.',
-                    ),
+                  const SnackBar(
+                    content: Text('Firma bilgileri güncellendi.'),
                     backgroundColor: Colors.green,
                   ),
                 );

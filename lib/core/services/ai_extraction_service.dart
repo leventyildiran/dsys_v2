@@ -149,6 +149,7 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
   {
     "id": "Rastgele benzersiz bir ID (1, 2, 3 gibi)",
     "firmaAdi": "Müşterinin / Firmanın tam adı",
+    "adres": "Müşterinin / Firmanın tam adresi (Varsa Mahalle, Cadde, Sokak, No, İlçe/İl eksiksiz)",
     "vergiDairesi": "Vergi Dairesi",
     "vergiNo": "Vergi veya TC No",
     "tarih": "Fatura veya İşlem Tarihi (DD.MM.YYYY vb. formatta)",
@@ -196,6 +197,7 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
    - Metinde "Danışmanlık", "Proje", "Rapor" geçiyorsa: DANIŞMANLIK
    - Metinde "Tasarım", "Tekstil", "Kumaş", "Deri" geçiyorsa: TEKSTİL_TASARIM
    - Hiçbiri değilse: DİĞER
+8. "adres", "vergiDairesi" ve "vergiNo" alanlarını belgede yer alan müşteri/alıcı bilgilerinden eksiksiz çek. Açık adres (mahalle, cadde, sokak, no, ilçe, il vb.) varsa tek parça string olarak "adres" alanına yaz; bulunamazsa "" bırak.
 
 Ham Fatura Metni:
 $rawText

@@ -52,4 +52,61 @@ class FirmaService {
     await _firmalarRef.doc(id).delete();
     _invalidateCache();
   }
+
+  /// Firmanın kayıtlı olup olmadığını VKN veya tam ada göre kontrol eder.
+  Future<FirmaModel?> firmaBul({required String firmaAdi, String? vergiNo}) async {
+    final firmalar = await getAllFirmalar();
+    final vClean = (vergiNo ?? '').replaceAll(RegExp(r'\s+'), '');
+    final fClean = firmaAdi.trim().toLowerCase();
+
+    for (final f in firmalar) {
+      final fVClean = f.vergiNo.replaceAll(RegExp(r'\s+'), '');
+      if (vClean.length >= 10 && fVClean.length >= 10 && fVClean == vClean) {
+        return f;
+      }
+      if (fClean.isNotEmpty && f.firmaAdi.trim().toLowerCase() == fClean) {
+        return f;
+      }
+    }
+    return null;
+  }
+
+  /// Firma sistemde kayıtlı mı?
+  Future<bool> firmaMevcutMu({required String firmaAdi, String? vergiNo}) async {
+    return (await firmaBul(firmaAdi: firmaAdi, vergiNo: vergiNo)) != null;
+  }
+
+  /// Firmayı ekler veya mevcutsa eksik alanlarını (adres, vergi dairesi) tamamlar.
+  Future<bool> kaydetVeyaGuncelle(FirmaModel yeniFirma) async {
+    final mevcut = await firmaBul(
+      firmaAdi: yeniFirma.firmaAdi,
+      vergiNo: yeniFirma.vergiNo,
+    );
+
+    if (mevcut == null) {
+      await addFirma(yeniFirma);
+      return true; // Yeni eklendi
+    }
+
+    // Mevcut firma varsa ama yeni veride adres/vd dolu olup eskide boşsa güncelle
+    bool degisti = false;
+    if (mevcut.adres.trim().isEmpty && yeniFirma.adres.trim().isNotEmpty) {
+      mevcut.adres = yeniFirma.adres.trim();
+      degisti = true;
+    }
+    if (mevcut.vergiDairesi.trim().isEmpty && yeniFirma.vergiDairesi.trim().isNotEmpty) {
+      mevcut.vergiDairesi = yeniFirma.vergiDairesi.trim();
+      degisti = true;
+    }
+    if (mevcut.vergiNo.trim().isEmpty && yeniFirma.vergiNo.trim().isNotEmpty) {
+      mevcut.vergiNo = yeniFirma.vergiNo.trim();
+      degisti = true;
+    }
+
+    if (degisti) {
+      await updateFirma(mevcut);
+    }
+    return false; // Zaten mevcuttu
+  }
 }
+

@@ -458,27 +458,52 @@ class FaturaOfflineParser {
   }
 
   static String _extractAdres(List<String> lines, String firmaAdi) {
+    // 1. "Adres:" veya "Adres -" içeren satırlar
     for (final line in lines) {
       final l = line.toLowerCase();
-      if (l.contains('adres') && l.contains(':')) {
-        final parts = line.split(':');
+      if (l.contains('adres') && (l.contains(':') || l.contains('-'))) {
+        final parts = line.split(RegExp(r'[:\-]'));
         if (parts.length > 1 && parts[1].trim().length > 3) {
           return parts.sublist(1).join(':').trim();
         }
       }
-      if (l.contains('mah.') ||
-          l.contains('mahallesi') ||
-          l.contains('cad.') ||
-          l.contains('caddesi') ||
-          l.contains('sok.') ||
-          l.contains('sokak') ||
-          l.contains('apt.') ||
-          l.contains('sitesi')) {
-        if (!_isMetadataLine(l) && line != firmaAdi) {
+    }
+
+    // 2. Adres anahtar kelimeleri içeren satırlar
+    final adresKeywords = [
+      'mah.', 'mahallesi', 'mah ', 'cad.', 'caddesi', 'cad ',
+      'sok.', 'sokak', 'sok ', 'sk.', 'sk ', 'bulvar', 'blv.',
+      'apt.', 'sitesi', 'organize sanayi', 'osb', 'sanayi bölgesi',
+      'küme evleri', 'mevkii', 'no:', 'kat:', 'daire:',
+    ];
+
+    for (final line in lines) {
+      final l = line.toLowerCase().trim();
+      if (line.trim() == firmaAdi.trim() || _isMetadataLine(l)) continue;
+      for (final kw in adresKeywords) {
+        if (l.contains(kw) && line.trim().length > 8) {
           return line.trim();
         }
       }
     }
+
+    // 3. Firma adından hemen sonraki satır (eğer metadata veya başlık değilse)
+    if (firmaAdi.isNotEmpty) {
+      final fIdx = lines.indexWhere(
+        (line) => line.trim() == firmaAdi.trim() || line.contains(firmaAdi.trim()),
+      );
+      if (fIdx != -1 && fIdx + 1 < lines.length) {
+        final nextLine = lines[fIdx + 1].trim();
+        final lNext = nextLine.toLowerCase();
+        if (!_isMetadataLine(lNext) &&
+            nextLine.length > 10 &&
+            !lNext.contains('fatura') &&
+            !lNext.contains('tarih')) {
+          return nextLine;
+        }
+      }
+    }
+
     return '';
   }
 
@@ -900,11 +925,24 @@ class FaturaOfflineParser {
           ? 'Numune analizi'
           : (firma.isNotEmpty ? 'Hizmet Bedeli' : 'Fatura Bedeli');
 
+      final blokSatirlari = blok.split('\n');
+      final adres = _extractAdres(blokSatirlari, firma);
+      final vdMatch = RegExp(
+        r'(?:vergi\s*dairesi|v\.d\.|vd)\s*[:\-]?\s*([a-zA-ZçğıöşüÇĞİÖŞÜ\s]+)',
+        caseSensitive: false,
+      ).firstMatch(blok);
+      final vergiDairesi = vdMatch?.group(1)?.split(RegExp(r'[\n\r,]')).first.trim() ?? '';
+      final vknMatch = RegExp(
+        r'(?:vergi\s*no|vkn|tc(?:\s*no)?)\s*[:\-]?\s*(\d{10,11})',
+        caseSensitive: false,
+      ).firstMatch(blok);
+      final vergiNo = vknMatch?.group(1)?.trim() ?? '';
+
       final fatura = _build(
         firmaAdi: firma,
-        adres: '',
-        vergiDairesi: '',
-        vergiNo: '',
+        adres: adres,
+        vergiDairesi: vergiDairesi,
+        vergiNo: vergiNo,
         tarih: _ilkTarih(blok),
         kalemler: kalemler.isEmpty
             ? [{'cinsi': defaultCinsi, 'miktar': 1, 'fiyat': toplam}]
