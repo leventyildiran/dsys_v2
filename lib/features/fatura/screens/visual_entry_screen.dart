@@ -577,6 +577,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
              provider.matbuFontBoyutu,
              maxWidth: 255,
              maxLines: 1,
+             fieldKey: ValueKey('editable_cinsi_$i'),
            ),
          ));
       }
@@ -595,6 +596,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
              maxWidth: 50,
              maxLines: 1,
              textAlign: TextAlign.center,
+             fieldKey: ValueKey('editable_miktar_$i'),
            ),
          ));
       }
@@ -613,6 +615,7 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
              maxWidth: 70,
              maxLines: 1,
              textAlign: TextAlign.right,
+             fieldKey: ValueKey('editable_fiyat_$i'),
            ),
          ));
       }
@@ -692,12 +695,13 @@ class _VisualEntryScreenState extends State<VisualEntryScreen> {
     int maxLines = 1,
     TextAlign textAlign = TextAlign.left,
     String? hint,
+    Key? fieldKey,
   }) {
     return _suruklenebilirAlan(
       provider: provider,
       alanKey: key,
       child: _MatbuEditableField(
-        key: ValueKey('editable_$key'),
+        key: fieldKey ?? ValueKey('editable_$key'),
         initialValue: initialValue,
         onChanged: onChanged,
         fontSize: fontSize,

@@ -687,10 +687,6 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
 
       final totalFiles = result.files.length;
       int basariliDosya = 0;
-      final baslangicAdet = provider.pendingInvoices
-          .where((f) => !BatchFaturaProvider.yerTutucuMu(f))
-          .length;
-          
       final List<String> errorMessages = [];
 
       for (var i = 0; i < totalFiles; i++) {
@@ -730,7 +726,7 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
         );
 
         final extension = (file.extension ?? '').toLowerCase();
-        final shouldAppend = baslangicAdet > 0 || basariliDosya > 0;
+        final shouldAppend = basariliDosya > 0;
 
         try {
           if (extension == 'xls' || extension == 'xlsx') {
@@ -753,7 +749,11 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       }
 
       if (!context.mounted) return;
-      setState(() => _expandedCards.add(0));
+      setState(() {
+        _expandedCards
+          ..clear()
+          ..add(0);
+      });
 
       final sonAdet = provider.pendingInvoices
           .where((f) => !BatchFaturaProvider.yerTutucuMu(f))

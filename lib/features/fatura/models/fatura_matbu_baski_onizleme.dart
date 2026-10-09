@@ -48,17 +48,7 @@ class KalibrasyonBaskiOnizleme {
     if (!canliVeri) {
       kalemlerHam = FaturaMatbuConfig.matbuKalemleri(invoice.kalemler);
     } else {
-      kalemlerHam = (invoice.kalemler.isNotEmpty)
-          ? invoice.kalemler
-          : <Map<String, dynamic>>[
-              {
-                'cinsi': invoice.numuneAciklamasi.trim().isNotEmpty
-                    ? invoice.numuneAciklamasi
-                    : 'Hizmet Bedeli',
-                'miktar': 1,
-                'fiyat': invoice.matrah,
-              },
-            ];
+      kalemlerHam = invoice.kalemler;
     }
     
     final satirLimitVal = 9999;

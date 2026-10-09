@@ -142,15 +142,6 @@ class FaturaPdfUretici {
 
       for (final invoice in invoices) {
         final kalemler = FaturaMatbuConfig.matbuKalemleri(invoice.kalemler);
-        if (kalemler.isEmpty) {
-          kalemler.add({
-            'cinsi': invoice.numuneAciklamasi.isNotEmpty
-                ? invoice.numuneAciklamasi
-                : 'Hizmet Bedeli',
-            'miktar': 1,
-            'fiyat': invoice.matrah,
-          });
-        }
 
         final List<List<Map<String, dynamic>>> pages = [];
         int currentItemIndex = 0;
