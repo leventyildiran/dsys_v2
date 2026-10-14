@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:http/http.dart' as http;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
+import '../../../core/models/sistem_ayarlari_model.dart';
 import '../../../core/services/sistem_ayarlari_service.dart';
 import '../../../core/turkce_format.dart';
 import '../../fatura/services/excel_universal_parser.dart';
@@ -98,19 +100,23 @@ class BeyannameAiAjanServisi {
   }
 
   /// Sıralı (Sequential Queue) Analiz Akışı:
-  /// Tek tek her birimi Gemini'ye okutur; o birim doğrulanana kadar sonrakine geçmez.
+  /// Tek tek her birimi OpenRouter veya Gemini'ye okutur; o birim doğrulanana kadar sonrakine geçmez.
   Stream<AjanLogMesaji> siraliAnalizBaslat({
     required int yil,
     required int ay,
     required Map<String, Map<BirimBelgeSlotTuru, BirimYuklenenBelge>> yuklenenBelgeler,
     required Map<String, double> birimOncekiAylarHasilat,
     required double oncekiAydanDevredenKdv,
+    String? sadeceBuBirim,
     required void Function(BeyannameAjanRaporu rapor) onTamamlandi,
     required void Function(String hataMesaji) onHata,
   }) async* {
     final ayarlar = await _ayarlarService.getAyarlar();
-    if (ayarlar.geminiApiKey.isEmpty) {
-      final msg = 'Gemini API Anahtarı Sistem Ayarlarında tanımlı değil!';
+    final hasGemini = ayarlar.geminiApiKey.trim().isNotEmpty;
+    final hasOpenRouter = ayarlar.deepseekApiKey.trim().isNotEmpty;
+
+    if (!hasGemini && !hasOpenRouter) {
+      final msg = 'Sistem Ayarlarında ne Gemini ne de OpenRouter/DeepSeek API anahtarı tanımlı değil! Lütfen Sistem Ayarlarından en az birini giriniz.';
       yield AjanLogMesaji(
         zaman: DateTime.now(),
         mesaj: '❌ HATA: $msg',
@@ -122,12 +128,26 @@ class BeyannameAiAjanServisi {
     }
 
     // Yalnızca en az 1 belgesi yüklenmiş aktif birimleri filtrele
-    final doluBirimler = yuklenenBelgeler.entries
+    List<String> doluBirimler = yuklenenBelgeler.entries
         .where((e) => e.value.isNotEmpty)
         .map((e) => e.key)
         .toList();
 
-    if (doluBirimler.isEmpty) {
+    if (sadeceBuBirim != null && sadeceBuBirim.trim().isNotEmpty) {
+      final hedefBirim = sadeceBuBirim.trim();
+      doluBirimler = doluBirimler.where((b) => b == hedefBirim).toList();
+      if (doluBirimler.isEmpty) {
+        final msg = '$hedefBirim birimi için henüz yüklenmiş bir mizan veya evrak bulunmuyor.';
+        yield AjanLogMesaji(
+          zaman: DateTime.now(),
+          mesaj: '⚠️ $msg',
+          ilerlemeYuzdesi: 0.0,
+          isHata: true,
+        );
+        onHata(msg);
+        return;
+      }
+    } else if (doluBirimler.isEmpty) {
       final msg = 'Lütfen analiz edilecek birimlere en az bir mizan/belge yükleyiniz.';
       yield AjanLogMesaji(
         zaman: DateTime.now(),
@@ -144,9 +164,13 @@ class BeyannameAiAjanServisi {
       toplamDosya += yuklenenBelgeler[b]?.length ?? 0;
     }
 
+    final motorBilgisi = hasGemini
+        ? '🤖 Google Gemini (${ayarlar.geminiModel})${hasOpenRouter ? " [OpenRouter Yedekli]" : ""}'
+        : '🌐 OpenRouter (${ayarlar.deepseekModel.isNotEmpty ? ayarlar.deepseekModel : "Varsayılan Model"})';
+
     yield AjanLogMesaji(
       zaman: DateTime.now(),
-      mesaj: '🚀 Beyanname Ajanı Başlatıldı ($yil / ${ay.toString().padLeft(2, '0')}). Toplam $toplamDosya evrak sıralı kuyruğa alındı.',
+      mesaj: '🚀 Beyanname Ajanı Başlatıldı [$motorBilgisi] ($yil / ${ay.toString().padLeft(2, '0')}). Toplam $toplamDosya evrak sıralı kuyruğa alındı.',
       ilerlemeYuzdesi: 0.02,
     );
 
@@ -244,44 +268,47 @@ class BeyannameAiAjanServisi {
       );
 
       final contentParts = <Part>[];
-      // Multimodal: Taranmış veya dijital PDF/görselleri (Aylık mizan, Yardımcı mizan, Yıllık mizan, Ek belgeler/faturalar) Gemini'ye doğrudan ilet
-      void addMediaPartIfApplicable(BirimYuklenenBelge? doc) {
+      // Multimodal: Sadece metin katmanı çıkarılamamış taranmış PDF veya resim varsa ilet.
+      // Metni zaten çıkarılmış dijital belgelerin ham baytlarını tekrar gönderme (Token patlamasını önle!).
+      void addMediaPartIfApplicable(BirimYuklenenBelge? doc, String extractedText) {
         if (doc == null || doc.dosyaBytes == null || doc.dosyaBytes!.isEmpty) return;
         final ext = doc.dosyaUzantisi.toLowerCase();
-        if (ext == 'pdf') {
-          contentParts.add(DataPart('application/pdf', doc.dosyaBytes!));
-        } else if (ext == 'png') {
+        if (ext == 'png') {
           contentParts.add(DataPart('image/png', doc.dosyaBytes!));
         } else if (ext == 'jpg' || ext == 'jpeg') {
           contentParts.add(DataPart('image/jpeg', doc.dosyaBytes!));
+        } else if (ext == 'pdf' && extractedText.trim().isEmpty) {
+          contentParts.add(DataPart('application/pdf', doc.dosyaBytes!));
         }
       }
 
-      addMediaPartIfApplicable(aylikMizanBelgesi);
-      addMediaPartIfApplicable(yardimciMizanBelgesi);
-      addMediaPartIfApplicable(yillikMizanBelgesi);
-      addMediaPartIfApplicable(digerBelge);
+      addMediaPartIfApplicable(aylikMizanBelgesi, aylikMizanMetni);
+      addMediaPartIfApplicable(yardimciMizanBelgesi, yardimciMizanMetni);
+      addMediaPartIfApplicable(yillikMizanBelgesi, yillikMizanMetni);
+      addMediaPartIfApplicable(digerBelge, digerBelgeMetni);
       contentParts.add(TextPart(prompt));
 
       yield AjanLogMesaji(
         zaman: DateTime.now(),
-        mesaj: '🤖 [$birimAdi] Gemini AI derin mizan taraması ve hesap kodları tespiti yapılıyor...',
+        mesaj: hasGemini
+            ? '🤖 [$birimAdi] Google Gemini AI ile derin mizan taraması ve hesap kodları tespiti yapılıyor...'
+            : '🌐 [$birimAdi] OpenRouter üzerinden derin mizan ve tevkifat analizi yapılıyor...',
         birimAdi: birimAdi,
         ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.35 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
       );
 
-      // 5. Kesintisiz Dayanıklı Gemini Çağrısı (Retry & Exponential Backoff)
+      // 5. Kesintisiz Dayanıklı AI Çağrısı (OpenRouter + Gemini Fallback & Retry)
       BirimMizanAnalizSonucu? sonuc;
       int denemeSayisi = 0;
-      const maxDeneme = 5;
+      const maxDeneme = 4;
 
       while (denemeSayisi < maxDeneme) {
         denemeSayisi++;
         try {
-          final aiResponseText = await _runGeminiWithFallback(
-            apiKey: ayarlar.geminiApiKey,
-            preferredModel: ayarlar.geminiModel,
-            parts: contentParts,
+          final aiResponseText = await _calistirAiModel(
+            ayarlar: ayarlar,
+            prompt: prompt,
+            geminiParts: contentParts,
           );
 
           if (aiResponseText != null && aiResponseText.isNotEmpty) {
@@ -302,16 +329,16 @@ class BeyannameAiAjanServisi {
             }
           }
 
-          throw Exception('Gemini geçersiz JSON çıktısı üretti.');
+          throw Exception('Yapay zeka geçerli JSON çıktısı üretemedi.');
         } catch (e) {
           final hataStr = e.toString();
           debugPrint('[$birimAdi] Deneme $denemeSayisi/$maxDeneme hatası: $hataStr');
 
           if (denemeSayisi < maxDeneme) {
-            final beklemeSaniye = denemeSayisi * 3; // 3s, 6s, 9s, 12s...
+            final beklemeSaniye = denemeSayisi * 2;
             yield AjanLogMesaji(
               zaman: DateTime.now(),
-              mesaj: '⏳ [$birimAdi] Gemini yoğunluk/hata verdi. $beklemeSaniye saniye beklenip tekrar deneniyor (Deneme $denemeSayisi/$maxDeneme)...',
+              mesaj: '⏳ [$birimAdi] AI servisinden yanıt bekleniyor ($beklemeSaniye sn sonra tekrar denenecek: $denemeSayisi/$maxDeneme)...',
               birimAdi: birimAdi,
               ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.40 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
               isHata: true,
@@ -371,6 +398,106 @@ class BeyannameAiAjanServisi {
     );
 
     onTamamlandi(rapor);
+  }
+
+  /// OpenRouter / OpenAI uyumlu REST API çağrısı
+  Future<String?> _runOpenRouter({
+    required String apiUrl,
+    required String apiKey,
+    required String modelName,
+    required String prompt,
+  }) async {
+    final cleanUrl = apiUrl.trim().isEmpty
+        ? 'https://openrouter.ai/api/v1'
+        : apiUrl.trim();
+    final endpoint = cleanUrl.endsWith('/')
+        ? '${cleanUrl}chat/completions'
+        : '$cleanUrl/chat/completions';
+    final resolvedModel = modelName.trim().isEmpty
+        ? 'google/gemini-2.0-flash-001'
+        : modelName.trim();
+
+    final response = await http.post(
+      Uri.parse(endpoint),
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Authorization': 'Bearer $apiKey',
+        'HTTP-Referer': 'https://dsys.local',
+        'X-Title': 'DSYS Beyanname',
+      },
+      body: jsonEncode({
+        'model': resolvedModel,
+        'messages': [
+          {
+            'role': 'user',
+            'content': prompt,
+          }
+        ],
+        'temperature': 0.1,
+      }),
+    ).timeout(const Duration(seconds: 120));
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      if (decoded is Map<String, dynamic>) {
+        final choices = decoded['choices'] as List<dynamic>?;
+        if (choices != null && choices.isNotEmpty) {
+          final first = choices.first as Map<String, dynamic>;
+          final msg = first['message'] as Map<String, dynamic>?;
+          return msg?['content']?.toString();
+        }
+      }
+    } else {
+      throw Exception('OpenRouter Hatası (${response.statusCode}): ${response.body}');
+    }
+    return null;
+  }
+
+  /// Birincil olarak Google Gemini (tanımlıysa), yoksa veya hata verirse OpenRouter çalıştırır
+  Future<String?> _calistirAiModel({
+    required SistemAyarlariModel ayarlar,
+    required String prompt,
+    List<Part>? geminiParts,
+  }) async {
+    Object? sonHata;
+
+    // 1. İLK TERCİH: Google Gemini Tanımlıysa Önce Onu Çağır (Fatura modülüyle aynı kurumsal standart)
+    if (ayarlar.geminiApiKey.trim().isNotEmpty) {
+      try {
+        final parts = geminiParts ?? [TextPart(prompt)];
+        final text = await _runGeminiWithFallback(
+          apiKey: ayarlar.geminiApiKey,
+          preferredModel: ayarlar.geminiModel,
+          parts: parts,
+        );
+        if (text != null && text.trim().isNotEmpty) return text;
+      } catch (e) {
+        sonHata = e;
+        debugPrint('[Beyanname AI] Gemini çağrısı hata verdi: $e');
+        if (ayarlar.deepseekApiKey.trim().isEmpty) rethrow;
+      }
+    }
+
+    // 2. YEDEK HAT: Gemini başarısız olduysa veya anahtarı yoksa OpenRouter devreye girer
+    if (ayarlar.deepseekApiKey.trim().isNotEmpty) {
+      try {
+        debugPrint('[Beyanname AI] Gemini yanıt vermedi, OpenRouter yedeğine geçiliyor...');
+        final text = await _runOpenRouter(
+          apiUrl: ayarlar.deepseekApiUrl,
+          apiKey: ayarlar.deepseekApiKey,
+          modelName: ayarlar.deepseekModel,
+          prompt: prompt,
+        );
+        if (text != null && text.trim().isNotEmpty) return text;
+      } catch (e) {
+        sonHata = e;
+        debugPrint('[Beyanname AI] OpenRouter çağrısı da hata verdi: $e');
+        rethrow;
+      }
+    }
+
+    if (sonHata != null) throw Exception(sonHata.toString());
+    return null;
   }
 
   /// Gemini API'ye model fallback ve retry zinciri ile istek gönderir.

@@ -35,6 +35,10 @@ class BeyannameDenetimServisi {
     if (clean.length != 11 || int.tryParse(clean) == null || clean.startsWith('0')) {
       return false;
     }
+    // İlk 10 hanesi aynı olan TCKN'ler (örn: 11111111110) kural gereği geçersizdir
+    if (clean.substring(0, 10).split('').toSet().length == 1) {
+      return false;
+    }
 
     final d = clean.split('').map(int.parse).toList();
     final tekler = d[0] + d[2] + d[4] + d[6] + d[8];

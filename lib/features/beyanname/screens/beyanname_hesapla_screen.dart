@@ -704,7 +704,23 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
         ),
         const SizedBox(width: 8),
 
-        // 3) KAYDET BUTONU
+        // 3) BU AYI SIFIRLA / TEMİZLE BUTONU
+        SizedBox(
+          height: 30,
+          child: OutlinedButton.icon(
+            onPressed: () => _donemiTemizleDialog(context, provider),
+            icon: const Icon(Icons.delete_sweep_rounded, size: 14, color: AppColors.danger),
+            label: const Text('Bu Ayı Sıfırla', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.danger)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.danger,
+              side: const BorderSide(color: AppColors.danger),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // 4) KAYDET BUTONU
         SizedBox(
           height: 30,
           child: ElevatedButton.icon(
@@ -720,7 +736,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
         ),
         const SizedBox(width: 8),
 
-        // 4) TABLOYU GENİŞLET / ÖZETİ GÖSTER (ODAK MODU) BUTONU
+        // 5) TABLOYU GENİŞLET / ÖZETİ GÖSTER (ODAK MODU) BUTONU
         SizedBox(
           height: 30,
           child: OutlinedButton.icon(

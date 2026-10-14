@@ -469,10 +469,34 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Kapat'),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () {
+              provider.aiAjanVerileriniUygula(rapor, uzerineEkle: true);
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('✓ Yeni evrak tutarları mevcut birim tutarlarının üzerine başarıyla eklendi (kümülatif toplandı).'),
+                  backgroundColor: AppColors.success,
+                  duration: Duration(seconds: 4),
+                ),
+              );
+            },
+            icon: const Icon(Icons.add_circle_outline_rounded, size: 16),
+            label: const Text(
+              '➕ Var Olanın Üzerine Ekle',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+          ),
+          const SizedBox(width: 8),
           ElevatedButton.icon(
             onPressed: () {
-              provider.aiAjanVerileriniUygula(rapor);
+              provider.aiAjanVerileriniUygula(rapor, uzerineEkle: false);
               Navigator.of(context).pop();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -484,7 +508,7 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
             },
             icon: const Icon(Icons.download_done_rounded, size: 16),
             label: Text(
-              uygulandi ? 'Masalara Tekrar Uygula' : 'Verileri Beyannameye Aktar',
+              uygulandi ? 'Masaları Tekrar Güncelle' : 'Masaları Güncelle / Aktar',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(

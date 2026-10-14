@@ -96,12 +96,28 @@ class BirimBelgeKarti extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (yukluSayisi > 0)
+                if (yukluSayisi > 0) ...[
+                  FilledButton.tonalIcon(
+                    onPressed: provider.isAiAjanCalisiyor
+                        ? null
+                        : () => provider.aiAjanAnaliziBaslat(sadeceBuBirim: birimAdi),
+                    icon: const Icon(Icons.bolt_rounded, size: 16),
+                    label: const Text(
+                      'Bu Birimi Oku',
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                    ),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
                   IconButton(
                     icon: const Icon(Icons.delete_sweep_rounded, size: 18, color: AppColors.neutral),
                     tooltip: 'Bu birimin tüm belgelerini kaldır',
                     onPressed: () => provider.birimBelgeleriniTemizle(birimAdi),
                   ),
+                ],
               ],
             ),
             const SizedBox(height: 12),

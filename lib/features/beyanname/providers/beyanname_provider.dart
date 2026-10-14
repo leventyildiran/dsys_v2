@@ -163,7 +163,7 @@ class BeyannameProvider with ChangeNotifier {
     }
   }
 
-  /// Toplu Temizle / Sıfırla (Mevcut dönemin verilerini ve yerel taslağını sıfırlar)
+  /// Toplu Temizle / Sıfırla (Mevcut dönemin verilerini, tablolarını ve belgelerini sıfırlar)
   Future<void> donemiSifirla() async {
     _isLoading = true;
     notifyListeners();
@@ -173,6 +173,12 @@ class BeyannameProvider with ChangeNotifier {
       await prefs.remove('beyanname_draft_${_docId(_seciliYil, _seciliAy)}');
       _sonTaslakZamani = null;
       _oncekiAydanDevredenKdv = 0.0;
+      _tevkifatKayitlari.clear();
+      _muhtasarSatirlari.clear();
+      _yuklenenBelgeler.clear();
+      _sonAjanRaporu = null;
+      _aiAjanLoglari.clear();
+      _aiAjanIlerleme = 0.0;
       _varsayilanSatirlariOlustur();
       _guncelleDamga301();
     } catch (e) {
@@ -1358,8 +1364,8 @@ class BeyannameProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Sıralı AI Ajan analizini başlatır
-  void aiAjanAnaliziBaslat() {
+  /// Sıralı AI Ajan analizini başlatır (ister tüm birimler, ister sadece tek bir birim)
+  void aiAjanAnaliziBaslat({String? sadeceBuBirim}) {
     if (_isAiAjanCalisiyor) return;
 
     _isAiAjanCalisiyor = true;
@@ -1381,6 +1387,7 @@ class BeyannameProvider with ChangeNotifier {
       yuklenenBelgeler: _yuklenenBelgeler,
       birimOncekiAylarHasilat: birimOncekiAylar,
       oncekiAydanDevredenKdv: _oncekiAydanDevredenKdv,
+      sadeceBuBirim: sadeceBuBirim,
       onTamamlandi: (rapor) {
         _isAiAjanCalisiyor = false;
         _sonAjanRaporu = rapor;
@@ -1424,8 +1431,10 @@ class BeyannameProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// AI Ajanının bulduğu verileri manuel alanları ezmeden/kullanıcı onayıyla beyanname masalarına aktarır
-  void aiAjanVerileriniUygula(BeyannameAjanRaporu rapor) {
+  /// AI Ajanının bulduğu verileri manuel alanları ezmeden/kullanıcı onayıyla beyanname masalarına aktarır.
+  /// [uzerineEkle] true ise, masada zaten var olan birimin tutarlarının üzerine ekleme yapar (ek fatura/evrak senaryosu).
+  /// [uzerineEkle] false ise (varsayılan), birim masada varsa güncel mizan değerleriyle yeniler; yoksa yeni satır olarak ekler.
+  void aiAjanVerileriniUygula(BeyannameAjanRaporu rapor, {bool uzerineEkle = false}) {
     for (final entry in rapor.birimSonuclari.entries) {
       final birimAdi = entry.key;
       final sonuc = entry.value;
@@ -1436,16 +1445,29 @@ class BeyannameProvider with ChangeNotifier {
       );
       if (kdvIndex >= 0) {
         final mevcut = _kdv1Satirlari[kdvIndex];
-        _kdv1Satirlari[kdvIndex] = mevcut.copyWith(
-          hesaplananMatrah10: sonuc.hesaplananKdvMatrah10 > 0 ? sonuc.hesaplananKdvMatrah10 : mevcut.hesaplananMatrah10,
-          hesaplananKdv10: sonuc.hesaplananKdv10 > 0 ? sonuc.hesaplananKdv10 : mevcut.hesaplananKdv10,
-          hesaplananMatrah20: sonuc.hesaplananKdvMatrah20 > 0 ? sonuc.hesaplananKdvMatrah20 : mevcut.hesaplananMatrah20,
-          hesaplananKdv20: sonuc.hesaplananKdv20 > 0 ? sonuc.hesaplananKdv20 : mevcut.hesaplananKdv20,
-          indirilecekMatrah10: sonuc.indirilecekKdvMatrah10 > 0 ? sonuc.indirilecekKdvMatrah10 : mevcut.indirilecekMatrah10,
-          indirilecekKdv10: sonuc.indirilecekKdv10 > 0 ? sonuc.indirilecekKdv10 : mevcut.indirilecekKdv10,
-          indirilecekMatrah20: sonuc.indirilecekKdvMatrah20 > 0 ? sonuc.indirilecekKdvMatrah20 : mevcut.indirilecekMatrah20,
-          indirilecekKdv20: sonuc.indirilecekKdv20 > 0 ? sonuc.indirilecekKdv20 : mevcut.indirilecekKdv20,
-        );
+        if (uzerineEkle) {
+          _kdv1Satirlari[kdvIndex] = mevcut.copyWith(
+            hesaplananMatrah10: mevcut.hesaplananMatrah10 + sonuc.hesaplananKdvMatrah10,
+            hesaplananKdv10: mevcut.hesaplananKdv10 + sonuc.hesaplananKdv10,
+            hesaplananMatrah20: mevcut.hesaplananMatrah20 + sonuc.hesaplananKdvMatrah20,
+            hesaplananKdv20: mevcut.hesaplananKdv20 + sonuc.hesaplananKdv20,
+            indirilecekMatrah10: mevcut.indirilecekMatrah10 + sonuc.indirilecekKdvMatrah10,
+            indirilecekKdv10: mevcut.indirilecekKdv10 + sonuc.indirilecekKdv10,
+            indirilecekMatrah20: mevcut.indirilecekMatrah20 + sonuc.indirilecekKdvMatrah20,
+            indirilecekKdv20: mevcut.indirilecekKdv20 + sonuc.indirilecekKdv20,
+          );
+        } else {
+          _kdv1Satirlari[kdvIndex] = mevcut.copyWith(
+            hesaplananMatrah10: sonuc.hesaplananKdvMatrah10 > 0 ? sonuc.hesaplananKdvMatrah10 : mevcut.hesaplananMatrah10,
+            hesaplananKdv10: sonuc.hesaplananKdv10 > 0 ? sonuc.hesaplananKdv10 : mevcut.hesaplananKdv10,
+            hesaplananMatrah20: sonuc.hesaplananKdvMatrah20 > 0 ? sonuc.hesaplananKdvMatrah20 : mevcut.hesaplananMatrah20,
+            hesaplananKdv20: sonuc.hesaplananKdv20 > 0 ? sonuc.hesaplananKdv20 : mevcut.hesaplananKdv20,
+            indirilecekMatrah10: sonuc.indirilecekKdvMatrah10 > 0 ? sonuc.indirilecekKdvMatrah10 : mevcut.indirilecekMatrah10,
+            indirilecekKdv10: sonuc.indirilecekKdv10 > 0 ? sonuc.indirilecekKdv10 : mevcut.indirilecekKdv10,
+            indirilecekMatrah20: sonuc.indirilecekKdvMatrah20 > 0 ? sonuc.indirilecekKdvMatrah20 : mevcut.indirilecekMatrah20,
+            indirilecekKdv20: sonuc.indirilecekKdv20 > 0 ? sonuc.indirilecekKdv20 : mevcut.indirilecekKdv20,
+          );
+        }
       } else {
         _kdv1Satirlari.add(Kdv1BirimSatiri(
           birimId: BirimAdlandirma.canonicalKey(birimAdi),
@@ -1461,22 +1483,29 @@ class BeyannameProvider with ChangeNotifier {
         ));
       }
 
-      // 2. Damga Vergisi Masasını Güncelle
+      // 2. Damga Vergisi Masasını Güncelle veya Ekle
       if (sonuc.damgaVergisi360 > 0) {
         final damgaIndex = _damgaSatirlari.indexWhere(
           (x) => BirimAdlandirma.canonicalKey(x.birimAdi) == BirimAdlandirma.canonicalKey(birimAdi),
         );
-        final matrah = sonuc.damgaMatrah > 0
-            ? sonuc.damgaMatrah
-            : BeyannameHesaplamaMotoru.matrahFromDamga(sonuc.damgaVergisi360);
 
         if (damgaIndex >= 0) {
+          final mevcut = _damgaSatirlari[damgaIndex];
+          final yeniDamga = uzerineEkle
+              ? (mevcut.damgaVergisi + sonuc.damgaVergisi360)
+              : sonuc.damgaVergisi360;
+          final yeniMatrah = BeyannameHesaplamaMotoru.matrahFromDamga(yeniDamga);
+
           _damgaSatirlari[damgaIndex] = DamgaVergisiBirimSatiri(
-            birimAdi: _damgaSatirlari[damgaIndex].birimAdi,
-            damgaVergisi: sonuc.damgaVergisi360,
-            matrah: matrah,
+            birimAdi: mevcut.birimAdi,
+            damgaVergisi: yeniDamga,
+            matrah: yeniMatrah,
           );
         } else {
+          final matrah = sonuc.damgaMatrah > 0
+              ? sonuc.damgaMatrah
+              : BeyannameHesaplamaMotoru.matrahFromDamga(sonuc.damgaVergisi360);
+
           _damgaSatirlari.add(DamgaVergisiBirimSatiri(
             birimAdi: birimAdi,
             damgaVergisi: sonuc.damgaVergisi360,
@@ -1485,23 +1514,35 @@ class BeyannameProvider with ChangeNotifier {
         }
       }
 
-      // 3. 600 Hasılat & 123 Masasını Güncelle
+      // 3. 600 Hasılat & 123 Masasını Güncelle veya Ekle
       final hIndex = _hasiat600Satirlari.indexWhere(
         (x) => BirimAdlandirma.canonicalKey(x.birimAdi) == BirimAdlandirma.canonicalKey(birimAdi),
       );
       if (hIndex >= 0) {
         final mevcut = _hasiat600Satirlari[hIndex];
-        final aylik = sonuc.hasilat600Aylik > 0 ? sonuc.hasilat600Aylik : mevcut.aylikHasilat600;
-        final kumulatif = sonuc.hasilat600Kumulatif > 0
-            ? sonuc.hasilat600Kumulatif
-            : (mevcut.oncekiAylarHasilat600 + aylik);
-        final pos = sonuc.krediKarti123 > 0 ? sonuc.krediKarti123 : mevcut.krediKarti123;
+        if (uzerineEkle) {
+          final ekAylik = sonuc.hasilat600Aylik;
+          final yeniAylik = mevcut.aylikHasilat600 + ekAylik;
+          final yeniKumulatif = mevcut.kumulatifHasilat600 + ekAylik;
+          final yeniPos = mevcut.krediKarti123 + sonuc.krediKarti123;
+          _hasiat600Satirlari[hIndex] = mevcut.copyWith(
+            aylikHasilat600: yeniAylik,
+            kumulatifHasilat600: yeniKumulatif,
+            krediKarti123: yeniPos,
+          );
+        } else {
+          final aylik = sonuc.hasilat600Aylik > 0 ? sonuc.hasilat600Aylik : mevcut.aylikHasilat600;
+          final kumulatif = sonuc.hasilat600Kumulatif > 0
+              ? sonuc.hasilat600Kumulatif
+              : (mevcut.oncekiAylarHasilat600 + aylik);
+          final pos = sonuc.krediKarti123 > 0 ? sonuc.krediKarti123 : mevcut.krediKarti123;
 
-        _hasiat600Satirlari[hIndex] = mevcut.copyWith(
-          aylikHasilat600: aylik,
-          kumulatifHasilat600: kumulatif,
-          krediKarti123: pos,
-        );
+          _hasiat600Satirlari[hIndex] = mevcut.copyWith(
+            aylikHasilat600: aylik,
+            kumulatifHasilat600: kumulatif,
+            krediKarti123: pos,
+          );
+        }
       } else {
         _hasiat600Satirlari.add(Hasiat600BirimSatiri(
           birimAdi: birimAdi,
