@@ -7,8 +7,8 @@ class AIExtractionService {
   final SistemAyarlariService _ayarlarService = SistemAyarlariService();
   static const List<String> _geminiModelFallbacks = [
     'gemini-3.8-flash',
-    'gemini-3.7-flash',
     'gemini-3.6-flash',
+    'gemini-3.7-flash',
     'gemini-3.5-flash',
     'gemini-3.5-flash-lite',
   ];
@@ -25,18 +25,24 @@ class AIExtractionService {
   }) async {
     final modelOrder = <String>[];
     String? cleanPreferred = preferredModel?.trim();
-    if (cleanPreferred != null &&
-        (cleanPreferred.isEmpty ||
-            cleanPreferred == 'gemini-flash-latest' ||
-            cleanPreferred == 'gemini-2.5-flash' ||
-            cleanPreferred == 'gemini-2.0-flash' ||
-            cleanPreferred == 'gemini-1.5-flash')) {
-      cleanPreferred = 'gemini-3.6-flash'; // 2026 standard
+    if (cleanPreferred == null ||
+        cleanPreferred.isEmpty ||
+        cleanPreferred == 'gemini-flash-latest' ||
+        cleanPreferred == 'gemini-2.5-flash' ||
+        cleanPreferred == 'gemini-2.0-flash' ||
+        cleanPreferred == 'gemini-1.5-flash') {
+      cleanPreferred = 'gemini-3.8-flash';
     }
 
-    if (cleanPreferred != null && cleanPreferred.isNotEmpty) {
+    if (cleanPreferred == 'gemini-3.8-flash' || cleanPreferred == 'gemini-3.6-flash') {
+      modelOrder.add('gemini-3.8-flash');
+      modelOrder.add('gemini-3.6-flash');
+    } else {
       modelOrder.add(cleanPreferred);
+      if (!modelOrder.contains('gemini-3.8-flash')) modelOrder.add('gemini-3.8-flash');
+      if (!modelOrder.contains('gemini-3.6-flash')) modelOrder.add('gemini-3.6-flash');
     }
+
     for (final m in _geminiModelFallbacks) {
       if (!modelOrder.contains(m)) modelOrder.add(m);
     }

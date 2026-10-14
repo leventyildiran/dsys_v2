@@ -513,8 +513,8 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
         runSpacing: 6,
         children: [
           'gemini-3.8-flash',
-          'gemini-3.7-flash',
           'gemini-3.6-flash',
+          'gemini-3.7-flash',
           'gemini-3.5-flash',
           'gemma-3-27b-it',
         ].map((m) {
