@@ -272,22 +272,23 @@ class BeyannameAiAjanServisi {
               var firma = f.firmaAdi.trim();
               var vkn = f.vergiNo.trim();
 
-              // Firma adı jenerikse veya boşsa, dosya adından ve metinden otomatik tanı
+              // Firma adı jenerikse veya boşsa, metindeki kurumsal unvan satırlarından dinamik çıkar
               if (firma.isEmpty || firma.toLowerCase() == 'firma' || firma.toLowerCase() == 'bilinmeyen firma') {
-                if (dosyaAdiLower.contains('metasoft') || textForFatura.toLowerCase().contains('metasoft')) {
-                  firma = 'METASOFT BİLGİ TEKNOLOJİLERİ A.Ş.';
-                  vkn = '6191268620';
-                } else if (dosyaAdiLower.contains('miroğlu') || dosyaAdiLower.contains('miroglu') || textForFatura.toLowerCase().contains('miroğlu')) {
-                  firma = 'MİROĞLU ÇEVRE SANAYİ TİCARET A.Ş.';
-                  vkn = '6210490464';
+                for (final line in textForFatura.split('\n')) {
+                  final l = line.trim();
+                  if (l.length > 5 &&
+                      (l.toUpperCase().contains('A.Ş') ||
+                       l.toUpperCase().contains('LTD') ||
+                       l.toUpperCase().contains('ŞTİ') ||
+                       l.toUpperCase().contains('TİC') ||
+                       l.toUpperCase().contains('SAN'))) {
+                    firma = l;
+                    break;
+                  }
                 }
-              } else if (firma.toLowerCase().contains('metasoft') && vkn.isEmpty) {
-                vkn = '6191268620';
-              } else if (firma.toLowerCase().contains('miroğlu') && vkn.isEmpty) {
-                vkn = '6210490464';
               }
 
-              // Metinden VKN Regex Taraması ve Matematiksel Doğrulama (MOD 10 VKN Algoritması)
+              // Metinden VKN Regex Taraması ve Matematiksel Doğrulama (Resmi MOD 10 VKN Algoritması)
               if (vkn.isEmpty) {
                 // 1. Öncelik: Etiketli VKN/TCKN ara
                 final vknRegex = RegExp(
@@ -315,8 +316,8 @@ class BeyannameAiAjanServisi {
               }
 
               tevkifatFaturaListesi.add({
-                'firmaAdi': firma.isNotEmpty ? firma : (dosyaAdiLower.contains('metasoft') ? 'METASOFT BİLGİ TEKNOLOJİLERİ A.Ş.' : 'Firma'),
-                'vergiTcNo': vkn.isNotEmpty ? vkn : (dosyaAdiLower.contains('metasoft') ? '6191268620' : ''),
+                'firmaAdi': firma.isNotEmpty ? firma : 'Düzenleyen Firma',
+                'vergiTcNo': vkn,
                 'matrahTutari': f.matrah,
                 'kdvTutari': f.kdvTutari,
                 'tevkifatTutari': f.kdvTutari * 0.9, // Varsa oran
@@ -663,26 +664,21 @@ class BeyannameAiAjanServisi {
   }) async {
     final modelOrder = <String>[];
     String? cleanPreferred = preferredModel?.trim();
-    if (cleanPreferred == null ||
-        cleanPreferred.isEmpty ||
-        cleanPreferred == 'gemini-flash-latest' ||
-        cleanPreferred == 'gemini-2.5-flash' ||
-        cleanPreferred == 'gemini-2.0-flash' ||
-        cleanPreferred == 'gemini-1.5-flash') {
-      cleanPreferred = 'gemini-3.8-flash';
-    }
-
-    // Kural: 3.8'den başlasın, cevap gelmezse 3.6'ya geçsin
-    if (cleanPreferred == 'gemini-3.8-flash' || cleanPreferred == 'gemini-3.6-flash') {
-      modelOrder.add('gemini-3.8-flash');
-      modelOrder.add('gemini-3.6-flash');
-    } else {
+    if (cleanPreferred != null && cleanPreferred.isNotEmpty) {
       modelOrder.add(cleanPreferred);
-      if (!modelOrder.contains('gemini-3.8-flash')) modelOrder.add('gemini-3.8-flash');
-      if (!modelOrder.contains('gemini-3.6-flash')) modelOrder.add('gemini-3.6-flash');
     }
-
-    for (final m in _geminiModelFallbacks) {
+    // Resmi Google Gemini modelleri ve yedek zinciri
+    const officialModels = [
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-1.5-pro',
+      'gemini-3.8-flash',
+      'gemini-3.6-flash',
+      'gemini-3.7-flash',
+      'gemini-3.5-flash',
+    ];
+    for (final m in officialModels) {
       if (!modelOrder.contains(m)) modelOrder.add(m);
     }
 
@@ -801,9 +797,13 @@ ARANACAK HESAP KODLARI VE KURALLAR:
    - 191 hesabı alacak bakiyesi veriyor mu? -> "is191TersBakiye": true/false
    - 391 hesabı borç bakiyesi veriyor mu? -> "is391TersBakiye": true/false
    - 600 hesabı borç bakiyesi veriyor mu? -> "is600TersBakiye": true/false
-8. TEVKİFATLI FATURALAR VE BELGE-MİZAN MUTABAKATI:
-   - Ekli belgelerde/görsellerde (taranmış veya dijital) yer alan faturaları incele. Tevkifatlı olanları tespit et.
-   - Eğer fatura mevcut ancak mizandaki 600/391 hesaplarına henüz yansımamışsa veya tutarlar arasında mutabakatsızlık varsa "aciklama" alanına açıkça yaz (Örn: "X firmasına ait Y TL tevkifatlı fatura mizana henüz yansımamış").
+8. TEVKİFATLI FATURALAR (KDV 2 TEVKİFATI) VE DÜZENLEYEN FİRMA TESPİTİ:
+   - Ekli belgelerde (taranmış PDF, imaj veya dijital fatura) yer alan faturaları bizzat incele.
+   - Faturayı düzenleyen / satan firmanın tam ticari unvanını ("firmaAdi") doğrudan belgenin üzerinden oku.
+   - Faturayı düzenleyen firmanın 10 haneli Vergi Kimlik Numarasını (VKN) veya 11 haneli T.C. Kimlik Numarasını ("vergiTcNo") faturanın üzerindeki VKN/TCKN/Vergi No alanından veya kaşeden oku.
+   - Faturanın matrah tutarını ("matrahTutari"), KDV tutarını ("kdvTutari"), tevkifat tutarını ("tevkifatTutari") ve tevkifat oranını ("tevkifatOrani": "9/10", "5/10", "7/10", "2/10" vb.) kuruşu kuruşuna çıkar.
+   - DİKKAT: Firma adı ve VKN ASLA uydurma veya varsayılan olamaz. Belgede basılı olan gerçek satıcı unvanını ve vergi numarasını çıkar. Herhangi bir firmaya ait olabilir (yazılım, medikal, temizlik, kırtasiye, teknik servis vb.).
+   - Eğer fatura mevcut ancak mizandaki 600/391/191 hesaplarına henüz yansımamışsa veya tutarlar arasında mutabakatsızlık varsa "aciklama" alanına açıkça yaz.
 9. YARDIMCI MİZAN (MUAVİN / ALT HESAP MİZANI) MUTABAKATI:
    - Eğer Yardımcı Mizan (Muavin) yüklenmişse; 391.20, 391.10 (%20 ve %10 KDV), 191.20, 191.10 ve 600 alt gelir kodlarını buradan kuruşu kuruşuna teyit et.
    - Yardımcı mizan alt toplamları ile Ana Mizan bakiyelerini karşılaştır. Fark varsa "aciklama" alanına yaz.
@@ -840,8 +840,8 @@ SADECE VE SADECE aşağıdaki JSON formatında bir nesne döndür (Markdown back
   "yardimciMizan600Toplam": 0.0,
   "tevkifatFaturalari": [
     {
-      "firmaAdi": "METASOFT BİLGİ TEKNOLOJİLERİ A.Ş.",
-      "vergiTcNo": "6191268620",
+      "firmaAdi": "Faturayı Düzenleyen Firmanın Tam Ticari Unvanı",
+      "vergiTcNo": "Faturadaki 10 Haneli VKN veya 11 Haneli TCKN",
       "matrahTutari": 0.0,
       "kdvTutari": 0.0,
       "tevkifatTutari": 0.0,

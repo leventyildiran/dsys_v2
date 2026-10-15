@@ -478,16 +478,8 @@ class BeyannameDenetimServisi {
         var vkn = (fatura['vergiTcNo'] as String? ?? '').trim();
         final oranStr = (fatura['tevkifatOrani'] as String? ?? '9/10').trim();
 
-        // Bilinen kurumsal firmalardan otomatik VKN tamamlama
-        if (vkn.isEmpty) {
-          if (firmaAdi.toLowerCase().contains('metasoft')) {
-            vkn = '6191268620';
-            firmaAdi = 'METASOFT BİLGİ TEKNOLOJİLERİ A.Ş.';
-          } else if (firmaAdi.toLowerCase().contains('miroğlu') || firmaAdi.toLowerCase().contains('miroglu')) {
-            vkn = '6210490464';
-            firmaAdi = 'MİROĞLU ÇEVRE SANAYİ TİCARET A.Ş.';
-          }
-        }
+        // VKN temizleme (boşluk ve tireleri kaldır)
+        vkn = vkn.replaceAll(RegExp(r'[^\d]'), '');
 
         if (vkn.isNotEmpty) {
           final isVknValid = vkn.length == 10 ? dogrulaVkn(vkn) : (vkn.length == 11 ? dogrulaTckn(vkn) : false);
