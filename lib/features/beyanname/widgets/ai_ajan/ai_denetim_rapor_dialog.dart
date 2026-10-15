@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/turkce_format.dart';
@@ -24,18 +25,22 @@ class AiDenetimRaporDialog extends StatefulWidget {
     return showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: SizedBox(
-            width: 1060,
-            height: 740,
-            child: AiDenetimRaporDialog(rapor: rapor, provider: provider),
+      builder: (ctx) {
+        final screenWidth = MediaQuery.of(ctx).size.width;
+        final screenHeight = MediaQuery.of(ctx).size.height;
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              width: min(screenWidth * 0.96, 1180),
+              height: min(screenHeight * 0.94, 820),
+              child: AiDenetimRaporDialog(rapor: rapor, provider: provider),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -216,69 +221,126 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
       return const Center(child: Text('Aktarılacak veri kaydı bulunamadı.'));
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: DataTable(
-            headingRowColor: WidgetStateProperty.all(AppColors.surfaceVariant),
-            dataRowMinHeight: 40,
-            dataRowMaxHeight: 52,
-            columns: const [
-              DataColumn(label: Text('BİRİM', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-              DataColumn(label: Text('KAYNAK BELGE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-              DataColumn(label: Text('MİZAN HESAP KODU / KALEM', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-              DataColumn(numeric: true, label: Text('BULUNAN TUTAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-              DataColumn(label: Text('BEYANNAMEDE HEDEF ALAN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-              DataColumn(label: Text('AÇIKLAMA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-            ],
-            rows: rapor.neredenNereyeListesi.map((kayit) {
-              return DataRow(
-                cells: [
-                  DataCell(Text(kayit.birimAdi, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-                  DataCell(Text(kayit.kaynakBelge, style: const TextStyle(fontSize: 11))),
-                  DataCell(
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySubtle,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        kayit.hesapKoduVeAdi,
-                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppColors.primary),
-                      ),
-                    ),
-                  ),
-                  DataCell(
-                    Text(
-                      TurkceFormat.para(kayit.bulunanTutar),
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.success),
-                    ),
-                  ),
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.arrow_right_alt_rounded, size: 16, color: AppColors.info),
-                        const SizedBox(width: 4),
-                        Text(
-                          kayit.hedefAlan,
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: AppColors.info),
-                        ),
-                      ],
-                    ),
-                  ),
-                  DataCell(Text(kayit.aciklama ?? '', style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary))),
+    return Scrollbar(
+      thumbVisibility: true,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowColor: WidgetStateProperty.all(AppColors.surfaceVariant),
+                columnSpacing: 14,
+                horizontalMargin: 12,
+                dataRowMinHeight: 38,
+                dataRowMaxHeight: 52,
+                columns: const [
+                  DataColumn(label: SizedBox(width: 120, child: Text('BİRİM', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                  DataColumn(label: SizedBox(width: 85, child: Text('KAYNAK', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                  DataColumn(label: SizedBox(width: 155, child: Text('MİZAN HESAP KODU', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                  DataColumn(numeric: true, label: SizedBox(width: 105, child: Text('BULUNAN TUTAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.right))),
+                  DataColumn(label: SizedBox(width: 185, child: Text('BEYANNAMEDE HEDEF ALAN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                  DataColumn(label: SizedBox(width: 230, child: Text('AÇIKLAMA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
                 ],
-              );
-            }).toList(),
+                rows: rapor.neredenNereyeListesi.map((kayit) {
+                  final temizKaynak = kayit.kaynakBelge
+                      .replaceFirst(RegExp('^${RegExp.escape(kayit.birimAdi)}\\s*-\\s*'), '')
+                      .trim();
+                  return DataRow(
+                    cells: [
+                      DataCell(
+                        SizedBox(
+                          width: 120,
+                          child: Text(
+                            kayit.birimAdi,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 85,
+                          child: Text(
+                            temizKaynak,
+                            style: const TextStyle(fontSize: 11),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 155,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primarySubtle,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              kayit.hesapKoduVeAdi,
+                              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppColors.primary),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 105,
+                          child: Text(
+                            TurkceFormat.para(kayit.bulunanTutar),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.success),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 185,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.arrow_right_alt_rounded, size: 16, color: AppColors.info),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  kayit.hedefAlan,
+                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: AppColors.info),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 230,
+                          child: Text(
+                            kayit.aciklama ?? '',
+                            style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
           ),
         ),
       ),
@@ -335,15 +397,19 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
                   children: [
                     Icon(ikon, size: 18, color: durumRengi),
                     const SizedBox(width: 8),
-                    Text(
-                      '[Senaryo ${k.senaryoNo}] ${k.birimAdi}: ${k.baslik}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: durumRengi,
+                    Expanded(
+                      child: Text(
+                        '[Senaryo ${k.senaryoNo}] ${k.birimAdi}: ${k.baslik}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: durumRengi,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(

@@ -81,10 +81,10 @@ class BeyannameDenetimServisi {
       if (sonuc.hasilat600Aylik > 0) {
         neredenNereye.add(NeredenNereyeKaydi(
           birimAdi: birimAdi,
-          kaynakBelge: '$birimAdi - Aylık Mizan',
-          hesapKoduVeAdi: '600 Gelirler Hesabı (Bu Ayki Alacak Hareketi)',
+          kaynakBelge: 'Aylık Mizan',
+          hesapKoduVeAdi: '600 Gelirler Hesabı',
           bulunanTutar: sonuc.hasilat600Aylik,
-          hedefAlan: '600 Hasılat Masası -> Bu Ay Aylık Hasılat',
+          hedefAlan: '600 Hasılat Masası -> Aylık Hasılat',
           aciklama: 'Aylık mizan gelir tablosundan aktarıldı.',
         ));
       }
@@ -93,10 +93,10 @@ class BeyannameDenetimServisi {
       if (sonuc.hasilat600Kumulatif > 0) {
         neredenNereye.add(NeredenNereyeKaydi(
           birimAdi: birimAdi,
-          kaynakBelge: '$birimAdi - Yıllık Mizan',
-          hesapKoduVeAdi: '600 Gelirler Hesabı (Kümülatif Alacak Bakiyesi)',
+          kaynakBelge: 'Yıllık Mizan',
+          hesapKoduVeAdi: '600 Gelirler Hesabı',
           bulunanTutar: sonuc.hasilat600Kumulatif,
-          hedefAlan: '600 Hasılat Masası -> Yıllık Kümülatif Hasılat',
+          hedefAlan: '600 Hasılat Masası -> Yıllık Kümülatif',
           aciklama: 'Yıllık mizan kümülatif bakiye sütunundan aktarıldı.',
         ));
       }
@@ -105,10 +105,10 @@ class BeyannameDenetimServisi {
       if (sonuc.krediKarti123 > 0) {
         neredenNereye.add(NeredenNereyeKaydi(
           birimAdi: birimAdi,
-          kaynakBelge: '$birimAdi - Aylık Mizan',
-          hesapKoduVeAdi: '123 Kredi Kartı / POS Hesabı (Borç Hareketi)',
+          kaynakBelge: 'Aylık Mizan',
+          hesapKoduVeAdi: '123 Kredi Kartı / POS',
           bulunanTutar: sonuc.krediKarti123,
-          hedefAlan: '600 Hasılat Masası -> 123 Kredi Kartı (Beyanname Satır 45)',
+          hedefAlan: '600 Hasılat Masası -> Satır 45 (POS)',
           aciklama: 'GİB Satır 45 POS mutabakatı için aktarıldı.',
         ));
       }
@@ -117,10 +117,10 @@ class BeyannameDenetimServisi {
       if (sonuc.hesaplananKdv20 > 0 || sonuc.hesaplananKdvMatrah20 > 0) {
         neredenNereye.add(NeredenNereyeKaydi(
           birimAdi: birimAdi,
-          kaynakBelge: '$birimAdi - Aylık Mizan',
-          hesapKoduVeAdi: '391.20 Hesaplanan KDV (%20) & Matrahı',
+          kaynakBelge: 'Aylık Mizan',
+          hesapKoduVeAdi: '391.20 Hesaplanan KDV (%20)',
           bulunanTutar: sonuc.hesaplananKdv20,
-          hedefAlan: 'KDV 1 Masası -> %20 Hesaplanan KDV ve Matrahı',
+          hedefAlan: 'KDV 1 Masası -> %20 Hesaplanan KDV',
           aciklama: 'Matrah: ${TurkceFormat.para(sonuc.hesaplananKdvMatrah20)}',
         ));
       }
@@ -129,10 +129,10 @@ class BeyannameDenetimServisi {
       if (sonuc.hesaplananKdv10 > 0 || sonuc.hesaplananKdvMatrah10 > 0) {
         neredenNereye.add(NeredenNereyeKaydi(
           birimAdi: birimAdi,
-          kaynakBelge: '$birimAdi - Aylık Mizan',
-          hesapKoduVeAdi: '391.10 Hesaplanan KDV (%10) & Matrahı',
+          kaynakBelge: 'Aylık Mizan',
+          hesapKoduVeAdi: '391.10 Hesaplanan KDV (%10)',
           bulunanTutar: sonuc.hesaplananKdv10,
-          hedefAlan: 'KDV 1 Masası -> %10 Hesaplanan KDV ve Matrahı',
+          hedefAlan: 'KDV 1 Masası -> %10 Hesaplanan KDV',
           aciklama: 'Matrah: ${TurkceFormat.para(sonuc.hesaplananKdvMatrah10)}',
         ));
       }
@@ -141,10 +141,10 @@ class BeyannameDenetimServisi {
       if (sonuc.toplamIndirilecekKdv > 0) {
         neredenNereye.add(NeredenNereyeKaydi(
           birimAdi: birimAdi,
-          kaynakBelge: '$birimAdi - Aylık Mizan',
-          hesapKoduVeAdi: '191 İndirilecek KDV (Dönem Borç Hareketi)',
+          kaynakBelge: 'Aylık Mizan',
+          hesapKoduVeAdi: '191 İndirilecek KDV',
           bulunanTutar: sonuc.toplamIndirilecekKdv,
-          hedefAlan: 'KDV 1 Masası -> İndirilecek KDV Satırı',
+          hedefAlan: 'KDV 1 Masası -> İndirilecek KDV',
           aciklama: '%20 İndirilecek: ${TurkceFormat.para(sonuc.indirilecekKdv20)}, %10: ${TurkceFormat.para(sonuc.indirilecekKdv10)}',
         ));
       }
@@ -153,10 +153,10 @@ class BeyannameDenetimServisi {
       if (sonuc.damgaVergisi360 > 0) {
         neredenNereye.add(NeredenNereyeKaydi(
           birimAdi: birimAdi,
-          kaynakBelge: '$birimAdi - Aylık Mizan',
-          hesapKoduVeAdi: '360.03.05 Damga Vergisi (Alacak Kalanı)',
+          kaynakBelge: 'Aylık Mizan',
+          hesapKoduVeAdi: '360.03.05 Damga Vergisi',
           bulunanTutar: sonuc.damgaVergisi360,
-          hedefAlan: 'Damga Vergisi Masası & 301 Kodu İcmali',
+          hedefAlan: 'Damga Masası & 301 Kodu',
           aciklama: 'Hesaplanan Matrah (Binde 9.48): ${TurkceFormat.para(sonuc.damgaMatrah)}',
         ));
       }
@@ -165,10 +165,10 @@ class BeyannameDenetimServisi {
       if (sonuc.yardimciMizanKullanildi) {
         neredenNereye.add(NeredenNereyeKaydi(
           birimAdi: birimAdi,
-          kaynakBelge: '$birimAdi - Yardımcı Mizan (Muavin)',
-          hesapKoduVeAdi: '391 / 191 / 600 Alt Hesap Kırılımları',
+          kaynakBelge: 'Yardımcı Mizan',
+          hesapKoduVeAdi: '391 / 191 / 600 Alt Kırılımlar',
           bulunanTutar: (sonuc.yardimciMizan391Toplam > 0 ? sonuc.yardimciMizan391Toplam : sonuc.toplamHesaplananKdv),
-          hedefAlan: 'KDV 1 Oran Ayrımı (%10 / %20) & Çapraz Teyit',
+          hedefAlan: 'KDV 1 Oran Ayrımı (%10 / %20)',
           aciklama: 'Yardımcı mizan üzerinden oran ayrımı sağlandı (391 Toplamı: ${TurkceFormat.para(sonuc.yardimciMizan391Toplam)}, 191 Toplamı: ${TurkceFormat.para(sonuc.yardimciMizan191Toplam)}).',
         ));
       }
