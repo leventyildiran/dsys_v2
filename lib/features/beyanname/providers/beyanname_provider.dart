@@ -12,6 +12,7 @@ import '../services/beyanname_konfigurasyon_servisi.dart';
 import '../models/beyanname_belge_model.dart';
 import '../models/beyanname_denetim_rapor_model.dart';
 import '../services/beyanname_ai_ajan_servisi.dart';
+import '../../../core/turkce_format.dart';
 
 class BeyannameProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -1378,6 +1379,10 @@ class BeyannameProvider with ChangeNotifier {
     final birimOncekiAylar = <String, double>{};
     for (final h in _hasiat600Satirlari) {
       birimOncekiAylar[h.birimAdi] = h.oncekiAylarHasilat600;
+      final cKey = BirimAdlandirma.canonicalKey(h.birimAdi);
+      if (cKey.isNotEmpty) {
+        birimOncekiAylar[cKey] = h.oncekiAylarHasilat600;
+      }
     }
 
     _aiAjanSubscription?.cancel();
@@ -1494,7 +1499,9 @@ class BeyannameProvider with ChangeNotifier {
           final yeniDamga = uzerineEkle
               ? (mevcut.damgaVergisi + sonuc.damgaVergisi360)
               : sonuc.damgaVergisi360;
-          final yeniMatrah = BeyannameHesaplamaMotoru.matrahFromDamga(yeniDamga);
+          final yeniMatrah = (uzerineEkle || sonuc.damgaMatrah <= 0)
+              ? BeyannameHesaplamaMotoru.matrahFromDamga(yeniDamga)
+              : sonuc.damgaMatrah;
 
           _damgaSatirlari[damgaIndex] = DamgaVergisiBirimSatiri(
             birimAdi: mevcut.birimAdi,
@@ -1536,18 +1543,27 @@ class BeyannameProvider with ChangeNotifier {
               ? sonuc.hasilat600Kumulatif
               : (mevcut.oncekiAylarHasilat600 + aylik);
           final pos = sonuc.krediKarti123 > 0 ? sonuc.krediKarti123 : mevcut.krediKarti123;
+          final oncekiAylar = (mevcut.oncekiAylarHasilat600 == 0 && kumulatif > aylik)
+              ? (kumulatif - aylik)
+              : mevcut.oncekiAylarHasilat600;
 
           _hasiat600Satirlari[hIndex] = mevcut.copyWith(
+            oncekiAylarHasilat600: oncekiAylar,
             aylikHasilat600: aylik,
             kumulatifHasilat600: kumulatif,
             krediKarti123: pos,
           );
         }
       } else {
+        final aylik = sonuc.hasilat600Aylik;
+        final kumulatif = sonuc.hasilat600Kumulatif > 0 ? sonuc.hasilat600Kumulatif : aylik;
+        final onceki = (kumulatif > aylik) ? (kumulatif - aylik) : 0.0;
+
         _hasiat600Satirlari.add(Hasiat600BirimSatiri(
           birimAdi: birimAdi,
-          aylikHasilat600: sonuc.hasilat600Aylik,
-          kumulatifHasilat600: sonuc.hasilat600Kumulatif,
+          oncekiAylarHasilat600: onceki,
+          aylikHasilat600: aylik,
+          kumulatifHasilat600: kumulatif,
           krediKarti123: sonuc.krediKarti123,
         ));
       }
@@ -1556,10 +1572,18 @@ class BeyannameProvider with ChangeNotifier {
       for (final tf in sonuc.tevkifatFaturalari) {
         final fAdi = tf['firmaAdi'] as String? ?? 'Firma';
         final vNo = tf['vergiTcNo'] as String? ?? '';
-        final mtr = (tf['matrahTutari'] as num?)?.toDouble() ?? 0.0;
-        final kdv = (tf['kdvTutari'] as num?)?.toDouble() ?? 0.0;
-        final tvk = (tf['tevkifatTutari'] as num?)?.toDouble() ?? 0.0;
-        final oran = tf['tevkifatOrani'] as String? ?? '9/10';
+        final mtr = TurkceFormat.parseSayi(tf['matrahTutari']);
+        final kdv = TurkceFormat.parseSayi(tf['kdvTutari']);
+        final tvk = TurkceFormat.parseSayi(tf['tevkifatTutari']);
+        final oran = (tf['tevkifatOrani'] as String? ?? '9/10').trim();
+
+        int tespitEdilenKdvOrani = 20;
+        if (mtr > 0 && kdv > 0) {
+          final oranHesap = (kdv / mtr * 100).round();
+          if (oranHesap == 10 || oranHesap == 20 || oranHesap == 1) {
+            tespitEdilenKdvOrani = oranHesap;
+          }
+        }
 
         if (mtr > 0) {
           final exists = _tevkifatKayitlari.any(
@@ -1572,7 +1596,7 @@ class BeyannameProvider with ChangeNotifier {
               vergiTcNo: vNo,
               tevkifatTuru: TevkifatTuru.fromString(oran),
               tevkifatEtiketi: oran,
-              kdvOrani: 20,
+              kdvOrani: tespitEdilenKdvOrani,
               matrahTutari: mtr,
               kdvTutari: kdv,
               tevkifatTutari: tvk,

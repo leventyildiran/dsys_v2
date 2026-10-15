@@ -12,6 +12,7 @@ import '../../fatura/services/fatura_offline_parser.dart';
 import '../models/beyanname_belge_model.dart';
 import '../models/beyanname_denetim_rapor_model.dart';
 import 'beyanname_denetim_servisi.dart';
+import 'mizan_deterministik_parser.dart';
 
 /// Canlı akış log mesajı
 class AjanLogMesaji {
@@ -114,17 +115,14 @@ class BeyannameAiAjanServisi {
     final ayarlar = await _ayarlarService.getAyarlar();
     final hasGemini = ayarlar.geminiApiKey.trim().isNotEmpty;
     final hasOpenRouter = ayarlar.deepseekApiKey.trim().isNotEmpty;
+    final bool isOfflineMod = !hasGemini && !hasOpenRouter;
 
-    if (!hasGemini && !hasOpenRouter) {
-      final msg = 'Sistem Ayarlarında ne Gemini ne de OpenRouter/DeepSeek API anahtarı tanımlı değil! Lütfen Sistem Ayarlarından en az birini giriniz.';
+    if (isOfflineMod) {
       yield AjanLogMesaji(
         zaman: DateTime.now(),
-        mesaj: '❌ HATA: $msg',
-        ilerlemeYuzdesi: 0.0,
-        isHata: true,
+        mesaj: '⚡ Sistem Ayarlarında AI anahtarı tanımlı değil. Kural Tabanlı Deterministik Mizan Motoru devreye alındı (Çevrimdışı & Sıfır Maliyetli Çalışma).',
+        ilerlemeYuzdesi: 0.01,
       );
-      onHata(msg);
-      return;
     }
 
     // Yalnızca en az 1 belgesi yüklenmiş aktif birimleri filtrele
@@ -256,107 +254,181 @@ class BeyannameAiAjanServisi {
         } catch (_) {}
       }
 
-      // 5. Gemini AI İstemi Hazırlama
-      final prompt = _buildMizanPrompt(
+      // 5. Kural Tabanlı Deterministik Mizan Ayrıştırması (Her Zaman Çalışır)
+      final deterministikSonuc = MizanDeterministikParser.analizEt(
         birimAdi: birimAdi,
-        yil: yil,
-        ay: ay,
         aylikMizanMetni: aylikMizanMetni,
-        yardimciMizanMetni: yardimciMizanMetni,
         yillikMizanMetni: yillikMizanMetni,
-        digerBelgeMetni: digerBelgeMetni,
+        yardimciMizanMetni: yardimciMizanMetni,
+        oncekiAylarHasilat: birimOncekiAylarHasilat[birimAdi] ?? 0.0,
+        ekTevkifatFaturalari: tevkifatFaturaListesi,
       );
 
-      final contentParts = <Part>[];
-      // Multimodal: Sadece metin katmanı çıkarılamamış taranmış PDF veya resim varsa ilet.
-      // Metni zaten çıkarılmış dijital belgelerin ham baytlarını tekrar gönderme (Token patlamasını önle!).
-      void addMediaPartIfApplicable(BirimYuklenenBelge? doc, String extractedText) {
-        if (doc == null || doc.dosyaBytes == null || doc.dosyaBytes!.isEmpty) return;
-        final ext = doc.dosyaUzantisi.toLowerCase();
-        if (ext == 'png') {
-          contentParts.add(DataPart('image/png', doc.dosyaBytes!));
-        } else if (ext == 'jpg' || ext == 'jpeg') {
-          contentParts.add(DataPart('image/jpeg', doc.dosyaBytes!));
-        } else if (ext == 'pdf' && extractedText.trim().isEmpty) {
-          contentParts.add(DataPart('application/pdf', doc.dosyaBytes!));
-        }
+      final hasDeterministikVeri = deterministikSonuc.hasilat600Aylik > 0 ||
+          deterministikSonuc.hasilat600Kumulatif > 0 ||
+          deterministikSonuc.toplamHesaplananKdv > 0 ||
+          deterministikSonuc.damgaVergisi360 > 0;
+
+      if (hasDeterministikVeri) {
+        yield AjanLogMesaji(
+          zaman: DateTime.now(),
+          mesaj: '📐 [$birimAdi] Kural tabanlı mizan tespiti: 600 Hasılat: ${TurkceFormat.para(deterministikSonuc.hasilat600Aylik)}, KDV: ${TurkceFormat.para(deterministikSonuc.toplamHesaplananKdv)}, Damga: ${TurkceFormat.para(deterministikSonuc.damgaVergisi360)}.',
+          birimAdi: birimAdi,
+          ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.25 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
+        );
       }
 
-      addMediaPartIfApplicable(aylikMizanBelgesi, aylikMizanMetni);
-      addMediaPartIfApplicable(yardimciMizanBelgesi, yardimciMizanMetni);
-      addMediaPartIfApplicable(yillikMizanBelgesi, yillikMizanMetni);
-      addMediaPartIfApplicable(digerBelge, digerBelgeMetni);
-      contentParts.add(TextPart(prompt));
-
-      yield AjanLogMesaji(
-        zaman: DateTime.now(),
-        mesaj: hasGemini
-            ? '🤖 [$birimAdi] Google Gemini AI ile derin mizan taraması ve hesap kodları tespiti yapılıyor...'
-            : '🌐 [$birimAdi] OpenRouter üzerinden derin mizan ve tevkifat analizi yapılıyor...',
-        birimAdi: birimAdi,
-        ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.35 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
-      );
-
-      // 5. Kesintisiz Dayanıklı AI Çağrısı (OpenRouter + Gemini Fallback & Retry)
       BirimMizanAnalizSonucu? sonuc;
-      int denemeSayisi = 0;
-      const maxDeneme = 4;
 
-      while (denemeSayisi < maxDeneme) {
-        denemeSayisi++;
-        try {
-          final aiResponseText = await _calistirAiModel(
-            ayarlar: ayarlar,
-            prompt: prompt,
-            geminiParts: contentParts,
-          );
+      // Eğer çevrimdışı moddaysa (AI anahtarı yoksa), doğrudan deterministik sonucu kullan
+      if (isOfflineMod) {
+        sonuc = deterministikSonuc;
+      } else {
+        // AI İstemi Hazırlama (Deterministik referans değerlerini de ekle)
+        final prompt = _buildMizanPrompt(
+          birimAdi: birimAdi,
+          yil: yil,
+          ay: ay,
+          aylikMizanMetni: aylikMizanMetni,
+          yardimciMizanMetni: yardimciMizanMetni,
+          yillikMizanMetni: yillikMizanMetni,
+          digerBelgeMetni: digerBelgeMetni,
+        );
 
-          if (aiResponseText != null && aiResponseText.isNotEmpty) {
-            final parsedJson = _parseCleanJson(aiResponseText);
-            if (parsedJson != null) {
-              // Tevkifat faturalarını birleştir
-              final aiTevkifat = (parsedJson['tevkifatFaturalari'] as List<dynamic>?)
-                      ?.map((e) => Map<String, dynamic>.from(e as Map))
-                      .toList() ??
-                  [];
-              aiTevkifat.addAll(tevkifatFaturaListesi);
-              parsedJson['tevkifatFaturalari'] = aiTevkifat;
-              parsedJson['birimAdi'] = birimAdi;
-              parsedJson['analizTarihi'] = DateTime.now().toIso8601String();
-
-              sonuc = BirimMizanAnalizSonucu.fromMap(parsedJson);
-              break; // Başarılı, döngüden çık!
-            }
+        final contentParts = <Part>[];
+        void addMediaPartIfApplicable(BirimYuklenenBelge? doc, String extractedText) {
+          if (doc == null || doc.dosyaBytes == null || doc.dosyaBytes!.isEmpty) return;
+          final ext = doc.dosyaUzantisi.toLowerCase().replaceAll('.', '').trim();
+          if (ext == 'png') {
+            contentParts.add(DataPart('image/png', doc.dosyaBytes!));
+          } else if (ext == 'jpg' || ext == 'jpeg') {
+            contentParts.add(DataPart('image/jpeg', doc.dosyaBytes!));
+          } else if (ext == 'pdf' && extractedText.trim().length < 30) {
+            contentParts.add(DataPart('application/pdf', doc.dosyaBytes!));
           }
+        }
 
-          throw Exception('Yapay zeka geçerli JSON çıktısı üretemedi.');
-        } catch (e) {
-          final hataStr = e.toString();
-          debugPrint('[$birimAdi] Deneme $denemeSayisi/$maxDeneme hatası: $hataStr');
+        addMediaPartIfApplicable(aylikMizanBelgesi, aylikMizanMetni);
+        addMediaPartIfApplicable(yardimciMizanBelgesi, yardimciMizanMetni);
+        addMediaPartIfApplicable(yillikMizanBelgesi, yillikMizanMetni);
+        addMediaPartIfApplicable(digerBelge, digerBelgeMetni);
+        contentParts.add(TextPart(prompt));
 
-          if (denemeSayisi < maxDeneme) {
-            final beklemeSaniye = denemeSayisi * 2;
-            yield AjanLogMesaji(
-              zaman: DateTime.now(),
-              mesaj: '⏳ [$birimAdi] AI servisinden yanıt bekleniyor ($beklemeSaniye sn sonra tekrar denenecek: $denemeSayisi/$maxDeneme)...',
-              birimAdi: birimAdi,
-              ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.40 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
-              isHata: true,
+        yield AjanLogMesaji(
+          zaman: DateTime.now(),
+          mesaj: hasGemini
+              ? '🤖 [$birimAdi] Google Gemini AI ile derin mizan taraması ve hesap kodları tespiti yapılıyor...'
+              : '🌐 [$birimAdi] OpenRouter üzerinden derin mizan ve tevkifat analizi yapılıyor...',
+          birimAdi: birimAdi,
+          ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.35 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
+        );
+
+        // Kesintisiz Dayanıklı AI Çağrısı (OpenRouter + Gemini Fallback & Retry)
+        int denemeSayisi = 0;
+        const maxDeneme = 4;
+
+        while (denemeSayisi < maxDeneme) {
+          denemeSayisi++;
+          try {
+            final aiResponseText = await _calistirAiModel(
+              ayarlar: ayarlar,
+              prompt: prompt,
+              geminiParts: contentParts,
             );
-            await Future.delayed(Duration(seconds: beklemeSaniye));
-          } else {
-            yield AjanLogMesaji(
-              zaman: DateTime.now(),
-              mesaj: '❌ [$birimAdi] $maxDeneme denemede okunamadı ($hataStr). Bu birim için sıfır/boş taslak oluşturuldu.',
-              birimAdi: birimAdi,
-              ilerlemeYuzdesi: birimIlerlemeBitis,
-              isHata: true,
-            );
-            sonuc = BirimMizanAnalizSonucu(
-              birimAdi: birimAdi,
-              analizTarihi: DateTime.now(),
-              aciklama: 'AI okuma hatası: $hataStr',
-            );
+
+            if (aiResponseText != null && aiResponseText.isNotEmpty) {
+              final parsedJson = _parseCleanJson(aiResponseText);
+              if (parsedJson != null) {
+                // Tevkifat faturalarını tekilleştirerek birleştir
+                final aiTevkifat = (parsedJson['tevkifatFaturalari'] as List<dynamic>?)
+                        ?.map((e) => Map<String, dynamic>.from(e as Map))
+                        .toList() ??
+                    [];
+                for (final tf in tevkifatFaturaListesi) {
+                  final vNo = tf['vergiTcNo']?.toString().trim() ?? '';
+                  final mtr = TurkceFormat.parseSayi(tf['matrahTutari']);
+                  final alreadyExists = aiTevkifat.any((a) {
+                    final aVNo = a['vergiTcNo']?.toString().trim() ?? '';
+                    final aMtr = TurkceFormat.parseSayi(a['matrahTutari']);
+                    final sameMatrah = mtr > 0 && (aMtr - mtr).abs() < 1.0;
+                    return sameMatrah && (vNo.isEmpty || aVNo.isEmpty || aVNo == vNo);
+                  });
+                  if (!alreadyExists) {
+                    aiTevkifat.add(tf);
+                  }
+                }
+                parsedJson['tevkifatFaturalari'] = aiTevkifat;
+                parsedJson['birimAdi'] = birimAdi;
+                parsedJson['analizTarihi'] = DateTime.now().toIso8601String();
+
+                // Eğer AI hasılat veya KDV'yi 0 dönmüş ama deterministik parser bulmuşsa,
+                // kurumsal mizan değerlerini koru (halüsinasyon koruması)
+                if (hasDeterministikVeri) {
+                  if (TurkceFormat.parseSayi(parsedJson['hasilat600Aylik']) == 0 &&
+                      deterministikSonuc.hasilat600Aylik > 0) {
+                    parsedJson['hasilat600Aylik'] = deterministikSonuc.hasilat600Aylik;
+                  }
+                  if (TurkceFormat.parseSayi(parsedJson['hasilat600Kumulatif']) == 0 &&
+                      deterministikSonuc.hasilat600Kumulatif > 0) {
+                    parsedJson['hasilat600Kumulatif'] = deterministikSonuc.hasilat600Kumulatif;
+                  }
+                  if (TurkceFormat.parseSayi(parsedJson['hesaplananKdv20']) == 0 &&
+                      deterministikSonuc.hesaplananKdv20 > 0) {
+                    parsedJson['hesaplananKdv20'] = deterministikSonuc.hesaplananKdv20;
+                    parsedJson['hesaplananKdvMatrah20'] = deterministikSonuc.hesaplananKdvMatrah20;
+                  }
+                  if (TurkceFormat.parseSayi(parsedJson['damgaVergisi360']) == 0 &&
+                      deterministikSonuc.damgaVergisi360 > 0) {
+                    parsedJson['damgaVergisi360'] = deterministikSonuc.damgaVergisi360;
+                    parsedJson['damgaMatrah'] = deterministikSonuc.damgaMatrah;
+                  }
+                }
+
+                sonuc = BirimMizanAnalizSonucu.fromMap(parsedJson);
+                break; // Başarılı, döngüden çık!
+              }
+            }
+
+            throw Exception('Yapay zeka geçerli JSON çıktısı üretemedi.');
+          } catch (e) {
+            final hataStr = e.toString();
+            debugPrint('[$birimAdi] Deneme $denemeSayisi/$maxDeneme hatası: $hataStr');
+
+            if (denemeSayisi < maxDeneme) {
+              final beklemeSaniye = denemeSayisi * 2;
+              yield AjanLogMesaji(
+                zaman: DateTime.now(),
+                mesaj: '⏳ [$birimAdi] AI servisinden yanıt bekleniyor ($beklemeSaniye sn sonra tekrar denenecek: $denemeSayisi/$maxDeneme)...',
+                birimAdi: birimAdi,
+                ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.40 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
+                isHata: true,
+              );
+              await Future.delayed(Duration(seconds: beklemeSaniye));
+            } else {
+              // AI yanıt veremezse deterministik analizi devreye al (Kayıp ve çökme yok!)
+              if (hasDeterministikVeri) {
+                yield AjanLogMesaji(
+                  zaman: DateTime.now(),
+                  mesaj: 'ℹ️ [$birimAdi] AI yanıt veremedi ($hataStr). Kural tabanlı deterministik mizan analiz sonucu korundu.',
+                  birimAdi: birimAdi,
+                  ilerlemeYuzdesi: birimIlerlemeBitis,
+                );
+                sonuc = deterministikSonuc;
+              } else {
+                yield AjanLogMesaji(
+                  zaman: DateTime.now(),
+                  mesaj: '❌ [$birimAdi] $maxDeneme denemede okunamadı ($hataStr). Bu birim için sıfır/boş taslak oluşturuldu.',
+                  birimAdi: birimAdi,
+                  ilerlemeYuzdesi: birimIlerlemeBitis,
+                  isHata: true,
+                );
+                sonuc = BirimMizanAnalizSonucu(
+                  birimAdi: birimAdi,
+                  analizTarihi: DateTime.now(),
+                  aciklama: 'AI okuma hatası: $hataStr',
+                );
+              }
+            }
           }
         }
       }
@@ -410,9 +482,12 @@ class BeyannameAiAjanServisi {
     final cleanUrl = apiUrl.trim().isEmpty
         ? 'https://openrouter.ai/api/v1'
         : apiUrl.trim();
-    final endpoint = cleanUrl.endsWith('/')
-        ? '${cleanUrl}chat/completions'
-        : '$cleanUrl/chat/completions';
+    final base = cleanUrl.endsWith('/')
+        ? cleanUrl.substring(0, cleanUrl.length - 1)
+        : cleanUrl;
+    final endpoint = base.endsWith('/chat/completions')
+        ? base
+        : '$base/chat/completions';
     final resolvedModel = modelName.trim().isEmpty
         ? 'google/gemini-2.0-flash-001'
         : modelName.trim();
@@ -569,15 +644,25 @@ class BeyannameAiAjanServisi {
   /// JSON metnini güvenli temizleyip ayrıştırır
   Map<String, dynamic>? _parseCleanJson(String raw) {
     var cleaned = raw.trim();
-    if (cleaned.startsWith('```json')) {
-      cleaned = cleaned.substring(7);
-    } else if (cleaned.startsWith('```')) {
-      cleaned = cleaned.substring(3);
+
+    // Markdown ```json ... ``` bloğu varsa çıkar
+    final mdMatch = RegExp(r'```(?:json)?\s*([\s\S]*?)\s*```').firstMatch(cleaned);
+    if (mdMatch != null) {
+      cleaned = mdMatch.group(1)!.trim();
+    } else {
+      if (cleaned.startsWith('```json')) {
+        cleaned = cleaned.substring(7);
+      } else if (cleaned.startsWith('```')) {
+        cleaned = cleaned.substring(3);
+      }
+      if (cleaned.endsWith('```')) {
+        cleaned = cleaned.substring(0, cleaned.length - 3);
+      }
+      cleaned = cleaned.trim();
     }
-    if (cleaned.endsWith('```')) {
-      cleaned = cleaned.substring(0, cleaned.length - 3);
-    }
-    cleaned = cleaned.trim();
+
+    // Trailing comma temizliği: , } veya , ] -> } veya ]
+    cleaned = cleaned.replaceAll(RegExp(r',\s*([}\]])'), r'$1');
 
     try {
       final decoded = jsonDecode(cleaned);
@@ -587,7 +672,9 @@ class BeyannameAiAjanServisi {
       final match = RegExp(r'\{[\s\S]*\}').firstMatch(cleaned);
       if (match != null) {
         try {
-          final decoded = jsonDecode(match.group(0)!);
+          var block = match.group(0)!;
+          block = block.replaceAll(RegExp(r',\s*([}\]])'), r'$1');
+          final decoded = jsonDecode(block);
           if (decoded is Map<String, dynamic>) return decoded;
         } catch (_) {}
       }

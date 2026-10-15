@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import '../../../core/turkce_format.dart';
 
 /// Birim için yüklenebilecek belge slot türleri.
 /// Gelecekte muhtasar bordrosu veya fatura listesi eklenmesi için genişletilebilir.
@@ -186,36 +187,54 @@ class BirimMizanAnalizSonucu {
         'aciklama': aciklama,
       };
 
+  static bool _parseBool(dynamic val) {
+    if (val == null) return false;
+    if (val is bool) return val;
+    if (val is num) return val != 0;
+    final s = val.toString().trim().toLowerCase();
+    return s == 'true' || s == '1' || s == 'evet' || s == 'yes';
+  }
+
   factory BirimMizanAnalizSonucu.fromMap(Map<String, dynamic> map) {
     return BirimMizanAnalizSonucu(
       birimAdi: map['birimAdi'] as String? ?? '',
       analizTarihi: map['analizTarihi'] != null
-          ? DateTime.parse(map['analizTarihi'] as String)
+          ? DateTime.tryParse(map['analizTarihi'] as String) ?? DateTime.now()
           : DateTime.now(),
-      hasilat600Aylik: (map['hasilat600Aylik'] as num?)?.toDouble() ?? 0.0,
-      hasilat600Kumulatif: (map['hasilat600Kumulatif'] as num?)?.toDouble() ?? 0.0,
-      krediKarti123: (map['krediKarti123'] as num?)?.toDouble() ?? 0.0,
-      hesaplananKdvMatrah10: (map['hesaplananKdvMatrah10'] as num?)?.toDouble() ?? 0.0,
-      hesaplananKdv10: (map['hesaplananKdv10'] as num?)?.toDouble() ?? 0.0,
-      hesaplananKdvMatrah20: (map['hesaplananKdvMatrah20'] as num?)?.toDouble() ?? 0.0,
-      hesaplananKdv20: (map['hesaplananKdv20'] as num?)?.toDouble() ?? 0.0,
-      indirilecekKdvMatrah10: (map['indirilecekKdvMatrah10'] as num?)?.toDouble() ?? 0.0,
-      indirilecekKdv10: (map['indirilecekKdv10'] as num?)?.toDouble() ?? 0.0,
-      indirilecekKdvMatrah20: (map['indirilecekKdvMatrah20'] as num?)?.toDouble() ?? 0.0,
-      indirilecekKdv20: (map['indirilecekKdv20'] as num?)?.toDouble() ?? 0.0,
-      damgaVergisi360: (map['damgaVergisi360'] as num?)?.toDouble() ?? 0.0,
-      damgaMatrah: (map['damgaMatrah'] as num?)?.toDouble() ?? 0.0,
-      muhtasarGelir360: (map['muhtasarGelir360'] as num?)?.toDouble() ?? 0.0,
-      muhtasarDamga360: (map['muhtasarDamga360'] as num?)?.toDouble() ?? 0.0,
-      devredenKdv190: (map['devredenKdv190'] as num?)?.toDouble() ?? 0.0,
+      hasilat600Aylik: TurkceFormat.parseSayi(map['hasilat600Aylik']),
+      hasilat600Kumulatif: TurkceFormat.parseSayi(map['hasilat600Kumulatif']),
+      krediKarti123: TurkceFormat.parseSayi(map['krediKarti123']),
+      hesaplananKdvMatrah10: TurkceFormat.parseSayi(map['hesaplananKdvMatrah10']),
+      hesaplananKdv10: TurkceFormat.parseSayi(map['hesaplananKdv10']),
+      hesaplananKdvMatrah20: TurkceFormat.parseSayi(map['hesaplananKdvMatrah20']),
+      hesaplananKdv20: TurkceFormat.parseSayi(map['hesaplananKdv20']),
+      indirilecekKdvMatrah10: TurkceFormat.parseSayi(map['indirilecekKdvMatrah10']),
+      indirilecekKdv10: TurkceFormat.parseSayi(map['indirilecekKdv10']),
+      indirilecekKdvMatrah20: TurkceFormat.parseSayi(map['indirilecekKdvMatrah20']),
+      indirilecekKdv20: TurkceFormat.parseSayi(map['indirilecekKdv20']),
+      damgaVergisi360: TurkceFormat.parseSayi(map['damgaVergisi360']),
+      damgaMatrah: TurkceFormat.parseSayi(map['damgaMatrah']),
+      muhtasarGelir360: TurkceFormat.parseSayi(map['muhtasarGelir360']),
+      muhtasarDamga360: TurkceFormat.parseSayi(map['muhtasarDamga360']),
+      devredenKdv190: TurkceFormat.parseSayi(map['devredenKdv190']),
       tevkifatFaturalari: (map['tevkifatFaturalari'] as List<dynamic>?)
-              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              ?.whereType<Map>()
+              .map((e) {
+                final m = Map<String, dynamic>.from(e);
+                m['matrahTutari'] = TurkceFormat.parseSayi(m['matrahTutari']);
+                m['kdvTutari'] = TurkceFormat.parseSayi(m['kdvTutari']);
+                m['tevkifatTutari'] = TurkceFormat.parseSayi(m['tevkifatTutari']);
+                m['firmaAdi'] = m['firmaAdi']?.toString() ?? 'Firma';
+                m['vergiTcNo'] = m['vergiTcNo']?.toString().trim() ?? '';
+                m['tevkifatOrani'] = m['tevkifatOrani']?.toString() ?? '9/10';
+                return m;
+              })
               .toList() ??
           const [],
-      yardimciMizanKullanildi: map['yardimciMizanKullanildi'] as bool? ?? false,
-      yardimciMizan391Toplam: (map['yardimciMizan391Toplam'] as num?)?.toDouble() ?? 0.0,
-      yardimciMizan191Toplam: (map['yardimciMizan191Toplam'] as num?)?.toDouble() ?? 0.0,
-      yardimciMizan600Toplam: (map['yardimciMizan600Toplam'] as num?)?.toDouble() ?? 0.0,
+      yardimciMizanKullanildi: _parseBool(map['yardimciMizanKullanildi']),
+      yardimciMizan391Toplam: TurkceFormat.parseSayi(map['yardimciMizan391Toplam']),
+      yardimciMizan191Toplam: TurkceFormat.parseSayi(map['yardimciMizan191Toplam']),
+      yardimciMizan600Toplam: TurkceFormat.parseSayi(map['yardimciMizan600Toplam']),
       aciklama: map['aciklama'] as String?,
       hamJson: map,
     );

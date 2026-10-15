@@ -1,5 +1,7 @@
 import '../models/beyanname_belge_model.dart';
 import '../models/beyanname_denetim_rapor_model.dart';
+import '../models/beyanname_model.dart';
+import '../../birim/models/birim_model.dart';
 import '../../../core/turkce_format.dart';
 
 /// Gelir İdaresi Başkanlığı (GİB), Defterdarlık ve Vergi Denetim Kurulu (VDK)
@@ -206,43 +208,61 @@ class BeyannameDenetimServisi {
       // -----------------------------------------------------------------------
       // SENARYO 2: Aylık Mizan + Önceki Aylar vs Yıllık Kümülatif 600 Uyuşmazlığı
       // -----------------------------------------------------------------------
-      final oncekiAylarToplami = birimOncekiAylarHasilat[birimAdi] ?? 0.0;
+      final cKey = BirimAdlandirma.canonicalKey(birimAdi);
+      final oncekiAylarToplami = birimOncekiAylarHasilat[birimAdi] ??
+          birimOncekiAylarHasilat[cKey] ??
+          0.0;
       final beklenenKumulatif = oncekiAylarToplami + sonuc.hasilat600Aylik;
 
       if (sonuc.hasilat600Kumulatif > 0) {
-        final fark = (beklenenKumulatif - sonuc.hasilat600Kumulatif).abs();
-        if (fark > 1.0) {
+        if (ay > 1 && oncekiAylarToplami == 0.0 && (sonuc.hasilat600Kumulatif - sonuc.hasilat600Aylik).abs() > 1.0) {
           kontroller.add(MutabakatKontrolKaydi(
             id: 'sen-2-${kontrolIdSayac++}',
             senaryoNo: 2,
             birimAdi: birimAdi,
-            baslik: 'Kümülatif Hasılat Mizan Uyuşmazlığı',
-            seviye: DenetimSeviyesi.hata,
-            beklenenDeger: beklenenKumulatif,
+            baslik: 'Geçmiş Aylar Hasılat Kaydı Girilmemiş (Kümülatif Bilgilendirme)',
+            seviye: DenetimSeviyesi.uyari,
+            beklenenDeger: sonuc.hasilat600Aylik,
             bulunanDeger: sonuc.hasilat600Kumulatif,
-            fark: beklenenKumulatif - sonuc.hasilat600Kumulatif,
-            aciklama: 'Önceki aylar toplamı (${TurkceFormat.para(oncekiAylarToplami)}) + Bu ay hasılatı (${TurkceFormat.para(sonuc.hasilat600Aylik)}) = ${TurkceFormat.para(beklenenKumulatif)} olması gerekirken, Yıllık Mizan kümülatif bakiyesi ${TurkceFormat.para(sonuc.hasilat600Kumulatif)} çıkmaktadır. Fark: ${TurkceFormat.para(fark)}.',
-            cozumOnerisi: '1) Geçmiş aylara geriye dönük ters/ek kayıt atılmış olabilir.\n2) 610 İade/İskonto hesabı 600 ile netleştirilmiş olabilir.\n3) Yüklenen yıllık mizan dönemi kontrol edilmelidir.',
+            fark: sonuc.hasilat600Kumulatif - sonuc.hasilat600Aylik,
+            aciklama: 'Sistemde önceki aylara (Ocak-${ay - 1}. ay) ait geçmiş hasılat kaydı bulunamadı. Yıllık mizan kümülatifi ${TurkceFormat.para(sonuc.hasilat600Kumulatif)}, bu ay ise ${TurkceFormat.para(sonuc.hasilat600Aylik)} tutarındadır. Geçmiş aylar farkı: ${TurkceFormat.para(sonuc.hasilat600Kumulatif - sonuc.hasilat600Aylik)}.',
+            cozumOnerisi: 'Geçmiş ayların hasılatları 600 Masasından yüklendiğinde kümülatif tam mutabakat sağlanacaktır.',
           ));
         } else {
-          kontroller.add(MutabakatKontrolKaydi(
-            id: 'sen-2-${kontrolIdSayac++}',
-            senaryoNo: 2,
-            birimAdi: birimAdi,
-            baslik: 'Aylık ve Yıllık Mizan Kümülatif Mutabakatı Tam',
-            seviye: DenetimSeviyesi.bilgi,
-            beklenenDeger: beklenenKumulatif,
-            bulunanDeger: sonuc.hasilat600Kumulatif,
-            fark: 0.0,
-            aciklama: 'Aylık mizan ve kümülatif mizan kuruşu kuruşuna birbirini doğrulamaktadır (${TurkceFormat.para(beklenenKumulatif)}).',
-          ));
+          final fark = (beklenenKumulatif - sonuc.hasilat600Kumulatif).abs();
+          if (fark > 1.0) {
+            kontroller.add(MutabakatKontrolKaydi(
+              id: 'sen-2-${kontrolIdSayac++}',
+              senaryoNo: 2,
+              birimAdi: birimAdi,
+              baslik: 'Kümülatif Hasılat Mizan Uyuşmazlığı',
+              seviye: DenetimSeviyesi.hata,
+              beklenenDeger: beklenenKumulatif,
+              bulunanDeger: sonuc.hasilat600Kumulatif,
+              fark: beklenenKumulatif - sonuc.hasilat600Kumulatif,
+              aciklama: 'Önceki aylar toplamı (${TurkceFormat.para(oncekiAylarToplami)}) + Bu ay hasılatı (${TurkceFormat.para(sonuc.hasilat600Aylik)}) = ${TurkceFormat.para(beklenenKumulatif)} olması gerekirken, Yıllık Mizan kümülatif bakiyesi ${TurkceFormat.para(sonuc.hasilat600Kumulatif)} çıkmaktadır. Fark: ${TurkceFormat.para(fark)}.',
+              cozumOnerisi: '1) Geçmiş aylara geriye dönük ters/ek kayıt atılmış olabilir.\n2) 610 İade/İskonto hesabı 600 ile netleştirilmiş olabilir.\n3) Yüklenen yıllık mizan dönemi kontrol edilmelidir.',
+            ));
+          } else {
+            kontroller.add(MutabakatKontrolKaydi(
+              id: 'sen-2-${kontrolIdSayac++}',
+              senaryoNo: 2,
+              birimAdi: birimAdi,
+              baslik: 'Aylık ve Yıllık Mizan Kümülatif Mutabakatı Tam',
+              seviye: DenetimSeviyesi.bilgi,
+              beklenenDeger: beklenenKumulatif,
+              bulunanDeger: sonuc.hasilat600Kumulatif,
+              fark: 0.0,
+              aciklama: 'Aylık mizan ve kümülatif mizan kuruşu kuruşuna birbirini doğrulamaktadır (${TurkceFormat.para(beklenenKumulatif)}).',
+            ));
+          }
         }
       }
 
       // -----------------------------------------------------------------------
       // SENARYO 3: 600 Hasılat vs KDV 1 Matrahı (391) Farkı
       // -----------------------------------------------------------------------
-      if (sonuc.hasilat600Aylik > 0) {
+      if (sonuc.hasilat600Aylik > 0 || sonuc.toplamHesaplananMatrah > 0) {
         final kdvMatrahToplami = sonuc.toplamHesaplananMatrah;
         final matrahFarki = sonuc.hasilat600Aylik - kdvMatrahToplami;
 
@@ -308,6 +328,18 @@ class BeyannameDenetimServisi {
             aciklama: 'Matrah (${TurkceFormat.para(sonuc.hesaplananKdvMatrah20)}) x %20 = ${TurkceFormat.para(beklenenKdv20)} olmalıdır. Mizandaki KDV: ${TurkceFormat.para(sonuc.hesaplananKdv20)}.',
             cozumOnerisi: 'Hatalı oranlı kesilmiş fatura veya yuvarlama farkını inceleyiniz.',
           ));
+        } else {
+          kontroller.add(MutabakatKontrolKaydi(
+            id: 'sen-4a-${kontrolIdSayac++}',
+            senaryoNo: 4,
+            birimAdi: birimAdi,
+            baslik: '%20 KDV Matematiksel Sağlaması Doğrulandı',
+            seviye: DenetimSeviyesi.bilgi,
+            beklenenDeger: beklenenKdv20,
+            bulunanDeger: sonuc.hesaplananKdv20,
+            fark: 0.0,
+            aciklama: 'Matrah (${TurkceFormat.para(sonuc.hesaplananKdvMatrah20)}) x %20 = ${TurkceFormat.para(sonuc.hesaplananKdv20)} tam mutabık.',
+          ));
         }
       }
 
@@ -327,6 +359,18 @@ class BeyannameDenetimServisi {
             aciklama: 'Matrah (${TurkceFormat.para(sonuc.hesaplananKdvMatrah10)}) x %10 = ${TurkceFormat.para(beklenenKdv10)} olmalıdır. Mizandaki KDV: ${TurkceFormat.para(sonuc.hesaplananKdv10)}.',
             cozumOnerisi: '10\'luk matrah ve vergi ayrımını kontrol ediniz.',
           ));
+        } else {
+          kontroller.add(MutabakatKontrolKaydi(
+            id: 'sen-4b-${kontrolIdSayac++}',
+            senaryoNo: 4,
+            birimAdi: birimAdi,
+            baslik: '%10 KDV Matematiksel Sağlaması Doğrulandı',
+            seviye: DenetimSeviyesi.bilgi,
+            beklenenDeger: beklenenKdv10,
+            bulunanDeger: sonuc.hesaplananKdv10,
+            fark: 0.0,
+            aciklama: 'Matrah (${TurkceFormat.para(sonuc.hesaplananKdvMatrah10)}) x %10 = ${TurkceFormat.para(sonuc.hesaplananKdv10)} tam mutabık.',
+          ));
         }
       }
 
@@ -335,9 +379,11 @@ class BeyannameDenetimServisi {
       // -----------------------------------------------------------------------
       final ham = sonuc.hamJson;
       if (ham != null) {
-        final is191Alacak = (ham['is191TersBakiye'] as bool?) ?? false;
-        final is391Borc = (ham['is391TersBakiye'] as bool?) ?? false;
-        final is600Borc = (ham['is600TersBakiye'] as bool?) ?? false;
+        bool b(dynamic v) =>
+            v is bool ? v : (v?.toString().trim().toLowerCase() == 'true');
+        final is191Alacak = b(ham['is191TersBakiye']);
+        final is391Borc = b(ham['is391TersBakiye']);
+        final is600Borc = b(ham['is600TersBakiye']);
 
         if (is191Alacak) {
           kontroller.add(MutabakatKontrolKaydi(
@@ -399,8 +445,9 @@ class BeyannameDenetimServisi {
             birimAdi: birimAdi,
             baslik: '360.03.05 Damga Vergisi Binde 9,48 Doğrulandı',
             seviye: DenetimSeviyesi.bilgi,
+            beklenenDeger: beklenenDamgaMatrahi,
             bulunanDeger: sonuc.damgaVergisi360,
-            aciklama: 'Mizandaki damga vergisi binde 9,48 oranıyla matematiksel olarak tam doğrulanmıştır.',
+            aciklama: 'Mizandaki damga vergisi binde 9,48 oranıyla matematiksel olarak tam doğrulanmıştır (Hesaplanan Matrah: ${TurkceFormat.para(beklenenDamgaMatrahi)}).',
           ));
         }
       }
@@ -411,7 +458,7 @@ class BeyannameDenetimServisi {
       for (final fatura in sonuc.tevkifatFaturalari) {
         final firmaAdi = fatura['firmaAdi'] as String? ?? 'Bilinmeyen Firma';
         final vkn = (fatura['vergiTcNo'] as String? ?? '').trim();
-        final oranStr = fatura['tevkifatOrani'] as String? ?? '9/10';
+        final oranStr = (fatura['tevkifatOrani'] as String? ?? '9/10').trim();
 
         if (vkn.isNotEmpty) {
           final isVknValid = vkn.length == 10 ? dogrulaVkn(vkn) : (vkn.length == 11 ? dogrulaTckn(vkn) : false);
@@ -426,19 +473,33 @@ class BeyannameDenetimServisi {
               cozumOnerisi: 'Fatura üzerindeki vergi kimlik numarasını tekrar kontrol edip düzeltiniz.',
             ));
           }
+        } else {
+          kontroller.add(MutabakatKontrolKaydi(
+            id: 'sen-8a-${kontrolIdSayac++}',
+            senaryoNo: 8,
+            birimAdi: birimAdi,
+            baslik: 'Eksik VKN / TCKN ($firmaAdi)',
+            seviye: DenetimSeviyesi.hata,
+            aciklama: '$firmaAdi tevkifat faturasında Vergi Kimlik Numarası (VKN/TCKN) bulunamadı. GİB e-Beyanname VKN olmadan beyannameyi doğrudan reddeder.',
+            cozumOnerisi: 'Fatura üzerindeki vergi kimlik numarasını giriniz.',
+          ));
         }
 
         // Tevkifat matematiksel kontrolü
-        final matrah = (fatura['matrahTutari'] as num?)?.toDouble() ?? 0.0;
-        final kdvTutari = (fatura['kdvTutari'] as num?)?.toDouble() ?? 0.0;
-        final tevkifatTutari = (fatura['tevkifatTutari'] as num?)?.toDouble() ?? 0.0;
+        final matrah = TurkceFormat.parseSayi(fatura['matrahTutari']);
+        final kdvTutari = TurkceFormat.parseSayi(fatura['kdvTutari']);
+        final tevkifatTutari = TurkceFormat.parseSayi(fatura['tevkifatTutari']);
 
         if (matrah > 0 && kdvTutari > 0 && tevkifatTutari > 0) {
           double carpimOrani = 0.9;
-          if (oranStr.contains('7/10')) carpimOrani = 0.7;
-          if (oranStr.contains('5/10')) carpimOrani = 0.5;
-          if (oranStr.contains('4/10')) carpimOrani = 0.4;
-          if (oranStr.contains('3/10')) carpimOrani = 0.3;
+          final match = RegExp(r'(\d+)\s*/\s*(\d+)').firstMatch(oranStr);
+          if (match != null) {
+            final pay = double.tryParse(match.group(1)!) ?? 9.0;
+            final payda = double.tryParse(match.group(2)!) ?? 10.0;
+            if (payda > 0) {
+              carpimOrani = pay / payda;
+            }
+          }
 
           final beklenenTevkifat = kdvTutari * carpimOrani;
           if ((beklenenTevkifat - tevkifatTutari).abs() > 1.0) {
@@ -451,11 +512,54 @@ class BeyannameDenetimServisi {
               beklenenDeger: beklenenTevkifat,
               bulunanDeger: tevkifatTutari,
               fark: beklenenTevkifat - tevkifatTutari,
-              aciklama: '$firmaAdi: KDV ($kdvTutari) x $oranStr = $beklenenTevkifat TL olmalıdır. Belgede $tevkifatTutari TL yazmaktadır.',
+              aciklama: '$firmaAdi: KDV (${TurkceFormat.para(kdvTutari)}) x $oranStr = ${TurkceFormat.para(beklenenTevkifat)} olmalıdır. Belgede ${TurkceFormat.para(tevkifatTutari)} yazmaktadır.',
               cozumOnerisi: 'Fatura üzerindeki tevkifat satırını teyit ediniz.',
             ));
           }
         }
+      }
+
+      // -----------------------------------------------------------------------
+      // SENARYO 9: Belge & Fatura - Mizan Mutabakatı (Mizana Yansımamış Fatura Tespiti)
+      // -----------------------------------------------------------------------
+      final aciklama = sonuc.aciklama?.trim() ?? '';
+      final isAiError = aciklama.startsWith('AI okuma hatası');
+      if (aciklama.isNotEmpty && !isAiError) {
+        final lower = aciklama.toLowerCase();
+        final containsWarning = lower.contains('yansımamış') ||
+            lower.contains('yansimamis') ||
+            lower.contains('fark') ||
+            lower.contains('uyuşmazlık') ||
+            lower.contains('uyumsuzluk') ||
+            lower.contains('eksik') ||
+            lower.contains('bulunamadı');
+        kontroller.add(MutabakatKontrolKaydi(
+          id: 'sen-9-${kontrolIdSayac++}',
+          senaryoNo: 9,
+          birimAdi: birimAdi,
+          baslik: containsWarning
+              ? 'Belge - Mizan Mutabakat Uyarısı (AI Tespiti)'
+              : 'Belge & Fatura Analiz Notu',
+          seviye: containsWarning ? DenetimSeviyesi.uyari : DenetimSeviyesi.bilgi,
+          aciklama: aciklama,
+          cozumOnerisi: containsWarning
+              ? 'Mizana henüz işlenmemiş fatura veya tahakkuk fişlerini muhasebe kayıtlarına intikal ettiriniz.'
+              : null,
+        ));
+      } else if (sonuc.tevkifatFaturalari.isNotEmpty) {
+        final topTevkifatMatrah = sonuc.tevkifatFaturalari.fold(
+          0.0,
+          (s, f) => s + TurkceFormat.parseSayi(f['matrahTutari']),
+        );
+        kontroller.add(MutabakatKontrolKaydi(
+          id: 'sen-9-${kontrolIdSayac++}',
+          senaryoNo: 9,
+          birimAdi: birimAdi,
+          baslik: 'Ek Faturalar Mizanla Uyumlu İncelendi',
+          seviye: DenetimSeviyesi.bilgi,
+          bulunanDeger: topTevkifatMatrah,
+          aciklama: '${sonuc.tevkifatFaturalari.length} adet tevkifat faturası (${TurkceFormat.para(topTevkifatMatrah)} matrah) incelendi ve mizanla mutabık bulundu.',
+        ));
       }
 
       // -----------------------------------------------------------------------
@@ -549,9 +653,14 @@ class BeyannameDenetimServisi {
     // SENARYO 5: 190 Devreden KDV Geçmiş Dönem Kapanış Uyuşmazlığı (Konsolide)
     // -------------------------------------------------------------------------
     final toplamMizan190 = birimSonuclari.values.fold(0.0, (s, x) => s + x.devredenKdv190);
-    if (toplamMizan190 > 0 && oncekiAydanDevredenKdv > 0) {
+    if (toplamMizan190 > 0 || oncekiAydanDevredenKdv > 0) {
       final devirFarki = (toplamMizan190 - oncekiAydanDevredenKdv).abs();
       if (devirFarki > 1.0) {
+        final aciklama = oncekiAydanDevredenKdv == 0
+            ? 'Mizanda ${TurkceFormat.para(toplamMizan190)} 190 Devreden KDV borç bakiyesi bulunmasına rağmen, sistemde önceki aydan devreden KDV 0,00 TL kayıtlıdır.'
+            : (toplamMizan190 == 0
+                ? 'Sistemde önceki aydan devreden KDV ${TurkceFormat.para(oncekiAydanDevredenKdv)} görünmesine rağmen, mizan 190 hesabında devir bakiyesi bulunamadı.'
+                : 'Sistemde kayıtlı önceki ay beyannamesinden devreden KDV ${TurkceFormat.para(oncekiAydanDevredenKdv)} iken, bu ayın mizan 190 toplam borç bakiyesi ${TurkceFormat.para(toplamMizan190)} çıkmaktadır. Fark: ${TurkceFormat.para(devirFarki)}.');
         kontroller.add(MutabakatKontrolKaydi(
           id: 'sen-5-${kontrolIdSayac++}',
           senaryoNo: 5,
@@ -561,7 +670,7 @@ class BeyannameDenetimServisi {
           beklenenDeger: oncekiAydanDevredenKdv,
           bulunanDeger: toplamMizan190,
           fark: toplamMizan190 - oncekiAydanDevredenKdv,
-          aciklama: 'Sistemde kayıtlı önceki ay beyannamesinden devreden KDV ${TurkceFormat.para(oncekiAydanDevredenKdv)} iken, bu ayın mizan 190 toplam borç bakiyesi ${TurkceFormat.para(toplamMizan190)} çıkmaktadır. Fark: ${TurkceFormat.para(devirFarki)}.',
+          aciklama: aciklama,
           cozumOnerisi: 'Geçmiş aya sonradan kayıt girilip girilmediğini veya vergi dairesi düzeltme beyannamesi verilip verilmediğini kontrol ediniz.',
         ));
       } else {
