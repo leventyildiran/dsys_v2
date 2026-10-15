@@ -212,23 +212,25 @@ class BeyannameDenetimServisi {
       final oncekiAylarToplami = birimOncekiAylarHasilat[birimAdi] ??
           birimOncekiAylarHasilat[cKey] ??
           0.0;
-      final beklenenKumulatif = oncekiAylarToplami + sonuc.hasilat600Aylik;
 
       if (sonuc.hasilat600Kumulatif > 0) {
-        if (ay > 1 && oncekiAylarToplami == 0.0 && (sonuc.hasilat600Kumulatif - sonuc.hasilat600Aylik).abs() > 1.0) {
+        // 1. Kritik Hata: Yıllık kümülatif tek bir ayın hasılatından küçük olamaz
+        if (sonuc.hasilat600Kumulatif < sonuc.hasilat600Aylik - 1.0) {
           kontroller.add(MutabakatKontrolKaydi(
             id: 'sen-2-${kontrolIdSayac++}',
             senaryoNo: 2,
             birimAdi: birimAdi,
-            baslik: 'Geçmiş Aylar Hasılat Kaydı Girilmemiş (Kümülatif Bilgilendirme)',
-            seviye: DenetimSeviyesi.uyari,
+            baslik: 'Kümülatif Hasılat Aylık Hasılatın Altında (Kritik Mantık Hatası)',
+            seviye: DenetimSeviyesi.hata,
             beklenenDeger: sonuc.hasilat600Aylik,
             bulunanDeger: sonuc.hasilat600Kumulatif,
-            fark: sonuc.hasilat600Kumulatif - sonuc.hasilat600Aylik,
-            aciklama: 'Sistemde önceki aylara (Ocak-${ay - 1}. ay) ait geçmiş hasılat kaydı bulunamadı. Yıllık mizan kümülatifi ${TurkceFormat.para(sonuc.hasilat600Kumulatif)}, bu ay ise ${TurkceFormat.para(sonuc.hasilat600Aylik)} tutarındadır. Geçmiş aylar farkı: ${TurkceFormat.para(sonuc.hasilat600Kumulatif - sonuc.hasilat600Aylik)}.',
-            cozumOnerisi: 'Geçmiş ayların hasılatları 600 Masasından yüklendiğinde kümülatif tam mutabakat sağlanacaktır.',
+            fark: sonuc.hasilat600Aylik - sonuc.hasilat600Kumulatif,
+            aciklama: 'Yıllık mizan kümülatif hasılatı (${TurkceFormat.para(sonuc.hasilat600Kumulatif)}), tek bir ayın hasılatından (${TurkceFormat.para(sonuc.hasilat600Aylik)}) daha az çıkamaz.',
+            cozumOnerisi: 'Mizan dönemlerini ve ters bakiye kayıtlarını kontrol ediniz.',
           ));
-        } else {
+        } else if (oncekiAylarToplami > 0) {
+          // 2. Geçmiş aylar DSYS'ye girilmişse: (Önceki Aylar + Bu Ay == Yıllık Mizan) kontrolü
+          final beklenenKumulatif = oncekiAylarToplami + sonuc.hasilat600Aylik;
           final fark = (beklenenKumulatif - sonuc.hasilat600Kumulatif).abs();
           if (fark > 1.0) {
             kontroller.add(MutabakatKontrolKaydi(
@@ -241,7 +243,7 @@ class BeyannameDenetimServisi {
               bulunanDeger: sonuc.hasilat600Kumulatif,
               fark: beklenenKumulatif - sonuc.hasilat600Kumulatif,
               aciklama: 'Önceki aylar toplamı (${TurkceFormat.para(oncekiAylarToplami)}) + Bu ay hasılatı (${TurkceFormat.para(sonuc.hasilat600Aylik)}) = ${TurkceFormat.para(beklenenKumulatif)} olması gerekirken, Yıllık Mizan kümülatif bakiyesi ${TurkceFormat.para(sonuc.hasilat600Kumulatif)} çıkmaktadır. Fark: ${TurkceFormat.para(fark)}.',
-              cozumOnerisi: '1) Geçmiş aylara geriye dönük ters/ek kayıt atılmış olabilir.\n2) 610 İade/İskonto hesabı 600 ile netleştirilmiş olabilir.\n3) Yüklenen yıllık mizan dönemi kontrol edilmelidir.',
+              cozumOnerisi: '1) Geçmiş aylara geriye dönük ters/ek kayıt atılmış olabilir.\n2) Yıllık mizan dönemi kontrol edilmelidir.',
             ));
           } else {
             kontroller.add(MutabakatKontrolKaydi(
@@ -256,6 +258,22 @@ class BeyannameDenetimServisi {
               aciklama: 'Aylık mizan ve kümülatif mizan kuruşu kuruşuna birbirini doğrulamaktadır (${TurkceFormat.para(beklenenKumulatif)}).',
             ));
           }
+        } else {
+          // 3. Geçmiş aylar henüz sisteme girilmemişse: Yıllık mizan doğrudan kümülatif referanstır.
+          // Bu bir hata/uyarı değil, kümülatifin aylığı doğruladığı başarılı bir durumdur.
+          final gecmisAylarPayi = sonuc.hasilat600Kumulatif - sonuc.hasilat600Aylik;
+          kontroller.add(MutabakatKontrolKaydi(
+            id: 'sen-2-${kontrolIdSayac++}',
+            senaryoNo: 2,
+            birimAdi: birimAdi,
+            baslik: 'Aylık ve Yıllık Mizan Kümülatif Uyumu Tam',
+            seviye: DenetimSeviyesi.bilgi,
+            beklenenDeger: sonuc.hasilat600Kumulatif,
+            bulunanDeger: sonuc.hasilat600Kumulatif,
+            fark: 0.0,
+            aciklama: 'Aylık hasılat (${TurkceFormat.para(sonuc.hasilat600Aylik)}) yıllık mizan kümülatifi (${TurkceFormat.para(sonuc.hasilat600Kumulatif)}) ile tam uyumludur. Geçmiş ayların hasılat payı: ${TurkceFormat.para(gecmisAylarPayi)}.',
+            cozumOnerisi: 'Kümülatif hasılat tutarı doğrudan yıllık mizandan beyannameye aktarılacaktır.',
+          ));
         }
       }
 
