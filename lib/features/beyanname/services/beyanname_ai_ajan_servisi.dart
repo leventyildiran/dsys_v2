@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:http/http.dart' as http;
@@ -77,14 +78,33 @@ class BeyannameAiAjanServisi {
       }
     }
 
-    // 2. PDF ise syncfusion_flutter_pdf ile metin katmanını çıkar
+    // 2. PDF ise syncfusion_flutter_pdf ile metin katmanını çıkar (Sayfa sınırlandırmalı & event loop nefesli)
     if (belge.isPdf) {
       try {
         final doc = PdfDocument(inputBytes: bytes);
-        final text = PdfTextExtractor(doc).extractText().trim();
+        final totalPages = doc.pages.count;
+
+        // Slot türüne ve sayfa sayısına göre güvenli sınır:
+        // - Geçici mizanlar normalde 2-25 sayfadır (max 35 sayfa yeterlidir)
+        // - Yardımcı defterler yüzlerce sayfa olabilir (özet için ilk 15 sayfa yeterlidir)
+        // - Diğer ek evraklar (max 20 sayfa yeterlidir)
+        final maxPages = belge.slotTuru == BirimBelgeSlotTuru.yardimciMizan
+            ? 15
+            : (belge.slotTuru == BirimBelgeSlotTuru.diger ? 20 : 35);
+        final pagesToExtract = min(totalPages, maxPages);
+
+        final sb = StringBuffer();
+        final extractor = PdfTextExtractor(doc);
+        for (int p = 0; p < pagesToExtract; p++) {
+          final pageText = extractor.extractText(startPageIndex: p, endPageIndex: p);
+          sb.writeln(pageText);
+          // Her sayfada browser event loop'a nefes aldır (Web donmasını ve "Sayfa Yanıt Vermiyor" uyarısını engelle!)
+          await Future.delayed(Duration.zero);
+        }
         doc.dispose();
+        final text = sb.toString().trim();
         debugPrint(
-          '[BeyannameAiAjanServisi] PDF metin katmanı çıkarıldı (${belge.dosyaAdi}): ${text.length} karakter.',
+          '[BeyannameAiAjanServisi] PDF metin katmanı çıkarıldı (${belge.dosyaAdi}, $pagesToExtract/$totalPages sayfa): ${text.length} karakter.',
         );
         return text;
       } catch (e) {
@@ -204,6 +224,7 @@ class BeyannameAiAjanServisi {
           birimAdi: birimAdi,
           ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.05 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
         );
+        await Future.delayed(const Duration(milliseconds: 40));
         aylikMizanMetni = await belgeMetniniCikar(aylikMizanBelgesi);
       }
 
@@ -212,10 +233,11 @@ class BeyannameAiAjanServisi {
       if (yardimciMizanBelgesi != null) {
         yield AjanLogMesaji(
           zaman: DateTime.now(),
-          mesaj: '📑 [$birimAdi] Yardımcı Mizan (Muavin) (${yardimciMizanBelgesi.dosyaAdi}) okunuyor...',
+          mesaj: '📑 [$birimAdi] Yardımcı Mizan (${yardimciMizanBelgesi.dosyaAdi}) taranıyor...',
           birimAdi: birimAdi,
           ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.10 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
         );
+        await Future.delayed(const Duration(milliseconds: 40));
         yardimciMizanMetni = await belgeMetniniCikar(yardimciMizanBelgesi);
       }
 
@@ -228,6 +250,7 @@ class BeyannameAiAjanServisi {
           birimAdi: birimAdi,
           ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.15 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
         );
+        await Future.delayed(const Duration(milliseconds: 40));
         yillikMizanMetni = await belgeMetniniCikar(yillikMizanBelgesi);
       }
 
@@ -236,9 +259,12 @@ class BeyannameAiAjanServisi {
       final tevkifatFaturaListesi = <Map<String, dynamic>>[];
       if (digerBelge != null) {
         digerBelgeMetni = await belgeMetniniCikar(digerBelge);
-        // Faturada varsa kural tabanlı offline parser'ı dene
+        // Faturada varsa kural tabanlı offline parser'ı dene (güvenli uzunluk sınırı ile)
         try {
-          final faturalar = FaturaOfflineParser.parse(digerBelgeMetni);
+          final textForFatura = digerBelgeMetni.length > 20000
+              ? digerBelgeMetni.substring(0, 20000)
+              : digerBelgeMetni;
+          final faturalar = FaturaOfflineParser.parse(textForFatura);
           for (final f in faturalar) {
             if (f.kalemler.isNotEmpty) {
               tevkifatFaturaListesi.add({
@@ -253,6 +279,8 @@ class BeyannameAiAjanServisi {
           }
         } catch (_) {}
       }
+
+      await Future.delayed(const Duration(milliseconds: 20));
 
       // 5. Kural Tabanlı Deterministik Mizan Ayrıştırması (Her Zaman Çalışır)
       final deterministikSonuc = MizanDeterministikParser.analizEt(

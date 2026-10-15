@@ -104,11 +104,12 @@ class MizanDeterministikParser {
     final Map<String, MizanHesapSatiri> hesaplar = {};
     if (text.trim().isEmpty) return hesaplar;
 
-    final lines = text
+    final allLines = text
         .split(RegExp(r'\r?\n'))
         .map((l) => l.trim())
         .where((l) => l.isNotEmpty)
         .toList();
+    final lines = allLines.length > 6000 ? allLines.sublist(0, 6000) : allLines;
 
     // 1. DÜZEN: Standart Muhasebat Çok Satırlı Blok Taraması
     for (int i = 0; i < lines.length - 5; i++) {
