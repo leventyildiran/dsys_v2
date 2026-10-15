@@ -287,17 +287,29 @@ class BeyannameAiAjanServisi {
                 vkn = '6210490464';
               }
 
-              // Metinden VKN Regex Taraması (Boşluklu veya etiketli VKN formatları için)
+              // Metinden VKN Regex Taraması ve Matematiksel Doğrulama (MOD 10 VKN Algoritması)
               if (vkn.isEmpty) {
+                // 1. Öncelik: Etiketli VKN/TCKN ara
                 final vknRegex = RegExp(
-                  r'(?:vergi\s*(?:kimlik\s*)?no|vkn|tc(?:\s*kimlik)?(?:\s*no)?)\s*[:.\-]?\s*(\d(?:\s*\d){9,10})\b',
+                  r'(?:sat[ıi]c[ıi]\s*vkn|y[üu]klenici\s*vkn|vergi\s*(?:kimlik\s*)?(?:no|numaras[ıi])|vkn\s*/\s*tckn|vkn|tc(?:\s*kimlik)?(?:\s*no)?)\s*[:.\-]?\s*(\d[\d\s.\-]{8,15}\d)',
                   caseSensitive: false,
                 );
-                final m = vknRegex.firstMatch(textForFatura);
-                if (m != null) {
-                  final cleanVkn = m.group(1)!.replaceAll(RegExp(r'\s+'), '');
-                  if (cleanVkn.length == 10 || cleanVkn.length == 11) {
-                    vkn = cleanVkn;
+                for (final match in vknRegex.allMatches(textForFatura)) {
+                  final raw = match.group(1)!.replaceAll(RegExp(r'[^\d]'), '');
+                  if (BeyannameDenetimServisi.dogrulaVkn(raw) || BeyannameDenetimServisi.dogrulaTckn(raw)) {
+                    vkn = raw;
+                    break;
+                  }
+                }
+
+                // 2. Öncelik: Etiket olmasa dahi metindeki tüm 10 haneli sayıları resmi VKN algoritması ile test et
+                if (vkn.isEmpty) {
+                  for (final match in RegExp(r'\b\d{10}\b').allMatches(textForFatura)) {
+                    final raw = match.group(0)!;
+                    if (BeyannameDenetimServisi.dogrulaVkn(raw)) {
+                      vkn = raw;
+                      break;
+                    }
                   }
                 }
               }
@@ -366,8 +378,13 @@ class BeyannameAiAjanServisi {
             contentParts.add(DataPart('image/png', doc.dosyaBytes!));
           } else if (ext == 'jpg' || ext == 'jpeg') {
             contentParts.add(DataPart('image/jpeg', doc.dosyaBytes!));
-          } else if (ext == 'pdf' && extractedText.trim().length < 30) {
-            contentParts.add(DataPart('application/pdf', doc.dosyaBytes!));
+          } else if (ext == 'pdf') {
+            // Fatura ve taranmış görsel belgelerde Gemini Vision'ın OCR yapabilmesi için PDF baytlarını ilet
+            if (doc.slotTuru == BirimBelgeSlotTuru.diger || extractedText.trim().length < 50) {
+              if (doc.dosyaBytes!.length < 15 * 1024 * 1024) {
+                contentParts.add(DataPart('application/pdf', doc.dosyaBytes!));
+              }
+            }
           }
         }
 

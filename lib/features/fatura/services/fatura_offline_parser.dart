@@ -433,10 +433,7 @@ class FaturaOfflineParser {
     if (kalemler.isEmpty) return null;
 
     final ibanMatch = _ibanRegex.firstMatch(text);
-    final vnMatch = RegExp(
-      r'(?:vergi\s*no|vkn|t\.c\.?\s*kimlik|tc\s*no|tc|vergi\s*numaras[ıi])\s*[:.\-]?\s*(\d{10,11})\b',
-      caseSensitive: false,
-    ).firstMatch(text);
+    final vergiNo = _extractVkn(text);
     final vdMatch = RegExp(
       r'(?:vergi\s*dairesi|v\.d\.)\s*[:.\-]?\s*([A-Za-zÇĞİÖŞÜçğıöşü\s]+?)(?:[\n,]|vkn|vergi|$)',
       caseSensitive: false,
@@ -446,7 +443,7 @@ class FaturaOfflineParser {
       firmaAdi: firmaAdi,
       adres: adres,
       vergiDairesi: vdMatch?.group(1)?.trim() ?? '',
-      vergiNo: vnMatch?.group(1)?.trim() ?? '',
+      vergiNo: vergiNo,
       tarih: _ilkTarih(text),
       kalemler: kalemler,
       kdvOrani: dipKdvOrani,
@@ -1124,10 +1121,7 @@ class FaturaOfflineParser {
     final firmaAdi = _extractFirmaAdi(lines);
     final adres = _extractAdres(lines, firmaAdi);
 
-    final vnMatch = RegExp(
-      r'(?:vergi\s*no|vkn|t\.c\.?\s*kimlik|tc\s*no)\s*[:\.\-]?\s*(\d{10,11})\b',
-      caseSensitive: false,
-    ).firstMatch(text);
+    final vergiNo = _extractVkn(text);
     final vdMatch = RegExp(
       r'(?:vergi\s*dairesi|v\.d\.)\s*[:\.\-]?\s*([A-Za-zÇĞİÖŞÜçğıöşü\s]+?)(?:[\n,]|vkn|vergi|$)',
       caseSensitive: false,
@@ -1147,7 +1141,7 @@ class FaturaOfflineParser {
       firmaAdi: firmaAdi,
       adres: adres,
       vergiDairesi: vdMatch?.group(1)?.trim() ?? '',
-      vergiNo: vnMatch?.group(1)?.trim() ?? '',
+      vergiNo: vergiNo,
       tarih: _ilkTarih(text),
       kalemler: [
         {
@@ -1164,5 +1158,85 @@ class FaturaOfflineParser {
       hesapAdi: null,
       fullText: text,
     );
+  }
+
+  // --------------------------------------------------------------------------
+  // VKN / TCKN Akıllı Çıkarıcı & Algoritmik Doğrulama
+  // --------------------------------------------------------------------------
+
+  /// Metinden VKN veya TCKN tespit eder:
+  /// 1. 'vergi no', 'vkn', 't.c. kimlik', 'satıcı vkn' gibi etiketlerin yanındaki sayıları alır
+  /// 2. Boşluklu yazılmış olabilecek VKN'leri temizler (örn: '619 126 8620' -> '6191268620')
+  /// 3. Doğrulanmış VKN (MOD 10) veya TCKN kontrolü yapar
+  static String _extractVkn(String text) {
+    // 1. Etiketli arama (boşluklu sayılar dahil)
+    final labelRegex = RegExp(
+      r'(?:vergi\s*(?:kimlik\s*)?no(?:su)?|vkn|t\.c\.?\s*(?:kimlik\s*)?(?:no)?|sat[ıi]c[ıi]\s*vkn|y[üu]klenici\s*vkn|d[üu]zenleyen\s*vkn)\s*[:.\-]?\s*([0-9\s]{10,15})\b',
+      caseSensitive: false,
+    );
+    final match = labelRegex.firstMatch(text);
+    if (match != null) {
+      final clean = match.group(1)!.replaceAll(RegExp(r'\s+'), '');
+      if (clean.length == 10 || clean.length == 11) {
+        return clean;
+      }
+    }
+
+    // 2. Etiketsiz 10 haneli adaylar arasında MOD 10 VKN sağlayan ilk sayıyı bul
+    final tenDigitMatches = RegExp(r'\b\d{10}\b').allMatches(text);
+    for (final m in tenDigitMatches) {
+      final candidate = m.group(0)!;
+      if (_isValidVkn(candidate)) {
+        return candidate;
+      }
+    }
+
+    // 3. Etiketsiz 11 haneli TCKN adayları
+    final elevenDigitMatches = RegExp(r'\b[1-9]\d{10}\b').allMatches(text);
+    for (final m in elevenDigitMatches) {
+      final candidate = m.group(0)!;
+      if (_isValidTckn(candidate)) {
+        return candidate;
+      }
+    }
+
+    // 4. Standart yedek regex
+    final fallback = RegExp(
+      r'(?:vergi\s*no|vkn|t\.c\.?\s*kimlik|tc\s*no)\s*[:.\-]?\s*(\d{10,11})\b',
+      caseSensitive: false,
+    ).firstMatch(text);
+    return fallback?.group(1)?.trim() ?? '';
+  }
+
+  /// Resmi GİB Vergi Kimlik Numarası (VKN) MOD 10 algoritması
+  static bool _isValidVkn(String vkn) {
+    if (vkn.length != 10 || !RegExp(r'^\d{10}$').hasMatch(vkn)) return false;
+    int sum = 0;
+    for (int i = 0; i < 9; i++) {
+      int c = int.parse(vkn[i]);
+      int v1 = (c + 10 - (i + 1)) % 10;
+      if (v1 == 9) {
+        sum += 9;
+      } else {
+        int v2 = (v1 * (1 << (9 - i))) % 9;
+        sum += v2;
+      }
+    }
+    int lastDigit = (10 - (sum % 10)) % 10;
+    return lastDigit == int.parse(vkn[9]);
+  }
+
+  /// T.C. Kimlik Numarası (TCKN) algoritması
+  static bool _isValidTckn(String tckn) {
+    if (tckn.length != 11 || !RegExp(r'^[1-9]\d{10}$').hasMatch(tckn)) return false;
+    List<int> digits = tckn.split('').map(int.parse).toList();
+    int tekToplam = digits[0] + digits[2] + digits[4] + digits[6] + digits[8];
+    int ciftToplam = digits[1] + digits[3] + digits[5] + digits[7];
+    int d10 = ((tekToplam * 7) - ciftToplam) % 10;
+    if (d10 < 0) d10 += 10;
+    if (d10 != digits[9]) return false;
+    int sum10 = 0;
+    for (int i = 0; i < 10; i++) sum10 += digits[i];
+    return (sum10 % 10) == digits[10];
   }
 }
