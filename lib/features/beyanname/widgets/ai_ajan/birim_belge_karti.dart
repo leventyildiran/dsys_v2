@@ -4,8 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../models/beyanname_belge_model.dart';
 import '../../providers/beyanname_provider.dart';
 
-/// Birim başına 3 adet belge yükleme yuvası (Aylık Mizan, Yıllık Mizan, Diğer)
-/// sunan kurumsal kart bileşeni.
+/// Birim başına 4 adet belge yükleme yuvası sunan kompakt ve modern kart bileşeni.
 class BirimBelgeKarti extends StatelessWidget {
   final String birimAdi;
   final BeyannameProvider provider;
@@ -31,176 +30,161 @@ class BirimBelgeKarti extends StatelessWidget {
     final isTamDolu = aylikMizan != null && yillikMizan != null;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: isTamDolu ? AppColors.success : (yukluSayisi > 0 ? AppColors.warning : AppColors.border),
-          width: isTamDolu ? 1.5 : 1.0,
+          color: isTamDolu
+              ? AppColors.success.withAlpha(120)
+              : (yukluSayisi > 0 ? AppColors.warning.withAlpha(100) : AppColors.border),
+          width: 1.0,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(8),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Üst Başlık ve Durum Rozeti
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: isTamDolu ? AppColors.successSubtle : AppColors.primarySubtle,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(
-                    isTamDolu ? Icons.check_circle_rounded : Icons.account_balance_rounded,
-                    size: 18,
-                    color: isTamDolu ? AppColors.success : AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Başlık Satırı
+          Row(
+            children: [
+              Icon(
+                isTamDolu ? Icons.check_circle_rounded : Icons.business_rounded,
+                size: 16,
+                color: isTamDolu ? AppColors.success : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
                         birimAdi,
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                           color: AppColors.textPrimary,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      Text(
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: isTamDolu
+                            ? AppColors.successSubtle
+                            : (yukluSayisi > 0 ? AppColors.warningSubtle : AppColors.surfaceVariant),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
                         isTamDolu
-                            ? (yardimciMizan != null
-                                ? 'Aylık, Yardımcı ve Yıllık Mizan belgeleri hazır'
-                                : 'Mizan belgeleri eksiksiz yüklendi')
-                            : (yukluSayisi > 0
-                                ? '$yukluSayisi/2 zorunlu mizan yüklendi'
-                                : 'Belge bekleniyor (Aylık ve Yıllık Mizan yükleyiniz)'),
+                            ? 'Mizanlar Hazır ($yukluSayisi Belge)'
+                            : (yukluSayisi > 0 ? '$yukluSayisi Belge Yüklü' : 'Belge Yok'),
                         style: TextStyle(
-                          fontSize: 11,
-                          color: isTamDolu ? AppColors.success : AppColors.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: isTamDolu
+                              ? AppColors.success
+                              : (yukluSayisi > 0 ? AppColors.warning : AppColors.textMuted),
                         ),
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+              if (yukluSayisi > 0) ...[
+                FilledButton.tonalIcon(
+                  onPressed: provider.isAiAjanCalisiyor
+                      ? null
+                      : () => provider.aiAjanAnaliziBaslat(sadeceBuBirim: birimAdi),
+                  icon: const Icon(Icons.bolt_rounded, size: 14),
+                  label: const Text(
+                    'Bu Birimi Oku',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    visualDensity: VisualDensity.compact,
                   ),
                 ),
-                if (yukluSayisi > 0) ...[
-                  FilledButton.tonalIcon(
-                    onPressed: provider.isAiAjanCalisiyor
-                        ? null
-                        : () => provider.aiAjanAnaliziBaslat(sadeceBuBirim: birimAdi),
-                    icon: const Icon(Icons.bolt_rounded, size: 16),
-                    label: const Text(
-                      'Bu Birimi Oku',
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                    ),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: const Icon(Icons.delete_sweep_rounded, size: 18, color: AppColors.neutral),
-                    tooltip: 'Bu birimin tüm belgelerini kaldır',
-                    onPressed: () => provider.birimBelgeleriniTemizle(birimAdi),
-                  ),
-                ],
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.neutral),
+                  tooltip: 'Bu birimin tüm belgelerini kaldır',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                  onPressed: () => provider.birimBelgeleriniTemizle(birimAdi),
+                ),
               ],
-            ),
-            const SizedBox(height: 12),
-            const Divider(height: 1, color: AppColors.border),
-            const SizedBox(height: 12),
+            ],
+          ),
+          const SizedBox(height: 8),
 
-            // 4'lü Slot Yuvaları (Aylık Mizan, Yardımcı Mizan, Yıllık Mizan, Diğer/Fatura)
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final slot1 = _buildSlotItem(
-                  context,
-                  slotTuru: BirimBelgeSlotTuru.aylikMizan,
-                  yuklenen: aylikMizan,
-                  zorunlu: true,
-                );
-                final slot2 = _buildSlotItem(
-                  context,
-                  slotTuru: BirimBelgeSlotTuru.yardimciMizan,
-                  yuklenen: yardimciMizan,
-                  zorunlu: false,
-                );
-                final slot3 = _buildSlotItem(
-                  context,
-                  slotTuru: BirimBelgeSlotTuru.yillikMizan,
-                  yuklenen: yillikMizan,
-                  zorunlu: true,
-                );
-                final slot4 = _buildSlotItem(
-                  context,
-                  slotTuru: BirimBelgeSlotTuru.diger,
-                  yuklenen: digerBelge,
-                  zorunlu: false,
-                );
+          // 4'lü Kompakt Slot Yuvaları
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final slot1 = _buildSlotItem(
+                context,
+                slotTuru: BirimBelgeSlotTuru.aylikMizan,
+                kisaEtiket: 'Aylık Mizan *',
+                yuklenen: aylikMizan,
+              );
+              final slot2 = _buildSlotItem(
+                context,
+                slotTuru: BirimBelgeSlotTuru.yillikMizan,
+                kisaEtiket: 'Yıllık Mizan *',
+                yuklenen: yillikMizan,
+              );
+              final slot3 = _buildSlotItem(
+                context,
+                slotTuru: BirimBelgeSlotTuru.yardimciMizan,
+                kisaEtiket: 'Yardımcı Mizan',
+                yuklenen: yardimciMizan,
+              );
+              final slot4 = _buildSlotItem(
+                context,
+                slotTuru: BirimBelgeSlotTuru.diger,
+                kisaEtiket: 'Fatura / Diğer',
+                yuklenen: digerBelge,
+              );
 
-                if (constraints.maxWidth < 650) {
-                  return Column(
-                    children: [
-                      slot1,
-                      const SizedBox(height: 8),
-                      slot2,
-                      const SizedBox(height: 8),
-                      slot3,
-                      const SizedBox(height: 8),
-                      slot4,
-                    ],
-                  );
-                } else if (constraints.maxWidth < 950) {
-                  return Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: slot1),
-                          const SizedBox(width: 8),
-                          Expanded(child: slot2),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(child: slot3),
-                          const SizedBox(width: 8),
-                          Expanded(child: slot4),
-                        ],
-                      ),
-                    ],
-                  );
-                }
-
-                return Row(
+              if (constraints.maxWidth < 700) {
+                return Column(
                   children: [
-                    Expanded(child: slot1),
-                    const SizedBox(width: 8),
-                    Expanded(child: slot2),
-                    const SizedBox(width: 8),
-                    Expanded(child: slot3),
-                    const SizedBox(width: 8),
-                    Expanded(child: slot4),
+                    Row(
+                      children: [
+                        Expanded(child: slot1),
+                        const SizedBox(width: 6),
+                        Expanded(child: slot2),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(child: slot3),
+                        const SizedBox(width: 6),
+                        Expanded(child: slot4),
+                      ],
+                    ),
                   ],
                 );
-              },
-            ),
-          ],
-        ),
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: slot1),
+                  const SizedBox(width: 6),
+                  Expanded(child: slot2),
+                  const SizedBox(width: 6),
+                  Expanded(child: slot3),
+                  const SizedBox(width: 6),
+                  Expanded(child: slot4),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -208,88 +192,86 @@ class BirimBelgeKarti extends StatelessWidget {
   Widget _buildSlotItem(
     BuildContext context, {
     required BirimBelgeSlotTuru slotTuru,
+    required String kisaEtiket,
     required BirimYuklenenBelge? yuklenen,
-    required bool zorunlu,
   }) {
     final isLoaded = yuklenen != null;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: isLoaded ? AppColors.successSubtle : AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: isLoaded ? AppColors.success : AppColors.border,
-          width: 1.0,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            isLoaded
-                ? (yuklenen.isPdf ? Icons.picture_as_pdf_rounded : Icons.table_chart_rounded)
-                : Icons.upload_file_rounded,
-            size: 20,
-            color: isLoaded ? AppColors.success : AppColors.textSecondary,
+    if (!isLoaded) {
+      // Yüklenmemiş Boş Slot (Tıklanabilir sade buton kutusu)
+      return InkWell(
+        onTap: () => _dosyaSecVeYukle(context, slotTuru),
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceVariant.withAlpha(50),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: AppColors.border),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      slotTuru.baslik,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    if (zorunlu)
-                      const Text(
-                        ' *',
-                        style: TextStyle(color: AppColors.danger, fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
-                  ],
-                ),
-                Text(
-                  isLoaded
-                      ? '${yuklenen.dosyaAdi} (${yuklenen.okunabilirBoyut})'
-                      : 'PDF veya Excel yükle',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: isLoaded ? AppColors.textPrimary : AppColors.textMuted,
-                    overflow: TextOverflow.ellipsis,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.add_rounded, size: 14, color: AppColors.textSecondary),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  kisaEtiket,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
                   ),
-                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-            ),
-          ),
-          if (isLoaded)
-            IconButton(
-              icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.danger),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-              tooltip: 'Belgeyi Kaldır',
-              onPressed: () => provider.belgeSil(birimAdi: birimAdi, slotTuru: slotTuru),
-            )
-          else
-            ElevatedButton(
-              onPressed: () => _dosyaSecVeYukle(context, slotTuru),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                minimumSize: const Size(50, 26),
-                textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
               ),
-              child: const Text('Seç'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Yüklenmiş Dolu Slot
+    return Tooltip(
+      message: '${yuklenen.dosyaAdi} (${yuklenen.okunabilirBoyut})',
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.only(left: 8, right: 4),
+        decoration: BoxDecoration(
+          color: AppColors.successSubtle,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: AppColors.success.withAlpha(120)),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              yuklenen.isPdf ? Icons.picture_as_pdf_rounded : Icons.table_chart_rounded,
+              size: 14,
+              color: AppColors.success,
             ),
-        ],
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                '${slotTuru.baslik}: ${yuklenen.dosyaAdi}',
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, size: 14, color: AppColors.danger),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+              tooltip: 'Kaldır',
+              onPressed: () => provider.belgeSil(birimAdi: birimAdi, slotTuru: slotTuru),
+            ),
+          ],
+        ),
       ),
     );
   }
