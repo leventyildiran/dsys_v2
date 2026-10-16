@@ -1211,14 +1211,16 @@ class FaturaOfflineParser {
   /// Resmi GİB Vergi Kimlik Numarası (VKN) MOD 10 algoritması
   static bool _isValidVkn(String vkn) {
     if (vkn.length != 10 || !RegExp(r'^\d{10}$').hasMatch(vkn)) return false;
+    if (vkn.split('').toSet().length == 1) return false;
     int sum = 0;
     for (int i = 0; i < 9; i++) {
       int c = int.parse(vkn[i]);
       int v1 = (c + 10 - (i + 1)) % 10;
       if (v1 == 9) {
         sum += 9;
-      } else {
+      } else if (v1 != 0) {
         int v2 = (v1 * (1 << (9 - i))) % 9;
+        if (v2 == 0) v2 = 9;
         sum += v2;
       }
     }

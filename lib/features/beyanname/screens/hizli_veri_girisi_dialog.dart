@@ -57,9 +57,13 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
   late List<String> _birimler;
 
   // --- KDV 1 Kontrolleri ---
+  final _kdv1HesapMatrah10Ctrl = TextEditingController();
   final _kdv1Hesap10Ctrl = TextEditingController();
+  final _kdv1HesapMatrah20Ctrl = TextEditingController();
   final _kdv1Hesap20Ctrl = TextEditingController();
+  final _kdv1IndMatrah10Ctrl = TextEditingController();
   final _kdv1Ind10Ctrl = TextEditingController();
+  final _kdv1IndMatrah20Ctrl = TextEditingController();
   final _kdv1Ind20Ctrl = TextEditingController();
 
   // --- KDV 2 Tevkifat Kontrolleri ---
@@ -77,6 +81,7 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
   final _muhtasarBrutCtrl = TextEditingController();
   final _muhtasarGvCtrl = TextEditingController();
   final _muhtasarDvCtrl = TextEditingController();
+  final _muhtasarNetCtrl = TextEditingController();
   final _muhtasarMatrahCtrl = TextEditingController();
 
   // --- Damga Kontrolleri ---
@@ -123,14 +128,22 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
     );
     if (k1Index != -1) {
       final s = widget.provider.kdv1Satirlari[k1Index];
+      _kdv1HesapMatrah10Ctrl.text = s.hesaplananMatrah10 > 0 ? TurkceFormat.paraKalem(s.hesaplananMatrah10) : '';
       _kdv1Hesap10Ctrl.text = s.hesaplananKdv10 > 0 ? TurkceFormat.paraKalem(s.hesaplananKdv10) : '';
+      _kdv1HesapMatrah20Ctrl.text = s.hesaplananMatrah20 > 0 ? TurkceFormat.paraKalem(s.hesaplananMatrah20) : '';
       _kdv1Hesap20Ctrl.text = s.hesaplananKdv20 > 0 ? TurkceFormat.paraKalem(s.hesaplananKdv20) : '';
+      _kdv1IndMatrah10Ctrl.text = s.indirilecekMatrah10 > 0 ? TurkceFormat.paraKalem(s.indirilecekMatrah10) : '';
       _kdv1Ind10Ctrl.text = s.indirilecekKdv10 > 0 ? TurkceFormat.paraKalem(s.indirilecekKdv10) : '';
+      _kdv1IndMatrah20Ctrl.text = s.indirilecekMatrah20 > 0 ? TurkceFormat.paraKalem(s.indirilecekMatrah20) : '';
       _kdv1Ind20Ctrl.text = s.indirilecekKdv20 > 0 ? TurkceFormat.paraKalem(s.indirilecekKdv20) : '';
     } else {
+      _kdv1HesapMatrah10Ctrl.clear();
       _kdv1Hesap10Ctrl.clear();
+      _kdv1HesapMatrah20Ctrl.clear();
       _kdv1Hesap20Ctrl.clear();
+      _kdv1IndMatrah10Ctrl.clear();
       _kdv1Ind10Ctrl.clear();
+      _kdv1IndMatrah20Ctrl.clear();
       _kdv1Ind20Ctrl.clear();
     }
 
@@ -161,9 +174,13 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
 
   @override
   void dispose() {
+    _kdv1HesapMatrah10Ctrl.dispose();
     _kdv1Hesap10Ctrl.dispose();
+    _kdv1HesapMatrah20Ctrl.dispose();
     _kdv1Hesap20Ctrl.dispose();
+    _kdv1IndMatrah10Ctrl.dispose();
     _kdv1Ind10Ctrl.dispose();
+    _kdv1IndMatrah20Ctrl.dispose();
     _kdv1Ind20Ctrl.dispose();
     _tevkifatFirmaCtrl.dispose();
     _tevkifatVergiNoCtrl.dispose();
@@ -175,11 +192,35 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
     _muhtasarBrutCtrl.dispose();
     _muhtasarGvCtrl.dispose();
     _muhtasarDvCtrl.dispose();
+    _muhtasarNetCtrl.dispose();
     _muhtasarMatrahCtrl.dispose();
     _damgaTutarCtrl.dispose();
     _hasilatAylikCtrl.dispose();
     _hasilatKrediKartiCtrl.dispose();
     super.dispose();
+  }
+
+  List<TevkifatTanimi> get _tumTevkifatTurleri {
+    final map = <String, TevkifatTanimi>{
+      '9/10': const TevkifatTanimi(etiket: '9/10', pay: 9, payda: 10),
+      '7/10': const TevkifatTanimi(etiket: '7/10', pay: 7, payda: 10),
+      '5/10': const TevkifatTanimi(etiket: '5/10', pay: 5, payda: 10),
+      '4/10': const TevkifatTanimi(etiket: '4/10', pay: 4, payda: 10),
+      '3/10': const TevkifatTanimi(etiket: '3/10', pay: 3, payda: 10),
+      '2/10': const TevkifatTanimi(etiket: '2/10', pay: 2, payda: 10),
+    };
+    for (final t in widget.provider.konfig.tevkifatTurleri) {
+      map[t.etiket] = t;
+    }
+    return map.values.toList();
+  }
+
+  List<int> get _tumKdvOranlari {
+    final set = <int>{1, 8, 10, 18, 20};
+    for (final o in widget.provider.konfig.kdvOranlari) {
+      set.add(o.oran);
+    }
+    return set.toList()..sort();
   }
 
   // --- Otomatik Hesaplayıcılar ---
@@ -191,18 +232,42 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
       return;
     }
 
-    // Seçili tevkifat oranını bul
-    final tanim = widget.provider.konfig.tevkifatTurleri.firstWhere(
+    final tanim = _tumTevkifatTurleri.firstWhere(
       (t) => t.etiket == _tevkifatTuruEtiket,
       orElse: () => const TevkifatTanimi(etiket: '9/10', pay: 9, payda: 10),
     );
 
     final kdv = BeyannameHesaplamaMotoru.round(matrah * (_tevkifatKdvOrani / 100.0));
-    final tevkifat = BeyannameHesaplamaMotoru.round(kdv * (tanim.pay / tanim.payda));
+    final tevkifat = BeyannameHesaplamaMotoru.round(kdv * tanim.oran);
 
     _tevkifatKdvCtrl.text = TurkceFormat.paraKalem(kdv);
     _tevkifatTutarCtrl.text = TurkceFormat.paraKalem(tevkifat);
     setState(() {});
+  }
+
+  void _hesaplaTevkifatKdvden() {
+    final kdv = TurkceFormat.parseSayi(_tevkifatKdvCtrl.text);
+    if (kdv <= 0) {
+      _tevkifatTutarCtrl.clear();
+      return;
+    }
+    final tanim = _tumTevkifatTurleri.firstWhere(
+      (t) => t.etiket == _tevkifatTuruEtiket,
+      orElse: () => const TevkifatTanimi(etiket: '9/10', pay: 9, payda: 10),
+    );
+    final tevkifat = BeyannameHesaplamaMotoru.round(kdv * tanim.oran);
+    _tevkifatTutarCtrl.text = TurkceFormat.paraKalem(tevkifat);
+    setState(() {});
+  }
+
+  void _hesaplaMuhtasarNet() {
+    final brut = _parse(_muhtasarBrutCtrl);
+    final gv = _parse(_muhtasarGvCtrl);
+    final dv = _parse(_muhtasarDvCtrl);
+    if (brut > 0) {
+      final net = BeyannameHesaplamaMotoru.round(brut - gv - dv);
+      _muhtasarNetCtrl.text = net > 0 ? TurkceFormat.paraKalem(net) : '0,00';
+    }
   }
 
   double _parse(TextEditingController ctrl) =>
@@ -230,9 +295,13 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
         );
         if (idx != -1) {
           final h10 = _parse(_kdv1Hesap10Ctrl);
+          final hm10 = _parse(_kdv1HesapMatrah10Ctrl);
           final h20 = _parse(_kdv1Hesap20Ctrl);
+          final hm20 = _parse(_kdv1HesapMatrah20Ctrl);
           final i10 = _parse(_kdv1Ind10Ctrl);
+          final im10 = _parse(_kdv1IndMatrah10Ctrl);
           final i20 = _parse(_kdv1Ind20Ctrl);
+          final im20 = _parse(_kdv1IndMatrah20Ctrl);
 
           provider.updateKdv1Satir(
             idx,
@@ -240,13 +309,13 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
               birimId: key,
               birimAdi: birim,
               hesaplananKdv10: h10,
-              hesaplananMatrah10: h10 > 0 ? BeyannameHesaplamaMotoru.round(h10 * 10) : 0,
+              hesaplananMatrah10: hm10 > 0 ? hm10 : (h10 > 0 ? BeyannameHesaplamaMotoru.round(h10 * 10) : 0),
               hesaplananKdv20: h20,
-              hesaplananMatrah20: h20 > 0 ? BeyannameHesaplamaMotoru.round(h20 * 5) : 0,
+              hesaplananMatrah20: hm20 > 0 ? hm20 : (h20 > 0 ? BeyannameHesaplamaMotoru.round(h20 * 5) : 0),
               indirilecekKdv10: i10,
-              indirilecekMatrah10: i10 > 0 ? BeyannameHesaplamaMotoru.round(i10 * 10) : 0,
+              indirilecekMatrah10: im10 > 0 ? im10 : (i10 > 0 ? BeyannameHesaplamaMotoru.round(i10 * 10) : 0),
               indirilecekKdv20: i20,
-              indirilecekMatrah20: i20 > 0 ? BeyannameHesaplamaMotoru.round(i20 * 5) : 0,
+              indirilecekMatrah20: im20 > 0 ? im20 : (i20 > 0 ? BeyannameHesaplamaMotoru.round(i20 * 5) : 0),
             ),
           );
         }
@@ -291,15 +360,18 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
         final gv = _parse(_muhtasarGvCtrl);
         final dv = _parse(_muhtasarDvCtrl);
         final matrah = _parse(_muhtasarMatrahCtrl);
-        final kisi = int.tryParse(_muhtasarKisiCtrl.text) ?? 1;
-        final net = BeyannameHesaplamaMotoru.round(brut - gv - dv);
+        final kisi = int.tryParse(_muhtasarKisiCtrl.text.trim()) ?? 1;
+        final girilenNet = _parse(_muhtasarNetCtrl);
+        final net = _muhtasarNetCtrl.text.trim().isNotEmpty
+            ? girilenNet
+            : BeyannameHesaplamaMotoru.round(brut - gv - dv);
 
         provider.addMuhtasarSatir(
           MuhtasarSatiri(
             id: DateTime.now().millisecondsSinceEpoch.toString(),
             birimAdi: birim,
             adSoyad: _muhtasarAdSoyadCtrl.text.trim(),
-            kisiSayisi: kisi,
+            kisiSayisi: kisi < 0 ? 0 : kisi,
             brutUcret: brut,
             gelirVergisi: gv,
             damgaVergisi: dv,
@@ -312,6 +384,7 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
         _muhtasarBrutCtrl.clear();
         _muhtasarGvCtrl.clear();
         _muhtasarDvCtrl.clear();
+        _muhtasarNetCtrl.clear();
         _muhtasarMatrahCtrl.clear();
         break;
 
@@ -744,7 +817,7 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
                   isDense: true,
                   border: OutlineInputBorder(),
                 ),
-                items: widget.provider.konfig.tevkifatTurleri.map((t) {
+                items: _tumTevkifatTurleri.map((t) {
                   final yuzde = (t.oran * 100).round();
                   return DropdownMenuItem(
                     value: t.etiket,
@@ -767,10 +840,10 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
                   isDense: true,
                   border: OutlineInputBorder(),
                 ),
-                items: widget.provider.konfig.kdvOranlari.map((o) {
+                items: _tumKdvOranlari.map((oran) {
                   return DropdownMenuItem(
-                    value: o.oran,
-                    child: Text('%${o.oran} KDV', style: const TextStyle(fontSize: 12)),
+                    value: oran,
+                    child: Text('%$oran KDV', style: const TextStyle(fontSize: 12)),
                   );
                 }).toList(),
                 onChanged: (v) {
@@ -802,13 +875,14 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
             Expanded(
               child: TextField(
                 controller: _tevkifatKdvCtrl,
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: 'Hesaplanan KDV (Otomatik)',
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (_) => _hesaplaTevkifatKdvden(),
+                decoration: const InputDecoration(
+                  labelText: 'Hesaplanan KDV (TL)',
                   isDense: true,
                   filled: true,
                   fillColor: AppColors.surfaceVariant,
-                  border: const OutlineInputBorder(),
+                  border: OutlineInputBorder(),
                 ),
               ),
             ),
@@ -816,14 +890,14 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
             Expanded(
               child: TextField(
                 controller: _tevkifatTutarCtrl,
-                readOnly: true,
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
-                decoration: InputDecoration(
-                  labelText: 'Tevkifat Tutarı (Otomatik)',
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.warning),
+                decoration: const InputDecoration(
+                  labelText: 'Tevkifat Tutarı (TL)',
                   isDense: true,
                   filled: true,
-                  fillColor: const Color(0xFFFEF3C7),
-                  border: const OutlineInputBorder(),
+                  fillColor: AppColors.warningSubtle,
+                  border: OutlineInputBorder(),
                 ),
               ),
             ),
@@ -840,11 +914,11 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
       children: [
         const Text(
           'KDV 1 BİRİM MATRAH VE VERGİ GİRİŞİ',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         const Text(
-          'Hesaplanan KDV Tutarları (Satışlar / Çıkışlar):',
+          'Hesaplanan KDV ve Matrah Tutarları (Satışlar / Çıkışlar — Kuruş farkı varsa matrahı bağımsız düzeltebilirsiniz):',
           style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
         ),
         const SizedBox(height: 6),
@@ -852,8 +926,38 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
           children: [
             Expanded(
               child: TextField(
+                controller: _kdv1HesapMatrah10Ctrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (val) {
+                  final m = TurkceFormat.parseSayi(val);
+                  final mevcutKdv = _parse(_kdv1Hesap10Ctrl);
+                  if (m <= 0) {
+                    _kdv1Hesap10Ctrl.clear();
+                  } else if (mevcutKdv == 0 || (mevcutKdv - m * 0.10).abs() > 0.05) {
+                    _kdv1Hesap10Ctrl.text = TurkceFormat.paraKalem(BeyannameHesaplamaMotoru.round(m * 0.10));
+                  }
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Hesaplanan Matrah %10 (TL)',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
                 controller: _kdv1Hesap10Ctrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (val) {
+                  final k = TurkceFormat.parseSayi(val);
+                  final mevcutMatrah = _parse(_kdv1HesapMatrah10Ctrl);
+                  if (k <= 0) {
+                    _kdv1HesapMatrah10Ctrl.clear();
+                  } else if (mevcutMatrah == 0 || (mevcutMatrah * 0.10 - k).abs() > 0.05) {
+                    _kdv1HesapMatrah10Ctrl.text = TurkceFormat.paraKalem(BeyannameHesaplamaMotoru.round(k * 10));
+                  }
+                },
                 decoration: const InputDecoration(
                   labelText: 'Hesaplanan KDV %10 (TL)',
                   isDense: true,
@@ -861,11 +965,41 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _kdv1HesapMatrah20Ctrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (val) {
+                  final m = TurkceFormat.parseSayi(val);
+                  final mevcutKdv = _parse(_kdv1Hesap20Ctrl);
+                  if (m <= 0) {
+                    _kdv1Hesap20Ctrl.clear();
+                  } else if (mevcutKdv == 0 || (mevcutKdv - m * 0.20).abs() > 0.05) {
+                    _kdv1Hesap20Ctrl.text = TurkceFormat.paraKalem(BeyannameHesaplamaMotoru.round(m * 0.20));
+                  }
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Hesaplanan Matrah %20 (TL)',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: _kdv1Hesap20Ctrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (val) {
+                  final k = TurkceFormat.parseSayi(val);
+                  final mevcutMatrah = _parse(_kdv1HesapMatrah20Ctrl);
+                  if (k <= 0) {
+                    _kdv1HesapMatrah20Ctrl.clear();
+                  } else if (mevcutMatrah == 0 || (mevcutMatrah * 0.20 - k).abs() > 0.05) {
+                    _kdv1HesapMatrah20Ctrl.text = TurkceFormat.paraKalem(BeyannameHesaplamaMotoru.round(k * 5));
+                  }
+                },
                 decoration: const InputDecoration(
                   labelText: 'Hesaplanan KDV %20 (TL)',
                   isDense: true,
@@ -877,7 +1011,7 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
         ),
         const SizedBox(height: 12),
         const Text(
-          'İndirilecek KDV Tutarları (Alımlar / Giderler):',
+          'İndirilecek KDV ve Matrah Tutarları (Alımlar / Giderler):',
           style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
         ),
         const SizedBox(height: 6),
@@ -885,8 +1019,38 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
           children: [
             Expanded(
               child: TextField(
+                controller: _kdv1IndMatrah10Ctrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (val) {
+                  final m = TurkceFormat.parseSayi(val);
+                  final mevcutKdv = _parse(_kdv1Ind10Ctrl);
+                  if (m <= 0) {
+                    _kdv1Ind10Ctrl.clear();
+                  } else if (mevcutKdv == 0 || (mevcutKdv - m * 0.10).abs() > 0.05) {
+                    _kdv1Ind10Ctrl.text = TurkceFormat.paraKalem(BeyannameHesaplamaMotoru.round(m * 0.10));
+                  }
+                },
+                decoration: const InputDecoration(
+                  labelText: 'İndirilecek Matrah %10 (TL)',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
                 controller: _kdv1Ind10Ctrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (val) {
+                  final k = TurkceFormat.parseSayi(val);
+                  final mevcutMatrah = _parse(_kdv1IndMatrah10Ctrl);
+                  if (k <= 0) {
+                    _kdv1IndMatrah10Ctrl.clear();
+                  } else if (mevcutMatrah == 0 || (mevcutMatrah * 0.10 - k).abs() > 0.05) {
+                    _kdv1IndMatrah10Ctrl.text = TurkceFormat.paraKalem(BeyannameHesaplamaMotoru.round(k * 10));
+                  }
+                },
                 decoration: const InputDecoration(
                   labelText: 'İndirilecek KDV %10 (TL)',
                   isDense: true,
@@ -894,11 +1058,41 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _kdv1IndMatrah20Ctrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (val) {
+                  final m = TurkceFormat.parseSayi(val);
+                  final mevcutKdv = _parse(_kdv1Ind20Ctrl);
+                  if (m <= 0) {
+                    _kdv1Ind20Ctrl.clear();
+                  } else if (mevcutKdv == 0 || (mevcutKdv - m * 0.20).abs() > 0.05) {
+                    _kdv1Ind20Ctrl.text = TurkceFormat.paraKalem(BeyannameHesaplamaMotoru.round(m * 0.20));
+                  }
+                },
+                decoration: const InputDecoration(
+                  labelText: 'İndirilecek Matrah %20 (TL)',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: _kdv1Ind20Ctrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (val) {
+                  final k = TurkceFormat.parseSayi(val);
+                  final mevcutMatrah = _parse(_kdv1IndMatrah20Ctrl);
+                  if (k <= 0) {
+                    _kdv1IndMatrah20Ctrl.clear();
+                  } else if (mevcutMatrah == 0 || (mevcutMatrah * 0.20 - k).abs() > 0.05) {
+                    _kdv1IndMatrah20Ctrl.text = TurkceFormat.paraKalem(BeyannameHesaplamaMotoru.round(k * 5));
+                  }
+                },
                 decoration: const InputDecoration(
                   labelText: 'İndirilecek KDV %20 (TL)',
                   isDense: true,
@@ -919,7 +1113,7 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
       children: [
         const Text(
           'MUHTASAR PERSONEL BORDRO KAYDI',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF059669)),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.success),
         ),
         const SizedBox(height: 12),
         Row(
@@ -938,13 +1132,16 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
             const SizedBox(width: 10),
             Expanded(
               flex: 1,
-              child: TextField(
-                controller: _muhtasarKisiCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Kişi Sayısı',
-                  isDense: true,
-                  border: OutlineInputBorder(),
+              child: Tooltip(
+                message: 'Aynı personele aynı ayda 2. (ek) ödeme giriyorsanız istisna mükerrer düşülmemesi için 0 giriniz.',
+                child: TextField(
+                  controller: _muhtasarKisiCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Kişi Sayısı (Ek=0)',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
                 ),
               ),
             ),
@@ -957,26 +1154,37 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
               child: TextField(
                 controller: _muhtasarBrutCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (_) => _hesaplaMuhtasarNet(),
                 decoration: const InputDecoration(labelText: 'Brüt Ücret (TL)', isDense: true, border: OutlineInputBorder()),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: _muhtasarGvCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (_) => _hesaplaMuhtasarNet(),
                 decoration: const InputDecoration(labelText: 'Gelir Vergisi (TL)', isDense: true, border: OutlineInputBorder()),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: _muhtasarDvCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (_) => _hesaplaMuhtasarNet(),
                 decoration: const InputDecoration(labelText: 'Damga Vergisi (TL)', isDense: true, border: OutlineInputBorder()),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _muhtasarNetCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Net Ödenen (TL)', isDense: true, border: OutlineInputBorder()),
+              ),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: _muhtasarMatrahCtrl,

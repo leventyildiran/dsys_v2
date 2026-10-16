@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/turkce_format.dart';
 import '../providers/beyanname_provider.dart';
 import '../models/beyanname_model.dart';
+import '../models/beyanname_konfigurasyonu.dart';
 import '../services/beyanname_hesaplama_motoru.dart';
 import '../services/beyanname_rapor_servisi.dart';
 import '../services/beyanname_excel_servisi.dart';
@@ -1270,9 +1271,11 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             _headerRow(
               [
                 'BİRİM ADI',
-                'TOPLAM MATRAH',
+                'MATRAH %10',
                 'HESAPLANAN %10',
+                'MATRAH %20',
                 'HESAPLANAN %20',
+                'TOPLAM MATRAH',
                 'İNDİRİLECEK %10',
                 'İNDİRİLECEK %20',
                 'NET ÖDENECEK KDV',
@@ -1288,6 +1291,98 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 decoration: BoxDecoration(color: idx.isEven ? Colors.white : const Color(0xFFFAFAFA)),
                 children: [
                   _buildBirimCell(s.birimAdi),
+                  EditableCell(
+                    value: s.hesaplananMatrah10,
+                    onSubmitted: (v) {
+                      if (v <= 0) {
+                        provider.updateKdv1Satir(
+                          idx,
+                          s.copyWith(hesaplananMatrah10: 0, hesaplananKdv10: 0),
+                        );
+                        return;
+                      }
+                      final koruKdv = s.hesaplananKdv10 > 0 &&
+                          (s.hesaplananKdv10 - v * 0.10).abs() <= 0.05;
+                      provider.updateKdv1Satir(
+                        idx,
+                        s.copyWith(
+                          hesaplananMatrah10: v,
+                          hesaplananKdv10: koruKdv
+                              ? s.hesaplananKdv10
+                              : BeyannameHesaplamaMotoru.round(v * 0.10),
+                        ),
+                      );
+                    },
+                  ),
+                  EditableCell(
+                    value: s.hesaplananKdv10,
+                    onSubmitted: (v) {
+                      if (v <= 0) {
+                        provider.updateKdv1Satir(
+                          idx,
+                          s.copyWith(hesaplananKdv10: 0, hesaplananMatrah10: 0),
+                        );
+                        return;
+                      }
+                      final koruMatrah = s.hesaplananMatrah10 > 0 &&
+                          (s.hesaplananMatrah10 * 0.10 - v).abs() <= 0.05;
+                      provider.updateKdv1Satir(
+                        idx,
+                        s.copyWith(
+                          hesaplananKdv10: v,
+                          hesaplananMatrah10: koruMatrah
+                              ? s.hesaplananMatrah10
+                              : BeyannameHesaplamaMotoru.round(v * 10),
+                        ),
+                      );
+                    },
+                  ),
+                  EditableCell(
+                    value: s.hesaplananMatrah20,
+                    onSubmitted: (v) {
+                      if (v <= 0) {
+                        provider.updateKdv1Satir(
+                          idx,
+                          s.copyWith(hesaplananMatrah20: 0, hesaplananKdv20: 0),
+                        );
+                        return;
+                      }
+                      final koruKdv = s.hesaplananKdv20 > 0 &&
+                          (s.hesaplananKdv20 - v * 0.20).abs() <= 0.05;
+                      provider.updateKdv1Satir(
+                        idx,
+                        s.copyWith(
+                          hesaplananMatrah20: v,
+                          hesaplananKdv20: koruKdv
+                              ? s.hesaplananKdv20
+                              : BeyannameHesaplamaMotoru.round(v * 0.20),
+                        ),
+                      );
+                    },
+                  ),
+                  EditableCell(
+                    value: s.hesaplananKdv20,
+                    onSubmitted: (v) {
+                      if (v <= 0) {
+                        provider.updateKdv1Satir(
+                          idx,
+                          s.copyWith(hesaplananKdv20: 0, hesaplananMatrah20: 0),
+                        );
+                        return;
+                      }
+                      final koruMatrah = s.hesaplananMatrah20 > 0 &&
+                          (s.hesaplananMatrah20 * 0.20 - v).abs() <= 0.05;
+                      provider.updateKdv1Satir(
+                        idx,
+                        s.copyWith(
+                          hesaplananKdv20: v,
+                          hesaplananMatrah20: koruMatrah
+                              ? s.hesaplananMatrah20
+                              : BeyannameHesaplamaMotoru.round(v * 5),
+                        ),
+                      );
+                    },
+                  ),
                   EditableCell(
                     value: s.toplamHesaplananMatrah,
                     isBold: true,
@@ -1306,10 +1401,36 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                         return;
                       }
 
-                      // Akıllı oran tespiti:
-                      // 1) Mevcut satırda %10 varsa -> %10
-                      // 2) Mevcut satırda %20 varsa -> %20
-                      // 3) İkisi de boşsa -> Birim adına göre (eğitim kursları %10, diğerleri %20)
+                      // Hem %10 hem %20 doluysa: %10'u silme, farkı %20'ye yansıt!
+                      if (s.hesaplananMatrah10 > 0 && s.hesaplananMatrah20 > 0) {
+                        if (newMatrah >= s.hesaplananMatrah10) {
+                          final yeniMatrah20 = BeyannameHesaplamaMotoru.round(
+                              newMatrah - s.hesaplananMatrah10);
+                          provider.updateKdv1Satir(
+                            idx,
+                            s.copyWith(
+                              hesaplananMatrah20: yeniMatrah20,
+                              hesaplananKdv20: BeyannameHesaplamaMotoru.round(
+                                  yeniMatrah20 * 0.20),
+                            ),
+                          );
+                        } else {
+                          final yeniMatrah10 = BeyannameHesaplamaMotoru.round(
+                              newMatrah - s.hesaplananMatrah20);
+                          if (yeniMatrah10 >= 0) {
+                            provider.updateKdv1Satir(
+                              idx,
+                              s.copyWith(
+                                hesaplananMatrah10: yeniMatrah10,
+                                hesaplananKdv10: BeyannameHesaplamaMotoru.round(
+                                    yeniMatrah10 * 0.10),
+                              ),
+                            );
+                          }
+                        }
+                        return;
+                      }
+
                       final bKey = BirimAdlandirma.canonicalKey(s.birimAdi);
                       final bool isEgitimBirimi = bKey.contains('usem') ||
                           bKey.contains('tomer') ||
@@ -1333,8 +1454,6 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                           s.copyWith(
                             hesaplananKdv10: kdv,
                             hesaplananMatrah10: newMatrah,
-                            hesaplananKdv20: 0,
-                            hesaplananMatrah20: 0,
                           ),
                         );
                       } else {
@@ -1342,8 +1461,6 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                         provider.updateKdv1Satir(
                           idx,
                           s.copyWith(
-                            hesaplananKdv10: 0,
-                            hesaplananMatrah10: 0,
                             hesaplananKdv20: kdv,
                             hesaplananMatrah20: newMatrah,
                           ),
@@ -1352,37 +1469,24 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                     },
                   ),
                   EditableCell(
-                    value: s.hesaplananKdv10,
-                    onSubmitted: (v) {
-                      provider.updateKdv1Satir(
-                        idx,
-                        s.copyWith(
-                          hesaplananKdv10: v,
-                          hesaplananMatrah10: v > 0 ? BeyannameHesaplamaMotoru.round(v * 10) : 0,
-                        ),
-                      );
-                    },
-                  ),
-                  EditableCell(
-                    value: s.hesaplananKdv20,
-                    onSubmitted: (v) {
-                      provider.updateKdv1Satir(
-                        idx,
-                        s.copyWith(
-                          hesaplananKdv20: v,
-                          hesaplananMatrah20: v > 0 ? BeyannameHesaplamaMotoru.round(v * 5) : 0,
-                        ),
-                      );
-                    },
-                  ),
-                  EditableCell(
                     value: s.indirilecekKdv10,
                     onSubmitted: (v) {
+                      if (v <= 0) {
+                        provider.updateKdv1Satir(
+                          idx,
+                          s.copyWith(indirilecekKdv10: 0, indirilecekMatrah10: 0),
+                        );
+                        return;
+                      }
+                      final koruMatrah = s.indirilecekMatrah10 > 0 &&
+                          (s.indirilecekMatrah10 * 0.10 - v).abs() <= 0.05;
                       provider.updateKdv1Satir(
                         idx,
                         s.copyWith(
                           indirilecekKdv10: v,
-                          indirilecekMatrah10: v > 0 ? BeyannameHesaplamaMotoru.round(v * 10) : 0,
+                          indirilecekMatrah10: koruMatrah
+                              ? s.indirilecekMatrah10
+                              : BeyannameHesaplamaMotoru.round(v * 10),
                         ),
                       );
                     },
@@ -1390,11 +1494,22 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                   EditableCell(
                     value: s.indirilecekKdv20,
                     onSubmitted: (v) {
+                      if (v <= 0) {
+                        provider.updateKdv1Satir(
+                          idx,
+                          s.copyWith(indirilecekKdv20: 0, indirilecekMatrah20: 0),
+                        );
+                        return;
+                      }
+                      final koruMatrah = s.indirilecekMatrah20 > 0 &&
+                          (s.indirilecekMatrah20 * 0.20 - v).abs() <= 0.05;
                       provider.updateKdv1Satir(
                         idx,
                         s.copyWith(
                           indirilecekKdv20: v,
-                          indirilecekMatrah20: v > 0 ? BeyannameHesaplamaMotoru.round(v * 5) : 0,
+                          indirilecekMatrah20: koruMatrah
+                              ? s.indirilecekMatrah20
+                              : BeyannameHesaplamaMotoru.round(v * 5),
                         ),
                       );
                     },
@@ -1430,9 +1545,11 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               decoration: const BoxDecoration(color: Color(0xFFF1F5F9)),
               children: [
                 _cellText('TOPLAM', isBold: true, align: TextAlign.left, color: const Color(0xFF1E293B)),
-                _cellText(TurkceFormat.para(provider.kdv1Sonuc.matrah10Hesaplanan + provider.kdv1Sonuc.matrah20Hesaplanan), isBold: true, color: const Color(0xFF1D4ED8)),
+                _cellText(TurkceFormat.para(provider.kdv1Sonuc.matrah10Hesaplanan), isBold: true, color: const Color(0xFF1E293B)),
                 _cellText(TurkceFormat.para(provider.kdv1Sonuc.kdv10Hesaplanan), isBold: true, color: const Color(0xFF1E293B)),
+                _cellText(TurkceFormat.para(provider.kdv1Sonuc.matrah20Hesaplanan), isBold: true, color: const Color(0xFF1E293B)),
                 _cellText(TurkceFormat.para(provider.kdv1Sonuc.kdv20Hesaplanan), isBold: true, color: const Color(0xFF1E293B)),
+                _cellText(TurkceFormat.para(provider.kdv1Sonuc.matrah10Hesaplanan + provider.kdv1Sonuc.matrah20Hesaplanan), isBold: true, color: const Color(0xFF1D4ED8)),
                 _cellText(TurkceFormat.para(provider.kdv1Sonuc.kdv10Indirilecek), isBold: true, color: const Color(0xFF1E293B)),
                 _cellText(TurkceFormat.para(provider.kdv1Sonuc.kdv20Indirilecek), isBold: true, color: const Color(0xFF1E293B)),
                 Padding(
@@ -1453,16 +1570,18 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           ],
           borderColor: const Color(0xFFCBD5E1),
           gridColor: const Color(0xFFF1F5F9),
-          minWidth: 1040,
+          minWidth: 1180,
           columnWidths: const {
-            0: FlexColumnWidth(2.3),
-            1: FlexColumnWidth(1.25),
-            2: FlexColumnWidth(1.05),
+            0: FlexColumnWidth(2.1),
+            1: FlexColumnWidth(1.05),
+            2: FlexColumnWidth(1.0),
             3: FlexColumnWidth(1.05),
-            4: FlexColumnWidth(1.05),
-            5: FlexColumnWidth(1.05),
-            6: FlexColumnWidth(1.2),
-            7: FixedColumnWidth(55),
+            4: FlexColumnWidth(1.0),
+            5: FlexColumnWidth(1.15),
+            6: FlexColumnWidth(1.0),
+            7: FlexColumnWidth(1.0),
+            8: FlexColumnWidth(1.15),
+            9: FixedColumnWidth(50),
           },
         ),
       ],
@@ -1515,7 +1634,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                   _cellText(f.firmaAdi, isBold: true, align: TextAlign.left),
                   _cellText(f.vergiTcNo, align: TextAlign.center),
                   _buildBirimCell(f.birimAdi ?? '—'),
-                  _cellText('${f.tevkifatTuru.etiket} (%${f.kdvOrani})', align: TextAlign.center),
+                  _cellText('${f.etiket} (%${f.kdvOrani})', align: TextAlign.center),
                   _cellText(TurkceFormat.para(f.matrahTutari)),
                   _cellText(TurkceFormat.para(f.kdvTutari)),
                   _cellText(TurkceFormat.para(f.tevkifatTutari), isBold: true, color: const Color(0xFFD97706)),
@@ -1615,12 +1734,60 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 children: [
                   _buildBirimCell(m.birimAdi),
                   _buildPersonelAdSoyadCell(m),
-                  _cellText('${m.kisiSayisi}', align: TextAlign.center),
-                  _cellText(TurkceFormat.para(m.brutUcret)),
-                  _cellText(TurkceFormat.para(m.gelirVergisi)),
-                  _cellText(TurkceFormat.para(m.damgaVergisi)),
-                  _cellText(TurkceFormat.para(m.netOdenen)),
-                  _cellText(TurkceFormat.para(m.aylikGelirVergisiMatrahi)),
+                  _cellText('${m.kisiSayisi}', align: TextAlign.center, isBold: m.kisiSayisi == 0),
+                  EditableCell(
+                    value: m.brutUcret,
+                    onSubmitted: (v) {
+                      final otomatikNetMi = (m.netOdenen - (m.brutUcret - m.gelirVergisi - m.damgaVergisi)).abs() < 0.05;
+                      provider.updateMuhtasarSatir(
+                        idx,
+                        m.copyWith(
+                          brutUcret: v,
+                          netOdenen: otomatikNetMi
+                              ? BeyannameHesaplamaMotoru.round(v - m.gelirVergisi - m.damgaVergisi)
+                              : m.netOdenen,
+                        ),
+                      );
+                    },
+                  ),
+                  EditableCell(
+                    value: m.gelirVergisi,
+                    onSubmitted: (v) {
+                      final otomatikNetMi = (m.netOdenen - (m.brutUcret - m.gelirVergisi - m.damgaVergisi)).abs() < 0.05;
+                      provider.updateMuhtasarSatir(
+                        idx,
+                        m.copyWith(
+                          gelirVergisi: v,
+                          netOdenen: otomatikNetMi
+                              ? BeyannameHesaplamaMotoru.round(m.brutUcret - v - m.damgaVergisi)
+                              : m.netOdenen,
+                        ),
+                      );
+                    },
+                  ),
+                  EditableCell(
+                    value: m.damgaVergisi,
+                    onSubmitted: (v) {
+                      final otomatikNetMi = (m.netOdenen - (m.brutUcret - m.gelirVergisi - m.damgaVergisi)).abs() < 0.05;
+                      provider.updateMuhtasarSatir(
+                        idx,
+                        m.copyWith(
+                          damgaVergisi: v,
+                          netOdenen: otomatikNetMi
+                              ? BeyannameHesaplamaMotoru.round(m.brutUcret - m.gelirVergisi - v)
+                              : m.netOdenen,
+                        ),
+                      );
+                    },
+                  ),
+                  EditableCell(
+                    value: m.netOdenen,
+                    onSubmitted: (v) => provider.updateMuhtasarSatir(idx, m.copyWith(netOdenen: v)),
+                  ),
+                  EditableCell(
+                    value: m.aylikGelirVergisiMatrahi,
+                    onSubmitted: (v) => provider.updateMuhtasarSatir(idx, m.copyWith(aylikGelirVergisiMatrahi: v)),
+                  ),
                   Center(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -2141,7 +2308,9 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     final topKdv2Dokuz = list.fold(0.0, (s, x) => s + x.kdv2DokuzBoluOn);
     final topKdv2Yedi = list.fold(0.0, (s, x) => s + x.kdv2YediBoluOn);
     final topKdv2Bes = list.fold(0.0, (s, x) => s + x.kdv2BesBoluOn);
+    final topKdv2Diger = list.fold(0.0, (s, x) => s + x.kdv2DigerOranlar);
     final topKdv2Genel = list.fold(0.0, (s, x) => s + x.kdv2Toplam);
+    final gosterDiger = topKdv2Diger > 0;
 
     final genelDokuz20 = provider.tevkifatKayitlari
         .where((f) => f.etiket == '9/10' && f.kdvOrani == 20)
@@ -2152,7 +2321,10 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     final genelBes20 = provider.tevkifatKayitlari
         .where((f) => f.etiket == '5/10' && f.kdvOrani == 20)
         .fold(0.0, (s, x) => s + x.tevkifatTutari);
-    final genelToplam20 = genelDokuz20 + genelYedi20 + genelBes20;
+    final genelDiger20 = provider.tevkifatKayitlari
+        .where((f) => f.etiket != '9/10' && f.etiket != '7/10' && f.etiket != '5/10' && f.kdvOrani == 20)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
+    final genelToplam20 = genelDokuz20 + genelYedi20 + genelBes20 + genelDiger20;
 
     final genelDokuz10 = provider.tevkifatKayitlari
         .where((f) => f.etiket == '9/10' && f.kdvOrani == 10)
@@ -2163,7 +2335,10 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     final genelBes10 = provider.tevkifatKayitlari
         .where((f) => f.etiket == '5/10' && f.kdvOrani == 10)
         .fold(0.0, (s, x) => s + x.tevkifatTutari);
-    final genelToplam10 = genelDokuz10 + genelYedi10 + genelBes10;
+    final genelDiger10 = provider.tevkifatKayitlari
+        .where((f) => f.etiket != '9/10' && f.etiket != '7/10' && f.etiket != '5/10' && f.kdvOrani == 10)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
+    final genelToplam10 = genelDokuz10 + genelYedi10 + genelBes10 + genelDiger10;
 
     final rows = <TableRow>[];
 
@@ -2175,6 +2350,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           '9 / 10 (%90)',
           '7 / 10 (%70)',
           '5 / 10 (%50)',
+          if (gosterDiger) 'DİĞER ORANLAR',
           'TOPLAM KDV 2 TEVKİFAT',
         ],
         bg: const Color(0xFFFEF3C7),
@@ -2198,6 +2374,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             _cellText(TurkceFormat.para(b.kdv2DokuzBoluOn), isBold: hasTevkifat),
             _cellText(TurkceFormat.para(b.kdv2YediBoluOn), isBold: hasTevkifat),
             _cellText(TurkceFormat.para(b.kdv2BesBoluOn), isBold: hasTevkifat),
+            if (gosterDiger) _cellText(TurkceFormat.para(b.kdv2DigerOranlar), isBold: hasTevkifat),
             _cellText(
               TurkceFormat.para(b.kdv2Toplam),
               isBold: true,
@@ -2230,8 +2407,15 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket == '5/10' && f.kdvOrani == 10)
             .fold(0.0, (s, x) => s + x.tevkifatTutari);
 
-        final bToplam20 = dokuz20 + yedi20 + bes20;
-        final bToplam10 = dokuz10 + yedi10 + bes10;
+        final diger20 = provider.tevkifatKayitlari
+            .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket != '9/10' && f.etiket != '7/10' && f.etiket != '5/10' && f.kdvOrani == 20)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+        final diger10 = provider.tevkifatKayitlari
+            .where((f) => BirimAdlandirma.canonicalKey(f.birimAdi ?? '') == dKey && f.etiket != '9/10' && f.etiket != '7/10' && f.etiket != '5/10' && f.kdvOrani == 10)
+            .fold(0.0, (s, x) => s + x.tevkifatTutari);
+
+        final bToplam20 = dokuz20 + yedi20 + bes20 + diger20;
+        final bToplam10 = dokuz10 + yedi10 + bes10 + diger10;
 
         if (bToplam20 > 0) {
           rows.add(
@@ -2262,6 +2446,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 _cellText(TurkceFormat.para(dokuz20), color: AppColors.textSecondary),
                 _cellText(TurkceFormat.para(yedi20), color: AppColors.textSecondary),
                 _cellText(TurkceFormat.para(bes20), color: AppColors.textSecondary),
+                if (gosterDiger) _cellText(TurkceFormat.para(diger20), color: AppColors.textSecondary),
                 _cellText(TurkceFormat.para(bToplam20), color: AppColors.textPrimary, isBold: true),
               ],
             ),
@@ -2297,6 +2482,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 _cellText(TurkceFormat.para(dokuz10), color: AppColors.textSecondary),
                 _cellText(TurkceFormat.para(yedi10), color: AppColors.textSecondary),
                 _cellText(TurkceFormat.para(bes10), color: AppColors.textSecondary),
+                if (gosterDiger) _cellText(TurkceFormat.para(diger10), color: AppColors.textSecondary),
                 _cellText(TurkceFormat.para(bToplam10), color: AppColors.textPrimary, isBold: true),
               ],
             ),
@@ -2324,6 +2510,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             _cellText(TurkceFormat.para(genelDokuz20), isBold: true, color: const Color(0xFF92400E)),
             _cellText(TurkceFormat.para(genelYedi20), isBold: true, color: const Color(0xFF92400E)),
             _cellText(TurkceFormat.para(genelBes20), isBold: true, color: const Color(0xFF92400E)),
+            if (gosterDiger) _cellText(TurkceFormat.para(genelDiger20), isBold: true, color: const Color(0xFF92400E)),
             _cellText(TurkceFormat.para(genelToplam20), isBold: true, color: const Color(0xFF92400E)),
           ],
         ),
@@ -2349,6 +2536,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             _cellText(TurkceFormat.para(genelDokuz10), isBold: true, color: const Color(0xFF92400E)),
             _cellText(TurkceFormat.para(genelYedi10), isBold: true, color: const Color(0xFF92400E)),
             _cellText(TurkceFormat.para(genelBes10), isBold: true, color: const Color(0xFF92400E)),
+            if (gosterDiger) _cellText(TurkceFormat.para(genelDiger10), isBold: true, color: const Color(0xFF92400E)),
             _cellText(TurkceFormat.para(genelToplam10), isBold: true, color: const Color(0xFF92400E)),
           ],
         ),
@@ -2364,6 +2552,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           _cellText(TurkceFormat.para(topKdv2Dokuz), isBold: true, color: const Color(0xFF92400E)),
           _cellText(TurkceFormat.para(topKdv2Yedi), isBold: true, color: const Color(0xFF92400E)),
           _cellText(TurkceFormat.para(topKdv2Bes), isBold: true, color: const Color(0xFF92400E)),
+          if (gosterDiger) _cellText(TurkceFormat.para(topKdv2Diger), isBold: true, color: const Color(0xFF92400E)),
           _cellText(TurkceFormat.para(topKdv2Genel), isBold: true, color: const Color(0xFFB45309)),
         ],
       ),
@@ -2378,13 +2567,22 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           rows,
           borderColor: const Color(0xFFFDE68A),
           gridColor: const Color(0xFFFEF3C7),
-          columnWidths: const {
-            0: FlexColumnWidth(2.8),
-            1: FlexColumnWidth(1.3),
-            2: FlexColumnWidth(1.3),
-            3: FlexColumnWidth(1.3),
-            4: FlexColumnWidth(1.5),
-          },
+          columnWidths: gosterDiger
+              ? const {
+                  0: FlexColumnWidth(2.6),
+                  1: FlexColumnWidth(1.2),
+                  2: FlexColumnWidth(1.2),
+                  3: FlexColumnWidth(1.2),
+                  4: FlexColumnWidth(1.2),
+                  5: FlexColumnWidth(1.4),
+                }
+              : const {
+                  0: FlexColumnWidth(2.8),
+                  1: FlexColumnWidth(1.3),
+                  2: FlexColumnWidth(1.3),
+                  3: FlexColumnWidth(1.3),
+                  4: FlexColumnWidth(1.5),
+                },
         ),
       ],
     );
@@ -2778,8 +2976,47 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           ? TurkceFormat.paraKalem(mevcut.kdvTutari)
           : '',
     );
-    TevkifatTuru seciliTur = mevcut?.tevkifatTuru ?? TevkifatTuru.dokuzBoluOn;
+    final tevkifatCtrl = TextEditingController(
+      text: mevcut != null && mevcut.tevkifatTutari > 0
+          ? TurkceFormat.paraKalem(mevcut.tevkifatTutari)
+          : '',
+    );
+
+    // Tüm tevkifat türlerini hazırla (konfigürasyon + standart oranlar + mevcut etiket)
+    final tevkifatMap = <String, TevkifatTanimi>{
+      '9/10': const TevkifatTanimi(etiket: '9/10', pay: 9, payda: 10),
+      '7/10': const TevkifatTanimi(etiket: '7/10', pay: 7, payda: 10),
+      '5/10': const TevkifatTanimi(etiket: '5/10', pay: 5, payda: 10),
+      '4/10': const TevkifatTanimi(etiket: '4/10', pay: 4, payda: 10),
+      '3/10': const TevkifatTanimi(etiket: '3/10', pay: 3, payda: 10),
+      '2/10': const TevkifatTanimi(etiket: '2/10', pay: 2, payda: 10),
+    };
+    for (final t in provider.konfig.tevkifatTurleri) {
+      tevkifatMap[t.etiket] = t;
+    }
+    if (mevcut != null && !tevkifatMap.containsKey(mevcut.etiket)) {
+      tevkifatMap[mevcut.etiket] = TevkifatTanimi(
+        etiket: mevcut.etiket,
+        pay: mevcut.tevkifatTuru.pay,
+        payda: mevcut.tevkifatTuru.payda,
+      );
+    }
+    final tevkifatListesi = tevkifatMap.values.toList();
+
+    final kdvOranSet = <int>{1, 8, 10, 18, 20};
+    for (final o in provider.konfig.kdvOranlari) {
+      kdvOranSet.add(o.oran);
+    }
+    if (mevcut != null) kdvOranSet.add(mevcut.kdvOrani);
+    final kdvOranListesi = kdvOranSet.toList()..sort();
+
+    String seciliEtiket = mevcut?.etiket ?? '9/10';
     int kdvOrani = mevcut?.kdvOrani ?? 20;
+
+    double seciliOranDegeri() {
+      final t = tevkifatMap[seciliEtiket];
+      return t != null ? t.oran : 0.9;
+    }
 
     // Birim seçeneklerini topla
     final Map<String, String> birimSecenekleri = {};
@@ -2926,25 +3163,29 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<TevkifatTuru>(
-                          value: seciliTur,
+                        child: DropdownButtonFormField<String>(
+                          value: seciliEtiket,
                           decoration: const InputDecoration(
                             labelText: 'Tevkifat Türü',
                             border: OutlineInputBorder(),
                             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           ),
-                          items: const [
-                            DropdownMenuItem(value: TevkifatTuru.dokuzBoluOn, child: Text('9 / 10 (%90)')),
-                            DropdownMenuItem(value: TevkifatTuru.yediBoluOn, child: Text('7 / 10 (%70)')),
-                            DropdownMenuItem(value: TevkifatTuru.besBoluOn, child: Text('5 / 10 (%50)')),
-                          ],
+                          items: tevkifatListesi.map((t) {
+                            final yuzde = (t.oran * 100).round();
+                            return DropdownMenuItem(
+                              value: t.etiket,
+                              child: Text('${t.etiket} (%$yuzde)'),
+                            );
+                          }).toList(),
                           onChanged: (v) {
                             if (v != null) {
-                              setDialogState(() => seciliTur = v);
+                              setDialogState(() => seciliEtiket = v);
                               final m = TurkceFormat.parseSayi(matrahCtrl.text);
                               if (m > 0) {
                                 final kdv = BeyannameHesaplamaMotoru.round(m * (kdvOrani / 100));
                                 kdvCtrl.text = TurkceFormat.paraKalem(kdv);
+                                final tev = BeyannameHesaplamaMotoru.round(kdv * seciliOranDegeri());
+                                tevkifatCtrl.text = TurkceFormat.paraKalem(tev);
                               }
                             }
                           },
@@ -2959,7 +3200,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                             border: OutlineInputBorder(),
                             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           ),
-                          items: [8, 10, 18, 20].map((o) => DropdownMenuItem(value: o, child: Text('%$o'))).toList(),
+                          items: kdvOranListesi.map((o) => DropdownMenuItem(value: o, child: Text('%$o'))).toList(),
                           onChanged: (v) {
                             if (v != null) {
                               setDialogState(() => kdvOrani = v);
@@ -2967,6 +3208,8 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                               if (m > 0) {
                                 final kdv = BeyannameHesaplamaMotoru.round(m * (kdvOrani / 100));
                                 kdvCtrl.text = TurkceFormat.paraKalem(kdv);
+                                final tev = BeyannameHesaplamaMotoru.round(kdv * seciliOranDegeri());
+                                tevkifatCtrl.text = TurkceFormat.paraKalem(tev);
                               }
                             }
                           },
@@ -2976,7 +3219,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // 5. Matrah ve KDV Tutarları
+                  // 5. Matrah, KDV ve Tevkifat Tutarları
                   Row(
                     children: [
                       Expanded(
@@ -2986,7 +3229,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                             labelText: 'Matrah Tutarı (TL)',
                             hintText: 'örn: 100.000,00',
                             border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                           ),
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           inputFormatters: const [TurkceParaInputFormatter()],
@@ -2995,11 +3238,13 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                             if (m > 0) {
                               final kdv = BeyannameHesaplamaMotoru.round(m * (kdvOrani / 100));
                               kdvCtrl.text = TurkceFormat.paraKalem(kdv);
+                              final tev = BeyannameHesaplamaMotoru.round(kdv * seciliOranDegeri());
+                              tevkifatCtrl.text = TurkceFormat.paraKalem(tev);
                             }
                           },
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: TextField(
                           controller: kdvCtrl,
@@ -3007,7 +3252,29 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                             labelText: 'KDV Tutarı (TL)',
                             hintText: 'örn: 20.000,00',
                             border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: const [TurkceParaInputFormatter()],
+                          onChanged: (val) {
+                            final kdv = TurkceFormat.parseSayi(val);
+                            if (kdv > 0) {
+                              final tev = BeyannameHesaplamaMotoru.round(kdv * seciliOranDegeri());
+                              tevkifatCtrl.text = TurkceFormat.paraKalem(tev);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: tevkifatCtrl,
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                          decoration: const InputDecoration(
+                            labelText: 'Tevkifat Tutarı (TL)',
+                            hintText: 'örn: 18.000,00',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                           ),
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           inputFormatters: const [TurkceParaInputFormatter()],
@@ -3030,14 +3297,17 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               onPressed: () {
                 final matrah = TurkceFormat.parseSayi(matrahCtrl.text);
                 final kdv = TurkceFormat.parseSayi(kdvCtrl.text);
-                final tevkifat = BeyannameHesaplamaMotoru.round(kdv * seciliTur.oran);
+                final girilenTevkifat = TurkceFormat.parseSayi(tevkifatCtrl.text);
+                final tevkifat = tevkifatCtrl.text.trim().isNotEmpty
+                    ? girilenTevkifat
+                    : BeyannameHesaplamaMotoru.round(kdv * seciliOranDegeri());
 
                 final kayit = TevkifatFirmaKaydi(
                   id: mevcut?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
                   firmaAdi: firmaCtrl.text.trim().isEmpty ? 'Tevkifatlı Fatura' : firmaCtrl.text.trim(),
                   vergiTcNo: vknCtrl.text.trim(),
-                  tevkifatTuru: seciliTur,
-                  tevkifatEtiketi: seciliTur.etiket,
+                  tevkifatTuru: TevkifatTuru.fromString(seciliEtiket),
+                  tevkifatEtiketi: seciliEtiket,
                   kdvOrani: kdvOrani,
                   matrahTutari: matrah,
                   kdvTutari: kdv,
@@ -3095,6 +3365,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           );
 
     final adCtrl = TextEditingController(text: mevcut?.temizAdSoyad ?? '');
+    final kisiCtrl = TextEditingController(text: '${mevcut?.kisiSayisi ?? 1}');
     String? seciliUnvan = mevcut?.unvan;
     List<PersonelModel> oneriListesi = [];
     bool aramaYapildi = false;
@@ -3114,11 +3385,30 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           ? TurkceFormat.paraKalem(mevcut.damgaVergisi)
           : '',
     );
+    final netCtrl = TextEditingController(
+      text: mevcut != null && mevcut.netOdenen > 0
+          ? TurkceFormat.paraKalem(mevcut.netOdenen)
+          : '',
+    );
     final matrahCtrl = TextEditingController(
       text: mevcut != null && mevcut.aylikGelirVergisiMatrahi > 0
           ? TurkceFormat.paraKalem(mevcut.aylikGelirVergisiMatrahi)
           : '',
     );
+
+    bool netManuelDegisti = mevcut != null &&
+        (mevcut.netOdenen - (mevcut.brutUcret - mevcut.gelirVergisi - mevcut.damgaVergisi)).abs() > 0.05;
+
+    void otomatikNetHesapla() {
+      if (netManuelDegisti) return;
+      final b = TurkceFormat.parseSayi(brutCtrl.text);
+      final g = TurkceFormat.parseSayi(gvCtrl.text);
+      final d = TurkceFormat.parseSayi(dvCtrl.text);
+      if (b > 0) {
+        final n = BeyannameHesaplamaMotoru.round(b - g - d);
+        netCtrl.text = n > 0 ? TurkceFormat.paraKalem(n) : '0,00';
+      }
+    }
 
     if (!context.mounted) return;
 
@@ -3170,46 +3460,69 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                     },
                   ),
                   const SizedBox(height: 10),
-                  // AKILLI PERSONEL ARAMA VE TAMAMLAMA METİN KUTUSU
-                  TextField(
-                    controller: adCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Personel Ad Soyad (Üniversite Rehberi)',
-                      hintText: 'Ad, unvan veya birim yazarak arayın...',
-                      border: const OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                      prefixIcon: const Icon(Icons.person_search_rounded, size: 20, color: Color(0xFF059669)),
-                      suffixIcon: adCtrl.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear_rounded, size: 18),
-                              splashRadius: 14,
-                              onPressed: () {
-                                adCtrl.clear();
-                                setDialogState(() {
-                                  oneriListesi = [];
-                                  aramaYapildi = false;
-                                });
-                              },
-                            )
-                          : null,
-                    ),
-                    onChanged: (val) {
-                      final q = PersonelService.normalizeMetin(val);
-                      setDialogState(() {
-                        if (q.length < 2) {
-                          oneriListesi = [];
-                          aramaYapildi = false;
-                        } else {
-                          oneriListesi = tumPersoneller.where((p) {
-                            final ad = PersonelService.normalizeMetin(p.adSoyad);
-                            final unvan = PersonelService.normalizeMetin(p.unvan);
-                            final birim = PersonelService.normalizeMetin(p.birimAdi ?? '');
-                            return ad.contains(q) || unvan.contains(q) || birim.contains(q);
-                          }).take(8).toList();
-                          aramaYapildi = true;
-                        }
-                      });
-                    },
+                  // AKILLI PERSONEL ARAMA VE TAMAMLAMA METİN KUTUSU + KİŞİ SAYISI
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: TextField(
+                          controller: adCtrl,
+                          decoration: InputDecoration(
+                            labelText: 'Personel Ad Soyad (Üniversite Rehberi)',
+                            hintText: 'Ad, unvan veya birim yazarak arayın...',
+                            border: const OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            prefixIcon: const Icon(Icons.person_search_rounded, size: 20, color: Color(0xFF059669)),
+                            suffixIcon: adCtrl.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear_rounded, size: 18),
+                                    splashRadius: 14,
+                                    onPressed: () {
+                                      adCtrl.clear();
+                                      setDialogState(() {
+                                        oneriListesi = [];
+                                        aramaYapildi = false;
+                                      });
+                                    },
+                                  )
+                                : null,
+                          ),
+                          onChanged: (val) {
+                            final q = PersonelService.normalizeMetin(val);
+                            setDialogState(() {
+                              if (q.length < 2) {
+                                oneriListesi = [];
+                                aramaYapildi = false;
+                              } else {
+                                oneriListesi = tumPersoneller.where((p) {
+                                  final ad = PersonelService.normalizeMetin(p.adSoyad);
+                                  final unvan = PersonelService.normalizeMetin(p.unvan);
+                                  final birim = PersonelService.normalizeMetin(p.birimAdi ?? '');
+                                  return ad.contains(q) || unvan.contains(q) || birim.contains(q);
+                                }).take(8).toList();
+                                aramaYapildi = true;
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 1,
+                        child: Tooltip(
+                          message: 'Aynı personele aynı ayda 2. (ek) ödeme giriyorsanız asgari ücret vergi istisnasının mükerrer düşülmemesi için 0 giriniz.',
+                          child: TextField(
+                            controller: kisiCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Kişi (Ek=0)',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   // DİNAMİK CANLI ÖNERİ LİSTESİ (Sıfır gecikme, overlay hatası yok)
                   if (aramaYapildi && oneriListesi.isNotEmpty) ...[
@@ -3320,32 +3633,62 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                     ),
                   ],
                   const SizedBox(height: 10),
-                  TextField(
-                    controller: brutCtrl,
-                    decoration: const InputDecoration(labelText: 'Brüt Ücret (TL)', hintText: 'örn: 25.000,00'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: const [TurkceParaInputFormatter()],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: brutCtrl,
+                          decoration: const InputDecoration(labelText: 'Brüt Ücret (TL)', hintText: 'örn: 25.000,00'),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: const [TurkceParaInputFormatter()],
+                          onChanged: (_) => otomatikNetHesapla(),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: matrahCtrl,
+                          decoration: const InputDecoration(labelText: 'Aylık GV Matrahı (TL)', hintText: 'örn: 21.250,00'),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: const [TurkceParaInputFormatter()],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: gvCtrl,
+                          decoration: const InputDecoration(labelText: 'Gelir Vergisi (TL)', hintText: 'örn: 4.420,93'),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: const [TurkceParaInputFormatter()],
+                          onChanged: (_) => otomatikNetHesapla(),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: dvCtrl,
+                          decoration: const InputDecoration(labelText: 'Damga Vergisi (TL)', hintText: 'örn: 189,75'),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: const [TurkceParaInputFormatter()],
+                          onChanged: (_) => otomatikNetHesapla(),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   TextField(
-                    controller: gvCtrl,
-                    decoration: const InputDecoration(labelText: 'Gelir Vergisi (TL)', hintText: 'örn: 4.420,93'),
+                    controller: netCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Net Ödenen (TL) — Otomatik hesaplanır, kesinti varsa elle düzeltilebilir',
+                      hintText: 'örn: 20.389,32',
+                    ),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: const [TurkceParaInputFormatter()],
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: dvCtrl,
-                    decoration: const InputDecoration(labelText: 'Damga Vergisi (TL)', hintText: 'örn: 189,75'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: const [TurkceParaInputFormatter()],
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: matrahCtrl,
-                    decoration: const InputDecoration(labelText: 'Aylık GV Matrahı (TL)', hintText: 'örn: 21.250,00'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: const [TurkceParaInputFormatter()],
+                    onChanged: (_) => netManuelDegisti = true,
                   ),
                 ],
               ),
@@ -3363,7 +3706,11 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 final gv = TurkceFormat.parseSayi(gvCtrl.text);
                 final dv = TurkceFormat.parseSayi(dvCtrl.text);
                 final matrah = TurkceFormat.parseSayi(matrahCtrl.text);
-                final net = BeyannameHesaplamaMotoru.round(brut - gv - dv);
+                final girilenNet = TurkceFormat.parseSayi(netCtrl.text);
+                final net = netCtrl.text.trim().isNotEmpty
+                    ? girilenNet
+                    : BeyannameHesaplamaMotoru.round(brut - gv - dv);
+                final kisi = int.tryParse(kisiCtrl.text.trim()) ?? (mevcut?.kisiSayisi ?? 1);
                 final adSoyad = adCtrl.text.trim();
 
                 final satir = MuhtasarSatiri(
@@ -3371,7 +3718,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                   birimAdi: BirimAdlandirma.tamAdGetir(seciliBirim),
                   adSoyad: adSoyad,
                   unvan: seciliUnvan,
-                  kisiSayisi: mevcut?.kisiSayisi ?? 1,
+                  kisiSayisi: kisi < 0 ? 0 : kisi,
                   brutUcret: brut,
                   gelirVergisi: gv,
                   damgaVergisi: dv,

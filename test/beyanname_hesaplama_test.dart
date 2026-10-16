@@ -218,5 +218,22 @@ void main() {
       expect(sonuc.muhtasarDamgaVergisi302, 1253.60);
       expect(sonuc.toplamDamgaVergisi301Ve302, closeTo(2119.58, 0.01));
     });
+
+    test('BirimVergiIcmalSatiri: Negatif KDV 1 (Devreden) diğer ödenecek vergilerden düşülmez', () {
+      const tomerIcmal = BirimVergiIcmalSatiri(
+        birimAdi: 'TÖMER',
+        kdv1Tutari: -6019.0, // İndirilecek KDV > Hesaplanan KDV (Devreden KDV)
+        damgaVb: 100.0,
+        muhtasarDamga: 1000.0,
+        muhtasarKesilenDamga: 50.0,
+        kdv2TevkifatTutar: {'9/10': 500.0, '4/10': 200.0},
+      );
+
+      expect(tomerIcmal.odenecekKdv1, 0.0);
+      expect(tomerIcmal.kdv2DigerOranlar, 200.0);
+      expect(tomerIcmal.kdv2Toplam, 700.0);
+      // Ödenecek toplam: 0 (KDV1) + 100 (Damga) + 1050 (Muhtasar) + 700 (KDV2) = 1850.0 TL
+      expect(tomerIcmal.genelToplamOdenecek, 1850.0);
+    });
   });
 }

@@ -142,7 +142,7 @@ class BeyannameExcelServisi {
     final topMuhtasarDamga = icmaller.fold(0.0, (s, x) => s + x.muhtasarDamga);
     final topMuhtasarKesilen = icmaller.fold(0.0, (s, x) => s + x.muhtasarKesilenDamga);
     final topMuhtasarToplam = icmaller.fold(0.0, (s, x) => s + x.muhtasarToplam);
-    final topGenelOdenecek = topKdv1 + topDamgaVb + topMuhtasarToplam;
+    final topGenelOdenecek = icmaller.fold(0.0, (s, x) => s + x.genelToplamOdenecek);
 
     sheet1.getRangeByIndex(row1, 1).setText('TOPLAMLAR');
     sheet1.getRangeByIndex(row1, 1).cellStyle.bold = true;
@@ -205,7 +205,9 @@ class BeyannameExcelServisi {
     final genelBes20 = provider.tevkifatKayitlari
         .where((f) => f.etiket == '5/10' && f.kdvOrani == 20)
         .fold(0.0, (s, x) => s + x.tevkifatTutari);
-    final genelToplam20 = genelDokuz20 + genelYedi20 + genelBes20;
+    final genelToplam20 = provider.tevkifatKayitlari
+        .where((f) => f.kdvOrani == 20)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
 
     final genelDokuz10 = provider.tevkifatKayitlari
         .where((f) => f.etiket == '9/10' && f.kdvOrani == 10)
@@ -216,7 +218,9 @@ class BeyannameExcelServisi {
     final genelBes10 = provider.tevkifatKayitlari
         .where((f) => f.etiket == '5/10' && f.kdvOrani == 10)
         .fold(0.0, (s, x) => s + x.tevkifatTutari);
-    final genelToplam10 = genelDokuz10 + genelYedi10 + genelBes10;
+    final genelToplam10 = provider.tevkifatKayitlari
+        .where((f) => f.kdvOrani == 10)
+        .fold(0.0, (s, x) => s + x.tevkifatTutari);
 
     row2++;
     for (final b in icmaller) {

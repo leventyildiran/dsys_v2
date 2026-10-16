@@ -420,8 +420,18 @@ class BirimVergiIcmalSatiri {
   double get muhtasarToplam => muhtasarDamga + muhtasarKesilenDamga;
   double get kdv2Toplam =>
       kdv2TevkifatTutar.values.fold(0.0, (s, v) => s + v);
+
+  /// 9/10, 7/10 ve 5/10 dışındaki tevkifat oranlarının (örn. 4/10, 2/10) toplamı.
+  double get kdv2DigerOranlar => kdv2TevkifatTutar.entries
+      .where((e) => e.key != '9/10' && e.key != '7/10' && e.key != '5/10')
+      .fold(0.0, (s, e) => s + e.value);
+
+  /// Birimin pozitif (ödenecek) KDV 1 tutarı. İndirilecek KDV > Hesaplanan KDV
+  /// olduğunda (negatif / devreden KDV) diğer vergilerden mahsup edilmez, 0 kabul edilir.
+  double get odenecekKdv1 => kdv1Tutari > 0 ? kdv1Tutari : 0.0;
+
   double get genelToplamOdenecek =>
-      kdv1Tutari + damgaVb + muhtasarToplam + kdv2Toplam;
+      odenecekKdv1 + damgaVb + muhtasarToplam + kdv2Toplam;
 
   /// Birimin merkezi kısa adı (ör: DÖSİM, UBATAM, DTS, USEM, Diş Hekimliği...)
   String get kisaAd => BirimAdlandirma.kisaAdGetir(birimAdi);

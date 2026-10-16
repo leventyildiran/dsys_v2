@@ -46,14 +46,6 @@ class AjanLogMesaji {
 class BeyannameAiAjanServisi {
   final SistemAyarlariService _ayarlarService = SistemAyarlariService();
 
-  static const List<String> _geminiModelFallbacks = [
-    'gemini-3.8-flash',
-    'gemini-3.6-flash',
-    'gemini-3.7-flash',
-    'gemini-3.5-flash',
-    'gemini-3.5-flash-lite',
-  ];
-
   /// Fatura modülündeki evrensel parser'ları ve PDF text extractor'ı kullanarak
   /// belge içeriğinden saf metni çıkarır.
   Future<String> belgeMetniniCikar(BirimYuklenenBelge belge) async {
@@ -122,6 +114,7 @@ class BeyannameAiAjanServisi {
 
   /// Sıralı (Sequential Queue) Analiz Akışı:
   /// Tek tek her birimi OpenRouter veya Gemini'ye okutur; o birim doğrulanana kadar sonrakine geçmez.
+  /// [hizliDeterministikMod] true ise AI beklemeksizin doğrudan kural tabanlı deterministik motoru çalıştırır.
   Stream<AjanLogMesaji> siraliAnalizBaslat({
     required int yil,
     required int ay,
@@ -129,18 +122,21 @@ class BeyannameAiAjanServisi {
     required Map<String, double> birimOncekiAylarHasilat,
     required double oncekiAydanDevredenKdv,
     String? sadeceBuBirim,
+    bool hizliDeterministikMod = false,
     required void Function(BeyannameAjanRaporu rapor) onTamamlandi,
     required void Function(String hataMesaji) onHata,
   }) async* {
     final ayarlar = await _ayarlarService.getAyarlar();
     final hasGemini = ayarlar.geminiApiKey.trim().isNotEmpty;
     final hasOpenRouter = ayarlar.deepseekApiKey.trim().isNotEmpty;
-    final bool isOfflineMod = !hasGemini && !hasOpenRouter;
+    final bool isOfflineMod = hizliDeterministikMod || (!hasGemini && !hasOpenRouter);
 
     if (isOfflineMod) {
       yield AjanLogMesaji(
         zaman: DateTime.now(),
-        mesaj: '⚡ Sistem Ayarlarında AI anahtarı tanımlı değil. Kural Tabanlı Deterministik Mizan Motoru devreye alındı (Çevrimdışı & Sıfır Maliyetli Çalışma).',
+        mesaj: hizliDeterministikMod
+            ? '⚡ Hızlı Kural Tabanlı Mizan Motoru başlatıldı (Anında & Deterministik Hesaplama).'
+            : '⚡ Sistem Ayarlarında AI anahtarı tanımlı değil. Kural Tabanlı Deterministik Mizan Motoru devreye alındı (Çevrimdışı & Sıfır Maliyetli Çalışma).',
         ilerlemeYuzdesi: 0.01,
       );
     }
@@ -182,9 +178,11 @@ class BeyannameAiAjanServisi {
       toplamDosya += yuklenenBelgeler[b]?.length ?? 0;
     }
 
-    final motorBilgisi = hasGemini
-        ? '🤖 Google Gemini (${ayarlar.geminiModel})${hasOpenRouter ? " [OpenRouter Yedekli]" : ""}'
-        : '🌐 OpenRouter (${ayarlar.deepseekModel.isNotEmpty ? ayarlar.deepseekModel : "Varsayılan Model"})';
+    final motorBilgisi = isOfflineMod
+        ? '⚡ Kural Tabanlı Deterministik Motor'
+        : (hasGemini
+            ? '🤖 Google Gemini (${ayarlar.geminiModel})${hasOpenRouter ? " [OpenRouter Yedekli]" : ""}'
+            : '🌐 OpenRouter (${ayarlar.deepseekModel.isNotEmpty ? ayarlar.deepseekModel : "Varsayılan Model"})');
 
     yield AjanLogMesaji(
       zaman: DateTime.now(),
@@ -224,7 +222,7 @@ class BeyannameAiAjanServisi {
           birimAdi: birimAdi,
           ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.05 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
         );
-        await Future.delayed(const Duration(milliseconds: 40));
+        await Future.delayed(const Duration(milliseconds: 20));
         aylikMizanMetni = await belgeMetniniCikar(aylikMizanBelgesi);
       }
 
@@ -237,7 +235,7 @@ class BeyannameAiAjanServisi {
           birimAdi: birimAdi,
           ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.10 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
         );
-        await Future.delayed(const Duration(milliseconds: 40));
+        await Future.delayed(const Duration(milliseconds: 20));
         yardimciMizanMetni = await belgeMetniniCikar(yardimciMizanBelgesi);
       }
 
@@ -250,85 +248,96 @@ class BeyannameAiAjanServisi {
           birimAdi: birimAdi,
           ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.15 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
         );
-        await Future.delayed(const Duration(milliseconds: 40));
+        await Future.delayed(const Duration(milliseconds: 20));
         yillikMizanMetni = await belgeMetniniCikar(yillikMizanBelgesi);
       }
 
-      // 4. Diğer Belgeler (Fatura modülünün offline ayrıştırıcısı ile kontrol)
+      // 4. Diğer Belgeler (Tevkifat Faturaları ve Ek Evraklar)
       String digerBelgeMetni = '';
       final tevkifatFaturaListesi = <Map<String, dynamic>>[];
+      final metindekiGecerliVknler = <String>[];
       if (digerBelge != null) {
         digerBelgeMetni = await belgeMetniniCikar(digerBelge);
-        // Faturada varsa kural tabanlı offline parser'ı dene (güvenli uzunluk sınırı ile)
         try {
-          final textForFatura = digerBelgeMetni.length > 20000
-              ? digerBelgeMetni.substring(0, 20000)
+          final textForFatura = digerBelgeMetni.length > 25000
+              ? digerBelgeMetni.substring(0, 25000)
               : digerBelgeMetni;
-          final faturalar = FaturaOfflineParser.parse(textForFatura);
-          final dosyaAdiLower = digerBelge.dosyaAdi.toLowerCase();
 
-          for (final f in faturalar) {
-            if (f.kalemler.isNotEmpty) {
-              var firma = f.firmaAdi.trim();
-              var vkn = f.vergiNo.trim();
-
-              // Firma adı jenerikse veya boşsa, metindeki kurumsal unvan satırlarından dinamik çıkar
-              if (firma.isEmpty || firma.toLowerCase() == 'firma' || firma.toLowerCase() == 'bilinmeyen firma') {
-                for (final line in textForFatura.split('\n')) {
-                  final l = line.trim();
-                  if (l.length > 5 &&
-                      (l.toUpperCase().contains('A.Ş') ||
-                       l.toUpperCase().contains('LTD') ||
-                       l.toUpperCase().contains('ŞTİ') ||
-                       l.toUpperCase().contains('TİC') ||
-                       l.toUpperCase().contains('SAN'))) {
-                    firma = l;
-                    break;
-                  }
-                }
+          // Belgedeki tüm resmi doğrulanmış VKN/TCKN adaylarını çıkar (AI OCR rakam kaymasını onarmak için)
+          for (final match in RegExp(r'\b\d{10,11}\b').allMatches(textForFatura)) {
+            final raw = match.group(0)!;
+            if ((raw.length == 10 && BeyannameDenetimServisi.dogrulaVkn(raw)) ||
+                (raw.length == 11 && BeyannameDenetimServisi.dogrulaTckn(raw))) {
+              if (!metindekiGecerliVknler.contains(raw)) {
+                metindekiGecerliVknler.add(raw);
               }
+            }
+          }
 
-              // Metinden VKN Regex Taraması ve Matematiksel Doğrulama (Resmi MOD 10 VKN Algoritması)
-              if (vkn.isEmpty) {
-                // 1. Öncelik: Etiketli VKN/TCKN ara
-                final vknRegex = RegExp(
-                  r'(?:sat[ıi]c[ıi]\s*vkn|y[üu]klenici\s*vkn|vergi\s*(?:kimlik\s*)?(?:no|numaras[ıi])|vkn\s*/\s*tckn|vkn|tc(?:\s*kimlik)?(?:\s*no)?)\s*[:.\-]?\s*(\d[\d\s.\-]{8,15}\d)',
-                  caseSensitive: false,
-                );
-                for (final match in vknRegex.allMatches(textForFatura)) {
-                  final raw = match.group(1)!.replaceAll(RegExp(r'[^\d]'), '');
-                  if (BeyannameDenetimServisi.dogrulaVkn(raw) || BeyannameDenetimServisi.dogrulaTckn(raw)) {
-                    vkn = raw;
-                    break;
-                  }
-                }
+          // 1. Öncelik: Tevkifat faturasına özel deterministik ayrıştırıcı
+          final ozelTevkifatlar = MizanDeterministikParser.parseTevkifatFaturalari(textForFatura);
+          if (ozelTevkifatlar.isNotEmpty) {
+            tevkifatFaturaListesi.addAll(ozelTevkifatlar);
+          } else {
+            // 2. Yedek: FaturaOfflineParser
+            final faturalar = FaturaOfflineParser.parse(textForFatura);
+            for (final f in faturalar) {
+              if (f.kalemler.isNotEmpty) {
+                var firma = f.firmaAdi.trim();
+                var vkn = f.vergiNo.trim();
 
-                // 2. Öncelik: Etiket olmasa dahi metindeki tüm 10 haneli sayıları resmi VKN algoritması ile test et
-                if (vkn.isEmpty) {
-                  for (final match in RegExp(r'\b\d{10}\b').allMatches(textForFatura)) {
-                    final raw = match.group(0)!;
-                    if (BeyannameDenetimServisi.dogrulaVkn(raw)) {
-                      vkn = raw;
+                if (firma.isEmpty ||
+                    firma.toLowerCase() == 'firma' ||
+                    firma.toLowerCase() == 'bilinmeyen firma' ||
+                    firma.toUpperCase().contains('ÜNİVERSİTE')) {
+                  for (final line in textForFatura.split('\n')) {
+                    final l = line.trim();
+                    final u = l.toUpperCase();
+                    if (l.length > 5 &&
+                        !u.contains('ÜNİVERSİTE') &&
+                        !u.contains('DÖNER SERMAYE') &&
+                        (u.contains('A.Ş') ||
+                            u.contains('LTD') ||
+                            u.contains('ŞTİ') ||
+                            u.contains('TİC') ||
+                            u.contains('SAN'))) {
+                      firma = l;
                       break;
                     }
                   }
                 }
-              }
 
-              tevkifatFaturaListesi.add({
-                'firmaAdi': firma.isNotEmpty ? firma : 'Düzenleyen Firma',
-                'vergiTcNo': vkn,
-                'matrahTutari': f.matrah,
-                'kdvTutari': f.kdvTutari,
-                'tevkifatTutari': f.kdvTutari * 0.9, // Varsa oran
-                'tevkifatOrani': '9/10',
-              });
+                if (vkn.isEmpty ||
+                    !(BeyannameDenetimServisi.dogrulaVkn(vkn) ||
+                        BeyannameDenetimServisi.dogrulaTckn(vkn))) {
+                  vkn = metindekiGecerliVknler.isNotEmpty ? metindekiGecerliVknler.first : '';
+                }
+
+                // Tevkifat oranını metinden algıla
+                String oranStr = '9/10';
+                double katsayi = 0.9;
+                final oranMatch = RegExp(r'\b([234579])\s*/\s*10\b').firstMatch(textForFatura);
+                if (oranMatch != null) {
+                  final pay = int.parse(oranMatch.group(1)!);
+                  oranStr = '$pay/10';
+                  katsayi = pay / 10.0;
+                }
+
+                tevkifatFaturaListesi.add({
+                  'firmaAdi': firma.isNotEmpty ? firma : 'Düzenleyen Firma',
+                  'vergiTcNo': vkn,
+                  'matrahTutari': f.matrah,
+                  'kdvTutari': f.kdvTutari,
+                  'tevkifatTutari': double.parse((f.kdvTutari * katsayi).toStringAsFixed(2)),
+                  'tevkifatOrani': oranStr,
+                });
+              }
             }
           }
         } catch (_) {}
       }
 
-      await Future.delayed(const Duration(milliseconds: 20));
+      await Future.delayed(const Duration(milliseconds: 15));
 
       // 5. Kural Tabanlı Deterministik Mizan Ayrıştırması (Her Zaman Çalışır)
       final deterministikSonuc = MizanDeterministikParser.analizEt(
@@ -343,6 +352,7 @@ class BeyannameAiAjanServisi {
       final hasDeterministikVeri = deterministikSonuc.hasilat600Aylik > 0 ||
           deterministikSonuc.hasilat600Kumulatif > 0 ||
           deterministikSonuc.toplamHesaplananKdv > 0 ||
+          deterministikSonuc.toplamIndirilecekKdv > 0 ||
           deterministikSonuc.damgaVergisi360 > 0;
 
       if (hasDeterministikVeri) {
@@ -356,11 +366,12 @@ class BeyannameAiAjanServisi {
 
       BirimMizanAnalizSonucu? sonuc;
 
-      // Eğer çevrimdışı moddaysa (AI anahtarı yoksa), doğrudan deterministik sonucu kullan
-      if (isOfflineMod) {
+      // Çevrimdışı/Hızlı moddaysa VEYA ek fatura görseli olmayıp mizan kural tabanlı tam okunduysa doğrudan deterministik sonucu kullan!
+      final bool mizanTamOkunduVeEkBelgeYok = hasDeterministikVeri && digerBelge == null;
+      if (isOfflineMod || mizanTamOkunduVeEkBelgeYok) {
         sonuc = deterministikSonuc;
       } else {
-        // AI İstemi Hazırlama (Deterministik referans değerlerini de ekle)
+        // AI İstemi Hazırlama
         final prompt = _buildMizanPrompt(
           birimAdi: birimAdi,
           yil: yil,
@@ -380,7 +391,6 @@ class BeyannameAiAjanServisi {
           } else if (ext == 'jpg' || ext == 'jpeg') {
             contentParts.add(DataPart('image/jpeg', doc.dosyaBytes!));
           } else if (ext == 'pdf') {
-            // Fatura ve taranmış görsel belgelerde Gemini Vision'ın OCR yapabilmesi için PDF baytlarını ilet
             if (doc.slotTuru == BirimBelgeSlotTuru.diger || extractedText.trim().length < 50) {
               if (doc.dosyaBytes!.length < 15 * 1024 * 1024) {
                 contentParts.add(DataPart('application/pdf', doc.dosyaBytes!));
@@ -398,15 +408,14 @@ class BeyannameAiAjanServisi {
         yield AjanLogMesaji(
           zaman: DateTime.now(),
           mesaj: hasGemini
-              ? '🤖 [$birimAdi] Google Gemini AI ile derin mizan taraması ve hesap kodları tespiti yapılıyor...'
-              : '🌐 [$birimAdi] OpenRouter üzerinden derin mizan ve tevkifat analizi yapılıyor...',
+              ? '🤖 [$birimAdi] Google Gemini AI ile derin belge ve tevkifat analizi yapılıyor...'
+              : '🌐 [$birimAdi] OpenRouter üzerinden derin belge ve tevkifat analizi yapılıyor...',
           birimAdi: birimAdi,
           ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.35 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
         );
 
-        // Kesintisiz Dayanıklı AI Çağrısı (OpenRouter + Gemini Fallback & Retry)
         int denemeSayisi = 0;
-        const maxDeneme = 4;
+        const maxDeneme = 3;
 
         while (denemeSayisi < maxDeneme) {
           denemeSayisi++;
@@ -420,53 +429,101 @@ class BeyannameAiAjanServisi {
             if (aiResponseText != null && aiResponseText.isNotEmpty) {
               final parsedJson = _parseCleanJson(aiResponseText);
               if (parsedJson != null) {
-                // Tevkifat faturalarını tekilleştirerek birleştir
                 final aiTevkifat = (parsedJson['tevkifatFaturalari'] as List<dynamic>?)
                         ?.map((e) => Map<String, dynamic>.from(e as Map))
                         .toList() ??
                     [];
-                for (final tf in tevkifatFaturaListesi) {
-                  final vNo = tf['vergiTcNo']?.toString().trim() ?? '';
-                  final mtr = TurkceFormat.parseSayi(tf['matrahTutari']);
-                  final alreadyExists = aiTevkifat.any((a) {
-                    final aVNo = a['vergiTcNo']?.toString().trim() ?? '';
-                    final aMtr = TurkceFormat.parseSayi(a['matrahTutari']);
-                    final sameMatrah = mtr > 0 && (aMtr - mtr).abs() < 1.0;
-                    return sameMatrah && (vNo.isEmpty || aVNo.isEmpty || aVNo == vNo);
-                  });
-                  if (!alreadyExists) {
-                    aiTevkifat.add(tf);
+
+                // AI'dan gelen faturaların VKN'sini doğrula, OCR rakam kayması varsa metindeki gerçek VKN ile onar!
+                for (final a in aiTevkifat) {
+                  var aVNo = (a['vergiTcNo']?.toString() ?? '').replaceAll(RegExp(r'[^\d]'), '');
+                  final aMtr = TurkceFormat.parseSayi(a['matrahTutari']);
+                  final isGecerli = (aVNo.length == 10 && BeyannameDenetimServisi.dogrulaVkn(aVNo)) ||
+                      (aVNo.length == 11 && BeyannameDenetimServisi.dogrulaTckn(aVNo));
+
+                  if (!isGecerli) {
+                    // 1) Aynı matraha sahip offline faturada geçerli VKN varsa onu al
+                    final eslesenOffline = tevkifatFaturaListesi.where((tf) {
+                      final tfMtr = TurkceFormat.parseSayi(tf['matrahTutari']);
+                      final tfVkn = (tf['vergiTcNo']?.toString() ?? '').replaceAll(RegExp(r'[^\d]'), '');
+                      final tfValid = (tfVkn.length == 10 && BeyannameDenetimServisi.dogrulaVkn(tfVkn)) ||
+                          (tfVkn.length == 11 && BeyannameDenetimServisi.dogrulaTckn(tfVkn));
+                      return tfValid && aMtr > 0 && (tfMtr - aMtr).abs() < 1.0;
+                    });
+                    if (eslesenOffline.isNotEmpty) {
+                      a['vergiTcNo'] = eslesenOffline.first['vergiTcNo'];
+                    } else if (aVNo.length >= 6 && metindekiGecerliVknler.isNotEmpty) {
+                      // 2) İlk 6 hanesi eşleşen metindeki doğrulanmış VKN'yi al (örn: 4110649031 -> 4110649065)
+                      final prefix = aVNo.substring(0, 6);
+                      final prefixMatch = metindekiGecerliVknler.where((v) => v.startsWith(prefix));
+                      if (prefixMatch.isNotEmpty) {
+                        a['vergiTcNo'] = prefixMatch.first;
+                      }
+                    }
                   }
                 }
+
+                // Offline bulunan tevkifat faturalarını mükerrer kayıt oluşturmadan birleştir
+                for (final tf in tevkifatFaturaListesi) {
+                  final vNo = (tf['vergiTcNo']?.toString() ?? '').replaceAll(RegExp(r'[^\d]'), '');
+                  final mtr = TurkceFormat.parseSayi(tf['matrahTutari']);
+                  final existingIdx = aiTevkifat.indexWhere((a) {
+                    final aMtr = TurkceFormat.parseSayi(a['matrahTutari']);
+                    return mtr > 0 && (aMtr - mtr).abs() < 1.0;
+                  });
+                  if (existingIdx == -1) {
+                    aiTevkifat.add(tf);
+                  } else {
+                    // Mevcut kaydın VKN'si boş/geçersizse ve offline VKN geçerliyse güncelle
+                    final curVNo = (aiTevkifat[existingIdx]['vergiTcNo']?.toString() ?? '').replaceAll(RegExp(r'[^\d]'), '');
+                    final curValid = (curVNo.length == 10 && BeyannameDenetimServisi.dogrulaVkn(curVNo)) ||
+                        (curVNo.length == 11 && BeyannameDenetimServisi.dogrulaTckn(curVNo));
+                    final tfValid = (vNo.length == 10 && BeyannameDenetimServisi.dogrulaVkn(vNo)) ||
+                        (vNo.length == 11 && BeyannameDenetimServisi.dogrulaTckn(vNo));
+                    if (!curValid && tfValid) {
+                      aiTevkifat[existingIdx]['vergiTcNo'] = vNo;
+                    }
+                  }
+                }
+
                 parsedJson['tevkifatFaturalari'] = aiTevkifat;
                 parsedJson['birimAdi'] = birimAdi;
                 parsedJson['analizTarihi'] = DateTime.now().toIso8601String();
 
-                // Eğer AI hasılat veya KDV'yi 0 dönmüş ama deterministik parser bulmuşsa,
-                // kurumsal mizan değerlerini koru (halüsinasyon koruması)
+                // Deterministik mizan verileri varsa tüm sayısal mizan alanlarını koru (Sıfır veri kaybı!)
                 if (hasDeterministikVeri) {
-                  if (TurkceFormat.parseSayi(parsedJson['hasilat600Aylik']) == 0 &&
-                      deterministikSonuc.hasilat600Aylik > 0) {
-                    parsedJson['hasilat600Aylik'] = deterministikSonuc.hasilat600Aylik;
+                  void koruSayi(String key, double detVal) {
+                    if (detVal > 0 && TurkceFormat.parseSayi(parsedJson[key]) == 0) {
+                      parsedJson[key] = detVal;
+                    }
                   }
-                  if (TurkceFormat.parseSayi(parsedJson['hasilat600Kumulatif']) == 0 &&
-                      deterministikSonuc.hasilat600Kumulatif > 0) {
-                    parsedJson['hasilat600Kumulatif'] = deterministikSonuc.hasilat600Kumulatif;
-                  }
-                  if (TurkceFormat.parseSayi(parsedJson['hesaplananKdv20']) == 0 &&
-                      deterministikSonuc.hesaplananKdv20 > 0) {
-                    parsedJson['hesaplananKdv20'] = deterministikSonuc.hesaplananKdv20;
-                    parsedJson['hesaplananKdvMatrah20'] = deterministikSonuc.hesaplananKdvMatrah20;
-                  }
-                  if (TurkceFormat.parseSayi(parsedJson['damgaVergisi360']) == 0 &&
-                      deterministikSonuc.damgaVergisi360 > 0) {
-                    parsedJson['damgaVergisi360'] = deterministikSonuc.damgaVergisi360;
-                    parsedJson['damgaMatrah'] = deterministikSonuc.damgaMatrah;
+
+                  koruSayi('hasilat600Aylik', deterministikSonuc.hasilat600Aylik);
+                  koruSayi('hasilat600Kumulatif', deterministikSonuc.hasilat600Kumulatif);
+                  koruSayi('krediKarti123', deterministikSonuc.krediKarti123);
+                  koruSayi('hesaplananKdv10', deterministikSonuc.hesaplananKdv10);
+                  koruSayi('hesaplananKdvMatrah10', deterministikSonuc.hesaplananKdvMatrah10);
+                  koruSayi('hesaplananKdv20', deterministikSonuc.hesaplananKdv20);
+                  koruSayi('hesaplananKdvMatrah20', deterministikSonuc.hesaplananKdvMatrah20);
+                  koruSayi('indirilecekKdv10', deterministikSonuc.indirilecekKdv10);
+                  koruSayi('indirilecekKdvMatrah10', deterministikSonuc.indirilecekKdvMatrah10);
+                  koruSayi('indirilecekKdv20', deterministikSonuc.indirilecekKdv20);
+                  koruSayi('indirilecekKdvMatrah20', deterministikSonuc.indirilecekKdvMatrah20);
+                  koruSayi('damgaVergisi360', deterministikSonuc.damgaVergisi360);
+                  koruSayi('damgaMatrah', deterministikSonuc.damgaMatrah);
+                  koruSayi('muhtasarGelir360', deterministikSonuc.muhtasarGelir360);
+                  koruSayi('muhtasarDamga360', deterministikSonuc.muhtasarDamga360);
+                  koruSayi('devredenKdv190', deterministikSonuc.devredenKdv190);
+                  if (deterministikSonuc.yardimciMizanKullanildi) {
+                    parsedJson['yardimciMizanKullanildi'] = true;
+                    koruSayi('yardimciMizan391Toplam', deterministikSonuc.yardimciMizan391Toplam);
+                    koruSayi('yardimciMizan191Toplam', deterministikSonuc.yardimciMizan191Toplam);
+                    koruSayi('yardimciMizan600Toplam', deterministikSonuc.yardimciMizan600Toplam);
                   }
                 }
 
                 sonuc = BirimMizanAnalizSonucu.fromMap(parsedJson);
-                break; // Başarılı, döngüden çık!
+                break;
               }
             }
 
@@ -486,11 +543,10 @@ class BeyannameAiAjanServisi {
               );
               await Future.delayed(Duration(seconds: beklemeSaniye));
             } else {
-              // AI yanıt veremezse deterministik analizi devreye al (Kayıp ve çökme yok!)
-              if (hasDeterministikVeri) {
+              if (hasDeterministikVeri || tevkifatFaturaListesi.isNotEmpty) {
                 yield AjanLogMesaji(
                   zaman: DateTime.now(),
-                  mesaj: 'ℹ️ [$birimAdi] AI yanıt veremedi ($hataStr). Kural tabanlı deterministik mizan analiz sonucu korundu.',
+                  mesaj: 'ℹ️ [$birimAdi] AI yanıt veremedi. Kural tabanlı deterministik analiz sonucu korundu.',
                   birimAdi: birimAdi,
                   ilerlemeYuzdesi: birimIlerlemeBitis,
                 );

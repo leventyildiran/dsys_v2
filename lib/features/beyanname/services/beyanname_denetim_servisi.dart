@@ -1,6 +1,5 @@
 import '../models/beyanname_belge_model.dart';
 import '../models/beyanname_denetim_rapor_model.dart';
-import '../models/beyanname_model.dart';
 import '../../birim/models/birim_model.dart';
 import '../../../core/turkce_format.dart';
 
@@ -13,6 +12,7 @@ class BeyannameDenetimServisi {
   static bool dogrulaVkn(String vkn) {
     final clean = vkn.trim().replaceAll(RegExp(r'\s+'), '');
     if (clean.length != 10 || int.tryParse(clean) == null) return false;
+    if (clean.split('').toSet().length == 1) return false;
 
     int sum = 0;
     for (int i = 0; i < 9; i++) {
@@ -22,7 +22,7 @@ class BeyannameDenetimServisi {
       if (v1 == 9) {
         v2 = 9;
       } else if (v1 != 0) {
-        v2 = (v1 * (1 << (9 - (i + 1)))) % 9;
+        v2 = (v1 * (1 << (9 - i))) % 9;
         if (v2 == 0) v2 = 9;
       }
       sum += v2;

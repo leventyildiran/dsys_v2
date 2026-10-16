@@ -93,18 +93,67 @@ class BirimBelgeKarti extends StatelessWidget {
                   ],
                 ),
               ),
+              // Bu birim için toplu dosya seçme butonu
+              TextButton.icon(
+                onPressed: provider.isAiAjanCalisiyor
+                    ? null
+                    : () => _cokluDosyaSecVeOtomatikYerlestir(context),
+                icon: const Icon(Icons.drive_folder_upload_rounded, size: 14),
+                label: const Text(
+                  'Çoklu Dosya Seç',
+                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
               if (yukluSayisi > 0) ...[
+                const SizedBox(width: 4),
                 FilledButton.tonalIcon(
                   onPressed: provider.isAiAjanCalisiyor
                       ? null
-                      : () => provider.aiAjanAnaliziBaslat(sadeceBuBirim: birimAdi),
-                  icon: const Icon(Icons.bolt_rounded, size: 14),
+                      : () {
+                          provider.aiAjanAnaliziBaslat(
+                            sadeceBuBirim: birimAdi,
+                            hizliDeterministikMod: true,
+                            otomatikMasalaraAktar: true,
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('⚡ $birimAdi verileri okunuyor ve masalara aktarılıyor...'),
+                              backgroundColor: AppColors.success,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                  icon: const Icon(Icons.flash_on_rounded, size: 14, color: AppColors.success),
                   label: const Text(
-                    'Bu Birimi Oku',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    'Hızlı Oku & Aktar',
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppColors.success),
                   ),
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    backgroundColor: AppColors.successSubtle,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                FilledButton.tonalIcon(
+                  onPressed: provider.isAiAjanCalisiyor
+                      ? null
+                      : () => provider.aiAjanAnaliziBaslat(
+                            sadeceBuBirim: birimAdi,
+                            hizliDeterministikMod: false,
+                          ),
+                  icon: const Icon(Icons.bolt_rounded, size: 14),
+                  label: const Text(
+                    'AI ile Oku',
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
+                  ),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
@@ -281,28 +330,83 @@ class BirimBelgeKarti extends StatelessWidget {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'xlsx', 'xls', 'csv', 'txt', 'png', 'jpg'],
+        allowMultiple: true,
         withData: true,
       );
 
       if (result != null && result.files.isNotEmpty) {
-        final f = result.files.first;
-        final bytes = f.bytes;
-        final ext = f.extension ?? 'pdf';
-
-        provider.belgeYukle(
-          birimAdi: birimAdi,
-          slotTuru: slotTuru,
-          dosyaAdi: f.name,
-          dosyaBoyutu: f.size,
-          dosyaUzantisi: ext,
-          dosyaBytes: bytes,
-        );
+        if (result.files.length == 1) {
+          final f = result.files.first;
+          provider.belgeYukle(
+            birimAdi: birimAdi,
+            slotTuru: slotTuru,
+            dosyaAdi: f.name,
+            dosyaBoyutu: f.size,
+            dosyaUzantisi: f.extension ?? 'pdf',
+            dosyaBytes: f.bytes,
+          );
+        } else {
+          final dosyalar = result.files
+              .map(
+                (f) => (
+                  dosyaAdi: f.name,
+                  dosyaBoyutu: f.size,
+                  dosyaUzantisi: f.extension ?? 'pdf',
+                  dosyaBytes: f.bytes,
+                ),
+              )
+              .toList();
+          await provider.topluBelgeOtomatikEslestirVeYukle(
+            dosyalar: dosyalar,
+            aktifBirimler: [birimAdi],
+            varsayilanBirimAdi: birimAdi,
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Dosya seçme hatası: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _cokluDosyaSecVeOtomatikYerlestir(BuildContext context) async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'xlsx', 'xls', 'csv', 'txt', 'png', 'jpg'],
+        allowMultiple: true,
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final dosyalar = result.files
+          .map(
+            (f) => (
+              dosyaAdi: f.name,
+              dosyaBoyutu: f.size,
+              dosyaUzantisi: f.extension ?? 'pdf',
+              dosyaBytes: f.bytes,
+            ),
+          )
+          .toList();
+
+      await provider.topluBelgeOtomatikEslestirVeYukle(
+        dosyalar: dosyalar,
+        aktifBirimler: [birimAdi],
+        varsayilanBirimAdi: birimAdi,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Çoklu dosya seçme hatası: $e'),
             backgroundColor: AppColors.danger,
           ),
         );

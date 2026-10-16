@@ -2,26 +2,128 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dsys_v2/features/beyanname/models/beyanname_belge_model.dart';
 import 'package:dsys_v2/features/beyanname/models/beyanname_denetim_rapor_model.dart';
 import 'package:dsys_v2/features/beyanname/services/beyanname_denetim_servisi.dart';
+import 'package:dsys_v2/features/beyanname/services/mizan_deterministik_parser.dart';
 
 void main() {
   group('BeyannameDenetimServisi VKN & TCKN Doğrulama Testleri', () {
-    test('Geçerli ve geçersiz VKN kontrolleri', () {
+    test('Geçerli ve geçersiz VKN kontrolleri (Resmi GİB MOD-10)', () {
       // Geçersiz formatlar
       expect(BeyannameDenetimServisi.dogrulaVkn(''), isFalse);
       expect(BeyannameDenetimServisi.dogrulaVkn('123'), isFalse);
       expect(BeyannameDenetimServisi.dogrulaVkn('12345678901'), isFalse);
       expect(BeyannameDenetimServisi.dogrulaVkn('ABCDEFGHIJ'), isFalse);
-
-      // Algoritmik geçerli VKN (örneğin bilinen resmi VKN'ler)
-      // Test matematiksel algoritma tutarlılığı
       expect(BeyannameDenetimServisi.dogrulaVkn('1111111111'), isFalse);
+      expect(BeyannameDenetimServisi.dogrulaVkn('0000000000'), isFalse);
+
+      // Gerçek resmi firma VKN'leri (GİB algoritmasıyla doğrulanmalı)
+      expect(BeyannameDenetimServisi.dogrulaVkn('4110649065'), isTrue); // Grand Dental
+      expect(BeyannameDenetimServisi.dogrulaVkn('6191268620'), isTrue); // Metasoft
+      expect(BeyannameDenetimServisi.dogrulaVkn('6210490464'), isTrue); // Miroğlu
+      expect(BeyannameDenetimServisi.dogrulaVkn('8340057092'), isTrue); // Kone Asansör
+      expect(BeyannameDenetimServisi.dogrulaVkn('8960855757'), isTrue); // Trakya Üniv. DÖSİM
+      expect(BeyannameDenetimServisi.dogrulaVkn('8960706737'), isTrue); // Trakya Üniv.
+
+      // OCR hatalı VKN (son iki hane bozuk) reddedilmeli
+      expect(BeyannameDenetimServisi.dogrulaVkn('4110649031'), isFalse);
     });
 
     test('Geçerli ve geçersiz TCKN kontrolleri', () {
       expect(BeyannameDenetimServisi.dogrulaTckn(''), isFalse);
       expect(BeyannameDenetimServisi.dogrulaTckn('01234567890'), isFalse); // 0 ile başlayamaz
       expect(BeyannameDenetimServisi.dogrulaTckn('1234567890'), isFalse); // 10 hane olamaz
-      expect(BeyannameDenetimServisi.dogrulaTckn('11111111110'), isFalse); // Algoritma tutarsız
+      expect(BeyannameDenetimServisi.dogrulaTckn('11111111110'), isFalse); // Tekdüze rakam olamaz
+    });
+  });
+
+  group('MizanDeterministikParser Otomatik Hesaplama ve Belge Tanıma Testleri', () {
+    test('Excel Pipe (|) Formatlı Mizan ve Yardımcı Mizan %10 / %20 KDV Ayrıştırma', () {
+      const aylikMizanText = '''
+HESAP KODU | HESAP ADI | BORÇ | ALACAK | BORÇ BAKİYESİ | ALACAK BAKİYESİ
+123 | KREDİ KARTLARINDAN ALACAKLAR | 45.000,00 | 15.000,00 | 30.000,00 | 0,00
+190 | DEVREDEN KDV | 12.500,00 | 0,00 | 12.500,00 | 0,00
+191 | İNDİRİLECEK KDV | 8.000,00 | 0,00 | 8.000,00 | 0,00
+360 | ÖDENECEK VERGİ VE FONLAR | 0,00 | 450,50 | 0,00 | 450,50
+360.03 | ÖDENECEK DAMGA VERGİSİ | 0,00 | 450,50 | 0,00 | 450,50
+391 | HESAPLANAN KDV | 0,00 | 25.000,00 | 0,00 | 25.000,00
+600 | YURTİÇİ SATIŞLAR | 0,00 | 150.000,00 | 0,00 | 150.000,00
+''';
+
+      const yardimciMizanText = '''
+391.01.04 %10 HESAPLANAN KDV | 0,00 | 5.000,00 | 0,00 | 5.000,00
+391.01.05 %20 HESAPLANAN KDV | 0,00 | 20.000,00 | 0,00 | 20.000,00
+191.01.04 %10 İNDİRİLECEK KDV | 2.000,00 | 0,00 | 2.000,00 | 0,00
+191.01.05 %20 İNDİRİLECEK KDV | 6.000,00 | 0,00 | 6.000,00 | 0,00
+''';
+
+      const yillikMizanText = '''
+600 | YURTİÇİ SATIŞLAR | 0,00 | 850.000,00 | 0,00 | 850.000,00
+''';
+
+      final sonuc = MizanDeterministikParser.analizEt(
+        birimAdi: 'DİŞ HEKİMLİĞİ',
+        aylikMizanMetni: aylikMizanText,
+        yillikMizanMetni: yillikMizanText,
+        yardimciMizanMetni: yardimciMizanText,
+      );
+
+      expect(sonuc.hasilat600Aylik, closeTo(150000.0, 0.01));
+      expect(sonuc.hasilat600Kumulatif, closeTo(850000.0, 0.01));
+      expect(sonuc.krediKarti123, closeTo(45000.0, 0.01)); // 123 Borç hareketi
+      expect(sonuc.devredenKdv190, closeTo(12500.0, 0.01));
+      expect(sonuc.damgaVergisi360, closeTo(450.50, 0.01));
+
+      // Yardımcı mizandan %10 ve %20 kırılımı doğru alınmalı
+      expect(sonuc.hesaplananKdv10, closeTo(5000.0, 0.01));
+      expect(sonuc.hesaplananKdvMatrah10, closeTo(50000.0, 0.01));
+      expect(sonuc.hesaplananKdv20, closeTo(20000.0, 0.01));
+      expect(sonuc.hesaplananKdvMatrah20, closeTo(100000.0, 0.01));
+
+      expect(sonuc.indirilecekKdv10, closeTo(2000.0, 0.01));
+      expect(sonuc.indirilecekKdv20, closeTo(6000.0, 0.01));
+    });
+
+    test('Tevkifat Faturası Deterministik Okuma (Grand Dental VKN & 7/10 Oran)', () {
+      const faturaText = '''
+e-Fatura
+SATICI:
+GRAND DENTAL MEDİKAL SAN. VE TİC. LTD. ŞTİ.
+Vergi No: 4110649065
+ALICI:
+TRAKYA ÜNİVERSİTESİ AĞIZ VE DİŞ SAĞLIĞI UYGULAMA VE ARAŞTIRMA MERKEZİ
+VKN: 8960855757
+Mal Hizmet Toplam Tutarı: 10.000,00 TL
+Hesaplanan KDV (%20): 2.000,00 TL
+KDV Tevkifat (7/10): 1.400,00 TL
+Ödenecek Tutar: 10.600,00 TL
+''';
+
+      final faturalar = MizanDeterministikParser.parseTevkifatFaturalari(faturaText);
+      expect(faturalar.length, equals(1));
+      expect(faturalar.first['vergiTcNo'], equals('4110649065'));
+      expect(faturalar.first['tevkifatOrani'], equals('7/10'));
+      expect(faturalar.first['matrahTutari'], closeTo(10000.0, 0.01));
+      expect(faturalar.first['kdvTutari'], closeTo(2000.0, 0.01));
+      expect(faturalar.first['tevkifatTutari'], closeTo(1400.0, 0.01));
+    });
+
+    test('Otomatik Belge Sınıflandırma (Birim ve Slot Tespiti)', () {
+      final aktifBirimler = ['DÖSİM', 'UBATAM', 'DİŞ HEKİMLİĞİ', 'TÖMER'];
+
+      final s1 = MizanDeterministikParser.otomatikBelgeSiniflandir(
+        dosyaAdi: 'UBATAM_Ocak_Subat_Kumulatif_Mizan.xlsx',
+        metin: 'Başlangıç Tarihi: 01.01.2026 Bitiş: 30.09.2026\n600 YURTİÇİ SATIŞLAR',
+        aktifBirimler: aktifBirimler,
+      );
+      expect(s1.birimAdi, equals('UBATAM'));
+      expect(s1.slotTuru, equals(BirimBelgeSlotTuru.yillikMizan));
+
+      final s2 = MizanDeterministikParser.otomatikBelgeSiniflandir(
+        dosyaAdi: 'Dis_Hekimligi_Tevkifat_Fatura.pdf',
+        metin: 'e-Fatura Senaryo: TICARIFATURA Tevkifat Oranı: 9/10',
+        aktifBirimler: aktifBirimler,
+      );
+      expect(s2.birimAdi, equals('DİŞ HEKİMLİĞİ'));
+      expect(s2.slotTuru, equals(BirimBelgeSlotTuru.diger));
     });
   });
 

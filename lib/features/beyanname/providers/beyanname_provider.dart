@@ -12,6 +12,8 @@ import '../services/beyanname_konfigurasyon_servisi.dart';
 import '../models/beyanname_belge_model.dart';
 import '../models/beyanname_denetim_rapor_model.dart';
 import '../services/beyanname_ai_ajan_servisi.dart';
+import '../services/beyanname_denetim_servisi.dart';
+import '../services/mizan_deterministik_parser.dart';
 import '../../../core/turkce_format.dart';
 
 class BeyannameProvider with ChangeNotifier {
@@ -679,15 +681,45 @@ class BeyannameProvider with ChangeNotifier {
       double newAylik = aylik ?? cur.aylikHasilat600;
       double newKumulatif = kumulatif ?? cur.kumulatifHasilat600;
 
-      // Aylık girildiyse: kümülatif = önceki + aylık
-      if (aylik != null) {
-        newKumulatif = BeyannameHesaplamaMotoru.round(newOnceki + newAylik);
+      if (aylik != null && kumulatif != null) {
+        // Hem aylık hem kümülatif aynı anda verildiyse önceki ayları türet
+        if (oncekiAylar == null && newKumulatif >= newAylik) {
+          newOnceki = BeyannameHesaplamaMotoru.round(newKumulatif - newAylik);
+        }
+      } else if (aylik != null) {
+        // Kullanıcı önce Kümülatif girmiş (önceki=0 iken aylık=kümülatif olmuş) ve
+        // şimdi Bu Ay'ı giriyorsa: Kümülatif'i ezme, Önceki Aylar = Kümülatif - Bu Ay yap.
+        final kumulatifOncedenGirilmis = cur.oncekiAylarHasilat600 == 0 &&
+            cur.kumulatifHasilat600 > newAylik &&
+            (cur.aylikHasilat600 == 0 ||
+                (cur.aylikHasilat600 - cur.kumulatifHasilat600).abs() < 0.01);
+        if (kumulatifOncedenGirilmis) {
+          newOnceki = BeyannameHesaplamaMotoru.round(newKumulatif - newAylik);
+        } else {
+          newKumulatif = BeyannameHesaplamaMotoru.round(newOnceki + newAylik);
+        }
       } else if (kumulatif != null) {
-        // Kümülatif girildiyse: aylık = kümülatif - önceki
-        newAylik = BeyannameHesaplamaMotoru.round(newKumulatif - newOnceki);
-        if (newAylik < 0) newAylik = 0.0;
+        // Kullanıcı önce Bu Ay'ı girmiş (önceki=0 iken) ve şimdi Kümülatif giriyorsa:
+        // Bu Ay'ı ezme, Önceki Aylar = Kümülatif - Bu Ay yap.
+        if (newOnceki == 0 && cur.aylikHasilat600 > 0 && newKumulatif >= cur.aylikHasilat600) {
+          newOnceki = BeyannameHesaplamaMotoru.round(newKumulatif - cur.aylikHasilat600);
+          newAylik = cur.aylikHasilat600;
+        } else {
+          newAylik = BeyannameHesaplamaMotoru.round(newKumulatif - newOnceki);
+          if (newAylik < 0) newAylik = 0.0;
+        }
       } else if (oncekiAylar != null) {
-        newKumulatif = BeyannameHesaplamaMotoru.round(newOnceki + newAylik);
+        // Kullanıcı önce Kümülatif girmiş ve şimdi Önceki Aylar'ı giriyorsa:
+        // Kümülatif'i koru, Bu Ay = Kümülatif - Önceki Aylar yap.
+        final kumulatifOncedenGirilmis = cur.oncekiAylarHasilat600 == 0 &&
+            cur.kumulatifHasilat600 > 0 &&
+            (cur.aylikHasilat600 - cur.kumulatifHasilat600).abs() < 0.01 &&
+            cur.kumulatifHasilat600 >= newOnceki;
+        if (kumulatifOncedenGirilmis) {
+          newAylik = BeyannameHesaplamaMotoru.round(newKumulatif - newOnceki);
+        } else {
+          newKumulatif = BeyannameHesaplamaMotoru.round(newOnceki + newAylik);
+        }
       }
 
       _hasiat600Satirlari[index] = cur.copyWith(
@@ -1365,8 +1397,126 @@ class BeyannameProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Çoklu seçilen dosyaları (PDF/Excel) içerik ve dosya adından otomatik tanıyıp
+  /// ilgili birimin ilgili mizan/fatura yuvasına yerleştirir.
+  Future<List<String>> topluBelgeOtomatikEslestirVeYukle({
+    required List<({String dosyaAdi, int dosyaBoyutu, String dosyaUzantisi, Uint8List? dosyaBytes})> dosyalar,
+    required List<String> aktifBirimler,
+    String? varsayilanBirimAdi,
+  }) async {
+    final eslesenOzetler = <String>[];
+
+    for (final d in dosyalar) {
+      final geciciBelge = BirimYuklenenBelge(
+        id: 'tmp_${DateTime.now().microsecondsSinceEpoch}',
+        birimAdi: varsayilanBirimAdi ?? (aktifBirimler.isNotEmpty ? aktifBirimler.first : 'Birim'),
+        slotTuru: BirimBelgeSlotTuru.aylikMizan,
+        dosyaAdi: d.dosyaAdi,
+        dosyaBoyutu: d.dosyaBoyutu,
+        dosyaUzantisi: d.dosyaUzantisi,
+        yuklenmeTarihi: DateTime.now(),
+        dosyaBytes: d.dosyaBytes,
+      );
+
+      final metin = await _aiAjanServisi.belgeMetniniCikar(geciciBelge);
+      final sinif = MizanDeterministikParser.otomatikBelgeSiniflandir(
+        dosyaAdi: d.dosyaAdi,
+        metin: metin,
+        aktifBirimler: aktifBirimler,
+      );
+
+      final hedefBirim = sinif.birimAdi ??
+          varsayilanBirimAdi ??
+          (aktifBirimler.isNotEmpty ? aktifBirimler.first : 'Genel');
+      var hedefSlot = sinif.slotTuru;
+
+      // Eğer aynı birimin o mizan yuvası zaten doluysa ve diğer mizan yuvası boşsa akıllı yerleştir
+      final mevcutSlotlar = _yuklenenBelgeler[hedefBirim] ?? {};
+      if (hedefSlot == BirimBelgeSlotTuru.aylikMizan &&
+          mevcutSlotlar.containsKey(BirimBelgeSlotTuru.aylikMizan) &&
+          !mevcutSlotlar.containsKey(BirimBelgeSlotTuru.yillikMizan)) {
+        hedefSlot = BirimBelgeSlotTuru.yillikMizan;
+      }
+
+      belgeYukle(
+        birimAdi: hedefBirim,
+        slotTuru: hedefSlot,
+        dosyaAdi: d.dosyaAdi,
+        dosyaBoyutu: d.dosyaBoyutu,
+        dosyaUzantisi: d.dosyaUzantisi,
+        dosyaBytes: d.dosyaBytes,
+      );
+
+      eslesenOzetler.add('${BirimAdlandirma.kisaAdGetir(hedefBirim)} → ${hedefSlot.baslik} (${d.dosyaAdi})');
+    }
+
+    return eslesenOzetler;
+  }
+
+  /// Rapor içerisindeki bir tevkifat faturasını (örn. VKN veya tutar düzeltmesi) günceller
+  /// ve denetim raporunu anında yeniden hesaplar.
+  void raporTevkifatFaturasiGuncelle({
+    required String birimAdi,
+    required int faturaIndex,
+    required Map<String, dynamic> yeniFatura,
+  }) {
+    final mevcutRapor = _sonAjanRaporu;
+    if (mevcutRapor == null) return;
+    final birimSonuc = mevcutRapor.birimSonuclari[birimAdi];
+    if (birimSonuc == null) return;
+    if (faturaIndex < 0 || faturaIndex >= birimSonuc.tevkifatFaturalari.length) return;
+
+    final yeniListe = List<Map<String, dynamic>>.from(birimSonuc.tevkifatFaturalari);
+    yeniListe[faturaIndex] = Map<String, dynamic>.from(yeniFatura);
+
+    final guncelMap = birimSonuc.toMap();
+    guncelMap['tevkifatFaturalari'] = yeniListe;
+    if (birimSonuc.hamJson != null) {
+      guncelMap['is191TersBakiye'] = birimSonuc.hamJson!['is191TersBakiye'];
+      guncelMap['is391TersBakiye'] = birimSonuc.hamJson!['is391TersBakiye'];
+      guncelMap['is600TersBakiye'] = birimSonuc.hamJson!['is600TersBakiye'];
+    }
+    final guncelBirimSonuc = BirimMizanAnalizSonucu.fromMap(guncelMap);
+
+    final yeniBirimSonuclari = Map<String, BirimMizanAnalizSonucu>.from(mevcutRapor.birimSonuclari);
+    yeniBirimSonuclari[birimAdi] = guncelBirimSonuc;
+
+    final birimOncekiAylar = <String, double>{};
+    for (final h in _hasiat600Satirlari) {
+      birimOncekiAylar[h.birimAdi] = h.oncekiAylarHasilat600;
+      final cKey = BirimAdlandirma.canonicalKey(h.birimAdi);
+      if (cKey.isNotEmpty) {
+        birimOncekiAylar[cKey] = h.oncekiAylarHasilat600;
+      }
+    }
+
+    final yeniRapor = BeyannameDenetimServisi.denetleVeRaporOlustur(
+      yil: mevcutRapor.yil,
+      ay: mevcutRapor.ay,
+      birimSonuclari: yeniBirimSonuclari,
+      toplamDosyaSayisi: mevcutRapor.toplamDosyaSayisi,
+      birimOncekiAylarHasilat: birimOncekiAylar,
+      oncekiAydanDevredenKdv: _oncekiAydanDevredenKdv,
+    );
+
+    _sonAjanRaporu = yeniRapor.copyWith(
+      uygulandiMi: mevcutRapor.uygulandiMi,
+      uygulanmaTarihi: mevcutRapor.uygulanmaTarihi,
+    );
+
+    if (mevcutRapor.uygulandiMi) {
+      aiAjanVerileriniUygula(_sonAjanRaporu!);
+    } else {
+      notifyListeners();
+    }
+  }
+
   /// Sıralı AI Ajan analizini başlatır (ister tüm birimler, ister sadece tek bir birim)
-  void aiAjanAnaliziBaslat({String? sadeceBuBirim}) {
+  void aiAjanAnaliziBaslat({
+    String? sadeceBuBirim,
+    bool hizliDeterministikMod = false,
+    bool otomatikMasalaraAktar = false,
+  }) {
     if (_isAiAjanCalisiyor) return;
 
     _isAiAjanCalisiyor = true;
@@ -1393,11 +1543,16 @@ class BeyannameProvider with ChangeNotifier {
       birimOncekiAylarHasilat: birimOncekiAylar,
       oncekiAydanDevredenKdv: _oncekiAydanDevredenKdv,
       sadeceBuBirim: sadeceBuBirim,
+      hizliDeterministikMod: hizliDeterministikMod,
       onTamamlandi: (rapor) {
         _isAiAjanCalisiyor = false;
         _sonAjanRaporu = rapor;
         _aiAjanIlerleme = 1.0;
-        notifyListeners();
+        if (otomatikMasalaraAktar) {
+          aiAjanVerileriniUygula(rapor, uzerineEkle: false);
+        } else {
+          notifyListeners();
+        }
       },
       onHata: (hata) {
         _isAiAjanCalisiyor = false;
@@ -1440,9 +1595,20 @@ class BeyannameProvider with ChangeNotifier {
   /// [uzerineEkle] true ise, masada zaten var olan birimin tutarlarının üzerine ekleme yapar (ek fatura/evrak senaryosu).
   /// [uzerineEkle] false ise (varsayılan), birim masada varsa güncel mizan değerleriyle yeniler; yoksa yeni satır olarak ekler.
   void aiAjanVerileriniUygula(BeyannameAjanRaporu rapor, {bool uzerineEkle = false}) {
+    // 0. 190 Devreden KDV: Mizanlarda 190 devreden KDV varsa ve henüz girilmemişse otomatik aktar
+    final toplamMizan190 = rapor.birimSonuclari.values.fold(0.0, (s, x) => s + x.devredenKdv190);
+    if (toplamMizan190 > 0 && (_oncekiAydanDevredenKdv == 0 || !uzerineEkle)) {
+      _oncekiAydanDevredenKdv = toplamMizan190;
+    }
+
     for (final entry in rapor.birimSonuclari.entries) {
       final birimAdi = entry.key;
       final sonuc = entry.value;
+      final bool mizanVerisiVar = sonuc.hasilat600Aylik > 0 ||
+          sonuc.hasilat600Kumulatif > 0 ||
+          sonuc.toplamHesaplananKdv > 0 ||
+          sonuc.toplamIndirilecekKdv > 0 ||
+          sonuc.damgaVergisi360 > 0;
 
       // 1. KDV 1 Masasını Güncelle veya Ekle
       final kdvIndex = _kdv1Satirlari.indexWhere(
@@ -1461,16 +1627,16 @@ class BeyannameProvider with ChangeNotifier {
             indirilecekMatrah20: mevcut.indirilecekMatrah20 + sonuc.indirilecekKdvMatrah20,
             indirilecekKdv20: mevcut.indirilecekKdv20 + sonuc.indirilecekKdv20,
           );
-        } else {
+        } else if (mizanVerisiVar) {
           _kdv1Satirlari[kdvIndex] = mevcut.copyWith(
-            hesaplananMatrah10: sonuc.hesaplananKdvMatrah10 > 0 ? sonuc.hesaplananKdvMatrah10 : mevcut.hesaplananMatrah10,
-            hesaplananKdv10: sonuc.hesaplananKdv10 > 0 ? sonuc.hesaplananKdv10 : mevcut.hesaplananKdv10,
-            hesaplananMatrah20: sonuc.hesaplananKdvMatrah20 > 0 ? sonuc.hesaplananKdvMatrah20 : mevcut.hesaplananMatrah20,
-            hesaplananKdv20: sonuc.hesaplananKdv20 > 0 ? sonuc.hesaplananKdv20 : mevcut.hesaplananKdv20,
-            indirilecekMatrah10: sonuc.indirilecekKdvMatrah10 > 0 ? sonuc.indirilecekKdvMatrah10 : mevcut.indirilecekMatrah10,
-            indirilecekKdv10: sonuc.indirilecekKdv10 > 0 ? sonuc.indirilecekKdv10 : mevcut.indirilecekKdv10,
-            indirilecekMatrah20: sonuc.indirilecekKdvMatrah20 > 0 ? sonuc.indirilecekKdvMatrah20 : mevcut.indirilecekMatrah20,
-            indirilecekKdv20: sonuc.indirilecekKdv20 > 0 ? sonuc.indirilecekKdv20 : mevcut.indirilecekKdv20,
+            hesaplananMatrah10: sonuc.hesaplananKdvMatrah10,
+            hesaplananKdv10: sonuc.hesaplananKdv10,
+            hesaplananMatrah20: sonuc.hesaplananKdvMatrah20,
+            hesaplananKdv20: sonuc.hesaplananKdv20,
+            indirilecekMatrah10: sonuc.indirilecekKdvMatrah10,
+            indirilecekKdv10: sonuc.indirilecekKdv10,
+            indirilecekMatrah20: sonuc.indirilecekKdvMatrah20,
+            indirilecekKdv20: sonuc.indirilecekKdv20,
           );
         }
       } else {
@@ -1489,36 +1655,41 @@ class BeyannameProvider with ChangeNotifier {
       }
 
       // 2. Damga Vergisi Masasını Güncelle veya Ekle
-      if (sonuc.damgaVergisi360 > 0) {
-        final damgaIndex = _damgaSatirlari.indexWhere(
-          (x) => BirimAdlandirma.canonicalKey(x.birimAdi) == BirimAdlandirma.canonicalKey(birimAdi),
-        );
-
-        if (damgaIndex >= 0) {
-          final mevcut = _damgaSatirlari[damgaIndex];
-          final yeniDamga = uzerineEkle
-              ? (mevcut.damgaVergisi + sonuc.damgaVergisi360)
-              : sonuc.damgaVergisi360;
-          final yeniMatrah = (uzerineEkle || sonuc.damgaMatrah <= 0)
-              ? BeyannameHesaplamaMotoru.matrahFromDamga(yeniDamga)
-              : sonuc.damgaMatrah;
-
+      final damgaIndex = _damgaSatirlari.indexWhere(
+        (x) => BirimAdlandirma.canonicalKey(x.birimAdi) == BirimAdlandirma.canonicalKey(birimAdi),
+      );
+      if (damgaIndex >= 0) {
+        final mevcut = _damgaSatirlari[damgaIndex];
+        if (uzerineEkle && sonuc.damgaVergisi360 > 0) {
+          final yeniDamga = mevcut.damgaVergisi + sonuc.damgaVergisi360;
+          _damgaSatirlari[damgaIndex] = DamgaVergisiBirimSatiri(
+            birimAdi: mevcut.birimAdi,
+            damgaVergisi: yeniDamga,
+            matrah: BeyannameHesaplamaMotoru.matrahFromDamga(yeniDamga),
+          );
+        } else if (mizanVerisiVar) {
+          final yeniDamga = sonuc.damgaVergisi360;
+          final yeniMatrah = yeniDamga <= 0
+              ? 0.0
+              : (sonuc.damgaMatrah > 0
+                  ? sonuc.damgaMatrah
+                  : BeyannameHesaplamaMotoru.matrahFromDamga(yeniDamga));
           _damgaSatirlari[damgaIndex] = DamgaVergisiBirimSatiri(
             birimAdi: mevcut.birimAdi,
             damgaVergisi: yeniDamga,
             matrah: yeniMatrah,
           );
-        } else {
-          final matrah = sonuc.damgaMatrah > 0
-              ? sonuc.damgaMatrah
-              : BeyannameHesaplamaMotoru.matrahFromDamga(sonuc.damgaVergisi360);
-
-          _damgaSatirlari.add(DamgaVergisiBirimSatiri(
-            birimAdi: birimAdi,
-            damgaVergisi: sonuc.damgaVergisi360,
-            matrah: matrah,
-          ));
         }
+      } else if (sonuc.damgaVergisi360 > 0) {
+        final matrah = sonuc.damgaMatrah > 0
+            ? sonuc.damgaMatrah
+            : BeyannameHesaplamaMotoru.matrahFromDamga(sonuc.damgaVergisi360);
+
+        _damgaSatirlari.add(DamgaVergisiBirimSatiri(
+          birimAdi: birimAdi,
+          damgaVergisi: sonuc.damgaVergisi360,
+          matrah: matrah,
+        ));
       }
 
       // 3. 600 Hasılat & 123 Masasını Güncelle veya Ekle
@@ -1537,14 +1708,14 @@ class BeyannameProvider with ChangeNotifier {
             kumulatifHasilat600: yeniKumulatif,
             krediKarti123: yeniPos,
           );
-        } else {
-          final aylik = sonuc.hasilat600Aylik > 0 ? sonuc.hasilat600Aylik : mevcut.aylikHasilat600;
+        } else if (mizanVerisiVar) {
+          final aylik = sonuc.hasilat600Aylik;
           final kumulatif = sonuc.hasilat600Kumulatif > 0
               ? sonuc.hasilat600Kumulatif
               : (mevcut.oncekiAylarHasilat600 + aylik);
-          final pos = sonuc.krediKarti123 > 0 ? sonuc.krediKarti123 : mevcut.krediKarti123;
-          final oncekiAylar = (mevcut.oncekiAylarHasilat600 == 0 && kumulatif > aylik)
-              ? (kumulatif - aylik)
+          final pos = sonuc.krediKarti123;
+          final oncekiAylar = (kumulatif >= aylik && sonuc.hasilat600Kumulatif > 0)
+              ? BeyannameHesaplamaMotoru.round(kumulatif - aylik)
               : mevcut.oncekiAylarHasilat600;
 
           _hasiat600Satirlari[hIndex] = mevcut.copyWith(
@@ -1557,7 +1728,7 @@ class BeyannameProvider with ChangeNotifier {
       } else {
         final aylik = sonuc.hasilat600Aylik;
         final kumulatif = sonuc.hasilat600Kumulatif > 0 ? sonuc.hasilat600Kumulatif : aylik;
-        final onceki = (kumulatif > aylik) ? (kumulatif - aylik) : 0.0;
+        final onceki = (kumulatif > aylik) ? BeyannameHesaplamaMotoru.round(kumulatif - aylik) : 0.0;
 
         _hasiat600Satirlari.add(Hasiat600BirimSatiri(
           birimAdi: birimAdi,
@@ -1568,10 +1739,10 @@ class BeyannameProvider with ChangeNotifier {
         ));
       }
 
-      // 4. KDV 2 Tevkifat Faturaları Varsa Ekle
+      // 4. KDV 2 Tevkifat Faturaları Varsa Ekle veya Güncelle
       for (final tf in sonuc.tevkifatFaturalari) {
         final fAdi = tf['firmaAdi'] as String? ?? 'Firma';
-        final vNo = tf['vergiTcNo'] as String? ?? '';
+        final vNo = (tf['vergiTcNo'] as String? ?? '').trim();
         final mtr = TurkceFormat.parseSayi(tf['matrahTutari']);
         final kdv = TurkceFormat.parseSayi(tf['kdvTutari']);
         final tvk = TurkceFormat.parseSayi(tf['tevkifatTutari']);
@@ -1580,28 +1751,36 @@ class BeyannameProvider with ChangeNotifier {
         int tespitEdilenKdvOrani = 20;
         if (mtr > 0 && kdv > 0) {
           final oranHesap = (kdv / mtr * 100).round();
-          if (oranHesap == 10 || oranHesap == 20 || oranHesap == 1) {
+          if (const [1, 8, 10, 18, 20].contains(oranHesap)) {
             tespitEdilenKdvOrani = oranHesap;
           }
         }
 
         if (mtr > 0) {
-          final exists = _tevkifatKayitlari.any(
-            (x) => x.vergiTcNo == vNo && (x.matrahTutari - mtr).abs() < 1.0,
+          final existingIndex = _tevkifatKayitlari.indexWhere(
+            (x) =>
+                BirimAdlandirma.canonicalKey(x.birimAdi ?? '') == BirimAdlandirma.canonicalKey(birimAdi) &&
+                (x.matrahTutari - mtr).abs() < 1.0 &&
+                (x.vergiTcNo == vNo || x.firmaAdi.toLowerCase() == fAdi.toLowerCase()),
           );
-          if (!exists) {
-            _tevkifatKayitlari.add(TevkifatFirmaKaydi(
-              id: 'tvk_ai_${DateTime.now().millisecondsSinceEpoch}_${_tevkifatKayitlari.length}',
-              firmaAdi: fAdi,
-              vergiTcNo: vNo,
-              tevkifatTuru: TevkifatTuru.fromString(oran),
-              tevkifatEtiketi: oran,
-              kdvOrani: tespitEdilenKdvOrani,
-              matrahTutari: mtr,
-              kdvTutari: kdv,
-              tevkifatTutari: tvk,
-              birimAdi: birimAdi,
-            ));
+          final kayit = TevkifatFirmaKaydi(
+            id: existingIndex >= 0
+                ? _tevkifatKayitlari[existingIndex].id
+                : 'tvk_ai_${DateTime.now().millisecondsSinceEpoch}_${_tevkifatKayitlari.length}',
+            firmaAdi: fAdi,
+            vergiTcNo: vNo,
+            tevkifatTuru: TevkifatTuru.fromString(oran),
+            tevkifatEtiketi: oran,
+            kdvOrani: tespitEdilenKdvOrani,
+            matrahTutari: mtr,
+            kdvTutari: kdv,
+            tevkifatTutari: tvk,
+            birimAdi: birimAdi,
+          );
+          if (existingIndex >= 0) {
+            _tevkifatKayitlari[existingIndex] = kayit;
+          } else {
+            _tevkifatKayitlari.add(kayit);
           }
         }
       }
