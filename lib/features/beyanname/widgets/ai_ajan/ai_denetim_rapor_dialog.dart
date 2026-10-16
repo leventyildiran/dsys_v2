@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/turkce_format.dart';
 import '../../models/beyanname_denetim_rapor_model.dart';
@@ -55,7 +56,7 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -100,6 +101,10 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
               icon: const Icon(Icons.shield_outlined, size: 18),
               text: '10 Senaryolu Çapraz Denetim (${rapor.denetimKontrolleri.length} Test)',
             ),
+            Tab(
+              icon: const Icon(Icons.terminal_rounded, size: 18),
+              text: 'Canlı İşlem & OCR Günlüğü (${provider.aiAjanLoglari.length} Kayıt)',
+            ),
           ],
         ),
       ),
@@ -115,6 +120,7 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
               children: [
                 _buildNeredenNereyeTab(rapor),
                 _buildCaprazDenetimTab(rapor),
+                _buildIslemGunluguTab(provider),
               ],
             ),
           ),
@@ -513,6 +519,161 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
           ),
         );
       },
+    );
+  }
+
+  // ==================== 3. SEKME: CANLI İŞLEM & OCR GÜNLÜĞÜ ====================
+  Widget _buildIslemGunluguTab(BeyannameProvider provider) {
+    final loglar = provider.aiAjanLoglari;
+
+    if (loglar.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.terminal_rounded, size: 48, color: AppColors.textMuted.withAlpha(120)),
+            const SizedBox(height: 12),
+            const Text(
+              'Henüz kayıtlı işlem günlüğü bulunmuyor.',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Toplu evrak yükleme veya mizan analizi yapıldığında tüm adımlar burada listelenir.',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      color: const Color(0xFF0F172A), // Koyu terminal zemin rengi
+      child: Column(
+        children: [
+          // Üst Eylem ve Filtre Barı
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: const Color(0xFF1E293B),
+            child: Row(
+              children: [
+                const Icon(Icons.code_rounded, size: 16, color: Color(0xFF38BDF8)),
+                const SizedBox(width: 8),
+                Text(
+                  'TOPLAM ${loglar.length} İŞLEM ADIMI (Mizan Okuma, OCR, Eşleştirme ve Denetim Kayıtları)',
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFF1F5F9),
+                  ),
+                ),
+                const Spacer(),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    final fullText = loglar
+                        .map((l) => '[${l.formatliZaman}] ${l.mesaj}')
+                        .join('\n');
+                    Clipboard.setData(ClipboardData(text: fullText));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('✓ Tüm işlem günlüğü ve denetim dökümü panoya kopyalandı.'),
+                        backgroundColor: AppColors.success,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.copy_rounded, size: 13, color: Color(0xFF38BDF8)),
+                  label: const Text(
+                    'Tüm Günlüğü Kopyala',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF38BDF8), fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFF38BDF8)),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Terminal Log Listesi
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: loglar.length,
+              itemBuilder: (context, index) {
+                final l = loglar[index];
+                Color textColor = const Color(0xFFE2E8F0);
+                FontWeight weight = FontWeight.normal;
+
+                if (l.isHata) {
+                  textColor = const Color(0xFFF87171);
+                  weight = FontWeight.bold;
+                } else if (l.isBasarili) {
+                  textColor = const Color(0xFF4ADE80);
+                } else if (l.mesaj.startsWith('⚡') || l.mesaj.startsWith('🎉')) {
+                  textColor = const Color(0xFF38BDF8);
+                  weight = FontWeight.bold;
+                } else if (l.mesaj.contains('📷') || l.mesaj.contains('OCR')) {
+                  textColor = const Color(0xFFFBBF24); // OCR adımları sarı vurgulu
+                  weight = FontWeight.w600;
+                } else if (l.mesaj.contains('⚠️') || l.mesaj.contains('eksik')) {
+                  textColor = const Color(0xFFFBBF24);
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '[${l.formatliZaman}] ',
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11.5,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                      if (l.birimAdi != null && l.birimAdi!.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF334155),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Text(
+                            l.birimAdi!,
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF94A3B8),
+                            ),
+                          ),
+                        ),
+                      Expanded(
+                        child: SelectableText(
+                          l.mesaj,
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            fontWeight: weight,
+                            color: textColor,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
