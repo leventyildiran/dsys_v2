@@ -7,6 +7,7 @@ import 'ai_canli_akis_paneli.dart';
 import 'ai_denetim_rapor_dialog.dart';
 import 'birim_belge_karti.dart';
 import 'okunan_veriler_onizleme_karti.dart';
+import 'toplu_belge_yukleme_diyalogu.dart';
 
 /// 8. Sekme: Akıllı Mizan & Belge Ajanı
 class BeyannameAiAjanTab extends StatelessWidget {
@@ -303,28 +304,20 @@ class BeyannameAiAjanTab extends StatelessWidget {
           )
           .toList();
 
-      final eslesenler = await provider.topluBelgeOtomatikEslestirVeYukle(
+      if (!context.mounted) return;
+
+      await TopluBelgeYuklemeDiyalogu.calistir(
+        context: context,
+        provider: provider,
         dosyalar: dosyalar,
         aktifBirimler: aktifBirimler,
         varsayilanBirimAdi: aktifBirimler.isNotEmpty ? aktifBirimler.first : null,
       );
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✓ ${eslesenler.length} belge otomatik sınıflandırıldı ve ilgili birim yuvalarına yerleştirildi.',
-            ),
-            backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Toplu dosya yükleme hatası: $e'),
+            content: Text('Toplu dosya seçme hatası: $e'),
             backgroundColor: AppColors.danger,
           ),
         );

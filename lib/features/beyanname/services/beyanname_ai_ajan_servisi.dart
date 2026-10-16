@@ -48,7 +48,11 @@ class BeyannameAiAjanServisi {
 
   /// Fatura modülündeki evrensel parser'ları ve PDF text extractor'ı kullanarak
   /// belge içeriğinden saf metni çıkarır.
-  Future<String> belgeMetniniCikar(BirimYuklenenBelge belge) async {
+  /// belge içeriğinden saf metni çıkarır.
+  Future<String> belgeMetniniCikar(
+    BirimYuklenenBelge belge, {
+    int? maxPagesOverride,
+  }) async {
     final bytes = belge.dosyaBytes;
     if (bytes == null || bytes.isEmpty) return '';
 
@@ -72,17 +76,20 @@ class BeyannameAiAjanServisi {
 
     // 2. PDF ise syncfusion_flutter_pdf ile metin katmanını çıkar (Sayfa sınırlandırmalı & event loop nefesli)
     if (belge.isPdf) {
+      PdfDocument? doc;
       try {
-        final doc = PdfDocument(inputBytes: bytes);
+        doc = PdfDocument(inputBytes: bytes);
         final totalPages = doc.pages.count;
 
         // Slot türüne ve sayfa sayısına göre güvenli sınır:
+        // - Otomatik sınıflandırma / hızlı tarama için maxPagesOverride (örn. 2 sayfa)
         // - Geçici mizanlar normalde 2-25 sayfadır (max 35 sayfa yeterlidir)
         // - Yardımcı defterler yüzlerce sayfa olabilir (özet için ilk 15 sayfa yeterlidir)
         // - Diğer ek evraklar (max 20 sayfa yeterlidir)
-        final maxPages = belge.slotTuru == BirimBelgeSlotTuru.yardimciMizan
+        final defaultMax = belge.slotTuru == BirimBelgeSlotTuru.yardimciMizan
             ? 15
             : (belge.slotTuru == BirimBelgeSlotTuru.diger ? 20 : 35);
+        final maxPages = maxPagesOverride ?? defaultMax;
         final pagesToExtract = min(totalPages, maxPages);
 
         final sb = StringBuffer();
@@ -91,9 +98,8 @@ class BeyannameAiAjanServisi {
           final pageText = extractor.extractText(startPageIndex: p, endPageIndex: p);
           sb.writeln(pageText);
           // Her sayfada browser event loop'a nefes aldır (Web donmasını ve "Sayfa Yanıt Vermiyor" uyarısını engelle!)
-          await Future.delayed(Duration.zero);
+          await Future.delayed(const Duration(milliseconds: 10));
         }
-        doc.dispose();
         final text = sb.toString().trim();
         debugPrint(
           '[BeyannameAiAjanServisi] PDF metin katmanı çıkarıldı (${belge.dosyaAdi}, $pagesToExtract/$totalPages sayfa): ${text.length} karakter.',
@@ -101,6 +107,8 @@ class BeyannameAiAjanServisi {
         return text;
       } catch (e) {
         debugPrint('[BeyannameAiAjanServisi] PDF metin çıkarma hatası: $e');
+      } finally {
+        doc?.dispose();
       }
     }
 

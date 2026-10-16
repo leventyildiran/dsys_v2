@@ -1403,10 +1403,16 @@ class BeyannameProvider with ChangeNotifier {
     required List<({String dosyaAdi, int dosyaBoyutu, String dosyaUzantisi, Uint8List? dosyaBytes})> dosyalar,
     required List<String> aktifBirimler,
     String? varsayilanBirimAdi,
+    void Function(int current, int total, String dosyaAdi)? onProgress,
   }) async {
     final eslesenOzetler = <String>[];
 
-    for (final d in dosyalar) {
+    for (int i = 0; i < dosyalar.length; i++) {
+      final d = dosyalar[i];
+      onProgress?.call(i + 1, dosyalar.length, d.dosyaAdi);
+      // Event loop nefes alması: UI animasyonları ve progress güncellensin (donmayı engeller)
+      await Future.delayed(const Duration(milliseconds: 15));
+
       final geciciBelge = BirimYuklenenBelge(
         id: 'tmp_${DateTime.now().microsecondsSinceEpoch}',
         birimAdi: varsayilanBirimAdi ?? (aktifBirimler.isNotEmpty ? aktifBirimler.first : 'Birim'),
@@ -1418,7 +1424,8 @@ class BeyannameProvider with ChangeNotifier {
         dosyaBytes: d.dosyaBytes,
       );
 
-      final metin = await _aiAjanServisi.belgeMetniniCikar(geciciBelge);
+      // Sınıflandırma ve birim tespiti için sadece ilk 2 sayfa taranır (Hızlı, hafif & donmasız)
+      final metin = await _aiAjanServisi.belgeMetniniCikar(geciciBelge, maxPagesOverride: 2);
       final sinif = MizanDeterministikParser.otomatikBelgeSiniflandir(
         dosyaAdi: d.dosyaAdi,
         metin: metin,
