@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/turkce_format.dart';
 import '../../models/beyanname_denetim_rapor_model.dart';
 import '../../providers/beyanname_provider.dart';
+import 'denetim_hata_detay_dialog.dart';
 
 /// Analiz sonrasında açılan, "Neyi Nereden Aldı, Nereye Koydu" şeffaf tablosu
 /// ile 9 senaryolu çapraz mutabakat kontrollerini sunan denetim raporu penceresi.
@@ -480,6 +481,29 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
                             ),
                           ),
                         ],
+                      ),
+                    ],
+                    if (k.seviye != DenetimSeviyesi.bilgi) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: OutlinedButton.icon(
+                          onPressed: () => DenetimHataDetayDialog.goster(
+                            context,
+                            kontrol: k,
+                            provider: widget.provider,
+                          ),
+                          icon: const Icon(Icons.psychology_alt_rounded, size: 14),
+                          label: const Text(
+                            'Detaylı İncele & Çözüm Öner',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: durumRengi,
+                            side: BorderSide(color: durumRengi),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
                       ),
                     ],
                   ],

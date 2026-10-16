@@ -1319,6 +1319,18 @@ class BeyannameProvider with ChangeNotifier {
   // =========================================================================
   final BeyannameAiAjanServisi _aiAjanServisi = BeyannameAiAjanServisi();
 
+  /// Denetim kartındaki "Canlı Mütalaa Al" butonu için AI yorumu.
+  Future<String> denetimMutalaasiAl(MutabakatKontrolKaydi k) {
+    return _aiAjanServisi.denetimMutalaasiAl(
+      birimAdi: k.birimAdi,
+      baslik: k.baslik,
+      aciklama: k.aciklama,
+      beklenen: k.beklenenDeger,
+      bulunan: k.bulunanDeger,
+      fark: k.fark,
+    );
+  }
+
   /// Birim bazında yüklenen belgeler (birimAdi -> {slotTuru -> Belge})
   final Map<String, Map<BirimBelgeSlotTuru, BirimYuklenenBelge>> _yuklenenBelgeler = {};
   Map<String, Map<BirimBelgeSlotTuru, BirimYuklenenBelge>> get yuklenenBelgeler => _yuklenenBelgeler;

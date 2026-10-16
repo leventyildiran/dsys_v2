@@ -344,10 +344,42 @@ class BeyannameAiAjanServisi {
           }
         } catch (_) {}
 
-        if (digerBelgeMetni.trim().isEmpty) {
+        final taranmisBelge = digerBelgeMetni.trim().length < 50;
+        if (taranmisBelge && isOfflineMod && hasGemini) {
+          // Akıllı Hibrit OCR: mizanlar yerelde okundu; SADECE taranmış evrak Gemini Vision'a gider.
           yield AjanLogMesaji(
             zaman: DateTime.now(),
-            mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" taranmış resim/fotoğraf PDF formatında (0 karakter dijital metin). Tevkifat faturasını okutmak için "AI ile Oku" (Görsel Zeka) butonunu kullanınız.',
+            mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" taranmış resim; yalnızca bu evrak Gemini Vision OCR\'a gönderiliyor...',
+            birimAdi: birimAdi,
+            ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.22 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
+          );
+          try {
+            final ocrFaturalar = await _taranmisFaturaOcr(ayarlar: ayarlar, belge: digerBelge);
+            for (final f in ocrFaturalar) {
+              final mtr = TurkceFormat.parseSayi(f['matrahTutari']);
+              final mukerrer = tevkifatFaturaListesi.any(
+                (t) => mtr > 0 && (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0,
+              );
+              if (!mukerrer) tevkifatFaturaListesi.add(f);
+            }
+            yield AjanLogMesaji(
+              zaman: DateTime.now(),
+              mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" taranmış resim olduğu için otomatik Gemini Vision OCR ile okundu ve tevkifat listesine eklendi (${ocrFaturalar.length} fatura).',
+              birimAdi: birimAdi,
+              ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.24 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
+            );
+          } catch (e) {
+            yield AjanLogMesaji(
+              zaman: DateTime.now(),
+              mesaj: '⚠️ [$birimAdi] Taranmış evrak OCR başarısız: $e. Faturayı tevkifat tablosuna elle girebilirsiniz.',
+              birimAdi: birimAdi,
+              ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.24 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
+            );
+          }
+        } else if (taranmisBelge && isOfflineMod) {
+          yield AjanLogMesaji(
+            zaman: DateTime.now(),
+            mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" taranmış resim (dijital metin yok). Gemini API anahtarı tanımlı olmadığı için OCR yapılamadı; faturayı elle giriniz.',
             birimAdi: birimAdi,
             ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.22 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
           );
@@ -624,6 +656,85 @@ class BeyannameAiAjanServisi {
     );
 
     onTamamlandi(rapor);
+  }
+
+  /// Hibrit mod: yalnızca taranmış (metinsiz) ek evrakı Gemini Vision ile okur.
+  /// Mizanlar gönderilmez; token maliyeti minimumdur.
+  Future<List<Map<String, dynamic>>> _taranmisFaturaOcr({
+    required SistemAyarlariModel ayarlar,
+    required BirimYuklenenBelge belge,
+  }) async {
+    final bytes = belge.dosyaBytes;
+    if (bytes == null || bytes.isEmpty || bytes.length > 15 * 1024 * 1024) return [];
+    final ext = belge.dosyaUzantisi.toLowerCase().replaceAll('.', '').trim();
+    final mime = ext == 'png'
+        ? 'image/png'
+        : (ext == 'jpg' || ext == 'jpeg' ? 'image/jpeg' : 'application/pdf');
+    final prompt = _buildSadeceFaturaOcrPrompt();
+    final text = await _calistirAiModel(
+      ayarlar: ayarlar,
+      prompt: prompt,
+      geminiParts: [DataPart(mime, bytes), TextPart(prompt)],
+    );
+    if (text == null || text.trim().isEmpty) return [];
+    final json = _parseCleanJson(text);
+    final liste = (json?['tevkifatFaturalari'] as List<dynamic>?) ?? const [];
+    final sonuc = <Map<String, dynamic>>[];
+    for (final e in liste) {
+      if (e is! Map) continue;
+      final m = Map<String, dynamic>.from(e);
+      final vkn = (m['vergiTcNo']?.toString() ?? '').replaceAll(RegExp(r'[^\d]'), '');
+      final gecerli = (vkn.length == 10 && BeyannameDenetimServisi.dogrulaVkn(vkn)) ||
+          (vkn.length == 11 && BeyannameDenetimServisi.dogrulaTckn(vkn));
+      // Geçersiz VKN uydurulmaz; boş bırakılıp denetimde görünür kalır.
+      m['vergiTcNo'] = gecerli ? vkn : '';
+      final matrah = TurkceFormat.parseSayi(m['matrahTutari']);
+      if (matrah <= 0) continue;
+      m['matrahTutari'] = matrah;
+      m['kdvTutari'] = TurkceFormat.parseSayi(m['kdvTutari']);
+      m['tevkifatTutari'] = TurkceFormat.parseSayi(m['tevkifatTutari']);
+      m['tevkifatOrani'] = m['tevkifatOrani']?.toString() ?? '9/10';
+      m['firmaAdi'] = (m['firmaAdi']?.toString().trim().isNotEmpty ?? false)
+          ? m['firmaAdi'].toString().trim()
+          : 'Düzenleyen Firma';
+      sonuc.add(m);
+    }
+    return sonuc;
+  }
+
+  String _buildSadeceFaturaOcrPrompt() {
+    return '''
+Ekteki belge taranmış bir fatura / ek evraktır. Yalnızca KDV TEVKİFATLI faturaları çıkar.
+Kurallar: Rakam uydurma. Okuyamadığın alanı boş bırak. VKN 10, TCKN 11 hanedir.
+Tutarları sayı olarak ver (ör. 12345.67). Tevkifat oranı "9/10", "7/10", "5/10", "2/10" biçimindedir.
+SADECE şu JSON'u döndür, başka metin yazma:
+{"tevkifatFaturalari":[{"firmaAdi":"","vergiTcNo":"","matrahTutari":0,"kdvTutari":0,"tevkifatTutari":0,"tevkifatOrani":"9/10"}]}
+''';
+  }
+
+  /// Denetim uyarısı için kısa uzman mütalaası üretir (yalnızca metin, belge gönderilmez).
+  Future<String> denetimMutalaasiAl({
+    required String birimAdi,
+    required String baslik,
+    required String aciklama,
+    double? beklenen,
+    double? bulunan,
+    double? fark,
+  }) async {
+    final ayarlar = await _ayarlarService.getAyarlar();
+    if (ayarlar.geminiApiKey.trim().isEmpty && ayarlar.deepseekApiKey.trim().isEmpty) {
+      throw Exception('Sistem Ayarlarında tanımlı bir AI API anahtarı yok.');
+    }
+    final prompt = '''
+Sen Türk kamu üniversitesi döner sermaye işletmelerinde uzman bir mali müşavirsin.
+Birim: $birimAdi
+Denetim bulgusu: $baslik
+Açıklama: $aciklama
+Beklenen: ${beklenen ?? '-'} | Bulunan: ${bulunan ?? '-'} | Fark: ${fark ?? '-'}
+Görev: Bu farkın olası nedenlerini, ilgili mevzuatı (KDVK, DVK, GVK) ve beyannamede yapılması gereken somut düzeltme adımlarını Türkçe, en fazla 10 madde halinde açıkla. Emin olmadığın konuda kesin hüküm verme.
+''';
+    final text = await _calistirAiModel(ayarlar: ayarlar, prompt: prompt);
+    return (text ?? '').trim().isEmpty ? 'AI yanıt üretmedi.' : text!.trim();
   }
 
   /// OpenRouter / OpenAI uyumlu REST API çağrısı
