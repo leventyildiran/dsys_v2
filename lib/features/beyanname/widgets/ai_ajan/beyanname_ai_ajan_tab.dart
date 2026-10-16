@@ -245,7 +245,7 @@ class BeyannameAiAjanTab extends StatelessWidget {
         ),
 
         // ==================== CANLI AKIŞ TERMİNALİ ====================
-        if (isCalisiyor) AiCanliAkisPaneli(provider: provider),
+        if (isCalisiyor || provider.aiAjanLoglari.isNotEmpty) AiCanliAkisPaneli(provider: provider),
 
         // ==================== OKUNAN VERİLER ÖNİZLEME & TEK TIKLA AKTARIM ====================
         if (!isCalisiyor && sonRapor != null)

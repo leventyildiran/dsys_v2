@@ -172,12 +172,12 @@ class BirimAdlandirma {
     final s = input.trim().toLowerCase();
 
     // 1. DÖSİM / DSİM / Döner Sermaye
-    if (s.contains('dösim') || s.contains('dsim') || s.contains('döner sermaye')) {
+    if (s.contains('dösim') || s.contains('dsim') || s.contains('dosim') || s.contains('döner sermaye')) {
       return 'Döner Sermaye İşletme Müdürlüğü (DÖSİM)';
     }
 
     // 2. Ağız ve Diş Sağlığı (Kısa adı: Diş Hekimliği)
-    if (s.contains('diş') || s.contains('dis') || s.contains('adum') || s.contains('ağız')) {
+    if (s.contains('diş') || s.contains('dis') || s.contains('adum') || s.contains('ağız') || s.contains('agiz')) {
       return 'Ağız ve Diş Sağlığı Uygulama ve Araştırma Merkezi';
     }
 
@@ -186,23 +186,23 @@ class BirimAdlandirma {
       return 'Bilimsel Analiz ve Teknolojik Uygulama ve Araştırma Merkezi (UBATAM)';
     }
 
-    // 4. USEM / Sürekli Eğitim
-    if (s.contains('usem') || s.contains('sürekli eğitim')) {
+    // 4. USEM / Sürekli Eğitim (veya USAM yazım hatası)
+    if (s.contains('usem') || s.contains('usam') || s.contains('sürekli eğitim') || s.contains('surekli egitim')) {
       return 'Sürekli Eğitim Uygulama ve Araştırma Merkezi (USEM)';
     }
 
     // 5. DTS / Deri Tekstil
-    if (s.contains('dts') || s.contains('deri') || s.contains('tekstil')) {
+    if (s.contains('dts') || s.contains('deri') || s.contains('tekstil') || s.contains('seramik')) {
       return 'Deri, Tekstil ve Seramik Tasarım Uygulama ve Araştırma Merkezi (DTS)';
     }
 
     // 6. TÖMER / Türkçe Öğretimi
-    if (s.contains('tömer') || s.contains('tomer') || s.contains('türkçe')) {
+    if (s.contains('tömer') || s.contains('tomer') || s.contains('türkçe') || s.contains('turkce')) {
       return 'Türkçe Öğretimi Uygulama ve Araştırma Merkezi (TÖMER)';
     }
 
     // 7. TADAUM / Tarımsal
-    if (s.contains('tadaum') || s.contains('tarımsal') || s.contains('tarimsal')) {
+    if (s.contains('tadaum') || s.contains('tarımsal') || s.contains('tarimsal') || s.contains('tarım') || s.contains('tarim')) {
       return 'Tarımsal ve Doğa Araştırmaları Uygulama ve Araştırma Merkezi (TADAUM)';
     }
 
@@ -218,12 +218,12 @@ class BirimAdlandirma {
   static String canonicalKey(String? input) {
     if (input == null || input.trim().isEmpty) return '';
     final s = input.trim().toLowerCase();
-    if (s.contains('dösim') || s.contains('dsim') || s.contains('döner sermaye')) return 'dosim';
-    if (s.contains('diş') || s.contains('dis') || s.contains('adum') || s.contains('ağız')) return 'dis';
+    if (s.contains('dösim') || s.contains('dsim') || s.contains('dosim') || s.contains('döner sermaye')) return 'dosim';
+    if (s.contains('diş') || s.contains('dis') || s.contains('adum') || s.contains('ağız') || s.contains('agiz')) return 'dis';
     if (s.contains('ubatam') || s.contains('bilimsel')) return 'ubatam';
-    if (s.contains('usem') || s.contains('sürekli')) return 'usem';
-    if (s.contains('dts') || s.contains('deri') || s.contains('tekstil')) return 'dts';
-    if (s.contains('tömer') || s.contains('tomer') || s.contains('türkçe')) return 'tomer';
+    if (s.contains('usem') || s.contains('usam') || s.contains('sürekli') || s.contains('surekli')) return 'usem';
+    if (s.contains('dts') || s.contains('deri') || s.contains('tekstil') || s.contains('seramik')) return 'dts';
+    if (s.contains('tömer') || s.contains('tomer') || s.contains('türkçe') || s.contains('turkce')) return 'tomer';
     if (s.contains('tadaum') || s.contains('tarım') || s.contains('tarim')) return 'tadaum';
     if (s.contains('uzem') || s.contains('uzaktan')) return 'uzem';
     return s;

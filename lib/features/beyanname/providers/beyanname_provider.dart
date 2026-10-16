@@ -1335,14 +1335,29 @@ class BeyannameProvider with ChangeNotifier {
   final Map<String, Map<BirimBelgeSlotTuru, BirimYuklenenBelge>> _yuklenenBelgeler = {};
   Map<String, Map<BirimBelgeSlotTuru, BirimYuklenenBelge>> get yuklenenBelgeler => _yuklenenBelgeler;
 
+  /// Birim bazında yüklenen tüm belgelerin listesi (kartlarda aşağıya doğru listeleme için)
+  final Map<String, List<BirimYuklenenBelge>> _birimBelgeListeleri = {};
+  Map<String, List<BirimYuklenenBelge>> get birimBelgeListeleri => _birimBelgeListeleri;
+
+  List<BirimYuklenenBelge> getBirimBelgeleri(String birimAdi) {
+    return _birimBelgeListeleri[birimAdi] ?? [];
+  }
+
   bool _isAiAjanCalisiyor = false;
   bool get isAiAjanCalisiyor => _isAiAjanCalisiyor;
+
+  bool _isTopluYuklemeDurduruldu = false;
 
   double _aiAjanIlerleme = 0.0;
   double get aiAjanIlerleme => _aiAjanIlerleme;
 
   final List<AjanLogMesaji> _aiAjanLoglari = [];
   List<AjanLogMesaji> get aiAjanLoglari => List.unmodifiable(_aiAjanLoglari);
+
+  void aiAjanLoglariniTemizle() {
+    _aiAjanLoglari.clear();
+    notifyListeners();
+  }
 
   BeyannameAjanRaporu? _sonAjanRaporu;
   BeyannameAjanRaporu? get sonAjanRaporu => _sonAjanRaporu;
@@ -1351,13 +1366,21 @@ class BeyannameProvider with ChangeNotifier {
 
   int get toplamYuklenenBelgeSayisi {
     int sayi = 0;
-    for (final m in _yuklenenBelgeler.values) {
-      sayi += m.length;
+    for (final l in _birimBelgeListeleri.values) {
+      sayi += l.length;
+    }
+    if (sayi == 0) {
+      for (final m in _yuklenenBelgeler.values) {
+        sayi += m.length;
+      }
     }
     return sayi;
   }
 
   BirimYuklenenBelge? getBelge(String birimAdi, BirimBelgeSlotTuru slotTuru) {
+    // Önce liste yapısından ilgili slotu ara
+    final listeden = _birimBelgeListeleri[birimAdi]?.where((b) => b.slotTuru == slotTuru).firstOrNull;
+    if (listeden != null) return listeden;
     return _yuklenenBelgeler[birimAdi]?[slotTuru];
   }
 
@@ -1369,7 +1392,7 @@ class BeyannameProvider with ChangeNotifier {
     required String dosyaUzantisi,
     Uint8List? dosyaBytes,
   }) {
-    final docId = 'belge_${DateTime.now().millisecondsSinceEpoch}';
+    final docId = 'belge_${DateTime.now().microsecondsSinceEpoch}';
     final belge = BirimYuklenenBelge(
       id: docId,
       birimAdi: birimAdi,
@@ -1381,11 +1404,79 @@ class BeyannameProvider with ChangeNotifier {
       dosyaBytes: dosyaBytes,
     );
 
+    // 1. Liste yapısını güncelle (aşağıya doğru listeleme)
+    if (!_birimBelgeListeleri.containsKey(birimAdi)) {
+      _birimBelgeListeleri[birimAdi] = [];
+    }
+    final mevcutIndex = _birimBelgeListeleri[birimAdi]!.indexWhere(
+      (b) => b.dosyaAdi == dosyaAdi || (slotTuru != BirimBelgeSlotTuru.diger && b.slotTuru == slotTuru),
+    );
+    if (mevcutIndex >= 0) {
+      _birimBelgeListeleri[birimAdi]![mevcutIndex] = belge;
+    } else {
+      _birimBelgeListeleri[birimAdi]!.add(belge);
+    }
+
+    // 2. Geriye dönük uyumluluk map'ini güncelle
     if (!_yuklenenBelgeler.containsKey(birimAdi)) {
       _yuklenenBelgeler[birimAdi] = {};
     }
     _yuklenenBelgeler[birimAdi]![slotTuru] = belge;
+
     notifyListeners();
+  }
+
+  /// Tekil bir belgeyi id bazında listeden ve yuvasından siler
+  void tekilBelgeSil({
+    required String birimAdi,
+    required String belgeId,
+  }) {
+    final liste = _birimBelgeListeleri[birimAdi];
+    if (liste != null) {
+      final silinecekIndex = liste.indexWhere((b) => b.id == belgeId);
+      if (silinecekIndex >= 0) {
+        final silinen = liste.removeAt(silinecekIndex);
+        if (_yuklenenBelgeler[birimAdi]?[silinen.slotTuru]?.id == belgeId) {
+          _yuklenenBelgeler[birimAdi]?.remove(silinen.slotTuru);
+          final ayniSlotYedek = liste.where((b) => b.slotTuru == silinen.slotTuru).firstOrNull;
+          if (ayniSlotYedek != null) {
+            _yuklenenBelgeler[birimAdi]![silinen.slotTuru] = ayniSlotYedek;
+          }
+        }
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Kullanıcının yüklenen bir belgenin slot türünü (örn: Aylık Mizan -> Yıllık Mizan) değiştirmesini sağlar
+  void belgeSlotDegistir({
+    required String birimAdi,
+    required String belgeId,
+    required BirimBelgeSlotTuru yeniSlot,
+  }) {
+    final liste = _birimBelgeListeleri[birimAdi];
+    if (liste != null) {
+      final index = liste.indexWhere((b) => b.id == belgeId);
+      if (index >= 0) {
+        final eski = liste[index];
+        final guncel = BirimYuklenenBelge(
+          id: eski.id,
+          birimAdi: eski.birimAdi,
+          slotTuru: yeniSlot,
+          dosyaAdi: eski.dosyaAdi,
+          dosyaBoyutu: eski.dosyaBoyutu,
+          dosyaUzantisi: eski.dosyaUzantisi,
+          yuklenmeTarihi: eski.yuklenmeTarihi,
+          dosyaBytes: eski.dosyaBytes,
+        );
+        liste[index] = guncel;
+        if (!_yuklenenBelgeler.containsKey(birimAdi)) {
+          _yuklenenBelgeler[birimAdi] = {};
+        }
+        _yuklenenBelgeler[birimAdi]![yeniSlot] = guncel;
+        notifyListeners();
+      }
+    }
   }
 
   void belgeSil({
@@ -1393,24 +1484,27 @@ class BeyannameProvider with ChangeNotifier {
     required BirimBelgeSlotTuru slotTuru,
   }) {
     _yuklenenBelgeler[birimAdi]?.remove(slotTuru);
+    _birimBelgeListeleri[birimAdi]?.removeWhere((b) => b.slotTuru == slotTuru);
     notifyListeners();
   }
 
   void birimBelgeleriniTemizle(String birimAdi) {
     _yuklenenBelgeler.remove(birimAdi);
+    _birimBelgeListeleri.remove(birimAdi);
     notifyListeners();
   }
 
   void tumBelgeleriTemizle() {
     _yuklenenBelgeler.clear();
+    _birimBelgeListeleri.clear();
     _sonAjanRaporu = null;
     _aiAjanLoglari.clear();
     _aiAjanIlerleme = 0.0;
     notifyListeners();
   }
 
-  /// Çoklu seçilen dosyaları (PDF/Excel) içerik ve dosya adından otomatik tanıyıp
-  /// ilgili birimin ilgili mizan/fatura yuvasına yerleştirir.
+  /// Çoklu seçilen dosyaları (PDF/Excel) sırayla akıllıca tarar, birim ve yuvasını tespit eder
+  /// ve canlı olarak siyah terminal ekranına adım adım akış logları yazdırır.
   Future<List<String>> topluBelgeOtomatikEslestirVeYukle({
     required List<({String dosyaAdi, int dosyaBoyutu, String dosyaUzantisi, Uint8List? dosyaBytes})> dosyalar,
     required List<String> aktifBirimler,
@@ -1418,12 +1512,47 @@ class BeyannameProvider with ChangeNotifier {
     void Function(int current, int total, String dosyaAdi)? onProgress,
   }) async {
     final eslesenOzetler = <String>[];
+    if (dosyalar.isEmpty) return eslesenOzetler;
+
+    _isAiAjanCalisiyor = true;
+    _isTopluYuklemeDurduruldu = false;
+    _aiAjanIlerleme = 0.0;
+    _aiAjanLoglari.clear();
+
+    _aiAjanLoglari.add(
+      AjanLogMesaji(
+        zaman: DateTime.now(),
+        mesaj: '⚡ AKILLI TOPLU EVRAK TARAMA & AYRIŞTIRMA BAŞLATILDI (${dosyalar.length} Evrak Sıraya Alındı)',
+        seviye: AjanLogSeviyesi.bilgi,
+      ),
+    );
+    notifyListeners();
 
     for (int i = 0; i < dosyalar.length; i++) {
+      if (_isTopluYuklemeDurduruldu) {
+        _aiAjanLoglari.add(
+          AjanLogMesaji(
+            zaman: DateTime.now(),
+            mesaj: '⏹️ Toplu evrak yükleme kullanıcı tarafından durduruldu ($i/${dosyalar.length} evrak işlendi).',
+            isHata: true,
+          ),
+        );
+        break;
+      }
+
       final d = dosyalar[i];
       onProgress?.call(i + 1, dosyalar.length, d.dosyaAdi);
-      // Event loop nefes alması: UI animasyonları ve progress güncellensin (donmayı engeller)
-      await Future.delayed(const Duration(milliseconds: 15));
+
+      _aiAjanIlerleme = (i + 0.3) / dosyalar.length;
+      _aiAjanLoglari.add(
+        AjanLogMesaji(
+          zaman: DateTime.now(),
+          mesaj: '📄 [${i + 1}/${dosyalar.length}] "${d.dosyaAdi}" taranıyor ve analiz ediliyor...',
+          seviye: AjanLogSeviyesi.bilgi,
+        ),
+      );
+      notifyListeners();
+      await Future.delayed(const Duration(milliseconds: 30));
 
       final geciciBelge = BirimYuklenenBelge(
         id: 'tmp_${DateTime.now().microsecondsSinceEpoch}',
@@ -1466,8 +1595,31 @@ class BeyannameProvider with ChangeNotifier {
         dosyaBytes: d.dosyaBytes,
       );
 
-      eslesenOzetler.add('${BirimAdlandirma.kisaAdGetir(hedefBirim)} → ${hedefSlot.baslik} (${d.dosyaAdi})');
+      final kisaBirim = BirimAdlandirma.kisaAdGetir(hedefBirim);
+      _aiAjanIlerleme = (i + 1) / dosyalar.length;
+      _aiAjanLoglari.add(
+        AjanLogMesaji(
+          zaman: DateTime.now(),
+          mesaj: '🏛️ Birim: $kisaBirim  |  📂 Yuva: ${hedefSlot.baslik}  →  [${d.dosyaAdi}] başarıyla yerleştirildi.',
+          isBasarili: true,
+          birimAdi: kisaBirim,
+        ),
+      );
+      eslesenOzetler.add('$kisaBirim → ${hedefSlot.baslik} (${d.dosyaAdi})');
+      notifyListeners();
+      await Future.delayed(const Duration(milliseconds: 30));
     }
+
+    _isAiAjanCalisiyor = false;
+    _aiAjanIlerleme = 1.0;
+    _aiAjanLoglari.add(
+      AjanLogMesaji(
+        zaman: DateTime.now(),
+        mesaj: '🎉 TOPLU TARAMA VE AYRIŞTIRMA TAMAMLANDI! Toplam ${eslesenOzetler.length} evrak ilgili birim listelerine aşağıya doğru yerleştirildi.',
+        isBasarili: true,
+      ),
+    );
+    notifyListeners();
 
     return eslesenOzetler;
   }
@@ -1599,11 +1751,12 @@ class BeyannameProvider with ChangeNotifier {
   }
 
   void aiAjanDurdur() {
+    _isTopluYuklemeDurduruldu = true;
     _aiAjanSubscription?.cancel();
     _isAiAjanCalisiyor = false;
     _aiAjanLoglari.add(AjanLogMesaji(
       zaman: DateTime.now(),
-      mesaj: '⏹️ Analiz kullanıcı tarafından durduruldu.',
+      mesaj: '⏹️ İşlem kullanıcı tarafından durduruldu.',
       ilerlemeYuzdesi: _aiAjanIlerleme,
       isHata: true,
     ));

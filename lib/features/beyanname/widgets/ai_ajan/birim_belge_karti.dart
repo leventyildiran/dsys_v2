@@ -5,7 +5,8 @@ import '../../models/beyanname_belge_model.dart';
 import '../../providers/beyanname_provider.dart';
 import 'toplu_belge_yukleme_diyalogu.dart';
 
-/// Birim başına 4 adet belge yükleme yuvası sunan kompakt ve modern kart bileşeni.
+/// Birim başına yüklenen evrakları aşağıya doğru listeleyen,
+/// tür değiştirmeye ve tek tek yönetmeye olanak tanıyan modern kart bileşeni.
 class BirimBelgeKarti extends StatelessWidget {
   final String birimAdi;
   final BeyannameProvider provider;
@@ -18,17 +19,11 @@ class BirimBelgeKarti extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final aylikMizan = provider.getBelge(birimAdi, BirimBelgeSlotTuru.aylikMizan);
-    final yardimciMizan = provider.getBelge(birimAdi, BirimBelgeSlotTuru.yardimciMizan);
-    final yillikMizan = provider.getBelge(birimAdi, BirimBelgeSlotTuru.yillikMizan);
-    final digerBelge = provider.getBelge(birimAdi, BirimBelgeSlotTuru.diger);
-
-    final yukluSayisi = (aylikMizan != null ? 1 : 0) +
-        (yardimciMizan != null ? 1 : 0) +
-        (yillikMizan != null ? 1 : 0) +
-        (digerBelge != null ? 1 : 0);
-
-    final isTamDolu = aylikMizan != null && yillikMizan != null;
+    final belgeler = provider.getBirimBelgeleri(birimAdi);
+    final hasAylik = belgeler.any((b) => b.slotTuru == BirimBelgeSlotTuru.aylikMizan);
+    final hasYillik = belgeler.any((b) => b.slotTuru == BirimBelgeSlotTuru.yillikMizan);
+    final isTamDolu = hasAylik && hasYillik;
+    final yukluSayisi = belgeler.length;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -46,7 +41,7 @@ class BirimBelgeKarti extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Başlık Satırı
+          // 1. Başlık ve Üst Eylem Çubuğu
           Row(
             children: [
               Icon(
@@ -94,14 +89,15 @@ class BirimBelgeKarti extends StatelessWidget {
                   ],
                 ),
               ),
-              // Bu birim için toplu dosya seçme butonu
+
+              // Bu birim için evrak seçme butonu
               TextButton.icon(
                 onPressed: provider.isAiAjanCalisiyor
                     ? null
                     : () => _cokluDosyaSecVeOtomatikYerlestir(context),
                 icon: const Icon(Icons.drive_folder_upload_rounded, size: 14),
                 label: const Text(
-                  'Çoklu Dosya Seç',
+                  'Çoklu Evrak Seç',
                   style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600),
                 ),
                 style: TextButton.styleFrom(
@@ -110,6 +106,7 @@ class BirimBelgeKarti extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                 ),
               ),
+
               if (yukluSayisi > 0) ...[
                 const SizedBox(width: 4),
                 FilledButton.tonalIcon(
@@ -171,154 +168,41 @@ class BirimBelgeKarti extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          // 4'lü Kompakt Slot Yuvaları
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final slot1 = _buildSlotItem(
-                context,
-                slotTuru: BirimBelgeSlotTuru.aylikMizan,
-                kisaEtiket: 'Aylık Mizan *',
-                yuklenen: aylikMizan,
-              );
-              final slot2 = _buildSlotItem(
-                context,
-                slotTuru: BirimBelgeSlotTuru.yillikMizan,
-                kisaEtiket: 'Yıllık Mizan *',
-                yuklenen: yillikMizan,
-              );
-              final slot3 = _buildSlotItem(
-                context,
-                slotTuru: BirimBelgeSlotTuru.yardimciMizan,
-                kisaEtiket: 'Yardımcı Mizan',
-                yuklenen: yardimciMizan,
-              );
-              final slot4 = _buildSlotItem(
-                context,
-                slotTuru: BirimBelgeSlotTuru.diger,
-                kisaEtiket: 'Fatura / Diğer',
-                yuklenen: digerBelge,
-              );
-
-              if (constraints.maxWidth < 700) {
-                return Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(child: slot1),
-                        const SizedBox(width: 6),
-                        Expanded(child: slot2),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(child: slot3),
-                        const SizedBox(width: 6),
-                        Expanded(child: slot4),
-                      ],
-                    ),
-                  ],
-                );
-              }
-
-              return Row(
-                children: [
-                  Expanded(child: slot1),
-                  const SizedBox(width: 6),
-                  Expanded(child: slot2),
-                  const SizedBox(width: 6),
-                  Expanded(child: slot3),
-                  const SizedBox(width: 6),
-                  Expanded(child: slot4),
-                ],
-              );
-            },
-          ),
+          // 2. Aşağıya Doğru Listelenen Evraklar Bölümü
+          if (belgeler.isEmpty)
+            _buildBosEvrakAlani(context)
+          else
+            _buildEvrakListesi(context, belgeler),
         ],
       ),
     );
   }
 
-  Widget _buildSlotItem(
-    BuildContext context, {
-    required BirimBelgeSlotTuru slotTuru,
-    required String kisaEtiket,
-    required BirimYuklenenBelge? yuklenen,
-  }) {
-    final isLoaded = yuklenen != null;
-
-    if (!isLoaded) {
-      // Yüklenmemiş Boş Slot (Tıklanabilir sade buton kutusu)
-      return InkWell(
-        onTap: () => _dosyaSecVeYukle(context, slotTuru),
-        borderRadius: BorderRadius.circular(4),
-        child: Container(
-          height: 32,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceVariant.withAlpha(50),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.add_rounded, size: 14, color: AppColors.textSecondary),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  kisaEtiket,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // Yüklenmiş Dolu Slot
-    return Tooltip(
-      message: '${yuklenen.dosyaAdi} (${yuklenen.okunabilirBoyut})',
+  /// Evrak yüklenmediğinde gösterilen sade seçim alanı
+  Widget _buildBosEvrakAlani(BuildContext context) {
+    return InkWell(
+      onTap: () => _cokluDosyaSecVeOtomatikYerlestir(context),
+      borderRadius: BorderRadius.circular(4),
       child: Container(
-        height: 32,
-        padding: const EdgeInsets.only(left: 8, right: 4),
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: AppColors.successSubtle,
+          color: AppColors.surfaceVariant.withAlpha(40),
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: AppColors.success.withAlpha(120)),
+          border: Border.all(color: AppColors.border),
         ),
-        child: Row(
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              yuklenen.isPdf ? Icons.picture_as_pdf_rounded : Icons.table_chart_rounded,
-              size: 14,
-              color: AppColors.success,
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                '${slotTuru.baslik}: ${yuklenen.dosyaAdi}',
-                style: const TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            Icon(Icons.upload_file_rounded, size: 15, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text(
+              'Bu birim için evrakları seçin (Aylık/Yıllık Mizan, Yardımcı Defter, Faturalar)...',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close_rounded, size: 14, color: AppColors.danger),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-              tooltip: 'Kaldır',
-              onPressed: () => provider.belgeSil(birimAdi: birimAdi, slotTuru: slotTuru),
             ),
           ],
         ),
@@ -326,58 +210,182 @@ class BirimBelgeKarti extends StatelessWidget {
     );
   }
 
-  Future<void> _dosyaSecVeYukle(BuildContext context, BirimBelgeSlotTuru slotTuru) async {
-    try {
-      final result = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'xlsx', 'xls', 'csv', 'txt', 'png', 'jpg'],
-        allowMultiple: true,
-        withData: true,
-      );
-
-      if (result != null && result.files.isNotEmpty) {
-        if (result.files.length == 1) {
-          final f = result.files.first;
-          provider.belgeYukle(
-            birimAdi: birimAdi,
-            slotTuru: slotTuru,
-            dosyaAdi: f.name,
-            dosyaBoyutu: f.size,
-            dosyaUzantisi: f.extension ?? 'pdf',
-            dosyaBytes: f.bytes,
-          );
-        } else {
-          final dosyalar = result.files
-              .map(
-                (f) => (
-                  dosyaAdi: f.name,
-                  dosyaBoyutu: f.size,
-                  dosyaUzantisi: f.extension ?? 'pdf',
-                  dosyaBytes: f.bytes,
-                ),
-              )
-              .toList();
-          if (context.mounted) {
-            await TopluBelgeYuklemeDiyalogu.calistir(
-              context: context,
-              provider: provider,
-              dosyalar: dosyalar,
-              aktifBirimler: [birimAdi],
-              varsayilanBirimAdi: birimAdi,
-            );
-          }
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Dosya seçme hatası: $e'),
-            backgroundColor: AppColors.danger,
+  /// Yüklenen evrakların aşağıya doğru listelendiği ana gövde
+  Widget _buildEvrakListesi(BuildContext context, List<BirimYuklenenBelge> belgeler) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (int i = 0; i < belgeler.length; i++) ...[
+          if (i > 0) const SizedBox(height: 4),
+          _buildTekilBelgeSatiri(context, belgeler[i]),
+        ],
+        const SizedBox(height: 4),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: () => _cokluDosyaSecVeOtomatikYerlestir(context),
+            icon: const Icon(Icons.add_rounded, size: 13),
+            label: const Text(
+              '+ Bu Birime Başka Evrak Ekle',
+              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600),
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              visualDensity: VisualDensity.compact,
+            ),
           ),
-        );
-      }
+        ),
+      ],
+    );
+  }
+
+  /// Aşağıya doğru listelenen tek bir evrak satırı
+  Widget _buildTekilBelgeSatiri(BuildContext context, BirimYuklenenBelge b) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant.withAlpha(50),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.border.withAlpha(150)),
+      ),
+      child: Row(
+        children: [
+          // Dosya Türü İkonu
+          Icon(
+            b.isPdf ? Icons.picture_as_pdf_rounded : Icons.table_chart_rounded,
+            size: 15,
+            color: b.isPdf ? AppColors.danger : AppColors.success,
+          ),
+          const SizedBox(width: 8),
+
+          // Dosya Adı ve Boyutu
+          Expanded(
+            child: Tooltip(
+              message: '${b.dosyaAdi} (${b.okunabilirBoyut})',
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      b.dosyaAdi,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '(${b.okunabilirBoyut})',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Yuva / Tür Değiştirme Butonu (Dropdown Pill)
+          _buildSlotSeciciPill(context, b),
+          const SizedBox(width: 6),
+
+          // Silme Butonu
+          IconButton(
+            icon: const Icon(Icons.close_rounded, size: 14, color: AppColors.neutral),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+            tooltip: 'Bu Belgeyi Kaldır',
+            hoverColor: AppColors.dangerSubtle,
+            onPressed: () => provider.tekilBelgeSil(birimAdi: birimAdi, belgeId: b.id),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Evrak slotunu (Aylık/Yıllık/Yardımcı/Fatura) gösteren ve tek tıkla değiştirmeyi sağlayan etiket
+  Widget _buildSlotSeciciPill(BuildContext context, BirimYuklenenBelge b) {
+    Color bg;
+    Color fg;
+
+    switch (b.slotTuru) {
+      case BirimBelgeSlotTuru.aylikMizan:
+        bg = AppColors.primarySubtle;
+        fg = AppColors.primary;
+        break;
+      case BirimBelgeSlotTuru.yillikMizan:
+        bg = AppColors.infoSubtle;
+        fg = AppColors.info;
+        break;
+      case BirimBelgeSlotTuru.yardimciMizan:
+        bg = AppColors.warningSubtle;
+        fg = AppColors.warning;
+        break;
+      case BirimBelgeSlotTuru.diger:
+      default:
+        bg = AppColors.surfaceVariant;
+        fg = AppColors.textSecondary;
+        break;
     }
+
+    return PopupMenuButton<BirimBelgeSlotTuru>(
+      tooltip: 'Belge Türünü Değiştir',
+      initialValue: b.slotTuru,
+      onSelected: (yeniSlot) {
+        provider.belgeSlotDegistir(
+          birimAdi: birimAdi,
+          belgeId: b.id,
+          yeniSlot: yeniSlot,
+        );
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: BirimBelgeSlotTuru.aylikMizan,
+          child: Text('Aylık Mizan', style: TextStyle(fontSize: 12)),
+        ),
+        const PopupMenuItem(
+          value: BirimBelgeSlotTuru.yillikMizan,
+          child: Text('Yıllık Mizan', style: TextStyle(fontSize: 12)),
+        ),
+        const PopupMenuItem(
+          value: BirimBelgeSlotTuru.yardimciMizan,
+          child: Text('Yardımcı Mizan (Muavin)', style: TextStyle(fontSize: 12)),
+        ),
+        const PopupMenuItem(
+          value: BirimBelgeSlotTuru.diger,
+          child: Text('Fatura / Ek Evrak', style: TextStyle(fontSize: 12)),
+        ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: fg.withAlpha(80), width: 0.8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              b.slotTuru.baslik,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: fg,
+              ),
+            ),
+            const SizedBox(width: 3),
+            Icon(Icons.arrow_drop_down_rounded, size: 14, color: fg),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _cokluDosyaSecVeOtomatikYerlestir(BuildContext context) async {
@@ -415,7 +423,7 @@ class BirimBelgeKarti extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Çoklu dosya seçme hatası: $e'),
+            content: Text('Dosya seçme hatası: $e'),
             backgroundColor: AppColors.danger,
           ),
         );

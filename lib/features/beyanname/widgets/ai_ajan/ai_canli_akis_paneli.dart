@@ -75,19 +75,28 @@ class _AiCanliAkisPaneliState extends State<AiCanliAkisPaneli> {
             ),
             child: Row(
               children: [
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Color(0xFF38BDF8),
+                if (provider.isAiAjanCalisiyor)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF38BDF8),
+                    ),
+                  )
+                else
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    size: 16,
+                    color: Color(0xFF4ADE80),
                   ),
-                ),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    '🤖 AKILLI BEYANNAME AJANI — CANLI İŞLEM VE OKUMA AKIŞI',
-                    style: TextStyle(
+                    provider.isAiAjanCalisiyor
+                        ? '🤖 AKILLI BEYANNAME AJANI — CANLI İŞLEM VE OKUMA AKIŞI'
+                        : '✅ İŞLEM TAMAMLANDI — CANLI AKIŞ VE AYRIŞTIRMA GÜNLÜĞÜ',
+                    style: const TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -105,21 +114,38 @@ class _AiCanliAkisPaneliState extends State<AiCanliAkisPaneli> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                SizedBox(
-                  height: 24,
-                  child: OutlinedButton.icon(
-                    onPressed: () => provider.aiAjanDurdur(),
-                    icon: const Icon(Icons.stop_circle_rounded, size: 14, color: AppColors.danger),
-                    label: const Text(
-                      'Durdur',
-                      style: TextStyle(fontSize: 10, color: AppColors.danger, fontWeight: FontWeight.bold),
+                if (provider.isAiAjanCalisiyor)
+                  SizedBox(
+                    height: 24,
+                    child: OutlinedButton.icon(
+                      onPressed: () => provider.aiAjanDurdur(),
+                      icon: const Icon(Icons.stop_circle_rounded, size: 14, color: AppColors.danger),
+                      label: const Text(
+                        'Durdur',
+                        style: TextStyle(fontSize: 10, color: AppColors.danger, fontWeight: FontWeight.bold),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.danger),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
                     ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.danger),
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                  )
+                else
+                  SizedBox(
+                    height: 24,
+                    child: OutlinedButton.icon(
+                      onPressed: () => provider.aiAjanLoglariniTemizle(),
+                      icon: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF94A3B8)),
+                      label: const Text(
+                        'Kapat / Temizle',
+                        style: TextStyle(fontSize: 10, color: Color(0xFFCBD5E1), fontWeight: FontWeight.bold),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF475569)),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -134,7 +160,7 @@ class _AiCanliAkisPaneliState extends State<AiCanliAkisPaneli> {
 
           // Log Akış Terminali
           Container(
-            height: 180,
+            height: 200,
             padding: const EdgeInsets.all(12),
             child: loglar.isEmpty
                 ? const Center(
@@ -153,8 +179,13 @@ class _AiCanliAkisPaneliState extends State<AiCanliAkisPaneli> {
                     itemBuilder: (context, index) {
                       final l = loglar[index];
                       Color textColor = const Color(0xFFE2E8F0);
+                      FontWeight weight = FontWeight.normal;
                       if (l.isHata) textColor = const Color(0xFFF87171);
                       if (l.isBasarili) textColor = const Color(0xFF4ADE80);
+                      if (l.mesaj.startsWith('⚡') || l.mesaj.startsWith('🎉')) {
+                        textColor = const Color(0xFF38BDF8);
+                        weight = FontWeight.bold;
+                      }
 
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 2),
@@ -175,8 +206,9 @@ class _AiCanliAkisPaneliState extends State<AiCanliAkisPaneli> {
                                 style: TextStyle(
                                   fontFamily: 'monospace',
                                   fontSize: 11.5,
+                                  fontWeight: weight,
                                   color: textColor,
-                                  height: 1.3,
+                                  height: 1.35,
                                 ),
                               ),
                             ),

@@ -132,22 +132,35 @@ class MizanDeterministikParser {
     required String metin,
     required List<String> aktifBirimler,
   }) {
-    final lowerName = dosyaAdi.toLowerCase();
+    String cleanStr(String s) => s
+        .toLowerCase()
+        .replaceAll('ı', 'i')
+        .replaceAll('ğ', 'g')
+        .replaceAll('ü', 'u')
+        .replaceAll('ş', 's')
+        .replaceAll('ö', 'o')
+        .replaceAll('ç', 'c');
+
+    final cleanName = cleanStr(dosyaAdi);
     final meta = extractMetaVeri(metin);
 
-    // 1. Birim Tespiti: Önce dosya adından, sonra mizan meta verisinden
+    // 1. Birim Tespiti:
+    // A) Dosya adından tam/kısa anahtar veya kanonik eşleşme
     String? bulunanBirim;
     for (final b in aktifBirimler) {
       final cKey = BirimAdlandirma.canonicalKey(b);
       final kisa = BirimAdlandirma.kisaAdGetir(b).toLowerCase();
+      final cleanKisa = cleanStr(kisa);
       if (cKey.isNotEmpty &&
-          (lowerName.contains(cKey) ||
-              lowerName.contains(kisa) ||
+          (cleanName.contains(cKey) ||
+              cleanName.contains(cleanKisa) ||
               BirimAdlandirma.canonicalKey(dosyaAdi) == cKey)) {
         bulunanBirim = b;
         break;
       }
     }
+
+    // B) Mizan meta verisinden (Üst bilgi)
     if (bulunanBirim == null && meta.muhasebeBirimi != null) {
       final metaKey = BirimAdlandirma.canonicalKey(meta.muhasebeBirimi!);
       if (metaKey.isNotEmpty) {
@@ -159,40 +172,137 @@ class MizanDeterministikParser {
         }
       }
     }
+
+    // C) Belge metninden birim adı veya birime özgü anahtar kelimeler
     if (bulunanBirim == null && metin.isNotEmpty) {
-      final ilkSatirlar = metin.length > 1500 ? metin.substring(0, 1500) : metin;
+      final ilkKisim = metin.length > 3000 ? metin.substring(0, 3000) : metin;
+      final cleanMetin = cleanStr(ilkKisim);
+
       for (final b in aktifBirimler) {
         final kisa = BirimAdlandirma.kisaAdGetir(b);
-        if (kisa.length >= 3 && ilkSatirlar.toUpperCase().contains(kisa.toUpperCase())) {
+        final cleanKisa = cleanStr(kisa);
+        if (cleanKisa.length >= 3 && cleanMetin.contains(cleanKisa)) {
           bulunanBirim = b;
           break;
         }
       }
+
+      // D) Birime özgü faaliyet anahtar kelimeleri (kurs -> USEM, avans/harcırah -> DTS vb.)
+      if (bulunanBirim == null) {
+        if (cleanMetin.contains('kurs') ||
+            cleanMetin.contains('kursiyer') ||
+            cleanMetin.contains('kat hizmetleri') ||
+            cleanMetin.contains('sigortacilik') ||
+            cleanMetin.contains('sayar') ||
+            cleanMetin.contains('surekli egitim')) {
+          bulunanBirim = aktifBirimler.firstWhere(
+            (b) => BirimAdlandirma.canonicalKey(b) == 'usem',
+            orElse: () => '',
+          );
+        } else if (cleanMetin.contains('deri') ||
+            cleanMetin.contains('tekstil') ||
+            cleanMetin.contains('seramik') ||
+            cleanMetin.contains('avans kapatma') ||
+            cleanMetin.contains('yolluk')) {
+          bulunanBirim = aktifBirimler.firstWhere(
+            (b) => BirimAdlandirma.canonicalKey(b) == 'dts',
+            orElse: () => '',
+          );
+        } else if (cleanMetin.contains('dis') ||
+            cleanMetin.contains('metasoft') ||
+            cleanMetin.contains('hekim') ||
+            cleanMetin.contains('poliklinik') ||
+            cleanMetin.contains('protez')) {
+          bulunanBirim = aktifBirimler.firstWhere(
+            (b) => BirimAdlandirma.canonicalKey(b) == 'dis',
+            orElse: () => '',
+          );
+        } else if (cleanMetin.contains('ubatam') ||
+            cleanMetin.contains('bilimsel analiz') ||
+            cleanMetin.contains('laboratuvar') ||
+            cleanMetin.contains('numune')) {
+          bulunanBirim = aktifBirimler.firstWhere(
+            (b) => BirimAdlandirma.canonicalKey(b) == 'ubatam',
+            orElse: () => '',
+          );
+        } else if (cleanMetin.contains('tomer') ||
+            cleanMetin.contains('turkce') ||
+            cleanMetin.contains('dil ogretimi')) {
+          bulunanBirim = aktifBirimler.firstWhere(
+            (b) => BirimAdlandirma.canonicalKey(b) == 'tomer',
+            orElse: () => '',
+          );
+        } else if (cleanMetin.contains('tarim') ||
+            cleanMetin.contains('ciftlik') ||
+            cleanMetin.contains('fidan') ||
+            cleanMetin.contains('tadaum')) {
+          bulunanBirim = aktifBirimler.firstWhere(
+            (b) => BirimAdlandirma.canonicalKey(b) == 'tadaum',
+            orElse: () => '',
+          );
+        } else if (cleanMetin.contains('dosim') ||
+            cleanMetin.contains('doner sermaye isletme')) {
+          bulunanBirim = aktifBirimler.firstWhere(
+            (b) => BirimAdlandirma.canonicalKey(b) == 'dosim',
+            orElse: () => '',
+          );
+        }
+        if (bulunanBirim != null && bulunanBirim.isEmpty) bulunanBirim = null;
+      }
     }
 
-    // 2. Slot Türü Tespiti
+    // 2. Slot Türü Tespiti:
     BirimBelgeSlotTuru slot = BirimBelgeSlotTuru.aylikMizan;
-    if (lowerName.contains('yardimci') ||
-        lowerName.contains('yardımcı') ||
-        lowerName.contains('muavin') ||
-        lowerName.contains('alt_hesap')) {
-      slot = BirimBelgeSlotTuru.yardimciMizan;
-    } else if (lowerName.contains('yillik') ||
-        lowerName.contains('yıllık') ||
-        lowerName.contains('kumulatif') ||
-        lowerName.contains('kümülatif') ||
-        lowerName.contains('toplu')) {
-      slot = BirimBelgeSlotTuru.yillikMizan;
-    } else if (lowerName.contains('fatura') ||
-        lowerName.contains('tevkifat') ||
-        lowerName.contains('earsiv') ||
-        lowerName.contains('e-arsiv') ||
-        lowerName.contains('efatura')) {
+
+    // A) Ek Evrak / Fatura / Harcama / Kurs / Yolluk Tespiti
+    final isEkEvrak = (cleanName.contains('fatura') ||
+            cleanName.contains('tevkifat') ||
+            cleanName.contains('earsiv') ||
+            cleanName.contains('e-arsiv') ||
+            cleanName.contains('efatura') ||
+            cleanName.contains('avans') ||
+            cleanName.contains('yolluk') ||
+            cleanName.contains('harcirah') ||
+            cleanName.contains('odeme') ||
+            cleanName.contains('bordro') ||
+            cleanName.contains('olur') ||
+            cleanName.contains('yazi') ||
+            cleanName.contains('metasoft') ||
+            cleanName.contains('kurs') ||
+            cleanName.contains('dekont')) &&
+        !cleanName.contains('mizan');
+
+    // B) Yardımcı Defter / Muavin Tespiti (Yazım hatalarına toleranslı: yadimci, deffter, muavin)
+    final isYardimci = cleanName.contains('yardimci') ||
+        cleanName.contains('yadimci') ||
+        cleanName.contains('yardmci') ||
+        cleanName.contains('muavin') ||
+        cleanName.contains('alt_hesap') ||
+        cleanName.contains('alt hesap') ||
+        cleanName.contains('deffter') ||
+        (cleanName.contains('defter') && !cleanName.contains('gecici') && !cleanName.contains('gecizi'));
+
+    // C) Yıllık Kümülatif Mizan Tespiti (yillik, kumulatif, toplu)
+    final isYillik = (cleanName.contains('yillik') ||
+            cleanName.contains('kumulatif') ||
+            cleanName.contains('toplu')) &&
+        !isYardimci;
+
+    // D) Aylık Mizan Tespiti (aylik, gecici, gecizi yazım hatası)
+    final isAylik = cleanName.contains('aylik') ||
+        cleanName.contains('gecici') ||
+        cleanName.contains('gecizi');
+
+    if (isEkEvrak) {
       slot = BirimBelgeSlotTuru.diger;
-    } else if (lowerName.contains('aylik') || lowerName.contains('aylık')) {
+    } else if (isYardimci) {
+      slot = BirimBelgeSlotTuru.yardimciMizan;
+    } else if (isYillik) {
+      slot = BirimBelgeSlotTuru.yillikMizan;
+    } else if (isAylik) {
       slot = BirimBelgeSlotTuru.aylikMizan;
     } else {
-      // Dosya adında ipucu yoksa içerikten karar ver
+      // Dosya adında net ipucu yoksa içerikten hesap kartları ve meta veriye bak
       final hesaplar = parseHesaplar(metin);
       if (hesaplar.isEmpty) {
         slot = BirimBelgeSlotTuru.diger;
