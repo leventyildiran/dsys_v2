@@ -343,6 +343,15 @@ class BeyannameAiAjanServisi {
             }
           }
         } catch (_) {}
+
+        if (digerBelgeMetni.trim().isEmpty) {
+          yield AjanLogMesaji(
+            zaman: DateTime.now(),
+            mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" taranmış resim/fotoğraf PDF formatında (0 karakter dijital metin). Tevkifat faturasını okutmak için "AI ile Oku" (Görsel Zeka) butonunu kullanınız.',
+            birimAdi: birimAdi,
+            ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.22 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
+          );
+        }
       }
 
       await Future.delayed(const Duration(milliseconds: 15));
