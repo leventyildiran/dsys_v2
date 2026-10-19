@@ -979,10 +979,6 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     final k2 = provider.kdv2Sonuc;
     final m = provider.muhtasarSonuc;
     final list = provider.birimIcmalListesi;
-    final topKdv2Dokuz = list.fold(0.0, (s, x) => s + x.kdv2DokuzBoluOn);
-    final topKdv2Yedi = list.fold(0.0, (s, x) => s + x.kdv2YediBoluOn);
-    final topKdv2Bes = list.fold(0.0, (s, x) => s + x.kdv2BesBoluOn);
-    final topKdv2Genel = list.fold(0.0, (s, x) => s + x.kdv2Toplam);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2036,7 +2032,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                       child: ElevatedButton.icon(
                         onPressed: () async {
                           final ozet = await provider.gecmisAylariSenkronizeEt();
-                          if (context.mounted) {
+                          if (mounted) {
                             if (ozet.bosMu) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -2176,12 +2172,6 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
     final topMuhtasarDamga = list.fold(0.0, (s, x) => s + x.muhtasarDamga);
     final topMuhtasarKesilen = list.fold(0.0, (s, x) => s + x.muhtasarKesilenDamga);
     final topMuhtasarToplam = list.fold(0.0, (s, x) => s + x.muhtasarToplam);
-
-    // Tablo 2 Toplamları (KDV 2)
-    final topKdv2Dokuz = list.fold(0.0, (s, x) => s + x.kdv2DokuzBoluOn);
-    final topKdv2Yedi = list.fold(0.0, (s, x) => s + x.kdv2YediBoluOn);
-    final topKdv2Bes = list.fold(0.0, (s, x) => s + x.kdv2BesBoluOn);
-    final topKdv2Genel = list.fold(0.0, (s, x) => s + x.kdv2Toplam);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3547,7 +3537,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                           shrinkWrap: true,
                           padding: EdgeInsets.zero,
                           itemCount: oneriListesi.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                          separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFE2E8F0)),
                           itemBuilder: (ctx, idx) {
                             final p = oneriListesi[idx];
                             final isAkademik = p.personelTuru == 'Akademik';

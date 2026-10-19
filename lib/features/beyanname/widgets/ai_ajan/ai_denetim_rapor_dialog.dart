@@ -769,7 +769,7 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
                           try {
                             await provider.aiUzmanGunlukAnaliziCalistir();
                           } catch (e) {
-                            if (context.mounted) {
+                            if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('AI Baş Denetçi hatası: $e'),
@@ -881,7 +881,7 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
                                   try {
                                     await provider.aiUzmanGunlukAnaliziCalistir();
                                   } catch (e) {
-                                    if (context.mounted) {
+                                    if (mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
                                           content: Text('AI Baş Denetçi hatası: $e'),
