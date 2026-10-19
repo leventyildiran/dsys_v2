@@ -15,6 +15,8 @@ import '../models/beyanname_denetim_rapor_model.dart';
 import 'beyanname_denetim_servisi.dart';
 import 'mizan_deterministik_parser.dart';
 
+enum AjanLogSeviyesi { bilgi, uyari, hata, basarili }
+
 /// Canlı akış log mesajı
 class AjanLogMesaji {
   final DateTime zaman;
@@ -23,14 +25,16 @@ class AjanLogMesaji {
   final double ilerlemeYuzdesi; // 0.0 - 1.0
   final bool isHata;
   final bool isBasarili;
+  final AjanLogSeviyesi seviye;
 
   const AjanLogMesaji({
     required this.zaman,
     required this.mesaj,
     this.birimAdi,
-    required this.ilerlemeYuzdesi,
+    this.ilerlemeYuzdesi = 0.0,
     this.isHata = false,
     this.isBasarili = false,
+    this.seviye = AjanLogSeviyesi.bilgi,
   });
 
   String get formatliZaman {
