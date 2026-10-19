@@ -197,7 +197,7 @@ class BirimBelgeKarti extends StatelessWidget {
             Icon(Icons.upload_file_rounded, size: 15, color: AppColors.primary),
             SizedBox(width: 8),
             Text(
-              'Bu birim için evrakları seçin (Aylık/Yıllık Mizan, Yardımcı Defter, Faturalar)...',
+              'Bu birim için mizanları seçin (Aylık/Yıllık Mizan, Yardımcı Defter, varsa Tevkifat Faturası)...',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,

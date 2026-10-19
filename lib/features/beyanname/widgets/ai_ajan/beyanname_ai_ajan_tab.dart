@@ -235,10 +235,31 @@ class BeyannameAiAjanTab extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              const Text(
-                'İpucu: Mizan (Excel/PDF) ve Tevkifat Faturalarını "Toplu Belge Yükle" ile tek seferde seçebilirsiniz; sistem birim ve mizan türünü (Aylık / Yıllık / Yardımcı / Fatura) otomatik tanır.',
-                style: TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  color: AppColors.infoSubtle,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.info.withAlpha(50)),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.lightbulb_outline_rounded, size: 16, color: AppColors.info),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '💡 Mizan Odaklı Hesaplama: Yalnızca Muhasebat mizanlarını (Aylık Mizan, Yıllık Mizan, Yardımcı Defter) yüklemeniz yeterlidir. Harcırah/yolluk ödeme emirlerini tek tek yüklemenize gerek yoktur; mizan (360 hesabı) tüm damga vergilerini ve kesintileri kuruşu kuruşuna içerir. Varsa yalnızca o aya ait KDV 2 Tevkifat faturasını ekleyiniz.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textPrimary,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

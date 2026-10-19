@@ -7,7 +7,7 @@ enum BirimBelgeSlotTuru {
   aylikMizan('Aylık Mizan', 'Seçili ayın resmi mizanı (PDF/Excel)', true),
   yardimciMizan('Yardımcı Mizan', 'Muavin / Alt hesap mizanı (%10, %20 ve Gelir kırılımları)', false),
   yillikMizan('Yıllık Mizan', 'Ocak - Seçili ay kümülatif mizanı (PDF/Excel)', true),
-  diger('Diğer / Ekstra', 'KDV dökümü, fatura listesi, ek protokoller', false),
+  diger('Tevkifat Faturası (İsteğe Bağlı)', 'Varsa KDV 2 tevkifat faturası (yolluk/harcırah gerekmez)', false),
   muhtasarBordro('Muhtasar Bordro', 'Birim bordro icmali / personel listesi', false),
   faturaListesi('Fatura Listesi', 'Tevkifatlı ve istisna fatura listesi', false);
 
