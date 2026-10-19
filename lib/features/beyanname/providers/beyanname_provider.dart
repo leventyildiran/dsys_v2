@@ -1362,6 +1362,31 @@ class BeyannameProvider with ChangeNotifier {
   BeyannameAjanRaporu? _sonAjanRaporu;
   BeyannameAjanRaporu? get sonAjanRaporu => _sonAjanRaporu;
 
+  bool _isAiUzmanAnaliziYukleniyor = false;
+  bool get isAiUzmanAnaliziYukleniyor => _isAiUzmanAnaliziYukleniyor;
+
+  String? _sonAiUzmanAnalizi;
+  String? get sonAiUzmanAnalizi => _sonAiUzmanAnalizi;
+
+  /// Canlı logları ve denetim raporunu AI Baş Denetçiye inceletir
+  Future<String> aiUzmanGunlukAnaliziCalistir() async {
+    _isAiUzmanAnaliziYukleniyor = true;
+    notifyListeners();
+    try {
+      final sonuc = await _aiAjanServisi.gunlukVeDenetimAiUzmanAnalizi(
+        yil: _seciliYil,
+        ay: _seciliAy,
+        loglar: _aiAjanLoglari,
+        rapor: _sonAjanRaporu,
+      );
+      _sonAiUzmanAnalizi = sonuc;
+      return sonuc;
+    } finally {
+      _isAiUzmanAnaliziYukleniyor = false;
+      notifyListeners();
+    }
+  }
+
   StreamSubscription<AjanLogMesaji>? _aiAjanSubscription;
 
   int get toplamYuklenenBelgeSayisi {
@@ -1574,9 +1599,9 @@ class BeyannameProvider with ChangeNotifier {
         aktifBirimler: aktifBirimler,
       );
 
-      final hedefBirim = sinif.birimAdi ??
-          varsayilanBirimAdi ??
-          (aktifBirimler.isNotEmpty ? aktifBirimler.first : 'Genel');
+      final hedefBirim = (varsayilanBirimAdi != null && varsayilanBirimAdi.isNotEmpty)
+          ? varsayilanBirimAdi
+          : (sinif.birimAdi ?? (aktifBirimler.isNotEmpty ? aktifBirimler.first : 'Genel'));
       var hedefSlot = sinif.slotTuru;
 
       // Eğer birimin o slotu doluysa ve başka bir slot boşsa akıllı dağıt
@@ -1587,6 +1612,12 @@ class BeyannameProvider with ChangeNotifier {
 
       if (hedefSlot == BirimBelgeSlotTuru.aylikMizan && hasAylik && !hasYillik) {
         hedefSlot = BirimBelgeSlotTuru.yillikMizan;
+      } else if (hedefSlot == BirimBelgeSlotTuru.aylikMizan && hasAylik && hasYillik) {
+        hedefSlot = BirimBelgeSlotTuru.diger;
+      } else if (hedefSlot == BirimBelgeSlotTuru.yillikMizan && hasYillik && !hasAylik) {
+        hedefSlot = BirimBelgeSlotTuru.aylikMizan;
+      } else if (hedefSlot == BirimBelgeSlotTuru.yillikMizan && hasYillik && hasAylik) {
+        hedefSlot = BirimBelgeSlotTuru.diger;
       } else if (hedefSlot == BirimBelgeSlotTuru.yardimciMizan && hasYardimci && !hasAylik && d.dosyaAdi.toLowerCase().contains('aylik')) {
         // "Tarımsal Yardımcı Defter Aylık.pdf" gibi bir dosya varsa ve aylık mizan henüz yoksa aylık mizan yuvasına ata
         hedefSlot = BirimBelgeSlotTuru.aylikMizan;

@@ -718,6 +718,33 @@ class BeyannameDenetimServisi {
       }
     }
 
+    // -------------------------------------------------------------------------
+    // SENARYO 11: 123 Kredi Kartı / POS Birimler Arası Çapraz Kontrolü
+    // -------------------------------------------------------------------------
+    final posluBirimler = birimSonuclari.entries
+        .where((e) => e.value.krediKarti123 > 0)
+        .toList();
+
+    for (int i = 0; i < posluBirimler.length; i++) {
+      for (int j = i + 1; j < posluBirimler.length; j++) {
+        final b1 = posluBirimler[i];
+        final b2 = posluBirimler[j];
+        if ((b1.value.krediKarti123 - b2.value.krediKarti123).abs() < 0.01) {
+          kontroller.add(MutabakatKontrolKaydi(
+            id: 'sen-11-${kontrolIdSayac++}',
+            senaryoNo: 11,
+            birimAdi: '${b1.key} & ${b2.key}',
+            baslik: 'Mükerrer 123 POS Tutarı Uyarısı!',
+            seviye: DenetimSeviyesi.uyari,
+            beklenenDeger: 0.0,
+            bulunanDeger: b1.value.krediKarti123,
+            aciklama: '${b1.key} ile ${b2.key} birimlerinin 123 Kredi Kartı/POS tutarları kuruşu kuruşuna aynı çıkmaktadır (${TurkceFormat.para(b1.value.krediKarti123)} TL). Dosya karışıklığı veya mükerrer mizan yüklenmiş olma ihtimaline karşı kontrol ediniz.',
+            cozumOnerisi: 'İlgili birimlerin mizanlarındaki 123 hesabının borç hareketlerini ve dosya adlarını teyit ediniz.',
+          ));
+        }
+      }
+    }
+
     return BeyannameAjanRaporu(
       id: 'rapor_${yil}_${ay.toString().padLeft(2, '0')}_${DateTime.now().millisecondsSinceEpoch}',
       yil: yil,

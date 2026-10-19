@@ -354,5 +354,35 @@ KDV Tevkifat (7/10): 1.400,00 TL
       expect(parsed.tevkifatFaturalari.first['matrahTutari'], equals(10000.0));
       expect(parsed.tevkifatFaturalari.first['tevkifatTutari'], equals(1800.0));
     });
+
+    test('Senaryo 11: İki Birim Arasında Mükerrer 123 POS Tahsilat Tespiti', () {
+      final birimSonuclari = {
+        'Ağız ve Diş Sağlığı': BirimMizanAnalizSonucu(
+          birimAdi: 'Ağız ve Diş Sağlığı',
+          analizTarihi: DateTime.now(),
+          krediKarti123: 3325718.15,
+        ),
+        'DTS': BirimMizanAnalizSonucu(
+          birimAdi: 'DTS',
+          analizTarihi: DateTime.now(),
+          krediKarti123: 3325718.15, // Aynı tutar!
+        ),
+      };
+
+      final rapor = BeyannameDenetimServisi.denetleVeRaporOlustur(
+        yil: 2026,
+        ay: 10,
+        birimSonuclari: birimSonuclari,
+        toplamDosyaSayisi: 2,
+        birimOncekiAylarHasilat: {},
+        oncekiAydanDevredenKdv: 0.0,
+      );
+
+      final senaryo11 = rapor.denetimKontrolleri.where((k) => k.senaryoNo == 11).firstOrNull;
+      expect(senaryo11, isNotNull);
+      expect(senaryo11!.seviye, equals(DenetimSeviyesi.uyari));
+      expect(senaryo11.baslik, contains('Mükerrer 123 POS'));
+      expect(senaryo11.bulunanDeger, equals(3325718.15));
+    });
   });
 }

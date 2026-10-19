@@ -311,7 +311,7 @@ class BeyannameAiAjanTab extends StatelessWidget {
         provider: provider,
         dosyalar: dosyalar,
         aktifBirimler: aktifBirimler,
-        varsayilanBirimAdi: aktifBirimler.isNotEmpty ? aktifBirimler.first : null,
+        varsayilanBirimAdi: null,
       );
     } catch (e) {
       if (context.mounted) {

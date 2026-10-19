@@ -151,9 +151,11 @@ class MizanDeterministikParser {
       final cKey = BirimAdlandirma.canonicalKey(b);
       final kisa = BirimAdlandirma.kisaAdGetir(b).toLowerCase();
       final cleanKisa = cleanStr(kisa);
+      final isTarimMatch = cKey == 'tadaum' && (cleanName.contains('tarim') || cleanName.contains('tarimsal') || cleanName.contains('tadaum'));
       if (cKey.isNotEmpty &&
           (cleanName.contains(cKey) ||
               cleanName.contains(cleanKisa) ||
+              isTarimMatch ||
               BirimAdlandirma.canonicalKey(dosyaAdi) == cKey)) {
         bulunanBirim = b;
         break;

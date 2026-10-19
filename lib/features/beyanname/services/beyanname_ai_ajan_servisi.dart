@@ -741,6 +741,112 @@ Görev: Bu farkın olası nedenlerini, ilgili mevzuatı (KDVK, DVK, GVK) ve beya
     return (text ?? '').trim().isEmpty ? 'AI yanıt üretmedi.' : text!.trim();
   }
 
+  /// Canlı sistem günlüğünü, 7 birimin çıkarılan mizan/fatura sonuçlarını ve
+  /// 11 senaryolu çapraz denetim raporunu analiz ederek gözden kaçan anomalileri
+  /// ve mevzuat risklerini bulan üst düzey AI Baş Denetçi & Mali Müşavir mütalaası üretir.
+  Future<String> gunlukVeDenetimAiUzmanAnalizi({
+    required int yil,
+    required int ay,
+    required List<AjanLogMesaji> loglar,
+    required BeyannameAjanRaporu? rapor,
+  }) async {
+    final ayarlar = await _ayarlarService.getAyarlar();
+    if (ayarlar.geminiApiKey.trim().isEmpty && ayarlar.deepseekApiKey.trim().isEmpty) {
+      throw Exception(
+        'Sistem Ayarlarında geçerli bir Google Gemini veya DeepSeek/OpenRouter API anahtarı tanımlı değil. Lütfen Sistem Ayarları sayfasından API anahtarınızı giriniz.',
+      );
+    }
+
+    // 1. Log metnini formatla
+    final logBuffer = StringBuffer();
+    for (final l in loglar) {
+      logBuffer.writeln('[${l.formatliZaman}] ${l.mesaj}');
+    }
+    final logMetni = logBuffer.toString();
+
+    // 2. Rapor özeti ve birim rakamlarını formatla
+    final raporBuffer = StringBuffer();
+    if (rapor != null) {
+      raporBuffer.writeln('BEYANNAME DÖNEMİ: $yil / ${ay.toString().padLeft(2, '0')}');
+      raporBuffer.writeln('ANALİZ EDİLEN BİRİMLER:');
+      for (final entry in rapor.birimSonuclari.entries) {
+        final b = entry.value;
+        raporBuffer.writeln(
+          '- ${entry.key}: 600 Hasılat: ${TurkceFormat.para(b.hasilat600Aylik)} TL | '
+          '123 POS: ${TurkceFormat.para(b.krediKarti123)} TL | '
+          '391 Hesaplanan KDV: ${TurkceFormat.para(b.toplamHesaplananKdv)} TL (%10: ${TurkceFormat.para(b.hesaplananKdv10)}, %20: ${TurkceFormat.para(b.hesaplananKdv20)}) | '
+          '191 İndirilecek KDV: ${TurkceFormat.para(b.toplamIndirilecekKdv)} TL | '
+          '360 Damga Vergisi: ${TurkceFormat.para(b.damgaVergisi360)} TL | '
+          'Tevkifat Fatura Sayısı: ${b.tevkifatFaturalari.length}',
+        );
+        if (b.tevkifatFaturalari.isNotEmpty) {
+          for (final f in b.tevkifatFaturalari) {
+            raporBuffer.writeln(
+              '    * Fatura: ${f['firmaAdi']} (VKN: ${f['vergiTcNo']}) - Matrah: ${TurkceFormat.para(TurkceFormat.parseSayi(f['matrahTutari']))} TL, '
+              'KDV: ${TurkceFormat.para(TurkceFormat.parseSayi(f['kdvTutari']))} TL, Tevkifat: ${TurkceFormat.para(TurkceFormat.parseSayi(f['tevkifatTutari']))} TL (${f['tevkifatOrani']})',
+            );
+          }
+        }
+      }
+
+      raporBuffer.writeln('\nÇAPRAZ DENETİM VE MUTABAKAT TESTLERİ:');
+      for (final d in rapor.denetimKontrolleri) {
+        final durumStr = d.durum == DenetimSonucDurumu.basarili
+            ? 'BAŞARILI'
+            : (d.durum == DenetimSonucDurumu.kritikHata ? 'KRİTİK HATA' : 'İNCELEME UYARISI');
+        raporBuffer.writeln(
+          '- [$durumStr] ${d.birimAdi ?? 'TÜM BİRİMLER'} - ${d.baslik}: ${d.aciklama} '
+          '${d.fark != null ? '(Fark: ${TurkceFormat.para(d.fark!)})' : ''}',
+        );
+      }
+    }
+
+    final prompt = '''
+Sen Türk Kamu Üniversitesi Döner Sermaye İşletmeleri (2547 sayılı YÖK Kanunu Md. 58, 5018 sayılı KMYKK), Katma Değer Vergisi Kanunu (KDVK 1, 17/1 sağlık hizmetleri istisnası, 17/2-b eğitim/kurs istisnası, 9/10 ve 7/10 KDV2 tevkifatı), Damga Vergisi Kanunu (binde 9,48 nispetli damga vergisi, 360.03.05 hesabı), Gelir Vergisi Kanunu (Muhtasar) ve Muhasebat Genel Müdürlüğü Döner Sermaye Hesap Planı (100, 102, 123 POS, 190, 191, 360, 391, 600) konularında 25 yıllık kıdemli Baş Denetçi, Yeminli Mali Müşavir (YMM) ve DSYS (Döner Sermaye Yönetim Sistemi) Baş Mimarı/Uzmanısın.
+
+GÖREV:
+Aşağıdaki canlı sistem günlüğünü (OCR okuma adımları, mizan ayrıştırmaları, tevkifat tespitleri), 7 döner sermaye biriminin çıkarılan rakamlarını ve 11 senaryolu çapraz mutabakat sonuçlarını satır satır denetle.
+Kullanıcının gözünden kaçabilecek her türlü anomalileri, mevzuat uyumsuzluklarını ve riskleri bul, mali müşavir tavsiyeleriyle birlikte detaylı bir Baş Denetçi Raporu hazırla.
+
+BİLGİ BANKASI VE KRİTİK DENETİM KURALLARI:
+1. 123 KREDİ KARTI / POS KONTROLÜ:
+   - Farklı birimlerin 123 POS tutarları kesinlikle birbirinin aynısı olamaz! Örneğin Diş Hekimliği ile DTS'nin POS tutarı kuruşu kuruşuna aynıysa (örn: 3.325.718,15 TL), bu bir dosya karışıklığı, mükerrer mizan yüklemesi veya veri aktarım hatasıdır; derhal kırmızı bayrakla uyar.
+2. KDVK 17 İSTİSNALARI VE 600 HASILAT / KDV İLİŞKİSİ:
+   - Ağız ve Diş Sağlığı Merkezi (Diş Hekimliği): 600 Hasılat yüksek olsa dahi (örn: 10 Milyon TL), KDVK Madde 17/1 (Üniversite hastane/sağlık hizmetleri) kapsamında KDV hesaplanmaz (0 TL olması mevzuata uygundur).
+   - Sürekli Eğitim Merkezi (USEM): Kurs ve eğitim hasılatları KDVK Madde 17/2-b kapsamında KDV'den istisnadır. KDV'nin 0 TL olması mevzuatla tam uyumludur.
+   - DTS, UBATAM, TÖMER, TADAUM, DÖSİM: Genel oranda (%20 veya %10) KDV'ye tabidir. Hasılat varken KDV olmaması durumunda uyarı verilmelidir.
+3. 2 NOLU KDV TEVKİFAT FATURALARI:
+   - Üniversiteye kesilen faturalarda tevkifat oranları 9/10 (temizlik, güvenlik, yemek, işgücü) veya 7/10 (yapım işleri, bakım-onarım, laboratuvar/dental) olmalıdır.
+   - VKN 10 haneli, TCKN 11 haneli olmalıdır.
+4. DAMGA VERGİSİ (360.03.05):
+   - Kamu idarelerince yapılan istihkaktan binde 9,48 oranında damga vergisi kesilir.
+5. MİZAN BÜTÜNLÜĞÜ VE EKSİK EVRAKLAR:
+   - Bir birimde Aylık Mizan yoksa ve kümülatiften türetildiyse bunu açıkça belirt.
+   - Ters bakiye (191'in alacak vermesi, 391'in borç vermesi vb.) olup olmadığını belirt.
+
+DÖNEM: $yil / ${ay.toString().padLeft(2, '0')}
+
+ANALİZ EDİLEN BİRİMLER VE BULGULAR:
+${raporBuffer.toString()}
+
+CANLI SİSTEM VE İŞLEM GÜNLÜĞÜ:
+$logMetni
+
+İSTENEN RAPOR FORMATI (Lütfen tam Türkçe ve Markdown formatında sun):
+# 🏛️ T.C. Üniversite Döner Sermaye Beyanname Baş Denetçi Değerlendirmesi
+## 🚨 1. Gözden Kaçan Kritik Bulgular ve Anomaliler
+(Varsa 123 POS mükerrerliği, eksik evrak, VKN hataları vb.)
+## ⚖️ 2. Vergi ve Mevzuat Uyumu Değerlendirmesi (KDVK 17, KDV2 Tevkifat, Damga)
+(Birim birim mevzuata uygunluk durumları)
+## 📋 3. Birim Bazlı Özet Tablo ve Tespitler
+## 💡 4. Mali Müşavir Eylem Planı ve Düzeltme Önerileri
+(Kullanıcının beyannameyi vermeden önce yapması gereken somut adımlar)
+''';
+
+    final text = await _calistirAiModel(ayarlar: ayarlar, prompt: prompt);
+    return (text ?? '').trim().isEmpty ? 'AI Uzman Analizi yanıt üretemedi.' : text!.trim();
+  }
+
   /// OpenRouter / OpenAI uyumlu REST API çağrısı
   Future<String?> _runOpenRouter({
     required String apiUrl,

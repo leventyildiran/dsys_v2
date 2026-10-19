@@ -56,7 +56,7 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -95,15 +95,19 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
           tabs: [
             Tab(
               icon: const Icon(Icons.table_view_rounded, size: 18),
-              text: 'Nereden Nereye İcmali (${rapor.neredenNereyeListesi.length} Kayıt)',
+              text: 'Nereden Nereye İcmali (${rapor.neredenNereyeListesi.length})',
             ),
             Tab(
               icon: const Icon(Icons.shield_outlined, size: 18),
-              text: '10 Senaryolu Çapraz Denetim (${rapor.denetimKontrolleri.length} Test)',
+              text: '11 Senaryolu Çapraz Denetim (${rapor.denetimKontrolleri.length})',
             ),
             Tab(
               icon: const Icon(Icons.terminal_rounded, size: 18),
-              text: 'Canlı İşlem & OCR Günlüğü (${provider.aiAjanLoglari.length} Kayıt)',
+              text: 'Canlı İşlem Günlüğü (${provider.aiAjanLoglari.length})',
+            ),
+            const Tab(
+              icon: Icon(Icons.psychology_rounded, size: 18),
+              text: '🤖 AI Baş Denetçi (Gözden Kaçanlar)',
             ),
           ],
         ),
@@ -121,6 +125,7 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
                 _buildNeredenNereyeTab(rapor),
                 _buildCaprazDenetimTab(rapor),
                 _buildIslemGunluguTab(provider),
+                _buildAiBasDenetciTab(provider, rapor),
               ],
             ),
           ),
@@ -594,6 +599,26 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
+                const SizedBox(width: 8),
+                FilledButton.tonalIcon(
+                  onPressed: () {
+                    _tabController.animateTo(3);
+                    if (provider.sonAiUzmanAnalizi == null && !provider.isAiUzmanAnaliziYukleniyor) {
+                      provider.aiUzmanGunlukAnaliziCalistir();
+                    }
+                  },
+                  icon: const Icon(Icons.psychology_rounded, size: 14, color: Color(0xFF38BDF8)),
+                  label: const Text(
+                    '🤖 AI Baş Denetçiye İncelet',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF38BDF8), fontWeight: FontWeight.bold),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F172A),
+                    side: const BorderSide(color: Color(0xFF38BDF8)),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
               ],
             ),
           ),
@@ -671,6 +696,246 @@ class _AiDenetimRaporDialogState extends State<AiDenetimRaporDialog> with Single
                 );
               },
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==================== 4. SEKME: AI BAŞ DENETÇİ MÜTALAASI ====================
+  Widget _buildAiBasDenetciTab(BeyannameProvider provider, BeyannameAjanRaporu rapor) {
+    final analizi = provider.sonAiUzmanAnalizi;
+    final yukleniyor = provider.isAiUzmanAnaliziYukleniyor;
+
+    return Container(
+      color: AppColors.background,
+      child: Column(
+        children: [
+          // Üst Bilgi ve Eylem Çubuğu
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              border: Border(bottom: BorderSide(color: AppColors.border)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySubtle,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.psychology_rounded, size: 22, color: AppColors.primary),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '🏛️ Üniversite Döner Sermaye & Beyanname AI Baş Denetçi Mütalaası',
+                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Canlı işlem günlüğü, mizanlar, KDVK 17 sağlık/eğitim istisnaları, 123 POS ve tevkifat faturaları taranarak gözden kaçanlar listelenir.',
+                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                if (analizi != null && !yukleniyor) ...[
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: analizi));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('✓ AI Baş Denetçi mütalaası panoya kopyalandı.'),
+                          backgroundColor: AppColors.success,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.copy_rounded, size: 14),
+                    label: const Text('Raporu Kopyala', style: TextStyle(fontSize: 11.5)),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                ElevatedButton.icon(
+                  onPressed: yukleniyor
+                      ? null
+                      : () async {
+                          try {
+                            await provider.aiUzmanGunlukAnaliziCalistir();
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('AI Baş Denetçi hatası: $e'),
+                                  backgroundColor: AppColors.danger,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  icon: yukleniyor
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white))
+                      : const Icon(Icons.refresh_rounded, size: 15),
+                  label: Text(
+                    yukleniyor ? 'Denetleniyor...' : (analizi == null ? 'Analizi Başlat' : 'Yeniden Denetlet'),
+                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Ana Gövde
+          Expanded(
+            child: yukleniyor
+                ? Center(
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 550),
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(15),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.primary),
+                          ),
+                          SizedBox(height: 20),
+                          Text(
+                            'AI Baş Denetçi & Mali Müşavir İncelemesi Yürütülüyor...',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            '• Canlı işlem ve OCR günlüğü satır satır taranıyor\n'
+                            '• 7 birimin 600 Hasılat, 123 POS ve 391/191 KDV tutarları karşılaştırılıyor\n'
+                            '• KDVK 17 sağlık/eğitim istisnaları ve tevkifat oranları denetleniyor\n'
+                            '• Olası mükerrerlik ve gözden kaçan anomaliler tespit ediliyor...',
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : (analizi == null
+                    ? Center(
+                        child: Container(
+                          constraints: const BoxConstraints(maxWidth: 600),
+                          padding: const EdgeInsets.all(32),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primarySubtle,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.psychology_rounded, size: 40, color: AppColors.primary),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Gözden Kaçanları Bulmak İçin AI Baş Denetçiyi Çalıştırın',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 10),
+                              const Text(
+                                'Bu modül; canlı terminal günlüğünüzdeki tüm OCR ve mizan adımlarını, 7 birimin hesaplarını ve çapraz mutabakatları derinlemesine inceler.\n\n'
+                                'Örneğin Diş Hekimliği ile DTS arasındaki olası 123 POS mükerrerliklerini, eksik mizan yüklemelerini, KDVK 17/1 sağlık ve 17/2-b eğitim KDV muafiyetlerini kontrol eder ve somut öneriler sunar.',
+                                style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary, height: 1.45),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 24),
+                              ElevatedButton.icon(
+                                onPressed: () async {
+                                  try {
+                                    await provider.aiUzmanGunlukAnaliziCalistir();
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('AI Baş Denetçi hatası: $e'),
+                                          backgroundColor: AppColors.danger,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                                label: const Text(
+                                  '🤖 AI Baş Denetçi İncelemesini Başlat',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: AppColors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.all(20),
+                        child: Center(
+                          child: Container(
+                            constraints: const BoxConstraints(maxWidth: 1000),
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.border),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withAlpha(8),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: SelectableText(
+                              analizi,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                color: AppColors.textPrimary,
+                                height: 1.55,
+                                fontFamily: 'Segoe UI',
+                              ),
+                            ),
+                          ),
+                        ),
+                      )),
           ),
         ],
       ),
