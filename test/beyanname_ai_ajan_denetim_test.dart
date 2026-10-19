@@ -380,9 +380,42 @@ KDV Tevkifat (7/10): 1.400,00 TL
 
       final senaryo11 = rapor.denetimKontrolleri.where((k) => k.senaryoNo == 11).firstOrNull;
       expect(senaryo11, isNotNull);
-      expect(senaryo11!.seviye, equals(DenetimSeviyesi.uyari));
+      expect(senaryo11!.seviye, equals(DenetimSeviyesi.hata));
       expect(senaryo11.baslik, contains('Mükerrer 123 POS'));
       expect(senaryo11.bulunanDeger, equals(3325718.15));
+    });
+
+    test('Konsolide Mizan Koruması: DTS yanlış yüklenen kurum mizanından 123 POS devralamaz', () {
+      // 17 sayfalık konsolide kurum mizanı (600: 11.85M, 123: 3.32M)
+      const konsolideMizanMetni = '''
+123 BANKA KREDİ KARTLARINDAN ALACAKLAR HESABI 3.325.718,15 4.514.188,95 0,00 1.188.470,80
+600 GELİRLER HESABI 0,00 11.852.016,76 0,00 11.852.016,76
+''';
+      // DTS'nin gerçek yıllık mizanı (600: 1.14M, 123: YOK)
+      const dtsYillikMetin = '''
+600 GELİRLER HESABI 0,00 1.147.750,00 0,00 1.147.750,00
+''';
+
+      final dtsSonuc = MizanDeterministikParser.analizEt(
+        birimAdi: 'Deri, Tekstil ve Seramik Tasarım Uygulama ve Araştırma Merkezi (DTS)',
+        aylikMizanMetni: konsolideMizanMetni,
+        yillikMizanMetni: dtsYillikMetin,
+        oncekiAylarHasilat: 0.0,
+      );
+
+      // DTS'nin hasılatı kendi mizanı (1.14M) olmalı, konsolide mizan (11.8M) DTS'yi ezmemeli
+      expect(dtsSonuc.hasilat600Kumulatif, equals(1147750.00));
+      // DTS sağlık/hasta polikliniği olmadığı için 123 POS kesinlikle 0 TL olmalı
+      expect(dtsSonuc.krediKarti123, equals(0.0));
+
+      // Aynı konsolide mizan Diş Hekimliği için analiz edildiğinde Diş kendi POS'unu alır
+      final disSonuc = MizanDeterministikParser.analizEt(
+        birimAdi: 'Ağız ve Diş Sağlığı Uygulama ve Araştırma Merkezi',
+        aylikMizanMetni: konsolideMizanMetni,
+        yillikMizanMetni: dtsYillikMetin,
+        oncekiAylarHasilat: 0.0,
+      );
+      expect(disSonuc.krediKarti123, equals(3325718.15));
     });
   });
 }

@@ -726,19 +726,34 @@ class MizanDeterministikParser {
     var yillikHesaplar = parseHesaplar(yillikMizanMetni);
     final yardimciHesaplar = parseHesaplar(yardimciMizanMetni);
 
-    // Akıllı Slot Koruması: Kullanıcı yanlışlıkla Yıllık Mizanı Aylık kutusuna,
-    // Aylık Mizanı da Yıllık kutusuna yüklediyse tarihlerden veya 600 büyüklüğünden otomatik düzelt!
+    // Akıllı Slot ve Konsolide Mizan Koruması:
+    // 1) Eğer aylık mizan metninin 600 hasılatı birimin yıllık hasılatının 2.5 katından büyükse (örn. 11.8M vs 1.1M),
+    //    bu dosya o birimin değil kurumun konsolide (tüm birimler) mizanıdır! Birimin kendi mizanını ezmemelidir.
     final aylikMeta = extractMetaVeri(aylikMizanMetni);
     final yillikMeta = extractMetaVeri(yillikMizanMetni);
+    final bKey = BirimAdlandirma.canonicalKey(birimAdi);
+    final isSaglikPosBirimi = bKey.contains('dis') || bKey.contains('hastane') || bKey.contains('saglik') || bKey.contains('tip');
+
+    bool isAylikKonsolideMizan = false;
     if (aylikHesaplar.isNotEmpty && yillikHesaplar.isNotEmpty) {
       final hAylik600 = aylikHesaplar['600']?.alacak ?? 0.0;
       final hYillik600 = yillikHesaplar['600']?.alacak ?? 0.0;
-      final tersYuklenmis = (aylikMeta.isYillikKumulatif && !yillikMeta.isYillikKumulatif) ||
-          (hAylik600 > 0 && hYillik600 > 0 && hAylik600 > hYillik600 * 1.05);
-      if (tersYuklenmis) {
-        final tmp = aylikHesaplar;
-        aylikHesaplar = yillikHesaplar;
-        yillikHesaplar = tmp;
+
+      if (hAylik600 > 0 && hYillik600 > 0 && hAylik600 > hYillik600 * 2.5) {
+        // Kurum Geneli Konsolide Mizan saptandı (DTS veya diğer birim klasörüne yanlışlıkla atılmış konsolide dosya)
+        isAylikKonsolideMizan = true;
+        if (!isSaglikPosBirimi) {
+          // Sağlık harici birim ise konsolide mizan bu birimin aylık mizanı sayılamaz
+          aylikHesaplar = {};
+        }
+      } else {
+        final tersYuklenmis = (aylikMeta.isYillikKumulatif && !yillikMeta.isYillikKumulatif) ||
+            (hAylik600 > 0 && hYillik600 > 0 && hAylik600 > hYillik600 * 1.05 && hAylik600 <= hYillik600 * 2.5);
+        if (tersYuklenmis) {
+          final tmp = aylikHesaplar;
+          aylikHesaplar = yillikHesaplar;
+          yillikHesaplar = tmp;
+        }
       }
     } else if (aylikHesaplar.isNotEmpty && yillikHesaplar.isEmpty && aylikMeta.isYillikKumulatif && oncekiAylarHasilat > 0) {
       // Sadece yıllık mizan Aylık kutusuna yüklendiyse ve önceki aylar biliniyorsa
@@ -775,11 +790,19 @@ class MizanDeterministikParser {
       hasilat600Kumulatif = double.parse((oncekiAylarHasilat + hasilat600Aylik).toStringAsFixed(2));
     }
 
-    // 123 Kredi Kartı / POS
+    // 123 Kredi Kartı / POS:
+    // Üniversite döner sermayesinde sadece hasta kabul / poliklinik yapan sağlık birimlerinde (Ağız ve Diş Sağlığı)
+    // POS terminali tahsilatı bulunur. Tasarım, tarımsal, kurs vb. merkezlere konsolide mizandan POS sızması engellenir.
     double krediKarti123 = 0.0;
     if (hasAylik && aylikHesaplar.containsKey('123')) {
-      krediKarti123 = aylikHesaplar['123']!.borc;
-    } else if (hasYillik && yillikHesaplar.containsKey('123')) {
+      final posAdayi = aylikHesaplar['123']!.borc;
+      if (isSaglikPosBirimi) {
+        // Diş Hekimliği kendi POS terminali tahsilatını eksiksiz alır
+        krediKarti123 = posAdayi;
+      } else if (!isAylikKonsolideMizan && (hasilat600Aylik == 0 || posAdayi <= hasilat600Aylik)) {
+        krediKarti123 = posAdayi;
+      }
+    } else if (isSaglikPosBirimi && hasYillik && yillikHesaplar.containsKey('123')) {
       krediKarti123 = yillikHesaplar['123']!.borc;
     }
 

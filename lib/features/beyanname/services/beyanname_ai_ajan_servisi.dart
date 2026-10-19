@@ -91,8 +91,8 @@ class BeyannameAiAjanServisi {
         // - Yardımcı defterler yüzlerce sayfa olabilir (özet için ilk 15 sayfa yeterlidir)
         // - Diğer ek evraklar (max 20 sayfa yeterlidir)
         final defaultMax = belge.slotTuru == BirimBelgeSlotTuru.yardimciMizan
-            ? 15
-            : (belge.slotTuru == BirimBelgeSlotTuru.diger ? 20 : 35);
+            ? 50
+            : 100;
         final maxPages = maxPagesOverride ?? defaultMax;
         final pagesToExtract = min(totalPages, maxPages);
 
@@ -131,6 +131,7 @@ class BeyannameAiAjanServisi {
     required int yil,
     required int ay,
     required Map<String, Map<BirimBelgeSlotTuru, BirimYuklenenBelge>> yuklenenBelgeler,
+    Map<String, List<BirimYuklenenBelge>>? birimBelgeListeleri,
     required Map<String, double> birimOncekiAylarHasilat,
     required double oncekiAydanDevredenKdv,
     String? sadeceBuBirim,
@@ -153,8 +154,26 @@ class BeyannameAiAjanServisi {
       );
     }
 
+    // Birim başına tüm belgelerin eksiksiz listesini hazırla
+    final Map<String, List<BirimYuklenenBelge>> aktifBirimDosyalari = {};
+    if (birimBelgeListeleri != null && birimBelgeListeleri.isNotEmpty) {
+      for (final e in birimBelgeListeleri.entries) {
+        if (e.value.isNotEmpty) {
+          aktifBirimDosyalari[e.key] = List.from(e.value);
+        }
+      }
+    }
+    // Geriye dönük uyumluluk: Eğer liste boşsa yuklenenBelgeler haritasından al
+    if (aktifBirimDosyalari.isEmpty) {
+      for (final e in yuklenenBelgeler.entries) {
+        if (e.value.isNotEmpty) {
+          aktifBirimDosyalari[e.key] = e.value.values.toList();
+        }
+      }
+    }
+
     // Yalnızca en az 1 belgesi yüklenmiş aktif birimleri filtrele
-    List<String> doluBirimler = yuklenenBelgeler.entries
+    List<String> doluBirimler = aktifBirimDosyalari.entries
         .where((e) => e.value.isNotEmpty)
         .map((e) => e.key)
         .toList();
@@ -187,7 +206,7 @@ class BeyannameAiAjanServisi {
 
     int toplamDosya = 0;
     for (final b in doluBirimler) {
-      toplamDosya += yuklenenBelgeler[b]?.length ?? 0;
+      toplamDosya += aktifBirimDosyalari[b]?.length ?? 0;
     }
 
     final motorBilgisi = isOfflineMod
@@ -208,22 +227,28 @@ class BeyannameAiAjanServisi {
     // BİRİM BİRİM SIRALI İŞLEME DÖNGÜSÜ
     for (int i = 0; i < toplamBirimSayisi; i++) {
       final birimAdi = doluBirimler[i];
-      final birimBelgeleri = yuklenenBelgeler[birimAdi] ?? {};
+      final birimDosyalari = aktifBirimDosyalari[birimAdi] ?? [];
 
       final birimIlerlemeBaslangic = (i / toplamBirimSayisi);
       final birimIlerlemeBitis = ((i + 1) / toplamBirimSayisi);
 
       yield AjanLogMesaji(
         zaman: DateTime.now(),
-        mesaj: '⏳ [${i + 1}/$toplamBirimSayisi] $birimAdi için analiz başlatılıyor...',
+        mesaj: '⏳ [${i + 1}/$toplamBirimSayisi] $birimAdi için analiz başlatılıyor (${birimDosyalari.length} evrak)...',
         birimAdi: birimAdi,
         ilerlemeYuzdesi: birimIlerlemeBaslangic,
       );
 
-      final aylikMizanBelgesi = birimBelgeleri[BirimBelgeSlotTuru.aylikMizan];
-      final yardimciMizanBelgesi = birimBelgeleri[BirimBelgeSlotTuru.yardimciMizan];
-      final yillikMizanBelgesi = birimBelgeleri[BirimBelgeSlotTuru.yillikMizan];
-      final digerBelge = birimBelgeleri[BirimBelgeSlotTuru.diger];
+      final aylikMizanBelgesi = birimDosyalari.where((b) => b.slotTuru == BirimBelgeSlotTuru.aylikMizan).firstOrNull;
+      final yillikMizanBelgesi = birimDosyalari.where((b) => b.slotTuru == BirimBelgeSlotTuru.yillikMizan).firstOrNull;
+      final yardimciMizanBelgesi = birimDosyalari.where((b) => b.slotTuru == BirimBelgeSlotTuru.yardimciMizan).firstOrNull;
+
+      // Ana mizan belgeleri haricindeki TÜM belgeler (Ödeme emirleri, faturalar, yolluklar, tevkifat evrakları)
+      final ekBelgeler = birimDosyalari.where((b) =>
+        b != aylikMizanBelgesi &&
+        b != yillikMizanBelgesi &&
+        b != yardimciMizanBelgesi,
+      ).toList();
 
       // 1. Aylık Mizan Metni ve Dosyası
       String aylikMizanMetni = '';
@@ -264,129 +289,157 @@ class BeyannameAiAjanServisi {
         yillikMizanMetni = await belgeMetniniCikar(yillikMizanBelgesi);
       }
 
-      // 4. Diğer Belgeler (Tevkifat Faturaları ve Ek Evraklar)
-      String digerBelgeMetni = '';
+      // 4. Diğer Belgeler (Tüm Tevkifat Faturaları, Ödeme Emirleri ve Ek Evraklar)
       final tevkifatFaturaListesi = <Map<String, dynamic>>[];
       final metindekiGecerliVknler = <String>[];
-      if (digerBelge != null) {
-        digerBelgeMetni = await belgeMetniniCikar(digerBelge);
-        try {
-          final textForFatura = digerBelgeMetni.length > 25000
-              ? digerBelgeMetni.substring(0, 25000)
-              : digerBelgeMetni;
 
-          // Belgedeki tüm resmi doğrulanmış VKN/TCKN adaylarını çıkar (AI OCR rakam kaymasını onarmak için)
-          for (final match in RegExp(r'\b\d{10,11}\b').allMatches(textForFatura)) {
-            final raw = match.group(0)!;
-            if ((raw.length == 10 && BeyannameDenetimServisi.dogrulaVkn(raw)) ||
-                (raw.length == 11 && BeyannameDenetimServisi.dogrulaTckn(raw))) {
-              if (!metindekiGecerliVknler.contains(raw)) {
-                metindekiGecerliVknler.add(raw);
+      if (ekBelgeler.isNotEmpty) {
+        yield AjanLogMesaji(
+          zaman: DateTime.now(),
+          mesaj: '📁 [$birimAdi] Toplam ${ekBelgeler.length} adet ek evrak (ödeme emirleri ve faturalar) tek tek taranıyor...',
+          birimAdi: birimAdi,
+          ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.18 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
+        );
+
+        for (int k = 0; k < ekBelgeler.length; k++) {
+          final digerBelge = ekBelgeler[k];
+          final digerBelgeMetni = await belgeMetniniCikar(digerBelge);
+          try {
+            final textForFatura = digerBelgeMetni.length > 25000
+                ? digerBelgeMetni.substring(0, 25000)
+                : digerBelgeMetni;
+
+            // Belgedeki tüm resmi doğrulanmış VKN/TCKN adaylarını çıkar
+            for (final match in RegExp(r'\b\d{10,11}\b').allMatches(textForFatura)) {
+              final raw = match.group(0)!;
+              if ((raw.length == 10 && BeyannameDenetimServisi.dogrulaVkn(raw)) ||
+                  (raw.length == 11 && BeyannameDenetimServisi.dogrulaTckn(raw))) {
+                if (!metindekiGecerliVknler.contains(raw)) {
+                  metindekiGecerliVknler.add(raw);
+                }
               }
             }
-          }
 
-          // 1. Öncelik: Tevkifat faturasına özel deterministik ayrıştırıcı
-          final ozelTevkifatlar = MizanDeterministikParser.parseTevkifatFaturalari(textForFatura);
-          if (ozelTevkifatlar.isNotEmpty) {
-            tevkifatFaturaListesi.addAll(ozelTevkifatlar);
-          } else {
-            // 2. Yedek: FaturaOfflineParser
-            final faturalar = FaturaOfflineParser.parse(textForFatura);
-            for (final f in faturalar) {
-              if (f.kalemler.isNotEmpty) {
-                var firma = f.firmaAdi.trim();
-                var vkn = f.vergiNo.trim();
+            // 1. Öncelik: Tevkifat faturasına özel deterministik ayrıştırıcı
+            final ozelTevkifatlar = MizanDeterministikParser.parseTevkifatFaturalari(textForFatura);
+            if (ozelTevkifatlar.isNotEmpty) {
+              for (final ot in ozelTevkifatlar) {
+                final mtr = TurkceFormat.parseSayi(ot['matrahTutari']);
+                final mukerrer = tevkifatFaturaListesi.any(
+                  (t) => mtr > 0 && (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0,
+                );
+                if (!mukerrer) tevkifatFaturaListesi.add(ot);
+              }
+            } else {
+              // 2. Yedek: FaturaOfflineParser
+              final faturalar = FaturaOfflineParser.parse(textForFatura);
+              for (final f in faturalar) {
+                if (f.kalemler.isNotEmpty) {
+                  var firma = f.firmaAdi.trim();
+                  var vkn = f.vergiNo.trim();
 
-                if (firma.isEmpty ||
-                    firma.toLowerCase() == 'firma' ||
-                    firma.toLowerCase() == 'bilinmeyen firma' ||
-                    firma.toUpperCase().contains('ÜNİVERSİTE')) {
-                  for (final line in textForFatura.split('\n')) {
-                    final l = line.trim();
-                    final u = l.toUpperCase();
-                    if (l.length > 5 &&
-                        !u.contains('ÜNİVERSİTE') &&
-                        !u.contains('DÖNER SERMAYE') &&
-                        (u.contains('A.Ş') ||
-                            u.contains('LTD') ||
-                            u.contains('ŞTİ') ||
-                            u.contains('TİC') ||
-                            u.contains('SAN'))) {
-                      firma = l;
-                      break;
+                  if (firma.isEmpty ||
+                      firma.toLowerCase() == 'firma' ||
+                      firma.toLowerCase() == 'bilinmeyen firma' ||
+                      firma.toUpperCase().contains('ÜNİVERSİTE')) {
+                    for (final line in textForFatura.split('\n')) {
+                      final l = line.trim();
+                      final u = l.toUpperCase();
+                      if (l.length > 5 &&
+                          !u.contains('ÜNİVERSİTE') &&
+                          !u.contains('DÖNER SERMAYE') &&
+                          (u.contains('A.Ş') ||
+                              u.contains('LTD') ||
+                              u.contains('ŞTİ') ||
+                              u.contains('TİC') ||
+                              u.contains('SAN'))) {
+                        firma = l;
+                        break;
+                      }
                     }
                   }
-                }
 
-                if (vkn.isEmpty ||
-                    !(BeyannameDenetimServisi.dogrulaVkn(vkn) ||
-                        BeyannameDenetimServisi.dogrulaTckn(vkn))) {
-                  vkn = metindekiGecerliVknler.isNotEmpty ? metindekiGecerliVknler.first : '';
-                }
+                  if (vkn.isEmpty ||
+                      !(BeyannameDenetimServisi.dogrulaVkn(vkn) ||
+                          BeyannameDenetimServisi.dogrulaTckn(vkn))) {
+                    vkn = metindekiGecerliVknler.isNotEmpty ? metindekiGecerliVknler.first : '';
+                  }
 
-                // Tevkifat oranını metinden algıla
-                String oranStr = '9/10';
-                double katsayi = 0.9;
-                final oranMatch = RegExp(r'\b([234579])\s*/\s*10\b').firstMatch(textForFatura);
-                if (oranMatch != null) {
-                  final pay = int.parse(oranMatch.group(1)!);
-                  oranStr = '$pay/10';
-                  katsayi = pay / 10.0;
-                }
+                  // Tevkifat oranını metinden algıla
+                  String oranStr = '9/10';
+                  double katsayi = 0.9;
+                  final oranMatch = RegExp(r'\b([234579])\s*/\s*10\b').firstMatch(textForFatura);
+                  if (oranMatch != null) {
+                    final pay = int.parse(oranMatch.group(1)!);
+                    oranStr = '$pay/10';
+                    katsayi = pay / 10.0;
+                  }
 
-                tevkifatFaturaListesi.add({
-                  'firmaAdi': firma.isNotEmpty ? firma : 'Düzenleyen Firma',
-                  'vergiTcNo': vkn,
-                  'matrahTutari': f.matrah,
-                  'kdvTutari': f.kdvTutari,
-                  'tevkifatTutari': double.parse((f.kdvTutari * katsayi).toStringAsFixed(2)),
-                  'tevkifatOrani': oranStr,
-                });
+                  final mtr = f.matrah;
+                  final mukerrer = tevkifatFaturaListesi.any(
+                    (t) => mtr > 0 && (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0,
+                  );
+                  if (!mukerrer) {
+                    tevkifatFaturaListesi.add({
+                      'firmaAdi': firma.isNotEmpty ? firma : 'Düzenleyen Firma',
+                      'vergiTcNo': vkn,
+                      'matrahTutari': f.matrah,
+                      'kdvTutari': f.kdvTutari,
+                      'tevkifatTutari': double.parse((f.kdvTutari * katsayi).toStringAsFixed(2)),
+                      'tevkifatOrani': oranStr,
+                    });
+                  }
+                }
               }
             }
-          }
-        } catch (_) {}
+          } catch (_) {}
 
-        final taranmisBelge = digerBelgeMetni.trim().length < 50;
-        if (taranmisBelge && isOfflineMod && hasGemini) {
-          // Akıllı Hibrit OCR: mizanlar yerelde okundu; SADECE taranmış evrak Gemini Vision'a gider.
-          yield AjanLogMesaji(
-            zaman: DateTime.now(),
-            mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" taranmış resim; yalnızca bu evrak Gemini Vision OCR\'a gönderiliyor...',
-            birimAdi: birimAdi,
-            ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.22 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
-          );
-          try {
-            final ocrFaturalar = await _taranmisFaturaOcr(ayarlar: ayarlar, belge: digerBelge);
-            for (final f in ocrFaturalar) {
-              final mtr = TurkceFormat.parseSayi(f['matrahTutari']);
-              final mukerrer = tevkifatFaturaListesi.any(
-                (t) => mtr > 0 && (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0,
-              );
-              if (!mukerrer) tevkifatFaturaListesi.add(f);
-            }
+          final taranmisBelge = digerBelgeMetni.trim().length < 50;
+          if (taranmisBelge && isOfflineMod && hasGemini) {
+            // Akıllı Hibrit OCR: mizanlar yerelde okundu; SADECE taranmış evrak Gemini Vision'a gider.
             yield AjanLogMesaji(
               zaman: DateTime.now(),
-              mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" taranmış resim olduğu için otomatik Gemini Vision OCR ile okundu ve tevkifat listesine eklendi (${ocrFaturalar.length} fatura).',
+              mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" taranmış resim; Gemini Vision OCR\'a gönderiliyor...',
               birimAdi: birimAdi,
-              ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.24 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
+              ilerlemeYuzdesi: birimIlerlemeBaslangic + (0.18 + (k / ekBelgeler.length) * 0.06) * (birimIlerlemeBitis - birimIlerlemeBaslangic),
             );
-          } catch (e) {
+            try {
+              final ocrFaturalar = await _taranmisFaturaOcr(ayarlar: ayarlar, belge: digerBelge);
+              for (final f in ocrFaturalar) {
+                final mtr = TurkceFormat.parseSayi(f['matrahTutari']);
+                final mukerrer = tevkifatFaturaListesi.any(
+                  (t) => mtr > 0 && (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0,
+                );
+                if (!mukerrer) tevkifatFaturaListesi.add(f);
+              }
+              yield AjanLogMesaji(
+                zaman: DateTime.now(),
+                mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" Gemini Vision ile okundu ve listeye eklendi (${ocrFaturalar.length} fatura).',
+                birimAdi: birimAdi,
+              );
+            } catch (e) {
+              yield AjanLogMesaji(
+                zaman: DateTime.now(),
+                mesaj: '⚠️ [$birimAdi] Taranmış evrak OCR başarısız: $e',
+                birimAdi: birimAdi,
+              );
+            }
+          } else if (taranmisBelge && isOfflineMod) {
             yield AjanLogMesaji(
               zaman: DateTime.now(),
-              mesaj: '⚠️ [$birimAdi] Taranmış evrak OCR başarısız: $e. Faturayı tevkifat tablosuna elle girebilirsiniz.',
+              mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" taranmış resim (dijital metin yok). Gemini API anahtarı tanımlı olmadığı için OCR yapılamadı.',
               birimAdi: birimAdi,
-              ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.24 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
             );
           }
-        } else if (taranmisBelge && isOfflineMod) {
-          yield AjanLogMesaji(
-            zaman: DateTime.now(),
-            mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" taranmış resim (dijital metin yok). Gemini API anahtarı tanımlı olmadığı için OCR yapılamadı; faturayı elle giriniz.',
-            birimAdi: birimAdi,
-            ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.22 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
-          );
+
+          // Çok sayıda dosya varsa (örn. 68 evrak) kullanıcıya her 10 dosyada veya son dosyada ilerleme bildir
+          if (ekBelgeler.length > 5 && ((k + 1) % 10 == 0 || k == ekBelgeler.length - 1)) {
+            yield AjanLogMesaji(
+              zaman: DateTime.now(),
+              mesaj: '📄 [$birimAdi] ${k + 1}/${ekBelgeler.length} evrak incelendi (${tevkifatFaturaListesi.length} tevkifat faturası tespit edildi).',
+              birimAdi: birimAdi,
+            );
+          }
         }
       }
 
@@ -420,7 +473,7 @@ class BeyannameAiAjanServisi {
       BirimMizanAnalizSonucu? sonuc;
 
       // Çevrimdışı/Hızlı moddaysa VEYA ek fatura görseli olmayıp mizan kural tabanlı tam okunduysa doğrudan deterministik sonucu kullan!
-      final bool mizanTamOkunduVeEkBelgeYok = hasDeterministikVeri && digerBelge == null;
+      final bool mizanTamOkunduVeEkBelgeYok = hasDeterministikVeri && ekBelgeler.isEmpty;
       if (isOfflineMod || mizanTamOkunduVeEkBelgeYok) {
         sonuc = deterministikSonuc;
       } else {
@@ -432,7 +485,7 @@ class BeyannameAiAjanServisi {
           aylikMizanMetni: aylikMizanMetni,
           yardimciMizanMetni: yardimciMizanMetni,
           yillikMizanMetni: yillikMizanMetni,
-          digerBelgeMetni: digerBelgeMetni,
+          digerBelgeMetni: ekBelgeler.isNotEmpty ? '(${ekBelgeler.length} adet ek evrak incelendi)' : '',
         );
 
         final contentParts = <Part>[];
@@ -455,7 +508,9 @@ class BeyannameAiAjanServisi {
         addMediaPartIfApplicable(aylikMizanBelgesi, aylikMizanMetni);
         addMediaPartIfApplicable(yardimciMizanBelgesi, yardimciMizanMetni);
         addMediaPartIfApplicable(yillikMizanBelgesi, yillikMizanMetni);
-        addMediaPartIfApplicable(digerBelge, digerBelgeMetni);
+        for (final eb in ekBelgeler) {
+          addMediaPartIfApplicable(eb, '');
+        }
         contentParts.add(TextPart(prompt));
 
         yield AjanLogMesaji(
@@ -791,11 +846,12 @@ Görev: Bu farkın olası nedenlerini, ilgili mevzuatı (KDVK, DVK, GVK) ve beya
 
       raporBuffer.writeln('\nÇAPRAZ DENETİM VE MUTABAKAT TESTLERİ:');
       for (final d in rapor.denetimKontrolleri) {
-        final durumStr = d.durum == DenetimSonucDurumu.basarili
+        final durumStr = d.seviye == DenetimSeviyesi.bilgi
             ? 'BAŞARILI'
-            : (d.durum == DenetimSonucDurumu.kritikHata ? 'KRİTİK HATA' : 'İNCELEME UYARISI');
+            : (d.seviye == DenetimSeviyesi.hata ? 'KRİTİK HATA' : 'İNCELEME UYARISI');
+        final birimEtiket = d.birimAdi.isNotEmpty ? d.birimAdi : 'TÜM BİRİMLER';
         raporBuffer.writeln(
-          '- [$durumStr] ${d.birimAdi ?? 'TÜM BİRİMLER'} - ${d.baslik}: ${d.aciklama} '
+          '- [$durumStr] $birimEtiket - ${d.baslik}: ${d.aciklama} '
           '${d.fark != null ? '(Fark: ${TurkceFormat.para(d.fark!)})' : ''}',
         );
       }

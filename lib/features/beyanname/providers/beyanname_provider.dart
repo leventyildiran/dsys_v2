@@ -1751,6 +1751,7 @@ class BeyannameProvider with ChangeNotifier {
       yil: _seciliYil,
       ay: _seciliAy,
       yuklenenBelgeler: _yuklenenBelgeler,
+      birimBelgeListeleri: _birimBelgeListeleri,
       birimOncekiAylarHasilat: birimOncekiAylar,
       oncekiAydanDevredenKdv: _oncekiAydanDevredenKdv,
       sadeceBuBirim: sadeceBuBirim,
