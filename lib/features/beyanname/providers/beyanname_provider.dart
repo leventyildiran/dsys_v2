@@ -1408,8 +1408,9 @@ class BeyannameProvider with ChangeNotifier {
     if (!_birimBelgeListeleri.containsKey(birimAdi)) {
       _birimBelgeListeleri[birimAdi] = [];
     }
+    // Sadece AYNI DOSYA ADI varsa güncelle, farklı isimli belgeleri yeni satır olarak ekle
     final mevcutIndex = _birimBelgeListeleri[birimAdi]!.indexWhere(
-      (b) => b.dosyaAdi == dosyaAdi || (slotTuru != BirimBelgeSlotTuru.diger && b.slotTuru == slotTuru),
+      (b) => b.dosyaAdi == dosyaAdi,
     );
     if (mevcutIndex >= 0) {
       _birimBelgeListeleri[birimAdi]![mevcutIndex] = belge;
@@ -1578,12 +1579,20 @@ class BeyannameProvider with ChangeNotifier {
           (aktifBirimler.isNotEmpty ? aktifBirimler.first : 'Genel');
       var hedefSlot = sinif.slotTuru;
 
-      // Eğer aynı birimin o mizan yuvası zaten doluysa ve diğer mizan yuvası boşsa akıllı yerleştir
-      final mevcutSlotlar = _yuklenenBelgeler[hedefBirim] ?? {};
-      if (hedefSlot == BirimBelgeSlotTuru.aylikMizan &&
-          mevcutSlotlar.containsKey(BirimBelgeSlotTuru.aylikMizan) &&
-          !mevcutSlotlar.containsKey(BirimBelgeSlotTuru.yillikMizan)) {
+      // Eğer birimin o slotu doluysa ve başka bir slot boşsa akıllı dağıt
+      final mevcutListeler = _birimBelgeListeleri[hedefBirim] ?? [];
+      final hasAylik = mevcutListeler.any((b) => b.slotTuru == BirimBelgeSlotTuru.aylikMizan);
+      final hasYillik = mevcutListeler.any((b) => b.slotTuru == BirimBelgeSlotTuru.yillikMizan);
+      final hasYardimci = mevcutListeler.any((b) => b.slotTuru == BirimBelgeSlotTuru.yardimciMizan);
+
+      if (hedefSlot == BirimBelgeSlotTuru.aylikMizan && hasAylik && !hasYillik) {
         hedefSlot = BirimBelgeSlotTuru.yillikMizan;
+      } else if (hedefSlot == BirimBelgeSlotTuru.yardimciMizan && hasYardimci && !hasAylik && d.dosyaAdi.toLowerCase().contains('aylik')) {
+        // "Tarımsal Yardımcı Defter Aylık.pdf" gibi bir dosya varsa ve aylık mizan henüz yoksa aylık mizan yuvasına ata
+        hedefSlot = BirimBelgeSlotTuru.aylikMizan;
+      } else if (hedefSlot == BirimBelgeSlotTuru.yardimciMizan && hasYardimci) {
+        // İkinci bir yardımcı defter gelirse üzerine yazmasın, Diğer/Ekstra olarak da listelensin
+        hedefSlot = BirimBelgeSlotTuru.diger;
       }
 
       belgeYukle(
