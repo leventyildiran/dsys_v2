@@ -2,7 +2,7 @@ name: Web Build & Deploy
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -42,7 +42,7 @@ jobs:
     name: Firebase Hosting
     runs-on: ubuntu-latest
     needs: build-web
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
     steps:
