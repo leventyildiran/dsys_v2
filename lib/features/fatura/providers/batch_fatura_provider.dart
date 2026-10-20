@@ -699,9 +699,15 @@ class BatchFaturaProvider extends ChangeNotifier {
     debugPrint('[loadBatch] Gelen evrak: metin=${text.length} karakter, pdfBytes=${pdfBytes?.length ?? 0} byte');
 
     if (cevrimdisi) {
+      final offlineSonuc = FaturaOfflineParser.parse(text);
+      if (offlineSonuc.isNotEmpty) {
+        sonAyristirmaBilgisi = offlineSonuc.first.parsedBy;
+        final dogrulanmis = FaturaDogrulamaServisi.dogrulaList(offlineSonuc);
+        _kuyrukProvider.setInvoicesFromParse(dogrulanmis, append: append);
+        return;
+      }
       throw Exception(
-        'Çevrimdışı modda fatura okunamaz. '
-        'İnternet bağlantısını kontrol edip tekrar deneyin.',
+        'Çevrimdışı modda metinden fatura verisi çıkarılamadı.',
       );
     }
 
@@ -758,6 +764,15 @@ class BatchFaturaProvider extends ChangeNotifier {
   }) async {
     final csvText = await ExcelUniversalParser.extractText(bytes, fileName: fileName);
     if (csvText.isEmpty) throw Exception('Excel dosyası boş veya okunamadı.');
+
+    // 1. Tercih: Excel dökümü doğrudan Gemini AI API'ye gitsin
+    try {
+      debugPrint('[loadExcelFile] Excel içeriği Gemini API\'ye gönderiliyor (' + csvText.length + ' karakter)...');
+      await loadBatch(csvText, append: append);
+      return;
+    } catch (e) {
+      debugPrint('[loadExcelFile] AI API okuma başarısız (' + e + '), yerel kural motoruna geçiliyor...');
+    }
 
     final lines = csvText
         .split('\n')
