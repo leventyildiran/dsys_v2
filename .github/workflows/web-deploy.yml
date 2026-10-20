@@ -2,7 +2,7 @@ name: Web Build & Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:
 
 permissions:
@@ -42,7 +42,7 @@ jobs:
     name: Firebase Hosting
     runs-on: ubuntu-latest
     needs: build-web
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     permissions:
       contents: read
     steps:
@@ -58,7 +58,7 @@ jobs:
         run: |
           if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" ]; then
             echo "::error::FIREBASE_SERVICE_ACCOUNT secret tanımlı değil."
-            echo "Yerelde: .\\scripts\\setup_firebase_github_secret.ps1"
+            echo "Yerelde: .\scripts\setup_firebase_github_secret.ps1"
             exit 1
           fi
 
