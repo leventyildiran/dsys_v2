@@ -793,17 +793,17 @@ class MizanDeterministikParser {
     // 123 Kredi Kartı / POS:
     // Üniversite döner sermayesinde sadece hasta kabul / poliklinik yapan sağlık birimlerinde (Ağız ve Diş Sağlığı)
     // POS terminali tahsilatı bulunur. Tasarım, tarımsal, kurs vb. merkezlere konsolide mizandan POS sızması engellenir.
+    // Kullanıcı kuralı: Diş Hekimliği kredi kartı tutarı için YILLIK MİZANDAKİ 123 Borç Kalan (bakiye) tutarına bakılır.
     double krediKarti123 = 0.0;
-    if (hasAylik && aylikHesaplar.containsKey('123')) {
-      final posAdayi = aylikHesaplar['123']!.borc;
-      if (isSaglikPosBirimi) {
-        // Diş Hekimliği kendi POS terminali tahsilatını eksiksiz alır
-        krediKarti123 = posAdayi;
-      } else if (!isAylikKonsolideMizan && (hasilat600Aylik == 0 || posAdayi <= hasilat600Aylik)) {
-        krediKarti123 = posAdayi;
+    if (isSaglikPosBirimi) {
+      if (hasYillik && yillikHesaplar.containsKey('123') && yillikHesaplar['123']!.borcKalan > 0) {
+        krediKarti123 = yillikHesaplar['123']!.borcKalan;
+      } else if (hasAylik && aylikHesaplar.containsKey('123')) {
+        final posBakiye = aylikHesaplar['123']!.borcKalan;
+        krediKarti123 = posBakiye > 0 ? posBakiye : aylikHesaplar['123']!.borc;
+      } else if (hasYillik && yillikHesaplar.containsKey('123')) {
+        krediKarti123 = yillikHesaplar['123']!.borcKalan;
       }
-    } else if (isSaglikPosBirimi && hasYillik && yillikHesaplar.containsKey('123')) {
-      krediKarti123 = yillikHesaplar['123']!.borc;
     }
 
     // --- 2. 391 Hesaplanan KDV (%10 ve %20) ---

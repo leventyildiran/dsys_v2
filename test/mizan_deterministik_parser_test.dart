@@ -77,7 +77,7 @@ YURTİÇİ SATIŞLAR HESABI
 
       expect(sonuc.hasilat600Aylik, 541552.17);
       expect(sonuc.hesaplananKdv20, 108310.43);
-      expect(sonuc.hesaplananKdvMatrah20, 541552.15);
+      expect(sonuc.hesaplananKdvMatrah20, 541552.17);
       expect(sonuc.indirilecekKdv20, 16247.44);
       expect(sonuc.damgaVergisi360, 770.12);
       expect(sonuc.damgaMatrah, closeTo(81236.29, 0.05));
