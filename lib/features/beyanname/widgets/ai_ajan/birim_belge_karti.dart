@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/turkce_format.dart';
 import '../../models/beyanname_belge_model.dart';
 import '../../providers/beyanname_provider.dart';
 import 'toplu_belge_yukleme_diyalogu.dart';
+import 'ai_denetim_rapor_dialog.dart';
+import 'tekil_fatura_ai_dialog.dart';
 
 /// Birim başına yüklenen evrakları aşağıya doğru listeleyen,
 /// tür değiştirmeye ve tek tek yönetmeye olanak tanıyan modern kart bileşeni.
@@ -24,6 +27,7 @@ class BirimBelgeKarti extends StatelessWidget {
     final hasYillik = belgeler.any((b) => b.slotTuru == BirimBelgeSlotTuru.yillikMizan);
     final isTamDolu = hasAylik && hasYillik;
     final yukluSayisi = belgeler.length;
+    final birimSonuc = provider.getBirimAnalizSonucu(birimAdi);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -173,6 +177,179 @@ class BirimBelgeKarti extends StatelessWidget {
             _buildBosEvrakAlani(context)
           else
             _buildEvrakListesi(context, belgeler),
+
+          // 3. Birim Analiz ve Denetim Özeti (Her Birim İçin Bağımsız Rapor ve Gösterge)
+          if (birimSonuc != null) ...[
+            const SizedBox(height: 8),
+            _buildBirimAnalizOzeti(context, birimSonuc),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Birim için çıkarılan verileri ve bağımsız rapor butonunu gösteren modern özet alanı
+  Widget _buildBirimAnalizOzeti(BuildContext context, BirimMizanAnalizSonucu sonuc) {
+    final denetimler = provider.getBirimDenetimKayitlari(birimAdi);
+    final hasHata = denetimler.any((d) => d.seviye == DenetimSeviyesi.hata);
+    final hasUyari = denetimler.any((d) => d.seviye == DenetimSeviyesi.uyari);
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant.withAlpha(50),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: hasHata
+              ? AppColors.danger.withAlpha(120)
+              : (hasUyari ? AppColors.warning.withAlpha(120) : AppColors.success.withAlpha(120)),
+          width: 1.0,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Başlık ve Eylemler
+          Row(
+            children: [
+              Icon(
+                hasHata
+                    ? Icons.warning_amber_rounded
+                    : (hasUyari ? Icons.info_outline_rounded : Icons.check_circle_rounded),
+                size: 15,
+                color: hasHata
+                    ? AppColors.danger
+                    : (hasUyari ? AppColors.warning : AppColors.success),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '📊 $birimAdi Analiz Çıktısı & Birim Denetimi (${sonuc.analizTarihi.hour.toString().padLeft(2, "0")}:${sonuc.analizTarihi.minute.toString().padLeft(2, "0")})',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+
+              // Bu birime özel rapor butonu (Diğer birimlerle karışmaz)
+              OutlinedButton.icon(
+                onPressed: () {
+                  final birimRapor = provider.getBirimRaporu(birimAdi);
+                  if (birimRapor != null) {
+                    AiDenetimRaporDialog.goster(
+                      context,
+                      rapor: birimRapor,
+                      provider: provider,
+                    );
+                  }
+                },
+                icon: const Icon(Icons.description_outlined, size: 13),
+                label: Text(
+                  '$birimAdi Raporu (${denetimler.length})',
+                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary, width: 0.8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              const SizedBox(width: 6),
+
+              // Masaya Aktar / Yenile Butonu
+              FilledButton.tonalIcon(
+                onPressed: () {
+                  provider.birimVerileriniMasayaAktar(birimAdi);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('✓ $birimAdi verileri masalara aktarıldı ve güncellendi.'),
+                      backgroundColor: AppColors.success,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.sync_rounded, size: 13),
+                label: const Text(
+                  'Masaya Aktar',
+                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
+                ),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Değer Kutucukları (KDV, 600, 123, Damga, Tevkifat)
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _buildVeriKutusu(
+                '600 Net Hasılat',
+                TurkceFormat.para(sonuc.hasilat600Aylik),
+                AppColors.primary,
+              ),
+              if (sonuc.krediKarti123 > 0)
+                _buildVeriKutusu(
+                  '123 POS (Borç Kalan)',
+                  TurkceFormat.para(sonuc.krediKarti123),
+                  AppColors.info,
+                ),
+              _buildVeriKutusu(
+                'Hesaplanan KDV (391)',
+                TurkceFormat.para(sonuc.toplamHesaplananKdv),
+                AppColors.textPrimary,
+              ),
+              _buildVeriKutusu(
+                'İndirilecek KDV (191)',
+                TurkceFormat.para(sonuc.toplamIndirilecekKdv),
+                AppColors.textSecondary,
+              ),
+              if (sonuc.damgaVergisi360 > 0)
+                _buildVeriKutusu(
+                  '360 Damga',
+                  TurkceFormat.para(sonuc.damgaVergisi360),
+                  AppColors.neutral,
+                ),
+              if (sonuc.tevkifatFaturalari.isNotEmpty)
+                _buildVeriKutusu(
+                  'Tevkifat Faturası',
+                  '${sonuc.tevkifatFaturalari.length} Adet',
+                  AppColors.success,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVeriKutusu(String etiket, String deger, Color vurgu) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(etiket, style: const TextStyle(fontSize: 9.5, color: AppColors.textMuted)),
+          const SizedBox(height: 1),
+          Text(
+            deger,
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: vurgu),
+          ),
         ],
       ),
     );
@@ -242,6 +419,8 @@ class BirimBelgeKarti extends StatelessWidget {
 
   /// Aşağıya doğru listelenen tek bir evrak satırı
   Widget _buildTekilBelgeSatiri(BuildContext context, BirimYuklenenBelge b) {
+    final isFaturaSlot = b.slotTuru == BirimBelgeSlotTuru.diger || b.slotTuru == BirimBelgeSlotTuru.faturaListesi;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -289,7 +468,43 @@ class BirimBelgeKarti extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
+
+          // Tekil AI Fatura Çözümleme Butonu (İstenen tekil AI okuma)
+          if (isFaturaSlot)
+            FilledButton.tonalIcon(
+              onPressed: () => TekilFaturaAiDialog.goster(
+                context,
+                birimAdi: birimAdi,
+                belge: b,
+                provider: provider,
+              ),
+              icon: const Icon(Icons.auto_awesome, size: 12, color: AppColors.primary),
+              label: const Text(
+                'AI ile Faturayı Çöz',
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primarySubtle,
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                visualDensity: VisualDensity.compact,
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.auto_awesome, size: 14, color: AppColors.primary),
+              tooltip: 'Bu Belgeyi AI ile Çözümle',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+              onPressed: () => TekilFaturaAiDialog.goster(
+                context,
+                birimAdi: birimAdi,
+                belge: b,
+                provider: provider,
+              ),
+            ),
+
+          const SizedBox(width: 6),
 
           // Yuva / Tür Değiştirme Butonu (Dropdown Pill)
           _buildSlotSeciciPill(context, b),

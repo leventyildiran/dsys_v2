@@ -48,7 +48,9 @@ class AjanLogMesaji {
 /// Sıralı, kontrollü, hata dayanımlı ve faturadaki evrensel okuma modüllerini
 /// kullanan Akıllı Beyanname Mizan & Belge Ajanı Servisi.
 class BeyannameAiAjanServisi {
-  final SistemAyarlariService _ayarlarService = SistemAyarlariService();
+  SistemAyarlariService? _ayarlarServiceInstance;
+  SistemAyarlariService get _ayarlarService =>
+      _ayarlarServiceInstance ??= SistemAyarlariService();
 
   /// Fatura modülündeki evrensel parser'ları ve PDF text extractor'ı kullanarak
   /// belge içeriğinden saf metni çıkarır.
@@ -759,6 +761,126 @@ class BeyannameAiAjanServisi {
       sonuc.add(m);
     }
     return sonuc;
+  }
+
+  /// Tek bir faturayı (veya ek evrakı) AI ve kural tabanlı motorla çözümler.
+  /// Firma adı, VKN/TCKN, Matrah, KDV, Tevkifat Oranı ve Tevkifat Tutarını kuruşu kuruşuna çıkarır.
+  Future<Map<String, dynamic>?> tekilFaturaAiCozumle(BirimYuklenenBelge belge) async {
+    final ayarlar = await _ayarlarService.getAyarlar();
+    final hasAi = ayarlar.geminiApiKey.trim().isNotEmpty || ayarlar.deepseekApiKey.trim().isNotEmpty;
+
+    // 1. Belgeden metin çıkar
+    final metin = await belgeMetniniCikar(belge);
+    final textForFatura = metin.length > 25000 ? metin.substring(0, 25000) : metin;
+
+    // 2. Deterministik & Offline ayrıştırmayı öncelikle dene (Hızlı & Kesin)
+    Map<String, dynamic>? offlineSonuc;
+    if (textForFatura.trim().isNotEmpty) {
+      final tevkifatlar = MizanDeterministikParser.parseTevkifatFaturalari(textForFatura);
+      if (tevkifatlar.isNotEmpty) {
+        offlineSonuc = Map<String, dynamic>.from(tevkifatlar.first);
+      } else {
+        final faturalar = FaturaOfflineParser.parse(textForFatura);
+        if (faturalar.isNotEmpty && faturalar.first.kalemler.isNotEmpty) {
+          final f = faturalar.first;
+          final mtr = f.matrah > 0 ? f.matrah : f.genelToplam;
+          final kdv = f.kdvTutari;
+          final tvk = kdv * 0.9;
+          offlineSonuc = {
+            'firmaAdi': f.firmaAdi.isNotEmpty ? f.firmaAdi : 'Firma',
+            'vergiTcNo': f.vergiNo.isNotEmpty ? f.vergiNo : '',
+            'matrahTutari': mtr,
+            'kdvTutari': kdv,
+            'tevkifatTutari': tvk,
+            'tevkifatOrani': '9/10',
+            'faturaNo': '',
+          };
+        }
+      }
+    }
+
+    // 3. AI anahtarı varsa veya offline sonuç yetersizse AI ile derin analiz yap
+    if (hasAi) {
+      try {
+        final prompt = '''
+Sen Türkiye Vergi Mevzuatında (KDVK, KDV 2 Genel Tebliği) uzman bir mali müşavirsin.
+Ekteki metin/belge bir kamu kurumuna kesilmiş FATURA veya TEVKİFAT EVRAKIDIR.
+Görevin bu belgedeki bilgileri okuyup KDV 2 Tevkifat masasına girilecek alanları kuruşu kuruşuna tespit etmektir.
+
+Çıkarılacak alanlar:
+1. "firmaAdi": Faturayı düzenleyen (satan) firmanın tam ticari unvanı. Asla alıcı üniversiteyi veya uydurma isim yazma.
+2. "vergiTcNo": Satan firmanın 10 haneli VKN veya 11 haneli TCKN numarası.
+3. "faturaNo": Belgedeki Fatura Numarası (örn. GIB2024000000123). Yoksa boş bırak.
+4. "faturaTarihi": Fatura Tarihi (GG.AA.YYYY).
+5. "matrahTutari": Tevkifata konu KDV HARIÇ matrah tutarı (double, örn: 15000.00).
+6. "kdvOrani": KDV Oranı (tam sayı: 20, 10, 8, 1 vb.).
+7. "kdvTutari": Faturadaki toplam KDV tutarı (double).
+8. "tevkifatOrani": Tevkifat oranı (örn: "9/10", "7/10", "5/10", "2/10", "3/10", "4/10" vb.).
+9. "tevkifatTutari": Tevkif edilen / kesilen KDV tutarı (double).
+10. "tevkifatTuru": Tevkifat hizmet türü (örn: "Temizlik Hizmeti", "Özel Güvenlik", "Bakım Onarım", "Danışmanlık", "Yemek Servisi" vb.).
+11. "aciklama": Belge içeriği özeti.
+
+SADECE geçerli bir JSON döndür, başka hiçbir metin veya markdown ekleme:
+{
+  "firmaAdi": "",
+  "vergiTcNo": "",
+  "faturaNo": "",
+  "faturaTarihi": "",
+  "matrahTutari": 0.0,
+  "kdvOrani": 20,
+  "kdvTutari": 0.0,
+  "tevkifatOrani": "9/10",
+  "tevkifatTutari": 0.0,
+  "tevkifatTuru": "",
+  "aciklama": ""
+}
+${textForFatura.isNotEmpty ? "\nBELGE METNİ:\n$textForFatura" : ""}
+''';
+
+        List<Part>? parts;
+        if (textForFatura.trim().isEmpty && belge.dosyaBytes != null && belge.dosyaBytes!.isNotEmpty) {
+          final ext = belge.dosyaUzantisi.toLowerCase().replaceAll('.', '').trim();
+          final mime = ext == 'png'
+              ? 'image/png'
+              : (ext == 'jpg' || ext == 'jpeg' ? 'image/jpeg' : 'application/pdf');
+          parts = [DataPart(mime, belge.dosyaBytes!), TextPart(prompt)];
+        }
+
+        final aiYanit = await _calistirAiModel(
+          ayarlar: ayarlar,
+          prompt: prompt,
+          geminiParts: parts,
+        );
+
+        if (aiYanit != null && aiYanit.trim().isNotEmpty) {
+          final json = _parseCleanJson(aiYanit);
+          if (json != null) {
+            final m = Map<String, dynamic>.from(json);
+            final vkn = (m['vergiTcNo']?.toString() ?? '').replaceAll(RegExp(r'[^\d]'), '');
+            final gecerli = (vkn.length == 10 && BeyannameDenetimServisi.dogrulaVkn(vkn)) ||
+                (vkn.length == 11 && BeyannameDenetimServisi.dogrulaTckn(vkn));
+            m['vergiTcNo'] = gecerli ? vkn : (offlineSonuc?['vergiTcNo'] ?? vkn);
+            m['matrahTutari'] = TurkceFormat.parseSayi(m['matrahTutari']);
+            m['kdvTutari'] = TurkceFormat.parseSayi(m['kdvTutari']);
+            m['tevkifatTutari'] = TurkceFormat.parseSayi(m['tevkifatTutari']);
+            m['tevkifatOrani'] = m['tevkifatOrani']?.toString() ?? '9/10';
+            if (m['firmaAdi'] == null || m['firmaAdi'].toString().trim().isEmpty) {
+              m['firmaAdi'] = offlineSonuc?['firmaAdi'] ?? 'Firma';
+            }
+            if (TurkceFormat.parseSayi(m['matrahTutari']) == 0 && offlineSonuc != null) {
+              m['matrahTutari'] = offlineSonuc['matrahTutari'];
+              m['kdvTutari'] = offlineSonuc['kdvTutari'];
+              m['tevkifatTutari'] = offlineSonuc['tevkifatTutari'];
+            }
+            return m;
+          }
+        }
+      } catch (e) {
+        debugPrint('[tekilFaturaAiCozumle] AI çözümleme hatası: $e');
+      }
+    }
+
+    return offlineSonuc;
   }
 
   String _buildSadeceFaturaOcrPrompt() {

@@ -17,10 +17,16 @@ import '../services/mizan_deterministik_parser.dart';
 import '../../../core/turkce_format.dart';
 
 class BeyannameProvider with ChangeNotifier {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final BirimService _birimService = BirimService();
-  final BeyannameKonfigurasyonServisi _konfigServisi =
-      BeyannameKonfigurasyonServisi();
+  FirebaseFirestore? _firestoreHarici;
+  FirebaseFirestore get _firestore =>
+      _firestoreHarici ??= FirebaseFirestore.instance;
+
+  BirimService? _birimServiceHarici;
+  BirimService get _birimService => _birimServiceHarici ??= BirimService();
+
+  BeyannameKonfigurasyonServisi? _konfigServisiHarici;
+  BeyannameKonfigurasyonServisi get _konfigServisi =>
+      _konfigServisiHarici ??= BeyannameKonfigurasyonServisi();
 
   /// Yapılandırma dışarıdan (constructor) verildiyse Firestore'dan ezilmez.
   bool _konfigHarici = false;
@@ -1317,7 +1323,9 @@ class BeyannameProvider with ChangeNotifier {
   // =========================================================================
   // AKILLI MİZAN & BELGE AJANI (AI DESTEKLİ BEYANNAME HAZIRLAMA)
   // =========================================================================
-  final BeyannameAiAjanServisi _aiAjanServisi = BeyannameAiAjanServisi();
+  BeyannameAiAjanServisi? _aiAjanServisiInstance;
+  BeyannameAiAjanServisi get _aiAjanServisi =>
+      _aiAjanServisiInstance ??= BeyannameAiAjanServisi();
 
   /// Denetim kartındaki "Canlı Mütalaa Al" butonu için AI yorumu.
   Future<String> denetimMutalaasiAl(MutabakatKontrolKaydi k) {
@@ -1361,6 +1369,186 @@ class BeyannameProvider with ChangeNotifier {
 
   BeyannameAjanRaporu? _sonAjanRaporu;
   BeyannameAjanRaporu? get sonAjanRaporu => _sonAjanRaporu;
+
+  /// Her birimin bağımsız, kalıcı ve üzerine yazılmayan son analiz çıktısı.
+  final Map<String, BirimMizanAnalizSonucu> _birimAnalizSonuclari = {};
+  Map<String, BirimMizanAnalizSonucu> get birimAnalizSonuclari =>
+      Map.unmodifiable(_birimAnalizSonuclari);
+
+  /// Birim bazlı çapraz denetim ve hata kayıtları (Birime özel rapor için)
+  final Map<String, List<MutabakatKontrolKaydi>> _birimDenetimKayitlari = {};
+
+  /// Birim bazlı "Nereden Nereye" şeffaf denetim izi kayıtları
+  final Map<String, List<NeredenNereyeKaydi>> _birimNeredenNereye = {};
+
+  /// Belirli bir birimin analiz sonucunu getirir (Canonical key toleranslı)
+  BirimMizanAnalizSonucu? getBirimAnalizSonucu(String birimAdi) {
+    if (_birimAnalizSonuclari.containsKey(birimAdi)) {
+      return _birimAnalizSonuclari[birimAdi];
+    }
+    final cKey = BirimAdlandirma.canonicalKey(birimAdi);
+    for (final e in _birimAnalizSonuclari.entries) {
+      if (BirimAdlandirma.canonicalKey(e.key) == cKey) return e.value;
+    }
+    return null;
+  }
+
+  /// Birime ait denetim kayıtları
+  List<MutabakatKontrolKaydi> getBirimDenetimKayitlari(String birimAdi) {
+    if (_birimDenetimKayitlari.containsKey(birimAdi)) {
+      return _birimDenetimKayitlari[birimAdi]!;
+    }
+    final cKey = BirimAdlandirma.canonicalKey(birimAdi);
+    for (final e in _birimDenetimKayitlari.entries) {
+      if (BirimAdlandirma.canonicalKey(e.key) == cKey) return e.value;
+    }
+    return const [];
+  }
+
+  /// Birime ait nereden nereye kayıtları
+  List<NeredenNereyeKaydi> getBirimNeredenNereye(String birimAdi) {
+    if (_birimNeredenNereye.containsKey(birimAdi)) {
+      return _birimNeredenNereye[birimAdi]!;
+    }
+    final cKey = BirimAdlandirma.canonicalKey(birimAdi);
+    for (final e in _birimNeredenNereye.entries) {
+      if (BirimAdlandirma.canonicalKey(e.key) == cKey) return e.value;
+    }
+    return const [];
+  }
+
+  /// Yalnızca bu birime ait bağımsız, izole edilmiş denetim raporunu üretir
+  BeyannameAjanRaporu? getBirimRaporu(String birimAdi) {
+    final sonuc = getBirimAnalizSonucu(birimAdi);
+    if (sonuc == null) return null;
+    final denetimler = getBirimDenetimKayitlari(birimAdi);
+    final neredenNereye = getBirimNeredenNereye(birimAdi);
+    final belgeler = getBirimBelgeleri(birimAdi);
+
+    return BeyannameAjanRaporu(
+      id: 'rapor_${BirimAdlandirma.canonicalKey(birimAdi)}_${_seciliYil}_$_seciliAy',
+      yil: _seciliYil,
+      ay: _seciliAy,
+      olusturulmaTarihi: sonuc.analizTarihi,
+      analizEdilenBirimler: [birimAdi],
+      toplamDosyaSayisi: belgeler.length,
+      birimSonuclari: {birimAdi: sonuc},
+      neredenNereyeListesi: neredenNereye,
+      denetimKontrolleri: denetimler,
+    );
+  }
+
+  /// Yalnızca tek bir birimin analiz sonuçlarını beyanname masalarına (KDV1, Damga, 600, Tevkifat)
+  /// diğer birimleri etkilemeden, çift sayma yapmadan (idempotent) aktarır.
+  void birimVerileriniMasayaAktar(String birimAdi) {
+    final sonuc = getBirimAnalizSonucu(birimAdi);
+    if (sonuc == null) return;
+
+    final tekBirimRaporu = BeyannameAjanRaporu(
+      id: 'aktar_${BirimAdlandirma.canonicalKey(birimAdi)}_${DateTime.now().millisecondsSinceEpoch}',
+      yil: _seciliYil,
+      ay: _seciliAy,
+      olusturulmaTarihi: DateTime.now(),
+      analizEdilenBirimler: [birimAdi],
+      toplamDosyaSayisi: getBirimBelgeleri(birimAdi).length,
+      birimSonuclari: {birimAdi: sonuc},
+      neredenNereyeListesi: getBirimNeredenNereye(birimAdi),
+      denetimKontrolleri: getBirimDenetimKayitlari(birimAdi),
+    );
+
+    aiAjanVerileriniUygula(tekBirimRaporu, uzerineEkle: false);
+  }
+
+  /// Tekil bir faturayı AI ile analiz eder
+  Future<Map<String, dynamic>?> tekilFaturaAiCozumle(BirimYuklenenBelge belge) {
+    return _aiAjanServisi.tekilFaturaAiCozumle(belge);
+  }
+
+  /// Tekil çözümlenen veya düzenlenen faturayı birimin analiz sonucuna ve KDV 2 masasına kaydeder.
+  void tekilFaturaKaydet({
+    required String birimAdi,
+    required Map<String, dynamic> faturaMap,
+    bool masayaAktar = true,
+  }) {
+    final fAdi = (faturaMap['firmaAdi'] as String? ?? 'Firma').trim();
+    final vNo = (faturaMap['vergiTcNo'] as String? ?? '').trim();
+    final mtr = TurkceFormat.parseSayi(faturaMap['matrahTutari']);
+    final kdv = TurkceFormat.parseSayi(faturaMap['kdvTutari']);
+    final tvk = TurkceFormat.parseSayi(faturaMap['tevkifatTutari']);
+    final oran = (faturaMap['tevkifatOrani'] as String? ?? '9/10').trim();
+    final kdvOrani = (faturaMap['kdvOrani'] as num?)?.toInt() ?? 20;
+
+    // 1. Birimin analiz sonucundaki tevkifat listesini güncelle
+    final mevcutSonuc = getBirimAnalizSonucu(birimAdi);
+    if (mevcutSonuc != null) {
+      final yeniTevkifatlar = List<Map<String, dynamic>>.from(mevcutSonuc.tevkifatFaturalari);
+      final idx = yeniTevkifatlar.indexWhere((t) =>
+          (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0 &&
+          (t['vergiTcNo'] == vNo || t['firmaAdi']?.toString().toLowerCase() == fAdi.toLowerCase()));
+      if (idx >= 0) {
+        yeniTevkifatlar[idx] = Map<String, dynamic>.from(faturaMap);
+      } else {
+        yeniTevkifatlar.add(Map<String, dynamic>.from(faturaMap));
+      }
+      _birimAnalizSonuclari[birimAdi] = BirimMizanAnalizSonucu(
+        birimAdi: birimAdi,
+        analizTarihi: DateTime.now(),
+        hasilat600Aylik: mevcutSonuc.hasilat600Aylik,
+        hasilat600Kumulatif: mevcutSonuc.hasilat600Kumulatif,
+        krediKarti123: mevcutSonuc.krediKarti123,
+        hesaplananKdvMatrah10: mevcutSonuc.hesaplananKdvMatrah10,
+        hesaplananKdv10: mevcutSonuc.hesaplananKdv10,
+        hesaplananKdvMatrah20: mevcutSonuc.hesaplananKdvMatrah20,
+        hesaplananKdv20: mevcutSonuc.hesaplananKdv20,
+        indirilecekKdvMatrah10: mevcutSonuc.indirilecekKdvMatrah10,
+        indirilecekKdv10: mevcutSonuc.indirilecekKdv10,
+        indirilecekKdvMatrah20: mevcutSonuc.indirilecekKdvMatrah20,
+        indirilecekKdv20: mevcutSonuc.indirilecekKdv20,
+        damgaVergisi360: mevcutSonuc.damgaVergisi360,
+        damgaMatrah: mevcutSonuc.damgaMatrah,
+        muhtasarGelir360: mevcutSonuc.muhtasarGelir360,
+        muhtasarDamga360: mevcutSonuc.muhtasarDamga360,
+        devredenKdv190: mevcutSonuc.devredenKdv190,
+        tevkifatFaturalari: yeniTevkifatlar,
+        yardimciMizanKullanildi: mevcutSonuc.yardimciMizanKullanildi,
+        yardimciMizan391Toplam: mevcutSonuc.yardimciMizan391Toplam,
+        yardimciMizan191Toplam: mevcutSonuc.yardimciMizan191Toplam,
+        yardimciMizan600Toplam: mevcutSonuc.yardimciMizan600Toplam,
+        aciklama: mevcutSonuc.aciklama,
+      );
+    }
+
+    // 2. KDV 2 Masasına Ekle/Güncelle (Mükerrerlik engellenir)
+    if (masayaAktar && mtr > 0) {
+      final existingIndex = _tevkifatKayitlari.indexWhere((x) =>
+          BirimAdlandirma.canonicalKey(x.birimAdi ?? '') == BirimAdlandirma.canonicalKey(birimAdi) &&
+          ((x.matrahTutari - mtr).abs() < 1.0 || (vNo.isNotEmpty && x.vergiTcNo == vNo)));
+
+      final kayit = TevkifatFirmaKaydi(
+        id: existingIndex >= 0
+            ? _tevkifatKayitlari[existingIndex].id
+            : 'tvk_ai_${BirimAdlandirma.canonicalKey(birimAdi)}_${DateTime.now().microsecondsSinceEpoch}',
+        firmaAdi: fAdi,
+        vergiTcNo: vNo,
+        tevkifatTuru: TevkifatTuru.fromString(oran),
+        tevkifatEtiketi: oran,
+        kdvOrani: kdvOrani,
+        matrahTutari: mtr,
+        kdvTutari: kdv,
+        tevkifatTutari: tvk,
+        birimAdi: birimAdi,
+      );
+
+      if (existingIndex >= 0) {
+        _tevkifatKayitlari[existingIndex] = kayit;
+      } else {
+        _tevkifatKayitlari.add(kayit);
+      }
+    }
+
+    _tetikleYerelTaslakKaydi();
+    notifyListeners();
+  }
 
   bool _isAiUzmanAnaliziYukleniyor = false;
   bool get isAiUzmanAnaliziYukleniyor => _isAiUzmanAnaliziYukleniyor;
@@ -1517,12 +1705,18 @@ class BeyannameProvider with ChangeNotifier {
   void birimBelgeleriniTemizle(String birimAdi) {
     _yuklenenBelgeler.remove(birimAdi);
     _birimBelgeListeleri.remove(birimAdi);
+    _birimAnalizSonuclari.remove(birimAdi);
+    _birimDenetimKayitlari.remove(birimAdi);
+    _birimNeredenNereye.remove(birimAdi);
     notifyListeners();
   }
 
   void tumBelgeleriTemizle() {
     _yuklenenBelgeler.clear();
     _birimBelgeListeleri.clear();
+    _birimAnalizSonuclari.clear();
+    _birimDenetimKayitlari.clear();
+    _birimNeredenNereye.clear();
     _sonAjanRaporu = null;
     _aiAjanLoglari.clear();
     _aiAjanIlerleme = 0.0;
@@ -1758,8 +1952,50 @@ class BeyannameProvider with ChangeNotifier {
       hizliDeterministikMod: hizliDeterministikMod,
       onTamamlandi: (rapor) {
         _isAiAjanCalisiyor = false;
-        _sonAjanRaporu = rapor;
         _aiAjanIlerleme = 1.0;
+
+        // 1. Birim sonuçlarını kalıcı haritaya ekle / güncelle
+        for (final entry in rapor.birimSonuclari.entries) {
+          _birimAnalizSonuclari[entry.key] = entry.value;
+        }
+
+        // 2. Birim denetim kontrollerini ve nereden-nereye kayıtlarını ayrıştırıp sakla
+        for (final b in rapor.birimSonuclari.keys) {
+          _birimDenetimKayitlari[b] = [];
+          _birimNeredenNereye[b] = [];
+        }
+        for (final k in rapor.denetimKontrolleri) {
+          _birimDenetimKayitlari.putIfAbsent(k.birimAdi, () => []).add(k);
+        }
+        for (final nn in rapor.neredenNereyeListesi) {
+          _birimNeredenNereye.putIfAbsent(nn.birimAdi, () => []).add(nn);
+        }
+
+        // 3. Konsolide _sonAjanRaporu'nu güncelle (Tüm analiz edilen birimleri kapsasın)
+        final tumBirimSonuclari = Map<String, BirimMizanAnalizSonucu>.from(_birimAnalizSonuclari);
+        final tumDenetimler = <MutabakatKontrolKaydi>[];
+        for (final list in _birimDenetimKayitlari.values) {
+          tumDenetimler.addAll(list);
+        }
+        final tumNeredenNereye = <NeredenNereyeKaydi>[];
+        for (final list in _birimNeredenNereye.values) {
+          tumNeredenNereye.addAll(list);
+        }
+
+        _sonAjanRaporu = BeyannameAjanRaporu(
+          id: rapor.id,
+          yil: _seciliYil,
+          ay: _seciliAy,
+          olusturulmaTarihi: rapor.olusturulmaTarihi,
+          analizEdilenBirimler: tumBirimSonuclari.keys.toList(),
+          toplamDosyaSayisi: toplamYuklenenBelgeSayisi,
+          birimSonuclari: tumBirimSonuclari,
+          neredenNereyeListesi: tumNeredenNereye.isNotEmpty ? tumNeredenNereye : rapor.neredenNereyeListesi,
+          denetimKontrolleri: tumDenetimler.isNotEmpty ? tumDenetimler : rapor.denetimKontrolleri,
+          uygulandiMi: rapor.uygulandiMi,
+          uygulanmaTarihi: rapor.uygulanmaTarihi,
+        );
+
         if (otomatikMasalaraAktar) {
           aiAjanVerileriniUygula(rapor, uzerineEkle: false);
         } else {
@@ -1812,6 +2048,17 @@ class BeyannameProvider with ChangeNotifier {
     final toplamMizan190 = rapor.birimSonuclari.values.fold(0.0, (s, x) => s + x.devredenKdv190);
     if (toplamMizan190 > 0 && (_oncekiAydanDevredenKdv == 0 || !uzerineEkle)) {
       _oncekiAydanDevredenKdv = toplamMizan190;
+    }
+
+    // Birim analiz sonuçlarını ve denetim kayıtlarını da güncelle
+    for (final entry in rapor.birimSonuclari.entries) {
+      _birimAnalizSonuclari[entry.key] = entry.value;
+    }
+    for (final k in rapor.denetimKontrolleri) {
+      _birimDenetimKayitlari.putIfAbsent(k.birimAdi, () => []).add(k);
+    }
+    for (final nn in rapor.neredenNereyeListesi) {
+      _birimNeredenNereye.putIfAbsent(nn.birimAdi, () => []).add(nn);
     }
 
     for (final entry in rapor.birimSonuclari.entries) {
@@ -1952,7 +2199,15 @@ class BeyannameProvider with ChangeNotifier {
         ));
       }
 
-      // 4. KDV 2 Tevkifat Faturaları Varsa Ekle veya Güncelle
+      // 4. KDV 2 Tevkifat Faturaları:
+      // Çift işlemeyi ve mükerrer faturaları kesin olarak önlemek için, bu birime ait önceki AI tarafından eklenen
+      // faturaları temizle ve güncel liste ile yenile (100% IDEMPOTENT).
+      if (!uzerineEkle && sonuc.tevkifatFaturalari.isNotEmpty) {
+        _tevkifatKayitlari.removeWhere((x) =>
+            BirimAdlandirma.canonicalKey(x.birimAdi ?? '') == BirimAdlandirma.canonicalKey(birimAdi) &&
+            x.id.startsWith('tvk_ai_'));
+      }
+
       for (final tf in sonuc.tevkifatFaturalari) {
         final fAdi = tf['firmaAdi'] as String? ?? 'Firma';
         final vNo = (tf['vergiTcNo'] as String? ?? '').trim();
@@ -1979,7 +2234,7 @@ class BeyannameProvider with ChangeNotifier {
           final kayit = TevkifatFirmaKaydi(
             id: existingIndex >= 0
                 ? _tevkifatKayitlari[existingIndex].id
-                : 'tvk_ai_${DateTime.now().millisecondsSinceEpoch}_${_tevkifatKayitlari.length}',
+                : 'tvk_ai_${BirimAdlandirma.canonicalKey(birimAdi)}_${DateTime.now().microsecondsSinceEpoch}',
             firmaAdi: fAdi,
             vergiTcNo: vNo,
             tevkifatTuru: TevkifatTuru.fromString(oran),

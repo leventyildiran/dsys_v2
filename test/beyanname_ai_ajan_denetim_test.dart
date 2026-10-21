@@ -68,7 +68,7 @@ HESAP KODU | HESAP ADI | BORÇ | ALACAK | BORÇ BAKİYESİ | ALACAK BAKİYESİ
 
       expect(sonuc.hasilat600Aylik, closeTo(150000.0, 0.01));
       expect(sonuc.hasilat600Kumulatif, closeTo(850000.0, 0.01));
-      expect(sonuc.krediKarti123, closeTo(45000.0, 0.01)); // 123 Borç hareketi
+      expect(sonuc.krediKarti123, closeTo(30000.0, 0.01)); // 123 Borç Kalan (Bakiye)
       expect(sonuc.devredenKdv190, closeTo(12500.0, 0.01));
       expect(sonuc.damgaVergisi360, closeTo(450.50, 0.01));
 

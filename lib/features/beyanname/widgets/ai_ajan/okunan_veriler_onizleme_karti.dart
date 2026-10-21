@@ -10,7 +10,7 @@ import 'ai_denetim_rapor_dialog.dart';
 /// Analiz tamamlandığında okunan mizan ve fatura verilerini tek bakışta gösteren,
 /// tevkifat faturalarındaki VKN/tutarları anında düzeltmeye ve tek tıkla masalara aktarmaya
 /// imkan tanıyan şeffaf özet paneli.
-class OkunanVerilerOnizlemeKarti extends StatelessWidget {
+class OkunanVerilerOnizlemeKarti extends StatefulWidget {
   final BeyannameAjanRaporu rapor;
   final BeyannameProvider provider;
 
@@ -21,7 +21,16 @@ class OkunanVerilerOnizlemeKarti extends StatelessWidget {
   });
 
   @override
+  State<OkunanVerilerOnizlemeKarti> createState() => _OkunanVerilerOnizlemeKartiState();
+}
+
+class _OkunanVerilerOnizlemeKartiState extends State<OkunanVerilerOnizlemeKarti> {
+  bool _daraltilmis = false;
+
+  @override
   Widget build(BuildContext context) {
+    final rapor = widget.rapor;
+    final provider = widget.provider;
     final birimler = rapor.birimSonuclari.values.toList();
     if (birimler.isEmpty) return const SizedBox.shrink();
 
@@ -55,9 +64,11 @@ class OkunanVerilerOnizlemeKarti extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: rapor.kritikHataVarMi ? AppColors.dangerSubtle : AppColors.successSubtle,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(7),
-                topRight: Radius.circular(7),
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(7),
+                topRight: const Radius.circular(7),
+                bottomLeft: _daraltilmis ? const Radius.circular(7) : Radius.zero,
+                bottomRight: _daraltilmis ? const Radius.circular(7) : Radius.zero,
               ),
             ),
             child: Wrap(
@@ -77,8 +88,8 @@ class OkunanVerilerOnizlemeKarti extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text(
                       rapor.kritikHataVarMi
-                          ? 'Okunan Veriler Önizlemesi (${rapor.kritikHataSayisi} Kritik Uyarı · ${rapor.uyariSayisi} Not)'
-                          : 'Okunan Veriler Önizlemesi — Tüm Mizan ve Fatura Kontrolleri Mutabık',
+                          ? 'Okunan Veriler Konsolide Önizlemesi (${birimler.length} Birim · ${rapor.kritikHataSayisi} Kritik Uyarı)'
+                          : 'Okunan Veriler Konsolide Önizlemesi (${birimler.length} Birim İncelendi)',
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.bold,
@@ -116,7 +127,7 @@ class OkunanVerilerOnizlemeKarti extends StatelessWidget {
                       ),
                       icon: const Icon(Icons.fact_check_outlined, size: 15),
                       label: Text(
-                        'Detaylı Denetim Raporu (${rapor.denetimKontrolleri.length})',
+                        'Konsolide Denetim Raporu (${rapor.denetimKontrolleri.length})',
                         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                       ),
                       style: OutlinedButton.styleFrom(
@@ -128,37 +139,12 @@ class OkunanVerilerOnizlemeKarti extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        provider.aiAjanVerileriniUygula(rapor, uzerineEkle: true);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('✓ Okunan veriler mevcut beyanname tablolarının üzerine eklendi.'),
-                            backgroundColor: AppColors.success,
-                            duration: Duration(seconds: 3),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.add_circle_outline_rounded, size: 15),
-                      label: const Text(
-                        'Üzerine Ekle',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        backgroundColor: AppColors.surface,
-                        side: const BorderSide(color: AppColors.primary),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
                     ElevatedButton.icon(
                       onPressed: () {
                         provider.aiAjanVerileriniUygula(rapor, uzerineEkle: false);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('✓ Mizan ve Fatura verileri KDV 1, KDV 2, Damga ve 600 Hasılat sekmelerine aktarıldı!'),
+                            content: Text('✓ Mizan ve Fatura verileri KDV 1, KDV 2, Damga ve 600 Hasılat masalarına aktarıldı ve güncellendi!'),
                             backgroundColor: AppColors.success,
                             duration: Duration(seconds: 3),
                           ),
@@ -166,7 +152,7 @@ class OkunanVerilerOnizlemeKarti extends StatelessWidget {
                       },
                       icon: const Icon(Icons.check_circle_outline_rounded, size: 15),
                       label: Text(
-                        uygulandi ? 'Masaları Tekrar Güncelle' : 'Onayla ve Masalara Aktar',
+                        uygulandi ? 'Tüm Masaları Güncelle' : 'Tümünü Masalara Aktar',
                         style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
                       ),
                       style: ElevatedButton.styleFrom(
@@ -176,13 +162,25 @@ class OkunanVerilerOnizlemeKarti extends StatelessWidget {
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
+                    const SizedBox(width: 6),
+                    IconButton(
+                      icon: Icon(
+                        _daraltilmis ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_up_rounded,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
+                      tooltip: _daraltilmis ? 'Genişlet' : 'Daralt',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => setState(() => _daraltilmis = !_daraltilmis),
+                    ),
                   ],
                 ),
               ],
             ),
           ),
 
-          // Mizan Özet Tablosu
+          if (!_daraltilmis) ...[
+            // Mizan Özet Tablosu
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -483,7 +481,7 @@ class OkunanVerilerOnizlemeKarti extends StatelessWidget {
                     final yeniMatrah = double.tryParse(matrahCtrl.text.replaceAll(',', '.')) ?? mevcutMatrah;
                     final yeniKdv = double.tryParse(kdvCtrl.text.replaceAll(',', '.')) ?? mevcutKdv;
                     final yeniTevkifat = double.tryParse(tevkifatCtrl.text.replaceAll(',', '.')) ?? mevcutTevkifat;
-                    provider.raporTevkifatFaturasiGuncelle(
+                    widget.provider.raporTevkifatFaturasiGuncelle(
                       birimAdi: birimAdi,
                       faturaIndex: faturaIndex,
                       yeniFatura: {
