@@ -1430,8 +1430,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                       final bKey = BirimAdlandirma.canonicalKey(s.birimAdi);
                       final bool isEgitimBirimi = bKey.contains('usem') ||
                           bKey.contains('tomer') ||
-                          bKey.contains('tadaum') ||
-                          bKey.contains('egitim') ||
+                                                    bKey.contains('egitim') ||
                           bKey.contains('kurs');
 
                       final bool use10;

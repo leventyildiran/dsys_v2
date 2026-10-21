@@ -824,7 +824,7 @@ class MizanDeterministikParser {
           : aktifHesaplar['391']!.alacakKalan;
       if (ana391 > 0) {
         final bKey = BirimAdlandirma.canonicalKey(birimAdi);
-        final isEgitimBirimi = bKey.contains('tomer') || bKey.contains('usem') || bKey.contains('tadaum');
+        final isEgitimBirimi = bKey.contains('tomer') || bKey.contains('usem');
         final isOran10Uyumlu = hasilat600Aylik > 0 && (ana391 - hasilat600Aylik * 0.10).abs() <= 1.0;
 
         if (isOran10Uyumlu || (isEgitimBirimi && (hasilat600Aylik == 0 || (ana391 - hasilat600Aylik * 0.20).abs() > 1.0))) {
@@ -847,6 +847,30 @@ class MizanDeterministikParser {
       }
     }
 
+    // Yıllık kümülatif mizan kullanılıyorsa ve aylık net hasılat biliniyorsa:
+    // Kümülatif mizan KDV'sinin aylık beyannameye sızmasını engelle (DTS & TADAUM koruması)
+    final bool isYillikMizandanOkundu = !hasAylik || isAylikKonsolideMizan;
+    if (isYillikMizandanOkundu) {
+      if (hasilat600Aylik == 0.0) {
+        // Bu ay hiç hasılat yoksa (TADAUM gibi), yıllık kümülatif mizan KDV'si bu aya yazılamaz
+        kdv10 = 0.0;
+        kdv20 = 0.0;
+        matrah10 = 0.0;
+        matrah20 = 0.0;
+      } else {
+        // Bu ayın hasılatı kümülatiften küçükse (DTS: 50.000 TL aylık vs 1.14M TL kümülatif):
+        // KDV tutarı kümülatif kalamaz, net aylık hasılata göre normalize edilir
+        if (kdv20 > 0 && (kdv20 > hasilat600Aylik || matrah20 > hasilat600Aylik * 1.5)) {
+          kdv20 = double.parse((hasilat600Aylik * 0.20).toStringAsFixed(2));
+          matrah20 = hasilat600Aylik;
+        }
+        if (kdv10 > 0 && (kdv10 > hasilat600Aylik || matrah10 > hasilat600Aylik * 1.5)) {
+          kdv10 = double.parse((hasilat600Aylik * 0.10).toStringAsFixed(2));
+          matrah10 = hasilat600Aylik;
+        }
+      }
+    }
+
     // --- 3. 191 İndirilecek KDV (%10 ve %20) ---
     var kdv191Kirilim = _ayristirKdvOranlari(aktifHesaplar, '191', isAlacak: false);
     if (kdv191Kirilim.kdv10 == 0.0 && kdv191Kirilim.kdv20 == 0.0 && hasYardimci) {
@@ -860,6 +884,12 @@ class MizanDeterministikParser {
       ind20 = aktifHesaplar['191']!.borc > 0
           ? aktifHesaplar['191']!.borc
           : aktifHesaplar['191']!.borcKalan;
+    }
+
+    if (isYillikMizandanOkundu) {
+      // Yıllık kümülatif 191 tutarı tek bir aya indirilecek KDV olarak yazılamaz
+      ind10 = 0.0;
+      ind20 = 0.0;
     }
 
     final double indMatrah10 = ind10 > 0 ? double.parse((ind10 / 0.10).toStringAsFixed(2)) : 0.0;
