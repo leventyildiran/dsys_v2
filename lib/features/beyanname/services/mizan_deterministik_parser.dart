@@ -766,17 +766,35 @@ class MizanDeterministikParser {
     final bool hasYardimci = yardimciHesaplar.isNotEmpty;
 
     // --- 1. 600 Hasılat & 123 POS Hesabı ---
+    // Net Satışlar: 600 Yurtiçi Satışlar (Alacak) - 610 Satıştan İadeler (Borç) - 611 Satış İskontoları (Borç)
+    double hesaplaNetHasilat(Map<String, MizanHesapSatiri> hesaplar) {
+      if (!hesaplar.containsKey('600')) return 0.0;
+      final h600 = hesaplar['600']!;
+      final brut = h600.alacak > 0 ? h600.alacak : h600.alacakKalan;
+
+      double iade = 0.0;
+      if (hesaplar.containsKey('610')) {
+        final h610 = hesaplar['610']!;
+        iade += h610.borc > 0 ? h610.borc : h610.borcKalan;
+      }
+      if (hesaplar.containsKey('611')) {
+        final h611 = hesaplar['611']!;
+        iade += h611.borc > 0 ? h611.borc : h611.borcKalan;
+      }
+
+      final net = brut - iade;
+      return double.parse((net > 0 ? net : 0.0).toStringAsFixed(2));
+    }
+
     double hasilat600Aylik = 0.0;
     double hasilat600Kumulatif = 0.0;
 
     if (hasYillik && yillikHesaplar.containsKey('600')) {
-      final h = yillikHesaplar['600']!;
-      hasilat600Kumulatif = h.alacak > 0 ? h.alacak : h.alacakKalan;
+      hasilat600Kumulatif = hesaplaNetHasilat(yillikHesaplar);
     }
 
     if (hasAylik && aylikHesaplar.containsKey('600')) {
-      final h = aylikHesaplar['600']!;
-      hasilat600Aylik = h.alacak > 0 ? h.alacak : h.alacakKalan;
+      hasilat600Aylik = hesaplaNetHasilat(aylikHesaplar);
     } else if (hasilat600Kumulatif > 0) {
       if (oncekiAylarHasilat > 0 && hasilat600Kumulatif >= oncekiAylarHasilat) {
         hasilat600Aylik = double.parse((hasilat600Kumulatif - oncekiAylarHasilat).toStringAsFixed(2));

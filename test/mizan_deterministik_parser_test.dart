@@ -137,5 +137,22 @@ DEVREDEN KDV HESABI
       expect(sonuc.hesaplananKdv20, 36000.0);
       expect(sonuc.indirilecekKdv20, 12000.0);
     });
+
+    test('610 Satıştan İadeler hesabı 600 Hasılatından net satış olarak düşülür', () {
+      const textWith610 = '''
+600 YURTİÇİ SATIŞLAR HESABI 0,00 100.000,00 0,00 100.000,00
+610 SATIŞTAN İADELER HESABI (-) 5.000,00 0,00 5.000,00 0,00
+391.05 Hesaplanan KDV %20 0,00 20.000,00 0,00 20.000,00
+''';
+
+      final sonuc = MizanDeterministikParser.analizEt(
+        birimAdi: 'DİŞ HEKİMLİĞİ',
+        aylikMizanMetni: textWith610,
+        yillikMizanMetni: '',
+      );
+
+      // 100.000 - 5.000 = 95.000 net hasılat
+      expect(sonuc.hasilat600Aylik, 95000.0);
+    });
   });
 }
