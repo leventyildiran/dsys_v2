@@ -335,7 +335,8 @@ class _OkunanVerilerOnizlemeKartiState extends State<OkunanVerilerOnizlemeKarti>
             ),
           ],
         ],
-      ),
+      ],
+    );
     );
   }
 

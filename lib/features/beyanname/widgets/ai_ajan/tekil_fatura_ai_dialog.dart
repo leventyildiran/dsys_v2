@@ -109,9 +109,9 @@ class _TekilFaturaAiDialogState extends State<TekilFaturaAiDialog> {
         _vknCtrl.text = res['vergiTcNo']?.toString() ?? '';
         _faturaNoCtrl.text = res['faturaNo']?.toString() ?? '';
         _tarihCtrl.text = res['faturaTarihi']?.toString() ?? '';
-        _matrahCtrl.text = TurkceFormat.sayiFormatli(TurkceFormat.parseSayi(res['matrahTutari']));
-        _kdvCtrl.text = TurkceFormat.sayiFormatli(TurkceFormat.parseSayi(res['kdvTutari']));
-        _tevkifatTutarCtrl.text = TurkceFormat.sayiFormatli(TurkceFormat.parseSayi(res['tevkifatTutari']));
+        _matrahCtrl.text = TurkceFormat.paraKalem(TurkceFormat.parseSayi(res['matrahTutari']));
+        _kdvCtrl.text = TurkceFormat.paraKalem(TurkceFormat.parseSayi(res['kdvTutari']));
+        _tevkifatTutarCtrl.text = TurkceFormat.paraKalem(TurkceFormat.parseSayi(res['tevkifatTutari']));
         _tevkifatTuruCtrl.text = res['tevkifatTuru']?.toString() ?? '';
 
         final kOran = (res['kdvOrani'] as num?)?.toInt() ?? 20;
@@ -149,8 +149,8 @@ class _TekilFaturaAiDialogState extends State<TekilFaturaAiDialog> {
         if (payda > 0) katsayi = pay / payda;
       }
       final tevkifat = kdv * katsayi;
-      _kdvCtrl.text = TurkceFormat.sayiFormatli(kdv);
-      _tevkifatTutarCtrl.text = TurkceFormat.sayiFormatli(tevkifat);
+      _kdvCtrl.text = TurkceFormat.paraKalem(kdv);
+      _tevkifatTutarCtrl.text = TurkceFormat.paraKalem(tevkifat);
     }
   }
 

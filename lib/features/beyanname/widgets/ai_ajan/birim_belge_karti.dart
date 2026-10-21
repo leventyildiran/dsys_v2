@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/turkce_format.dart';
 import '../../models/beyanname_belge_model.dart';
+import '../../models/beyanname_denetim_rapor_model.dart';
 import '../../providers/beyanname_provider.dart';
 import 'toplu_belge_yukleme_diyalogu.dart';
 import 'ai_denetim_rapor_dialog.dart';
