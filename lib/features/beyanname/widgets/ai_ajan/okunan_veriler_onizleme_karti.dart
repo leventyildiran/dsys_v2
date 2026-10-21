@@ -336,8 +336,8 @@ class _OkunanVerilerOnizlemeKartiState extends State<OkunanVerilerOnizlemeKarti>
           ],
         ],
       ],
-    );
-    );
+    ),
+  );
   }
 
   Widget _tutarText(double val, {bool highlight = false}) {
