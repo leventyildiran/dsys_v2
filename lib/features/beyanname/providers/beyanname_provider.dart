@@ -1703,11 +1703,123 @@ class BeyannameProvider with ChangeNotifier {
   }
 
   void birimBelgeleriniTemizle(String birimAdi) {
+    birimiTamamenSifirla(birimAdi, masalariDaTemizle: false);
+  }
+
+  /// Yalnızca ilgili birimin beyanname masalarındaki (KDV 1, Damga, 600, Tevkifat)
+  /// kayıtlarını sıfırlar / geri çeker; yüklenen evrakları ve analiz sonuçlarını korur.
+  void birimMasalariniGeriCek(String birimAdi) {
+    final cKey = BirimAdlandirma.canonicalKey(birimAdi);
+
+    // 1. KDV 1 Masası -> Sıfırla
+    final kdvIdx = _kdv1Satirlari.indexWhere((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == cKey);
+    if (kdvIdx >= 0) {
+      final s = _kdv1Satirlari[kdvIdx];
+      _kdv1Satirlari[kdvIdx] = Kdv1BirimSatiri(
+        birimId: s.birimId,
+        birimAdi: s.birimAdi,
+      );
+    }
+
+    // 2. Damga Vergisi Masası -> Sıfırla
+    final damgaIdx = _damgaSatirlari.indexWhere((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == cKey);
+    if (damgaIdx >= 0) {
+      final s = _damgaSatirlari[damgaIdx];
+      _damgaSatirlari[damgaIdx] = DamgaVergisiBirimSatiri(
+        birimId: s.birimId,
+        birimAdi: s.birimAdi,
+      );
+    }
+
+    // 3. 600 Hasılat & 123 POS Masası -> Sıfırla
+    final hasIdx = _hasiat600Satirlari.indexWhere((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == cKey);
+    if (hasIdx >= 0) {
+      final s = _hasiat600Satirlari[hasIdx];
+      _hasiat600Satirlari[hasIdx] = Hasilat600BirimSatiri(
+        birimId: s.birimId,
+        birimAdi: s.birimAdi,
+      );
+    }
+
+    // 4. KDV 2 Tevkifat Faturaları -> İlgili birimin faturalarını temizle
+    _tevkifatKayitlari.removeWhere((x) => BirimAdlandirma.canonicalKey(x.birimAdi ?? '') == cKey);
+
+    // 5. Muhtasar Masası -> İlgili birimin satırlarını temizle
+    _muhtasarSatirlari.removeWhere((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == cKey);
+
+    _guncelleDamga301();
+    _tetikleYerelTaslakKaydi();
+    notifyListeners();
+  }
+
+  /// Belirli bir birimin yüklenen belgelerini, analiz sonuçlarını ve
+  /// istenirse beyanname masalarındaki (KDV 1, Damga, 600, Tevkifat) satırlarını tamamen sıfırlar / geri çeker.
+  void birimiTamamenSifirla(String birimAdi, {bool masalariDaTemizle = true}) {
+    final cKey = BirimAdlandirma.canonicalKey(birimAdi);
+
+    // 1. Belgeleri ve analiz çıktılarını temizle
     _yuklenenBelgeler.remove(birimAdi);
     _birimBelgeListeleri.remove(birimAdi);
     _birimAnalizSonuclari.remove(birimAdi);
     _birimDenetimKayitlari.remove(birimAdi);
     _birimNeredenNereye.remove(birimAdi);
+
+    // Canonical key ile de temizle
+    _yuklenenBelgeler.removeWhere((k, _) => BirimAdlandirma.canonicalKey(k) == cKey);
+    _birimBelgeListeleri.removeWhere((k, _) => BirimAdlandirma.canonicalKey(k) == cKey);
+    _birimAnalizSonuclari.removeWhere((k, _) => BirimAdlandirma.canonicalKey(k) == cKey);
+    _birimDenetimKayitlari.removeWhere((k, _) => BirimAdlandirma.canonicalKey(k) == cKey);
+    _birimNeredenNereye.removeWhere((k, _) => BirimAdlandirma.canonicalKey(k) == cKey);
+
+    // 2. Konsolide rapordan bu birimi çıkar
+    if (_sonAjanRaporu != null) {
+      final guncelSonuclar = Map<String, BirimMizanAnalizSonucu>.from(_birimAnalizSonuclari);
+      final guncelBirimler = guncelSonuclar.keys.toList();
+
+      _sonAjanRaporu = _sonAjanRaporu!.copyWith(
+        analizEdilenBirimler: guncelBirimler,
+        birimSonuclari: guncelSonuclar,
+      );
+    }
+
+    // 3. Masalardaki verileri sıfırla / temizle
+    if (masalariDaTemizle) {
+      birimMasalariniGeriCek(birimAdi);
+    } else {
+      _tetikleYerelTaslakKaydi();
+      notifyListeners();
+    }
+  }
+
+  /// Bir belgenin birimini değiştirir (Örn: Yanlışlıkla TÖMER'e yüklenen evrakı DİŞ HEKİMLİĞİ'ne taşır)
+  void belgeBiriminiDegistir({
+    required String eskiBirimAdi,
+    required String yeniBirimAdi,
+    required String belgeId,
+  }) {
+    final eskiListe = _birimBelgeListeleri[eskiBirimAdi];
+    if (eskiListe == null) return;
+
+    final idx = eskiListe.indexWhere((b) => b.id == belgeId);
+    if (idx < 0) return;
+
+    final eskiBelge = eskiListe.removeAt(idx);
+    _yuklenenBelgeler[eskiBirimAdi]?.remove(eskiBelge.slotTuru);
+
+    final yeniBelge = BirimYuklenenBelge(
+      id: eskiBelge.id,
+      birimAdi: yeniBirimAdi,
+      slotTuru: eskiBelge.slotTuru,
+      dosyaAdi: eskiBelge.dosyaAdi,
+      dosyaBoyutu: eskiBelge.dosyaBoyutu,
+      dosyaUzantisi: eskiBelge.dosyaUzantisi,
+      yuklenmeTarihi: DateTime.now(),
+      dosyaBytes: eskiBelge.dosyaBytes,
+    );
+
+    _birimBelgeListeleri.putIfAbsent(yeniBirimAdi, () => []).add(yeniBelge);
+    _yuklenenBelgeler.putIfAbsent(yeniBirimAdi, () => {})[eskiBelge.slotTuru] = yeniBelge;
+
     notifyListeners();
   }
 
@@ -2250,6 +2362,47 @@ class BeyannameProvider with ChangeNotifier {
           } else {
             _tevkifatKayitlari.add(kayit);
           }
+        }
+      }
+
+      // 5. Muhtasar Masasını Güncelle veya Ekle (360 Stopaj Gelir Vergisi & Ücret Damga Vergisi)
+      if (sonuc.muhtasarGelir360 > 0 || sonuc.muhtasarDamga360 > 0) {
+        final muhtasarIndex = _muhtasarSatirlari.indexWhere(
+          (x) => BirimAdlandirma.canonicalKey(x.birimAdi) == BirimAdlandirma.canonicalKey(birimAdi),
+        );
+        final gv = sonuc.muhtasarGelir360;
+        final dv = sonuc.muhtasarDamga360;
+        final brut = dv > 0 ? (dv / 0.00759) : (gv > 0 ? gv / 0.15 : 0.0);
+        final net = max(0.0, brut - gv - dv);
+
+        if (muhtasarIndex >= 0) {
+          final m = _muhtasarSatirlari[muhtasarIndex];
+          if (uzerineEkle) {
+            _muhtasarSatirlari[muhtasarIndex] = m.copyWith(
+              gelirVergisi: m.gelirVergisi + gv,
+              damgaVergisi: m.damgaVergisi + dv,
+              brutUcret: BeyannameHesaplamaMotoru.round(m.brutUcret + brut),
+              netOdenen: BeyannameHesaplamaMotoru.round(m.netOdenen + net),
+            );
+          } else {
+            _muhtasarSatirlari[muhtasarIndex] = m.copyWith(
+              gelirVergisi: gv,
+              damgaVergisi: dv,
+              brutUcret: BeyannameHesaplamaMotoru.round(brut),
+              netOdenen: BeyannameHesaplamaMotoru.round(net),
+            );
+          }
+        } else {
+          _muhtasarSatirlari.add(MuhtasarSatiri(
+            id: 'mht_ai_${BirimAdlandirma.canonicalKey(birimAdi)}_${DateTime.now().microsecondsSinceEpoch}',
+            birimAdi: birimAdi,
+            adSoyad: '$birimAdi Bordro / 360 Mizan İcmali',
+            gelirVergisi: gv,
+            damgaVergisi: dv,
+            brutUcret: BeyannameHesaplamaMotoru.round(brut),
+            netOdenen: BeyannameHesaplamaMotoru.round(net),
+            aylikGelirVergisiMatrahi: BeyannameHesaplamaMotoru.round(brut),
+          ));
         }
       }
     }

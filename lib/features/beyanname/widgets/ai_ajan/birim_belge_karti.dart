@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/turkce_format.dart';
+import '../../../birim/models/birim_model.dart';
 import '../../models/beyanname_belge_model.dart';
 import '../../models/beyanname_denetim_rapor_model.dart';
 import '../../providers/beyanname_provider.dart';
@@ -161,13 +162,7 @@ class BirimBelgeKarti extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.neutral),
-                  tooltip: 'Bu birimin tüm belgelerini kaldır',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                  onPressed: () => provider.birimBelgeleriniTemizle(birimAdi),
-                ),
+                _buildBirimAksiyonMenusu(context),
               ],
             ],
           ),
@@ -261,6 +256,23 @@ class BirimBelgeKarti extends StatelessWidget {
               ),
               const SizedBox(width: 6),
 
+              // Masadan Geri Çek Butonu
+              OutlinedButton.icon(
+                onPressed: () => _onayliMasadanGeriCek(context),
+                icon: const Icon(Icons.undo_rounded, size: 13, color: AppColors.danger),
+                label: const Text(
+                  'Masadan Geri Çek',
+                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppColors.danger),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.danger,
+                  side: BorderSide(color: AppColors.danger.withAlpha(140), width: 0.8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              const SizedBox(width: 6),
+
               // Masaya Aktar / Yenile Butonu
               FilledButton.tonalIcon(
                 onPressed: () {
@@ -319,6 +331,18 @@ class BirimBelgeKarti extends StatelessWidget {
                   '360 Damga',
                   TurkceFormat.para(sonuc.damgaVergisi360),
                   AppColors.neutral,
+                ),
+              if (sonuc.muhtasarGelir360 > 0)
+                _buildVeriKutusu(
+                  'Muhtasar GV (360.01)',
+                  TurkceFormat.para(sonuc.muhtasarGelir360),
+                  AppColors.warning,
+                ),
+              if (sonuc.muhtasarDamga360 > 0)
+                _buildVeriKutusu(
+                  'Muhtasar DV (360.03.01)',
+                  TurkceFormat.para(sonuc.muhtasarDamga360),
+                  AppColors.warning,
                 ),
               if (sonuc.tevkifatFaturalari.isNotEmpty)
                 _buildVeriKutusu(
@@ -511,6 +535,10 @@ class BirimBelgeKarti extends StatelessWidget {
           _buildSlotSeciciPill(context, b),
           const SizedBox(width: 6),
 
+          // Başka Birime Taşı Butonu (Menü)
+          _buildBirimDegistirMenusu(context, b),
+          const SizedBox(width: 4),
+
           // Silme Butonu
           IconButton(
             icon: const Icon(Icons.close_rounded, size: 14, color: AppColors.neutral),
@@ -644,6 +672,216 @@ class BirimBelgeKarti extends StatelessWidget {
           ),
         );
       }
+    }
+  }
+
+  /// Birim kartı üst menüsü: Masadan Geri Çek, Belgeleri Temizle veya Tam Sıfırla
+  Widget _buildBirimAksiyonMenusu(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: 'Birim İşlemleri & Sıfırlama',
+      icon: const Icon(Icons.more_vert_rounded, size: 16, color: AppColors.neutral),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+      onSelected: (secim) {
+        if (secim == 'masadan_geri_cek') {
+          _onayliMasadanGeriCek(context);
+        } else if (secim == 'belgeleri_temizle') {
+          provider.birimiTamamenSifirla(birimAdi, masalariDaTemizle: false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✓ $birimAdi yüklenen belgeleri ve analiz taslağı temizlendi.'),
+              backgroundColor: AppColors.neutral,
+            ),
+          );
+        } else if (secim == 'tam_sifirla') {
+          _onayliBirimiTamSifirla(context);
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'masadan_geri_cek',
+          child: Row(
+            children: [
+              Icon(Icons.undo_rounded, size: 15, color: AppColors.warning),
+              SizedBox(width: 8),
+              Text('Masadan Geri Çek (KDV, 600, Damga)', style: TextStyle(fontSize: 11.5)),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'belgeleri_temizle',
+          child: Row(
+            children: [
+              Icon(Icons.folder_delete_outlined, size: 15, color: AppColors.neutral),
+              SizedBox(width: 8),
+              Text('Yüklenen Belgeleri Kaldır', style: TextStyle(fontSize: 11.5)),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'tam_sifirla',
+          child: Row(
+            children: [
+              Icon(Icons.delete_forever_rounded, size: 15, color: AppColors.danger),
+              SizedBox(width: 8),
+              Text(
+                'Tam Sıfırla (Belgeler + Masalar)',
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppColors.danger),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Bir evrak yanlış birime yüklendiyse tek tıkla başka birime taşımayı sağlar
+  Widget _buildBirimDegistirMenusu(BuildContext context, BirimYuklenenBelge b) {
+    final digerBirimler = <String>{};
+    for (final k in provider.kdv1Satirlari) {
+      if (k.birimAdi.trim().isNotEmpty) digerBirimler.add(k.birimAdi);
+    }
+    for (final def in BirimModel.varsayilanBirimler) {
+      digerBirimler.add(def.ad);
+    }
+    digerBirimler.remove(birimAdi);
+    final sortedBirimler = digerBirimler.toList()..sort();
+
+    return PopupMenuButton<String>(
+      tooltip: 'Yanlış Birim Seçildiyse Başka Birime Taşı',
+      icon: const Icon(Icons.drive_file_move_outlined, size: 15, color: AppColors.textSecondary),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+      onSelected: (hedefBirim) {
+        provider.belgeBiriminiDegistir(
+          eskiBirimAdi: birimAdi,
+          yeniBirimAdi: hedefBirim,
+          belgeId: b.id,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✓ "${b.dosyaAdi}" $hedefBirim birimine taşındı.'),
+            backgroundColor: AppColors.info,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem<String>(
+          enabled: false,
+          child: Text(
+            'Belgeyi Hangi Birime Taşımak İstiyorsunuz?',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          ),
+        ),
+        const PopupMenuDivider(),
+        ...sortedBirimler.map(
+          (hedef) => PopupMenuItem<String>(
+            value: hedef,
+            child: Row(
+              children: [
+                const Icon(Icons.subdirectory_arrow_right_rounded, size: 14, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    hedef,
+                    style: const TextStyle(fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Masadan geri çekme onay diyaloğu
+  Future<void> _onayliMasadanGeriCek(BuildContext context) async {
+    final onay = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.undo_rounded, color: AppColors.warning),
+            const SizedBox(width: 8),
+            Expanded(child: Text('$birimAdi Verilerini Masadan Geri Çek')),
+          ],
+        ),
+        content: Text(
+          '$birimAdi için KDV 1, Damga Vergisi, 600 Hasılat ve Tevkifat masalarındaki kayıtlar sıfırlanacaktır.\n\n'
+          'Yüklediğiniz evraklar ve analiz raporunuz korunur.',
+          style: const TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Vazgeç'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning, foregroundColor: AppColors.white),
+            child: const Text('Geri Çek'),
+          ),
+        ],
+      ),
+    );
+
+    if (onay == true && context.mounted) {
+      provider.birimMasalariniGeriCek(birimAdi);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('↩ $birimAdi verileri masalardan geri çekildi ve sıfırlandı.'),
+          backgroundColor: AppColors.info,
+        ),
+      );
+    }
+  }
+
+  /// Birimi tamamen sıfırlama onay diyaloğu
+  Future<void> _onayliBirimiTamSifirla(BuildContext context) async {
+    final onay = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: AppColors.danger),
+            const SizedBox(width: 8),
+            Expanded(child: Text('$birimAdi Birimini Tam Sıfırla')),
+          ],
+        ),
+        content: const Text(
+          'Yanlış birim seçimi veya sıfırdan yeniden okuma için:\n\n'
+          '• Yüklenen tüm mizan ve evraklar kaldırılacak,\n'
+          '• Yapılan analiz ve denetim sonuçları silinecek,\n'
+          '• Masalara aktarılan tüm satırlar sıfırlanacaktır.\n\n'
+          'Devam etmek istiyor musunuz?',
+          style: TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Vazgeç'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: AppColors.white),
+            child: const Text('Tam Sıfırla'),
+          ),
+        ],
+      ),
+    );
+
+    if (onay == true && context.mounted) {
+      provider.birimiTamamenSifirla(birimAdi, masalariDaTemizle: true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✓ $birimAdi tamamen sıfırlandı. Yeniden temiz okuma yapabilirsiniz.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
     }
   }
 }

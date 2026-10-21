@@ -201,6 +201,8 @@ class _OkunanVerilerOnizlemeKartiState extends State<OkunanVerilerOnizlemeKarti>
                 DataColumn(numeric: true, label: Text('191 İND. (%10)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
                 DataColumn(numeric: true, label: Text('191 İND. (%20)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
                 DataColumn(numeric: true, label: Text('360 DAMGA V.', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                DataColumn(numeric: true, label: Text('MUHTASAR GV', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                DataColumn(numeric: true, label: Text('MUHTASAR DV', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
                 DataColumn(numeric: true, label: Text('KDV 2 TEVKİFAT', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
               ],
               rows: birimler.map((BirimMizanAnalizSonucu b) {
@@ -224,6 +226,8 @@ class _OkunanVerilerOnizlemeKartiState extends State<OkunanVerilerOnizlemeKarti>
                     DataCell(_tutarText(b.indirilecekKdv10)),
                     DataCell(_tutarText(b.indirilecekKdv20)),
                     DataCell(_tutarText(b.damgaVergisi360)),
+                    DataCell(_tutarText(b.muhtasarGelir360)),
+                    DataCell(_tutarText(b.muhtasarDamga360)),
                     DataCell(
                       b.tevkifatFaturalari.isEmpty
                           ? const Text('-', style: TextStyle(fontSize: 11, color: AppColors.textMuted))

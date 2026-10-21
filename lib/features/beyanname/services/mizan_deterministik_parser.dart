@@ -921,39 +921,210 @@ class MizanDeterministikParser {
       devreden190 = yillikHesaplar['190']!.borcKalan;
     }
 
-    // --- 5. 360.03.05 Damga Vergisi (Ödemelerden Kesilen) ---
-    // Kurumsal Kural: "Toplu mizanda 360.03.05 kodundaki ALACAK KALAN tutarı yazılır. Aylık mizanda ise ALACAK kısmındaki tutar yazılır."
+    // --- 5. 360 Damga Vergisi (Ödemelerden / Hakedişlerden Kesilen) ---
+    // Kurumsal Kural: Toplu/Yıllık mizanda alacak kalanı (veya alacak), aylık mizanda alacak tutarı.
+    // 360.03.05 (Ödemelerden Kesilen Damga) veya 360.03 altındaki ücret (360.03.01) harici damgalar.
+    double bulDamga360(Map<String, MizanHesapSatiri> hesapMap, {required bool isYillik}) {
+      if (hesapMap.isEmpty) return 0.0;
+
+      // A) Doğrudan 360.03.05 veya 360.3.5 veya 360.03.5
+      for (final key in hesapMap.keys) {
+        final norm = key.replaceAll(RegExp(r'\.0+'), '.');
+        if (norm == '360.3.5' || key == '360.03.05') {
+          final s = hesapMap[key]!;
+          if (!isYillik) {
+            if (s.alacak > 0) return s.alacak;
+            if (s.alacakKalan > 0) return s.alacakKalan;
+          } else {
+            if (s.alacakKalan > 0) return s.alacakKalan;
+            if (s.alacak > 0) return s.alacak;
+          }
+        }
+      }
+
+      // B) 360.03 alt hesapları taraması: Ücret damgası (.01) hariç tüm damgaları topla
+      // Örn: 360.03.02 (İhale), 360.03.03 (Sözleşme), 360.03.05 (Diğer ödemeler), 360.03.09 (Diğer)
+      double altToplam = 0.0;
+      bool altHesapBulundu = false;
+      for (final entry in hesapMap.entries) {
+        final kod = entry.key;
+        final norm = kod.replaceAll(RegExp(r'\.0+'), '.');
+        if ((kod.startsWith('360.03.') || norm.startsWith('360.3.')) &&
+            norm != '360.3.1' &&
+            kod != '360.03.01') {
+          altHesapBulundu = true;
+          final s = entry.value;
+          final val = (!isYillik)
+              ? (s.alacak > 0 ? s.alacak : s.alacakKalan)
+              : (s.alacakKalan > 0 ? s.alacakKalan : s.alacak);
+          altToplam += val;
+        }
+      }
+      if (altHesapBulundu && altToplam > 0) {
+        return double.parse(altToplam.toStringAsFixed(2));
+      }
+
+      // C) Ana 360.03 hesabı: Ücret damgası (360.03.01) düşülerek
+      String? ana36003Key;
+      for (final k in hesapMap.keys) {
+        final norm = k.replaceAll(RegExp(r'\.0+'), '.');
+        if (k == '360.03' || norm == '360.3') {
+          ana36003Key = k;
+          break;
+        }
+      }
+      if (ana36003Key != null) {
+        final anaSatir = hesapMap[ana36003Key]!;
+        final anaTutar = (!isYillik)
+            ? (anaSatir.alacak > 0 ? anaSatir.alacak : anaSatir.alacakKalan)
+            : (anaSatir.alacakKalan > 0 ? anaSatir.alacakKalan : anaSatir.alacak);
+
+        // Ücret damgasını bulup düş
+        double ucretDamga = 0.0;
+        for (final k in hesapMap.keys) {
+          final norm = k.replaceAll(RegExp(r'\.0+'), '.');
+          if (k == '360.03.01' || norm == '360.3.1') {
+            final s = hesapMap[k]!;
+            ucretDamga = (!isYillik)
+                ? (s.alacak > 0 ? s.alacak : s.alacakKalan)
+                : (s.alacakKalan > 0 ? s.alacakKalan : s.alacak);
+            break;
+          }
+        }
+        if (anaTutar > ucretDamga) {
+          return double.parse((anaTutar - ucretDamga).toStringAsFixed(2));
+        } else if (ucretDamga == 0 && anaTutar > 0) {
+          return double.parse(anaTutar.toStringAsFixed(2));
+        }
+      }
+
+      // D) Hesap adı ile tarama: 360 altındaki adı "DAMGA" içeren ve "ÜCRET/MAAŞ/BORDRO" içermeyen hesaplar
+      double adlaBulunan = 0.0;
+      for (final entry in hesapMap.entries) {
+        final k = entry.key;
+        if (k.startsWith('360') && k != '360') {
+          final ad = entry.value.hesapAdi.toUpperCase();
+          if (ad.contains('DAMGA') &&
+              !ad.contains('ÜCRET') &&
+              !ad.contains('UCRET') &&
+              !ad.contains('MAAŞ') &&
+              !ad.contains('MAAS') &&
+              !ad.contains('BORDRO')) {
+            final s = entry.value;
+            final val = (!isYillik)
+                ? (s.alacak > 0 ? s.alacak : s.alacakKalan)
+                : (s.alacakKalan > 0 ? s.alacakKalan : s.alacak);
+            adlaBulunan += val;
+          }
+        }
+      }
+      if (adlaBulunan > 0) {
+        return double.parse(adlaBulunan.toStringAsFixed(2));
+      }
+
+      return 0.0;
+    }
+
     double damga360 = 0.0;
-    if (hasAylik && aylikHesaplar.containsKey('360.03.05') && aylikHesaplar['360.03.05']!.alacak > 0) {
-      damga360 = aylikHesaplar['360.03.05']!.alacak;
-    } else if (hasYillik && yillikHesaplar.containsKey('360.03.05')) {
-      damga360 = yillikHesaplar['360.03.05']!.alacakKalan;
-    } else if (hasAylik && aylikHesaplar.containsKey('360.03')) {
-      final ana36003 = aylikHesaplar['360.03']!.alacak > 0
-          ? aylikHesaplar['360.03']!.alacak
-          : aylikHesaplar['360.03']!.alacakKalan;
-      final ucretDamga = aylikHesaplar['360.03.01']?.alacak ?? 0.0;
-      if (ana36003 > ucretDamga) {
-        damga360 = double.parse((ana36003 - ucretDamga).toStringAsFixed(2));
-      }
-    } else if (hasYillik && yillikHesaplar.containsKey('360.03')) {
-      final ana36003 = yillikHesaplar['360.03']!.alacakKalan;
-      final ucretDamga = yillikHesaplar['360.03.01']?.alacakKalan ?? 0.0;
-      if (ana36003 > ucretDamga) {
-        damga360 = double.parse((ana36003 - ucretDamga).toStringAsFixed(2));
-      }
+    if (hasAylik) {
+      damga360 = bulDamga360(aylikHesaplar, isYillik: false);
+    }
+    if (damga360 == 0.0 && hasYardimci) {
+      damga360 = bulDamga360(yardimciHesaplar, isYillik: false);
+    }
+    if (damga360 == 0.0 && hasYillik) {
+      damga360 = bulDamga360(yillikHesaplar, isYillik: true);
     }
     final damgaMatrah = damga360 > 0 ? double.parse((damga360 / 0.00948).toStringAsFixed(2)) : 0.0;
 
-    // --- 6. 360 Muhtasar (Gelir Vergisi 360.01.01 & Damga Vergisi 360.03.01) ---
+    // --- 6. 360 Muhtasar (Gelir Vergisi Stopajı & Ücret Damga Vergisi Stopajı) ---
+    double bulMuhtasarGelir(Map<String, MizanHesapSatiri> hesapMap, {required bool isYillik}) {
+      if (hesapMap.isEmpty) return 0.0;
+
+      // A) 360.01.01 veya 360.1.1 (Ücret Gelir Vergisi Stopajı)
+      for (final key in hesapMap.keys) {
+        final norm = key.replaceAll(RegExp(r'\.0+'), '.');
+        if (norm == '360.1.1' || key == '360.01.01') {
+          final s = hesapMap[key]!;
+          final v = (!isYillik)
+              ? (s.alacak > 0 ? s.alacak : s.alacakKalan)
+              : (s.alacakKalan > 0 ? s.alacakKalan : s.alacak);
+          if (v > 0) return v;
+        }
+      }
+
+      // B) 360.01 alt hesapları veya adı "GELİR VERGİSİ" / "GV" içeren 360 hesapları
+      double toplam = 0.0;
+      for (final entry in hesapMap.entries) {
+        final k = entry.key;
+        final norm = k.replaceAll(RegExp(r'\.0+'), '.');
+        final ad = entry.value.hesapAdi.toUpperCase();
+        if ((k.startsWith('360.01') || norm.startsWith('360.1') || ad.contains('GELİR VERGİSİ') || ad.contains('G.V.')) &&
+            !ad.contains('DAMGA')) {
+          final altVar = hesapMap.keys.any((other) => other != k && other.startsWith('$k.'));
+          if (!altVar) {
+            final s = entry.value;
+            final v = (!isYillik)
+                ? (s.alacak > 0 ? s.alacak : s.alacakKalan)
+                : (s.alacakKalan > 0 ? s.alacakKalan : s.alacak);
+            toplam += v;
+          }
+        }
+      }
+      return double.parse(toplam.toStringAsFixed(2));
+    }
+
+    double bulMuhtasarDamga(Map<String, MizanHesapSatiri> hesapMap, {required bool isYillik}) {
+      if (hesapMap.isEmpty) return 0.0;
+
+      // A) 360.03.01 veya 360.3.1 (Ücret ve Ücret Sayılan Ödemelerden Kesilen Damga)
+      for (final key in hesapMap.keys) {
+        final norm = key.replaceAll(RegExp(r'\.0+'), '.');
+        if (norm == '360.3.1' || key == '360.03.01') {
+          final s = hesapMap[key]!;
+          final v = (!isYillik)
+              ? (s.alacak > 0 ? s.alacak : s.alacakKalan)
+              : (s.alacakKalan > 0 ? s.alacakKalan : s.alacak);
+          if (v > 0) return v;
+        }
+      }
+
+      // B) Adında Ücret / Maaş / Bordro geçen damga hesabı
+      for (final entry in hesapMap.entries) {
+        final k = entry.key;
+        if (k.startsWith('360') && k != '360') {
+          final ad = entry.value.hesapAdi.toUpperCase();
+          if (ad.contains('DAMGA') &&
+              (ad.contains('ÜCRET') || ad.contains('UCRET') || ad.contains('MAAŞ') || ad.contains('MAAS') || ad.contains('BORDRO'))) {
+            final s = entry.value;
+            final v = (!isYillik)
+                ? (s.alacak > 0 ? s.alacak : s.alacakKalan)
+                : (s.alacakKalan > 0 ? s.alacakKalan : s.alacak);
+            if (v > 0) return v;
+          }
+        }
+      }
+      return 0.0;
+    }
+
     double muhtasarGelir360 = 0.0;
     double muhtasarDamga360 = 0.0;
 
-    if (aktifHesaplar.containsKey('360.01.01')) {
-      muhtasarGelir360 = aktifHesaplar['360.01.01']!.alacak;
+    if (hasAylik) {
+      muhtasarGelir360 = bulMuhtasarGelir(aylikHesaplar, isYillik: false);
+      muhtasarDamga360 = bulMuhtasarDamga(aylikHesaplar, isYillik: false);
     }
-    if (aktifHesaplar.containsKey('360.03.01')) {
-      muhtasarDamga360 = aktifHesaplar['360.03.01']!.alacak;
+    if (muhtasarGelir360 == 0.0 && hasYardimci) {
+      muhtasarGelir360 = bulMuhtasarGelir(yardimciHesaplar, isYillik: false);
+    }
+    if (muhtasarDamga360 == 0.0 && hasYardimci) {
+      muhtasarDamga360 = bulMuhtasarDamga(yardimciHesaplar, isYillik: false);
+    }
+    if (muhtasarGelir360 == 0.0 && hasYillik) {
+      muhtasarGelir360 = bulMuhtasarGelir(yillikHesaplar, isYillik: true);
+    }
+    if (muhtasarDamga360 == 0.0 && hasYillik) {
+      muhtasarDamga360 = bulMuhtasarDamga(yillikHesaplar, isYillik: true);
     }
 
     // --- 7. Ters Bakiye Denetimleri ---

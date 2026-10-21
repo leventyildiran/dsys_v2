@@ -167,5 +167,174 @@ void main() {
       expect(tomerFaturalar.length, 1);
       expect(tomerFaturalar.first.firmaAdi, 'Kırtasiye Ltd. Şti.');
     });
+
+    test('4. birimMasalariniGeriCek masadaki verileri sıfırlar ancak belgeleri ve analizi korur', () {
+      // 1. Önce TÖMER için belge ekle ve analiz sonucunu masaya uygula
+      provider.belgeEkle(
+        birimAdi: 'TÖMER',
+        slotTuru: BirimBelgeSlotTuru.aylikMizan,
+        dosyaAdi: 'tomer_aylik.xlsx',
+        dosyaBoyutu: 1024,
+        dosyaUzantisi: 'xlsx',
+      );
+
+      final tomerSonuc = BirimMizanAnalizSonucu(
+        birimAdi: 'TÖMER',
+        analizTarihi: DateTime.now(),
+        hasilat600Aylik: 75000.0,
+        hesaplananKdv20: 15000.0,
+        damgaVergisi360: 300.0,
+        tevkifatFaturalari: [
+          {
+            'firmaAdi': 'Hizmet Ltd.',
+            'vergiTcNo': '1111222233',
+            'matrahTutari': 10000.0,
+            'kdvTutari': 2000.0,
+            'tevkifatTutari': 1800.0,
+          }
+        ],
+      );
+
+      final rapor = BeyannameAjanRaporu(
+        id: 'r_geri_cek',
+        yil: 2026,
+        ay: 9,
+        olusturulmaTarihi: DateTime.now(),
+        analizEdilenBirimler: ['TÖMER'],
+        toplamDosyaSayisi: 1,
+        birimSonuclari: {'TÖMER': tomerSonuc},
+        neredenNereyeListesi: const [],
+        denetimKontrolleri: const [],
+      );
+      provider.aiAjanVerileriniUygula(rapor, uzerineEkle: false);
+
+      expect(provider.hasiat600Satirlari.firstWhere((x) => x.birimAdi == 'TÖMER').aylikHasilat600, 75000.0);
+      expect(provider.tevkifatKayitlari.where((x) => x.birimAdi == 'TÖMER').length, 1);
+
+      // 2. Şimdi masadan geri çek
+      provider.birimMasalariniGeriCek('TÖMER');
+
+      // Masadaki değerler sıfırlanmış olmalı
+      final hSatiri = provider.hasiat600Satirlari.firstWhere((x) => x.birimAdi == 'TÖMER');
+      expect(hSatiri.aylikHasilat600, 0.0);
+      final kSatiri = provider.kdv1Satirlari.firstWhere((x) => x.birimAdi == 'TÖMER');
+      expect(kSatiri.hesaplananKdv20, 0.0);
+      final dSatiri = provider.damgaSatirlari.firstWhere((x) => x.birimAdi == 'TÖMER');
+      expect(dSatiri.damgaVergisi, 0.0);
+      expect(provider.tevkifatKayitlari.where((x) => x.birimAdi == 'TÖMER').isEmpty, isTrue);
+
+      // Ancak yüklenen belge korunmalı
+      expect(provider.getBirimBelgeleri('TÖMER').length, 1);
+      expect(provider.getBirimAnalizSonucu('TÖMER'), isNotNull);
+    });
+
+    test('5. birimiTamamenSifirla hem belgeleri hem analizleri hem de masaları temizler', () {
+      provider.belgeEkle(
+        birimAdi: 'TÖMER',
+        slotTuru: BirimBelgeSlotTuru.aylikMizan,
+        dosyaAdi: 'tomer_aylik.xlsx',
+        dosyaBoyutu: 1024,
+        dosyaUzantisi: 'xlsx',
+      );
+
+      final tomerSonuc = BirimMizanAnalizSonucu(
+        birimAdi: 'TÖMER',
+        analizTarihi: DateTime.now(),
+        hasilat600Aylik: 50000.0,
+      );
+      final rapor = BeyannameAjanRaporu(
+        id: 'r_sifirla',
+        yil: 2026,
+        ay: 9,
+        olusturulmaTarihi: DateTime.now(),
+        analizEdilenBirimler: ['TÖMER'],
+        toplamDosyaSayisi: 1,
+        birimSonuclari: {'TÖMER': tomerSonuc},
+        neredenNereyeListesi: const [],
+        denetimKontrolleri: const [],
+      );
+      provider.aiAjanVerileriniUygula(rapor, uzerineEkle: false);
+
+      // Tamamen sıfırla
+      provider.birimiTamamenSifirla('TÖMER', masalariDaTemizle: true);
+
+      // Belgeler ve analiz gitmiş olmalı
+      expect(provider.getBirimBelgeleri('TÖMER').isEmpty, isTrue);
+      expect(provider.getBirimAnalizSonucu('TÖMER'), isNull);
+
+      // Masalardaki veriler sıfırlanmış olmalı
+      final hSatiri = provider.hasiat600Satirlari.firstWhere((x) => x.birimAdi == 'TÖMER');
+      expect(hSatiri.aylikHasilat600, 0.0);
+    });
+
+    test('6. belgeBiriminiDegistir yanlış birime yüklenen belgeyi başka birime taşır', () {
+      provider.belgeEkle(
+        birimAdi: 'TÖMER',
+        slotTuru: BirimBelgeSlotTuru.aylikMizan,
+        dosyaAdi: 'yanlis_yuklenen_dis_hekimligi_mizani.pdf',
+        dosyaBoyutu: 2048,
+        dosyaUzantisi: 'pdf',
+      );
+
+      final tomerBelgeleri = provider.getBirimBelgeleri('TÖMER');
+      expect(tomerBelgeleri.length, 1);
+      final belgeId = tomerBelgeleri.first.id;
+
+      // Belgeyi DİŞ HEKİMLİĞİ'ne taşı
+      provider.belgeBiriminiDegistir(
+        eskiBirimAdi: 'TÖMER',
+        yeniBirimAdi: 'DİŞ HEKİMLİĞİ FAKÜLTESİ',
+        belgeId: belgeId,
+      );
+
+      // TÖMER'de belge kalmamış olmalı
+      expect(provider.getBirimBelgeleri('TÖMER').isEmpty, isTrue);
+
+      // DİŞ HEKİMLİĞİ'ne taşınmış olmalı
+      final disBelgeleri = provider.getBirimBelgeleri('DİŞ HEKİMLİĞİ FAKÜLTESİ');
+      expect(disBelgeleri.length, 1);
+      expect(disBelgeleri.first.dosyaAdi, 'yanlis_yuklenen_dis_hekimligi_mizani.pdf');
+      expect(disBelgeleri.first.birimAdi, 'DİŞ HEKİMLİĞİ FAKÜLTESİ');
+    });
+
+    test('7. aiAjanVerileriniUygula mizandaki Muhtasar GV ve DV stopajlarını Muhtasar masasına işler', () {
+      final ubatamSonuc = BirimMizanAnalizSonucu(
+        birimAdi: 'UBATAM',
+        analizTarihi: DateTime.now(),
+        hasilat600Aylik: 200000.0,
+        damgaVergisi360: 1200.0,
+        muhtasarGelir360: 7500.0,
+        muhtasarDamga360: 420.0,
+      );
+
+      final rapor = BeyannameAjanRaporu(
+        id: 'r_muhtasar_test',
+        yil: 2026,
+        ay: 9,
+        olusturulmaTarihi: DateTime.now(),
+        analizEdilenBirimler: ['UBATAM'],
+        toplamDosyaSayisi: 1,
+        birimSonuclari: {'UBATAM': ubatamSonuc},
+        neredenNereyeListesi: const [],
+        denetimKontrolleri: const [],
+      );
+
+      provider.aiAjanVerileriniUygula(rapor, uzerineEkle: false);
+
+      // Muhtasar satırlarında UBATAM oluşmuş mu?
+      final mSatiri = provider.muhtasarSatirlari.firstWhere((x) => x.birimAdi == 'UBATAM');
+      expect(mSatiri.gelirVergisi, 7500.0);
+      expect(mSatiri.damgaVergisi, 420.0);
+
+      // Damga masasında UBATAM 360 damgası var mı?
+      final dSatiri = provider.damgaSatirlari.firstWhere((x) => x.birimAdi == 'UBATAM');
+      expect(dSatiri.damgaVergisi, 1200.0);
+
+      // BirimVergiIcmalSatiri'ne yansımış mı?
+      final icmal = provider.birimBazliVergiler.firstWhere((x) => x.birimAdi == 'UBATAM');
+      expect(icmal.muhtasarGelir, 7500.0);
+      expect(icmal.muhtasarDamga, 420.0);
+      expect(icmal.muhtasarKesilenDamga, 1200.0);
+    });
   });
 }

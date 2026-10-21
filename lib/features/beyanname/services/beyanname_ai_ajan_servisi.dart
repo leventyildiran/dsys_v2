@@ -1260,9 +1260,11 @@ ARANACAK HESAP KODLARI VE KURALLAR:
    - Mal ve hizmet alımlarında ödenen indirilecek KDV:
    - "indirilecekKdvMatrah20", "indirilecekKdv20"
    - "indirilecekKdvMatrah10", "indirilecekKdv10"
-5. 360.03.05 HESABI (DAMGA VERGİSİ):
-   - Hakediş ve ödemelerden kesilen Damga Vergisi tutarı (alacak kalanı): "damgaVergisi360"
-   - Matrah (Damga / 0.00948): "damgaMatrah"
+5. 360 HESABI (DAMGA VERGİSİ VE MUHTASAR STOPAJLARI):
+   - 360.03.05 (veya 360.03 altındaki hakediş/ödeme/mal alımı damga vergisi alacak tutarı) -> "damgaVergisi360"
+   - Damga Matrahı (Damga / 0.00948) -> "damgaMatrah"
+   - 360.01 / 360.01.01 (Ücret / maaş / ek ders stopaj Gelir Vergisi alacak tutarı) -> "muhtasarGelir360"
+   - 360.03.01 (Ücret bordrosu Damga Vergisi stopajı alacak tutarı) -> "muhtasarDamga360"
 6. 190 HESABI (DEVREDEN KDV):
    - Mizanda devreden KDV borç kalanı varsa: "devredenKdv190"
 7. TERS BAKİYE KONTROLLERİ:

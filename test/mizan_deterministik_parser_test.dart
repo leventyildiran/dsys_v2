@@ -154,5 +154,51 @@ DEVREDEN KDV HESABI
       // 100.000 - 5.000 = 95.000 net hasılat
       expect(sonuc.hasilat600Aylik, 95000.0);
     });
+
+    test('360.03 ana hesabı ve Muhtasar (360.01.01 Gelir & 360.03.01 Damga) doğru ayrıştırılır', () {
+      const sampleText = '''
+360.01.01 GELİR VERGİSİ STOPAJI 0,00 4.500,00 0,00 4.500,00
+360.03.01 ÜCRET DAMGA VERGİSİ 0,00 350,00 0,00 350,00
+360.03.02 İHALE KARARLARI DAMGA VERGİSİ 0,00 1.200,00 0,00 1.200,00
+360.03.05 ÖDEMELERDEN KESİLEN DAMGA 0,00 800,00 0,00 800,00
+600 YURTİÇİ SATIŞLAR 0,00 50.000,00 0,00 50.000,00
+''';
+
+      final sonuc = MizanDeterministikParser.analizEt(
+        birimAdi: 'TÖMER',
+        aylikMizanMetni: sampleText,
+        yillikMizanMetni: '',
+      );
+
+      // Muhtasar stopajları
+      expect(sonuc.muhtasarGelir360, 4500.0);
+      expect(sonuc.muhtasarDamga360, 350.0);
+
+      // Damga: Ücret damgası (350 TL) hariç diğer damgalar: 1.200 + 800 = 2.000 TL
+      expect(sonuc.damgaVergisi360, 2000.0);
+    });
+
+    test('Yardımcı Defterden (Muavin) Damga ve Muhtasar başarıyla okunur', () {
+      const anaMizan = '''
+600 YURTİÇİ SATIŞLAR 0,00 100.000,00 0,00 100.000,00
+360 ÖDENECEK VERGİ VE FONLAR 0,00 15.000,00 0,00 15.000,00
+''';
+      const yardimciMizan = '''
+360.01.01 ÜCRETLERDEN KESİLEN GELİR VERGİSİ 0,00 6.000,00 0,00 6.000,00
+360.03.01 BORDRO DAMGA VERGİSİ 0,00 500,00 0,00 500,00
+360.03.05 HAKEDİŞ VE DİĞER ÖDEMELER DAMGA V. 0,00 1.500,00 0,00 1.500,00
+''';
+
+      final sonuc = MizanDeterministikParser.analizEt(
+        birimAdi: 'UZEM',
+        aylikMizanMetni: anaMizan,
+        yillikMizanMetni: '',
+        yardimciMizanMetni: yardimciMizan,
+      );
+
+      expect(sonuc.muhtasarGelir360, 6000.0);
+      expect(sonuc.muhtasarDamga360, 500.0);
+      expect(sonuc.damgaVergisi360, 1500.0);
+    });
   });
 }
