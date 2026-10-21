@@ -767,11 +767,11 @@ class BatchFaturaProvider extends ChangeNotifier {
 
     // 1. Tercih: Excel dökümü doğrudan Gemini AI API'ye gitsin
     try {
-      debugPrint('[loadExcelFile] Excel içeriği Gemini API\'ye gönderiliyor (' + csvText.length + ' karakter)...');
+      debugPrint('[loadExcelFile] Excel içeriği Gemini API\'ye gönderiliyor ( karakter)...');
       await loadBatch(csvText, append: append);
       return;
     } catch (e) {
-      debugPrint('[loadExcelFile] AI API okuma başarısız (' + e + '), yerel kural motoruna geçiliyor...');
+      debugPrint('[loadExcelFile] AI API okuma başarısız (), yerel kural motoruna geçiliyor...');
     }
 
     final lines = csvText

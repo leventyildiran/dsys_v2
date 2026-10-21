@@ -5,13 +5,6 @@ import 'sistem_ayarlari_service.dart';
 
 class AIExtractionService {
   final SistemAyarlariService _ayarlarService = SistemAyarlariService();
-  static const List<String> _geminiModelFallbacks = [
-    'gemini-3.8-flash',
-    'gemini-3.6-flash',
-    'gemini-3.7-flash',
-    'gemini-3.5-flash',
-    'gemini-3.5-flash-lite',
-  ];
 
   /// Gemini API'ye model fallback zinciriyle istek gönderir.
   ///
