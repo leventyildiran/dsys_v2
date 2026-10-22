@@ -665,9 +665,9 @@ class BeyannameRaporServisi {
               child: pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
                 children: [
-                  _kpiKutusu(baslik: 'HESAPLANAN MATRAH', tutar: TurkceFormat.para(k1.matrah10Hesaplanan + k1.matrah20Hesaplanan), renk: PdfColors.blue900),
+                  _kpiKutusu(baslik: 'HESAPLANAN MATRAH', tutar: TurkceFormat.para(k1.matrah1Hesaplanan + k1.matrah10Hesaplanan + k1.matrah20Hesaplanan), renk: PdfColors.blue900),
                   _kpiKutusu(baslik: 'HESAPLANAN KDV', tutar: TurkceFormat.para(k1.toplamHesaplananKdv), renk: PdfColors.blue800),
-                  _kpiKutusu(baslik: 'İNDİRİLECEK MATRAH', tutar: TurkceFormat.para(k1.matrah10Indirilecek + k1.matrah20Indirilecek), renk: PdfColors.indigo900),
+                  _kpiKutusu(baslik: 'İNDİRİLECEK MATRAH', tutar: TurkceFormat.para(k1.matrah1Indirilecek + k1.matrah10Indirilecek + k1.matrah20Indirilecek), renk: PdfColors.indigo900),
                   _kpiKutusu(baslik: 'İNDİRİLECEK KDV', tutar: TurkceFormat.para(k1.toplamIndirilecekKdv), renk: PdfColors.indigo800),
                   _kpiKutusu(baslik: 'ÖNCEKİ DEVREDEN KDV', tutar: TurkceFormat.para(k1.oncekiDonemdenDevredenKdv), renk: PdfColors.grey800),
                   _kpiKutusu(
@@ -738,7 +738,7 @@ class BeyannameRaporServisi {
                   decoration: const pw.BoxDecoration(color: PdfColors.blue50),
                   children: [
                     _td('TOPLAMLAR', isBold: true, align: pw.TextAlign.left, renk: PdfColors.blue900),
-                    _td(TurkceFormat.para(k1.matrah10Hesaplanan + k1.matrah20Hesaplanan), isBold: true, renk: PdfColors.blue900),
+                    _td(TurkceFormat.para(k1.matrah1Hesaplanan + k1.matrah10Hesaplanan + k1.matrah20Hesaplanan), isBold: true, renk: PdfColors.blue900),
                     _td(TurkceFormat.para(provider.kdv1Satirlari.fold(0.0, (s, x) => s + x.hesaplananKdv10)), isBold: true),
                     _td(TurkceFormat.para(provider.kdv1Satirlari.fold(0.0, (s, x) => s + x.hesaplananKdv20)), isBold: true),
                     _td(TurkceFormat.para(provider.kdv1Satirlari.fold(0.0, (s, x) => s + x.indirilecekKdv10)), isBold: true),

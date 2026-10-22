@@ -424,9 +424,13 @@ class BeyannameExcelServisi {
     }
 
     final kdv1Rows = [
+      if (k1.matrah1Hesaplanan > 0 || k1.kdv1Hesaplanan > 0)
+        ['%1 Hesaplanan Satışlar', k1.matrah1Hesaplanan, k1.kdv1Hesaplanan, k1.matrah1Hesaplanan + k1.kdv1Hesaplanan],
       ['%10 Hesaplanan Satışlar', k1.matrah10Hesaplanan, k1.kdv10Hesaplanan, k1.matrah10Hesaplanan + k1.kdv10Hesaplanan],
       ['%20 Hesaplanan Satışlar', k1.matrah20Hesaplanan, k1.kdv20Hesaplanan, k1.matrah20Hesaplanan + k1.kdv20Hesaplanan],
       ['TOPLAM HESAPLANAN KDV', 0.0, k1.toplamHesaplananKdv, k1.toplamHesaplananMatrahVeKdv],
+      if (k1.matrah1Indirilecek > 0 || k1.kdv1Indirilecek > 0)
+        ['%1 İndirilecek Alımlar', k1.matrah1Indirilecek, k1.kdv1Indirilecek, k1.matrah1Indirilecek + k1.kdv1Indirilecek],
       ['%10 İndirilecek Alımlar', k1.matrah10Indirilecek, k1.kdv10Indirilecek, k1.matrah10Indirilecek + k1.kdv10Indirilecek],
       ['%20 İndirilecek Alımlar', k1.matrah20Indirilecek, k1.kdv20Indirilecek, k1.matrah20Indirilecek + k1.kdv20Indirilecek],
       ['TOPLAM İNDİRİLECEK KDV', 0.0, k1.toplamIndirilecekKdv, k1.toplamIndirilecekMatrahVeKdv],
@@ -467,7 +471,7 @@ class BeyannameExcelServisi {
     }
 
     // KDV 2 Tevkifatlı Firmalar
-    int rowKdv2 = 16;
+    int rowKdv2 = 5 + kdv1Rows.length + 2;
     sheet2.getRangeByName('A$rowKdv2:F$rowKdv2').merge();
     sheet2.getRangeByName('A$rowKdv2').setText('2. KDV 2 TEVKİFATLI FİRMALAR CETVELİ');
     sheet2.getRangeByName('A$rowKdv2').cellStyle.bold = true;
