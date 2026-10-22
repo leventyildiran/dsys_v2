@@ -1414,7 +1414,9 @@ class FaturaOfflineParser {
     if (d10 < 0) d10 += 10;
     if (d10 != digits[9]) return false;
     int sum10 = 0;
-    for (int i = 0; i < 10; i++) sum10 += digits[i];
+    for (int i = 0; i < 10; i++) {
+      sum10 += digits[i];
+    }
     return (sum10 % 10) == digits[10];
   }
 }

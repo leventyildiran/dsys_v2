@@ -385,6 +385,38 @@ class BatchToolbar extends StatelessWidget {
             ],
           ),
         ),
+        if (count > 0) ...[
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.indigo.shade100),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Switch(
+                  value: provider.pendingInvoices.isNotEmpty &&
+                      provider.pendingInvoices.every((inv) => inv.kdvDahil),
+                  onChanged: (v) => provider.toggleAllKdvDahil(v),
+                ),
+                Text(
+                  'Tümü KDV Dahil',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: provider.pendingInvoices.isNotEmpty &&
+                            provider.pendingInvoices.every((inv) => inv.kdvDahil)
+                        ? Colors.indigo.shade800
+                        : Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const Spacer(),
         FilledButton.icon(
           key: const ValueKey('toplu_yazdir_btn'),

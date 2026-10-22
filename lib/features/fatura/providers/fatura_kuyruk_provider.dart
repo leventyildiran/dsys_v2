@@ -572,6 +572,12 @@ class FaturaKuyrukProvider extends ChangeNotifier {
     _queueChanged();
   }
 
+  void toggleAllKdvDahil(bool value) {
+    for (int i = 0; i < pendingInvoices.length; i++) {
+      toggleKdvDahil(i, value);
+    }
+  }
+
   // ─────────────────────────────────────────────────────────
   // Validation
   // ─────────────────────────────────────────────────────────

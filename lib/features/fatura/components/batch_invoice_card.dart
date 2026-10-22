@@ -171,6 +171,24 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
                       ],
                     ),
                   ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Switch(
+                        value: invoice.kdvDahil,
+                        onChanged: (v) => provider.toggleKdvDahil(index, v),
+                      ),
+                      Text(
+                        'KDV Dahil',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: invoice.kdvDahil ? FontWeight.w600 : FontWeight.normal,
+                          color: invoice.kdvDahil ? AppColors.primary : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
                   if (!hazir)
                     Tooltip(
                       message: eksik.join(', '),
@@ -784,21 +802,23 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
             onChanged: (v) => provider.toggleKdvMuaf(index, v),
           ),
           const Text('KDV Muaf', style: TextStyle(fontSize: 12)),
-          if (!invoice.isKdvMuaf) ...[
-            const SizedBox(width: 12),
-            Switch(
-              value: invoice.kdvDahil,
-              onChanged: (v) => provider.toggleKdvDahil(index, v),
+          const SizedBox(width: 12),
+          Switch(
+            value: invoice.kdvDahil,
+            onChanged: invoice.isKdvMuaf
+                ? null
+                : (v) => provider.toggleKdvDahil(index, v),
+          ),
+          Text(
+            'KDV Dahil',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: invoice.kdvDahil ? FontWeight.w600 : FontWeight.normal,
+              color: invoice.isKdvMuaf
+                  ? Colors.grey
+                  : (invoice.kdvDahil ? AppColors.primary : AppColors.textSecondary),
             ),
-            Text(
-              'KDV Dahil',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: invoice.kdvDahil ? FontWeight.w600 : FontWeight.normal,
-                color: invoice.kdvDahil ? AppColors.primary : AppColors.textSecondary,
-              ),
-            ),
-          ],
+          ),
           const Spacer(),
           _totalChip('Matrah', TurkceFormat.para(invoice.matrah)),
           const SizedBox(width: 8),

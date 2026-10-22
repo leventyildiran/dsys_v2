@@ -428,6 +428,10 @@ class BatchFaturaProvider extends ChangeNotifier {
     _kuyrukProvider.toggleKdvDahil(index, value);
   }
 
+  void toggleAllKdvDahil(bool value) {
+    _kuyrukProvider.toggleAllKdvDahil(value);
+  }
+
   void setInvoiceNakliYekun(int index, bool value) {
     _kuyrukProvider.setInvoiceNakliYekun(index, value);
   }
