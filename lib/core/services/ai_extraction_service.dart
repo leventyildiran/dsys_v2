@@ -25,13 +25,14 @@ class AIExtractionService {
       'gemini-2.5-flash',
       'gemini-2.0-flash',
       'gemini-1.5-flash',
-      'gemini-1.5-pro',
       'gemini-3.8-flash',
       'gemini-3.6-flash',
       'gemini-3.7-flash',
       'gemini-3.5-flash',
     ];
     for (final m in officialModels) {
+      // Maliyet koruması: Pro modeller yedek zincirde asla denenmez.
+      if (m.contains('pro')) continue;
       if (!modelOrder.contains(m)) modelOrder.add(m);
     }
 
@@ -86,7 +87,7 @@ class AIExtractionService {
     Uint8List? pdfBytes,
   }) async {
     final ayarlar = await _ayarlarService.getAyarlar();
-    final prompt = _buildPrompt(rawBatchText);
+    final prompt = faturaPromptu(rawBatchText);
 
     Object? geminiHata;
     if (ayarlar.geminiApiKey.isNotEmpty) {
@@ -133,7 +134,8 @@ class AIExtractionService {
     );
   }
 
-  String _buildPrompt(String rawText) {
+  /// Fatura okuma promptu. Ham metin varsa sonuna eklenir.
+  static String faturaPromptu(String rawText) {
     return '''
 Aşağıdaki metin veya ekteki PDF/belge; üniversite döner sermaye işletmesine (Diş Hekimliği Fakültesi, UBATAM, TÖMER, Sağlık/Tıp, Ziraat, Mühendislik veya diğer birimler) ait resmi fatura(lar), e-Arşiv/e-Fatura veya harcama/makbuz evrakıdır.
 Lütfen bu belgeden faturadaki kalemleri ve temel bilgileri eksiksiz ve birebir çıkart.
@@ -201,7 +203,7 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
    - Hiçbiri değilse: DİĞER
 8. "adres", "vergiDairesi" ve "vergiNo" alanlarını belgede yer alan müşteri/alıcı bilgilerinden eksiksiz çek. Açık adres (mahalle, cadde, sokak, no, ilçe, il vb.) varsa tek parça string olarak "adres" alanına yaz; bulunamazsa "" bırak.
 
-\${rawText.isNotEmpty ? "Ham Fatura Metni:\\n\$rawText" : ""}
+${rawText.isNotEmpty ? 'Ham Fatura Metni:\n$rawText' : ''}
 ''';
   }
 

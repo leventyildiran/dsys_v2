@@ -11,6 +11,8 @@ import '../components/batch_invoice_card.dart';
 import '../components/batch_toolbar.dart';
 
 import 'fatura_arsiv_arama_dialog.dart';
+import '../models/fatura_okuma_oturumu.dart';
+import '../components/fatura_okuma_terminali_dialog.dart';
 
 class BatchVerificationScreen extends StatefulWidget {
   const BatchVerificationScreen({super.key});
@@ -662,18 +664,6 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
     BuildContext context,
     BatchFaturaProvider provider,
   ) async {
-    BuildContext? progressDialogContext;
-    void closeProgressDialog() {
-      final dialogCtx = progressDialogContext;
-      if (dialogCtx == null) return;
-      if (!dialogCtx.mounted) {
-        progressDialogContext = null;
-        return;
-      }
-      Navigator.of(dialogCtx).pop();
-      progressDialogContext = null;
-    }
-
     try {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
@@ -689,64 +679,56 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
       int basariliDosya = 0;
       final List<String> errorMessages = [];
 
-      for (var i = 0; i < totalFiles; i++) {
-        final file = result.files[i];
-        
-        Uint8List? bytes = file.bytes;
-        if (bytes == null && !kIsWeb && file.path != null) {
-          bytes = File(file.path!).readAsBytesSync();
-        }
-        if (bytes == null) continue;
+      final oturum = FaturaOkumaOturumu();
+      oturum.baslat(toplamDosya: totalFiles);
 
-        if (!context.mounted) return;
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogCtx) {
-            progressDialogContext = dialogCtx;
-            final isPdf = (file.extension ?? '').toLowerCase() == 'pdf';
-            final String progressLabel;
-            if (totalFiles > 1) {
-              progressLabel = '(${i + 1}/$totalFiles) ${file.name} işleniyor…';
-            } else if (isPdf) {
-              progressLabel = 'Sistem belgenin tüm sayfalarını inceliyor, lütfen bekleyiniz…';
-            } else {
-              progressLabel = '${file.name} okunuyor…';
+      await FaturaOkumaTerminaliDialog.goster(
+        context: context,
+        oturum: oturum,
+        islemGorevi: () async {
+          for (var i = 0; i < totalFiles; i++) {
+            oturum.iptalKontrol();
+            final file = result.files[i];
+            oturum.dosyaBasla(i, file.name);
+
+            Uint8List? bytes = file.bytes;
+            if (bytes == null && !kIsWeb && file.path != null) {
+              bytes = File(file.path!).readAsBytesSync();
             }
-            return AlertDialog(
-              content: Row(
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(width: 16),
-                  Expanded(child: Text(progressLabel)),
-                ],
-              ),
-            );
-          },
-        );
+            if (bytes == null) {
+              oturum.log('${file.name}: Dosya içeriği okunamadı', seviye: FaturaLogSeviyesi.hata);
+              oturum.dosyaHatali();
+              continue;
+            }
 
-        final extension = (file.extension ?? '').toLowerCase();
-        final shouldAppend = basariliDosya > 0;
+            final extension = (file.extension ?? '').toLowerCase();
+            final shouldAppend = basariliDosya > 0 ||
+                provider.pendingInvoices.any((f) => !BatchFaturaProvider.yerTutucuMu(f));
 
-        try {
-          if (extension == 'xls' || extension == 'xlsx') {
-            await provider.loadExcelFile(bytes, file.name, append: shouldAppend);
-          } else {
-            final text = await _extractTextFromFile(bytes, extension);
-            await provider.loadBatch(
-              text,
-              pdfBytes: extension == 'pdf' ? bytes : null,
-              append: shouldAppend,
-            );
+            try {
+              if (extension == 'xls' || extension == 'xlsx') {
+                await provider.loadExcelFile(bytes, file.name, append: shouldAppend);
+              } else {
+                final text = await _extractTextFromFile(bytes, extension);
+                await provider.loadBatch(
+                  text,
+                  pdfBytes: extension == 'pdf' ? bytes : null,
+                  append: shouldAppend,
+                  oturum: oturum,
+                  fileName: file.name,
+                );
+              }
+              basariliDosya++;
+            } catch (e) {
+              debugPrint('${file.name} ayrıştırılırken hata: $e');
+              oturum.log('${file.name} ayrıştırılırken hata: $e', seviye: FaturaLogSeviyesi.hata);
+              oturum.dosyaHatali();
+              errorMessages.add('${file.name}: $e');
+            }
           }
-          basariliDosya++;
-        } catch (e) {
-          debugPrint('${file.name} ayrıştırılırken hata: $e');
-          errorMessages.add('${file.name}: $e');
-        } finally {
-          closeProgressDialog();
-        }
-      }
+          oturum.tamamla();
+        },
+      );
 
       if (!context.mounted) return;
       setState(() {
@@ -770,8 +752,8 @@ class _BatchVerificationScreenState extends State<BatchVerificationScreen> {
             backgroundColor: Colors.green,
           ),
         );
-      } else {
-        final allErrors = errorMessages.take(3).join('\n'); // En fazla 3 hata göster
+      } else if (errorMessages.isNotEmpty) {
+        final allErrors = errorMessages.take(3).join('\n');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(

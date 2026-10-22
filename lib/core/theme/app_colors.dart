@@ -195,4 +195,36 @@ abstract final class AppColors {
 
   /// Bilgi/ipucu metni.
   static const Color notMetin = info;
+
+  // ─── Canlı işlem terminali (fatura okuma konsolu) ───
+  // Anlam: "Arka planda çalışan süreç günlüğü". Koyu konsol zemini üzerinde
+  // durum renkleri yalnızca log seviyesini anlatır.
+
+  /// Terminal konsol zemini.
+  static const Color terminalZemin = Color(0xFF0F172A);
+
+  /// Terminal üst çubuk zemini.
+  static const Color terminalBaslik = Color(0xFF1E293B);
+
+  /// Terminal çerçeve / ayraç.
+  static const Color terminalKenarlik = Color(0xFF334155);
+
+  /// Terminal normal metin.
+  static const Color terminalMetin = Color(0xFFE2E8F0);
+
+  /// Terminal soluk metin (zaman damgası, ipucu).
+  static const Color terminalSoluk = Color(0xFF64748B);
+
+  /// Terminal katman / aşama başlığı vurgusu.
+  static const Color terminalVurgu = Color(0xFF38BDF8);
+
+  /// Terminal başarılı satır.
+  static const Color terminalBasari = Color(0xFF4ADE80);
+
+  /// Terminal uyarı satırı.
+  static const Color terminalUyari = Color(0xFFFBBF24);
+
+  /// Terminal hata satırı.
+  static const Color terminalHata = Color(0xFFF87171);
+
 }

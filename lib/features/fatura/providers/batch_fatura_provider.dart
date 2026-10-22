@@ -26,6 +26,8 @@ import '../services/fatura_dogrulama_servisi.dart';
 import 'package:flutter/foundation.dart';
 import 'fatura_kuyruk_provider.dart';
 import 'fatura_matbu_provider.dart';
+import '../models/fatura_okuma_oturumu.dart';
+import '../services/fatura_ayristirma_orkestratoru.dart';
 
 /// Yürütme Kurulu toplu fatura oluşturma ana sağlayıcısı.
 ///
@@ -51,6 +53,8 @@ class BatchFaturaProvider extends ChangeNotifier {
 
   // ── AI & Servisler ───────────────────────────────────────
   final AIExtractionService _aiService = AIExtractionService();
+  final FaturaAyristirmaOrkestratoru _orkestrator = FaturaAyristirmaOrkestratoru();
+  FaturaAyristirmaOrkestratoru get orkestrator => _orkestrator;
   final FaturaService _faturaService = FaturaService();
   SistemAyarlariModel? sistemAyarlari;
 
@@ -703,8 +707,14 @@ class BatchFaturaProvider extends ChangeNotifier {
     bool cevrimdisi = false,
     Uint8List? pdfBytes,
     bool append = false,
+    FaturaOkumaOturumu? oturum,
+    String fileName = 'Belge.pdf',
   }) async {
     debugPrint('[loadBatch] Gelen evrak: metin=${text.length} karakter, pdfBytes=${pdfBytes?.length ?? 0} byte');
+    final oturumInstance = oturum ?? FaturaOkumaOturumu();
+    if (oturum == null) {
+      oturumInstance.baslat(toplamDosya: 1);
+    }
 
     if (cevrimdisi) {
       final offlineSonuc = FaturaOfflineParser.parse(text);
@@ -712,51 +722,40 @@ class BatchFaturaProvider extends ChangeNotifier {
         sonAyristirmaBilgisi = offlineSonuc.first.parsedBy;
         final dogrulanmis = FaturaDogrulamaServisi.dogrulaList(offlineSonuc);
         _kuyrukProvider.setInvoicesFromParse(dogrulanmis, append: append);
+        oturumInstance.faturaEklendi(dogrulanmis.length, ucretsiz: true);
+        if (oturum == null) oturumInstance.tamamla();
         return;
       }
-      throw Exception(
-        'Çevrimdışı modda metinden fatura verisi çıkarılamadı.',
-      );
+      throw Exception('Çevrimdışı modda metinden fatura verisi çıkarılamadı.');
     }
 
-    // ── Gemini Vision API — doğrudan PDF/metin gönder ──
-    final hasPdf = pdfBytes != null && pdfBytes.isNotEmpty;
-    final aiTimeout = Duration(seconds: hasPdf ? 150 : 45);
-    debugPrint('[loadBatch] Gemini API çağrılıyor (timeout: ${aiTimeout.inSeconds}s)...');
-
     try {
-      final extractedData = await _aiService.extractBatchData(
-        text,
-        pdfBytes: pdfBytes,
-      ).timeout(aiTimeout, onTimeout: () {
-        throw Exception(
-          'Sistem yanıt vermedi (${aiTimeout.inSeconds} saniye). '
-          'Belge çok büyük olabilir, lütfen tekrar deneyin.',
-        );
-      });
+      final faturalar = await _orkestrator.ayristir(
+        bytes: pdfBytes,
+        fileName: fileName,
+        rawText: text,
+        oturum: oturumInstance,
+      );
 
-      final sonuc = extractedData.map(FaturaModel.fromJson).toList();
-      if (sonuc.isEmpty) {
-        throw Exception(
-          'Sistem belgeden fatura verisi çıkaramadı. '
-          'Belgenin okunabilir olduğundan emin olun.',
-        );
+      if (faturalar.isEmpty) {
+        throw Exception('Sistem belgeden fatura verisi çıkaramadı.');
       }
 
       // Fatura tarihi ve irsaliye tarihi otomatik günün tarihi olsun
       final simdi = DateTime.now();
       final bugunStr =
           '${simdi.day.toString().padLeft(2, '0')}.${simdi.month.toString().padLeft(2, '0')}.${simdi.year}';
-      for (final f in sonuc) {
-        f.tarih = bugunStr;
-        f.irsaliyeTarihi = bugunStr;
+      for (final f in faturalar) {
+        if (f.tarih.isEmpty) f.tarih = bugunStr;
+        if (f.irsaliyeTarihi.isEmpty) f.irsaliyeTarihi = bugunStr;
       }
 
-      sonAyristirmaBilgisi = sonuc.first.parsedBy;
-      final dogrulanmis = FaturaDogrulamaServisi.dogrulaList(sonuc);
-      _kuyrukProvider.setInvoicesFromParse(dogrulanmis, append: append);
+      sonAyristirmaBilgisi = faturalar.first.parsedBy;
+      _kuyrukProvider.setInvoicesFromParse(faturalar, append: append);
+      if (oturum == null) oturumInstance.tamamla();
     } catch (e) {
       debugPrint('[loadBatch] Ayrıştırma hatası: $e');
+      if (oturum == null) oturumInstance.tamamla();
       rethrow;
     }
   }
