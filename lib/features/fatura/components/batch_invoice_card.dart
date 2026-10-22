@@ -141,6 +141,29 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
                                 padding: EdgeInsets.zero,
                                 backgroundColor: Colors.blue.shade100,
                               ),
+                            if (invoice.okumaUyarilari.isNotEmpty)
+                              Tooltip(
+                                message: invoice.okumaUyarilari.join('\n• '),
+                                child: Chip(
+                                  label: Text(
+                                    '${invoice.okumaUyarilari.length} kontrol uyarısı',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.warning,
+                                    ),
+                                  ),
+                                  avatar: const Icon(
+                                    Icons.warning_amber_rounded,
+                                    size: 14,
+                                    color: AppColors.warning,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  backgroundColor: AppColors.warningSubtle,
+                                  side: const BorderSide(color: AppColors.warningBorder),
+                                ),
+                              ),
                             if (ibanKontrolYapilabilir)
                               Chip(
                                 label: Text(
@@ -232,6 +255,49 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (invoice.okumaUyarilari.isNotEmpty) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.warningSubtle,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.warningBorder),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.warning_amber_rounded, size: 20, color: AppColors.warning),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Otomatik Okuma & Bütünlük Kontrol Notları:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.warning,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      ...invoice.okumaUyarilari.map(
+                        (u) => Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Text(
+                            '• $u',
+                            style: const TextStyle(fontSize: 11.5, color: AppColors.textPrimary),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         LayoutBuilder(
           builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 650;

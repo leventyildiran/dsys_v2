@@ -1,6 +1,7 @@
 import '../models/fatura_matbu_config.dart';
 import '../models/fatura_model.dart';
 import '../models/fatura_parse_kaynaklari.dart';
+import 'vergi_kimlik_dogrulayici.dart';
 
 /// İnternet/AI olmadan ham metni (Excel CSV dökümü veya yapıştırılan metin)
 /// kural tabanlı olarak faturaya çeviren çevrimdışı ayrıştırıcı.
@@ -1385,38 +1386,8 @@ class FaturaOfflineParser {
   }
 
   /// Resmi GİB Vergi Kimlik Numarası (VKN) MOD 10 algoritması
-  static bool _isValidVkn(String vkn) {
-    if (vkn.length != 10 || !RegExp(r'^\d{10}$').hasMatch(vkn)) return false;
-    if (vkn.split('').toSet().length == 1) return false;
-    int sum = 0;
-    for (int i = 0; i < 9; i++) {
-      int c = int.parse(vkn[i]);
-      int v1 = (c + 10 - (i + 1)) % 10;
-      if (v1 == 9) {
-        sum += 9;
-      } else if (v1 != 0) {
-        int v2 = (v1 * (1 << (9 - i))) % 9;
-        if (v2 == 0) v2 = 9;
-        sum += v2;
-      }
-    }
-    int lastDigit = (10 - (sum % 10)) % 10;
-    return lastDigit == int.parse(vkn[9]);
-  }
+  static bool _isValidVkn(String vkn) => VergiKimlikDogrulayici.vknGecerliMi(vkn);
 
   /// T.C. Kimlik Numarası (TCKN) algoritması
-  static bool _isValidTckn(String tckn) {
-    if (tckn.length != 11 || !RegExp(r'^[1-9]\d{10}$').hasMatch(tckn)) return false;
-    List<int> digits = tckn.split('').map(int.parse).toList();
-    int tekToplam = digits[0] + digits[2] + digits[4] + digits[6] + digits[8];
-    int ciftToplam = digits[1] + digits[3] + digits[5] + digits[7];
-    int d10 = ((tekToplam * 7) - ciftToplam) % 10;
-    if (d10 < 0) d10 += 10;
-    if (d10 != digits[9]) return false;
-    int sum10 = 0;
-    for (int i = 0; i < 10; i++) {
-      sum10 += digits[i];
-    }
-    return (sum10 % 10) == digits[10];
-  }
+  static bool _isValidTckn(String tckn) => VergiKimlikDogrulayici.tcknGecerliMi(tckn);
 }

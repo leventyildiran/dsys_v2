@@ -2,12 +2,14 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
+import '../../../core/models/sistem_ayarlari_model.dart';
 import '../../../core/services/ai_extraction_service.dart';
 import '../../../core/services/sistem_ayarlari_service.dart';
 import '../models/fatura_model.dart';
 import '../models/fatura_okuma_oturumu.dart';
 import '../models/fatura_parse_kaynaklari.dart';
 import 'excel_universal_parser.dart';
+import 'fatura_butunluk_denetcisi.dart';
 import 'fatura_dogrulama_servisi.dart';
 import 'fatura_gemini_okuyucu.dart';
 import 'fatura_kalite_kapisi.dart';
@@ -20,20 +22,61 @@ import 'yerel_ocr/fatura_yerel_ocr.dart';
 /// Katman 2: Deterministik Kural Motoru (0 TL)
 /// Katman 3: Cihaz İçi Yerel OCR (0 TL)
 /// Katman 4: Son Çare: Salt Metin Gemini Flash (~0,001 TL, asla Pro yok)
+///
+/// Güvenlik ağları:
+/// - Her katmanın çıktısı [FaturaButunlukDenetcisi]'nden geçer; şüpheli alanlar
+///   `okumaUyarilari` ile kullanıcıya gösterilir (sessiz düzeltme yok).
+/// - Yapay zeka çıktısı kaynak metinle karşılaştırılır (uydurma tespiti).
+/// - Yapay zekaya ulaşılamazsa (anahtar yok, internet yok, kota, hata) kural
+///   motorunun kısmi sonucu uyarıyla birlikte döner; kullanıcı elle tamamlar.
 class FaturaAyristirmaOrkestratoru {
   FaturaAyristirmaOrkestratoru({
     SistemAyarlariService? ayarlarService,
     FaturaGeminiOkuyucu? geminiOkuyucu,
     FaturaYerelOcr? yerelOcr,
+    Future<SistemAyarlariModel> Function()? ayarlariOku,
   })  : _ayarlarServiceInstance = ayarlarService,
         _geminiOkuyucu = geminiOkuyucu ?? FaturaGeminiOkuyucu(),
-        _yerelOcr = yerelOcr ?? const FaturaYerelOcr();
+        _yerelOcr = yerelOcr ?? const FaturaYerelOcr(),
+        _ayarlariOku = ayarlariOku;
 
   SistemAyarlariService? _ayarlarServiceInstance;
   SistemAyarlariService get _ayarlarService =>
       _ayarlarServiceInstance ??= SistemAyarlariService();
   final FaturaGeminiOkuyucu _geminiOkuyucu;
   final FaturaYerelOcr _yerelOcr;
+  final Future<SistemAyarlariModel> Function()? _ayarlariOku;
+  String? _isletmeVknOnbellek;
+
+  /// Yapay zekaya gönderilen metin bu sınırı aşarsa maliyet uyarısı verilir.
+  static const int buyukMetinEsigi = 60000;
+
+  Future<SistemAyarlariModel> _ayarlar() =>
+      _ayarlariOku != null ? _ayarlariOku() : _ayarlarService.getAyarlar();
+
+  /// İşletmenin kendi VKN'si (alıcı yerine düzenleyen okunmasını yakalamak için).
+  /// Ayarlar okunamazsa denetim bu kontrolü atlar; okuma asla bu yüzden durmaz.
+  Future<String> _isletmeVkn() async {
+    if (_isletmeVknOnbellek != null) return _isletmeVknOnbellek!;
+    try {
+      _isletmeVknOnbellek = (await _ayarlar()).isletmeVkn;
+    } catch (_) {
+      _isletmeVknOnbellek = '';
+    }
+    return _isletmeVknOnbellek!;
+  }
+
+  /// PDF metin katmanı gerçekten okunabilir mi? Bozuk font kodlaması (CID)
+  /// veya yalnızca birkaç karakterlik başlık içeren taranmış PDF'leri eler;
+  /// böylece bu belgeler boş sayılıp yerel OCR'a yönlendirilir.
+  static bool anlamliMetinMi(String s) {
+    final t = s.trim();
+    if (t.isEmpty) return false;
+    final harfRakam = RegExp(r'[0-9A-Za-zÇĞİÖŞÜçğıöşü]').allMatches(t).length;
+    if (harfRakam < 40) return false;
+    final bozuk = RegExp(r'[\uFFFD\u0000-\u0008]').allMatches(t).length;
+    return bozuk / t.length < 0.05;
+  }
 
   /// Tek bir belgeyi kademeli olarak ayrıştırır ve faturaları döner.
   Future<List<FaturaModel>> ayristir({
@@ -58,7 +101,7 @@ class FaturaAyristirmaOrkestratoru {
       if (sonuc.isNotEmpty) {
         oturum.faturaEklendi(sonuc.length, ucretsiz: true);
         oturum.log('✅ Excel yerel motorla çözüldü: ${sonuc.length} fatura çıkarıldı (Maliyet: 0,00 TL)', seviye: FaturaLogSeviyesi.basarili);
-        return FaturaDogrulamaServisi.dogrulaList(sonuc);
+        return _sonuclandir(sonuc, kaynakMetin: csvText, aiUretimi: false, oturum: oturum);
       }
       // Excel kural motorundan çıkmadıysa metin olarak devam et
       rawText = csvText;
@@ -83,12 +126,24 @@ class FaturaAyristirmaOrkestratoru {
         } catch (e) {
           oturum.log('   ↳ PDF dijital metin okunamadı (taranmış görsel olabilir): $e', seviye: FaturaLogSeviyesi.uyari);
         }
+        if (metin.isNotEmpty && !anlamliMetinMi(metin)) {
+          oturum.log(
+            '   ↳ Metin katmanı anlamsız/bozuk (taranmış belge veya kodlanmış font). Görüntü olarak işlenecek.',
+            seviye: FaturaLogSeviyesi.uyari,
+          );
+          metin = '';
+        }
       } else if (ext == 'txt' || ext == 'csv') {
         metin = utf8.decode(bytes, allowMalformed: true).trim();
       }
     }
 
     oturum.iptalKontrol();
+
+    // Kural motorunun eksik ama boş olmayan sonucu: yapay zeka kullanılamazsa
+    // kullanıcıya hiç sonuç vermemek yerine bu, uyarıyla birlikte sunulur.
+    var kismiSonuc = <FaturaModel>[];
+    String? kismiNeden;
 
     // ─────────────────────────────────────────────────────────
     // KATMAN 2: Deterministik Kural Motoru (0 TL, Sıfır API)
@@ -108,11 +163,16 @@ class FaturaAyristirmaOrkestratoru {
           '🎉 [BAŞARILI] Kural motoru tam eşleşti: ${yerelSonuc.length} fatura sıfır maliyetle ayrıştırıldı! (Maliyet: 0,00 TL)',
           seviye: FaturaLogSeviyesi.basarili,
         );
-        for (final f in yerelSonuc) {
-          f.parsedBy = FaturaParseKaynaklari.cevrimdisi;
-        }
-        return FaturaDogrulamaServisi.dogrulaList(yerelSonuc);
+        return _sonuclandir(
+          yerelSonuc,
+          kaynakMetin: metin,
+          aiUretimi: false,
+          oturum: oturum,
+          kaynak: FaturaParseKaynaklari.cevrimdisi,
+        );
       } else if (yerelSonuc.isNotEmpty) {
+        kismiSonuc = yerelSonuc;
+        kismiNeden = eksik;
         oturum.log('   ↳ Kural motoru kısmi okudu: $eksik', seviye: FaturaLogSeviyesi.uyari);
       } else {
         oturum.log('   ↳ Standart kural şablonu eşleşmedi, sonraki katmana geçiliyor.', seviye: FaturaLogSeviyesi.bilgi);
@@ -145,11 +205,22 @@ class FaturaAyristirmaOrkestratoru {
           metin = ocrMetin;
           oturum.log('   ↳ Yerel OCR metin çıkardı (${metin.length} karakter). Kural motoruna veriliyor...', seviye: FaturaLogSeviyesi.basarili);
           final ocrSonuc = FaturaOfflineParser.parse(metin);
-          if (ocrSonuc.isNotEmpty && FaturaKaliteKapisi.eksikNedeni(ocrSonuc, metin) == null) {
+          final ocrEksik = FaturaKaliteKapisi.eksikNedeni(ocrSonuc, metin);
+          if (ocrSonuc.isNotEmpty && ocrEksik == null) {
             oturum.faturaEklendi(ocrSonuc.length, ucretsiz: true);
             oturum.dosyaIciIlerleme(1.0);
             oturum.log('🎉 Yerel OCR + Kural motoru ile ${ocrSonuc.length} fatura sıfır maliyetle çözüldü!', seviye: FaturaLogSeviyesi.basarili);
-            return FaturaDogrulamaServisi.dogrulaList(ocrSonuc);
+            return _sonuclandir(
+              ocrSonuc,
+              kaynakMetin: metin,
+              aiUretimi: false,
+              oturum: oturum,
+              kaynak: FaturaParseKaynaklari.cevrimdisi,
+              ekUyarilar: const ['Taranmış belgeden OCR ile okundu; rakamları belgeyle karşılaştırın.'],
+            );
+          } else if (ocrSonuc.isNotEmpty) {
+            kismiSonuc = ocrSonuc;
+            kismiNeden = ocrEksik;
           }
         }
       } else {
@@ -163,13 +234,53 @@ class FaturaAyristirmaOrkestratoru {
     // KATMAN 4: Son Çare: Salt Metin Gemini Flash (~0,001 TL)
     // Asla Pro model çağrılmaz! Düşünme token'ı kapalıdır.
     // ─────────────────────────────────────────────────────────
+    try {
+      return await _yapayZekaIleOku(bytes: bytes, metin: metin, oturum: oturum);
+    } on FaturaOkumaIptalEdildi {
+      rethrow;
+    } catch (e) {
+      if (kismiSonuc.isEmpty) rethrow;
+      final neden = e.toString().replaceFirst('Exception: ', '');
+      oturum.log(
+        '⚠️ Yapay zeka kullanılamadı ($neden). Kural motorunun kısmi sonucu gösteriliyor — eksikleri elle tamamlayın.',
+        seviye: FaturaLogSeviyesi.uyari,
+      );
+      oturum.faturaEklendi(kismiSonuc.length, ucretsiz: true);
+      oturum.dosyaIciIlerleme(1.0);
+      return _sonuclandir(
+        kismiSonuc,
+        kaynakMetin: metin,
+        aiUretimi: false,
+        oturum: oturum,
+        kaynak: FaturaParseKaynaklari.cevrimdisi,
+        ekUyarilar: [
+          'Yapay zekaya ulaşılamadı; bu fatura kural motorunun KISMİ sonucudur'
+              '${kismiNeden != null ? ' ($kismiNeden)' : ''}. Tüm alanları kontrol edin.',
+        ],
+      );
+    }
+  }
+
+  Future<List<FaturaModel>> _yapayZekaIleOku({
+    required Uint8List? bytes,
+    required String metin,
+    required FaturaOkumaOturumu oturum,
+  }) async {
     oturum.katmanDegisti('Katman 4: Gemini Flash AI');
     oturum.log('🤖 [KATMAN 4] Karmaşık tablo/evrak için Gemini Flash AI devrede...', seviye: FaturaLogSeviyesi.katman);
     oturum.dosyaIciIlerleme(0.8);
 
-    final ayarlar = await _ayarlarService.getAyarlar();
+    final ayarlar = await _ayarlar();
+    _isletmeVknOnbellek ??= ayarlar.isletmeVkn;
     if (ayarlar.geminiApiKey.trim().isEmpty) {
       throw Exception('API Anahtarı bulunamadı. Lütfen Sistem Ayarları sayfasından anahtarınızı girin.');
+    }
+
+    if (metin.length > buyukMetinEsigi) {
+      oturum.log(
+        '   ↳ Belge metni çok uzun (${metin.length} karakter); maliyet normalden yüksek olabilir. Mümkünse belgeyi bölerek yükleyin.',
+        seviye: FaturaLogSeviyesi.uyari,
+      );
     }
 
     final prompt = AIExtractionService.faturaPromptu(metin);
@@ -205,24 +316,95 @@ class FaturaAyristirmaOrkestratoru {
       seviye: FaturaLogSeviyesi.maliyet,
     );
 
-    final parsedJsonList = _parseJsonList(yanit.metin);
+    final parsedJsonList = jsonListesiCoz(yanit.metin);
     if (parsedJsonList.isEmpty) {
+      if (yanit.kesildi) {
+        throw Exception('Yapay zeka yanıtı çıktı sınırında kesildi (belge çok uzun). Belgeyi bölerek yükleyin.');
+      }
       throw Exception('Yapay zeka yanıtı fatura JSON listesine dönüştürülemedi.');
+    }
+    if (yanit.kesildi) {
+      oturum.log('   ↳ Yanıt sınırda kesildi; son fatura(lar) eksik olabilir.', seviye: FaturaLogSeviyesi.uyari);
     }
 
     final faturalar = parsedJsonList.map(FaturaModel.fromJson).toList();
-    for (final f in faturalar) {
-      f.parsedBy = FaturaParseKaynaklari.sistemOkuma;
-    }
+
+    // Yapay zeka çıktısı da aynı kalite kapısından geçer; eksik çıktı sessizce
+    // kabul edilmez, kullanıcıya gösterilir.
+    final aiEksik = FaturaKaliteKapisi.eksikNedeni(faturalar, metin);
 
     oturum.faturaEklendi(faturalar.length, ucretsiz: false);
     oturum.dosyaIciIlerleme(1.0);
-    oturum.log('✅ ${faturalar.length} fatura Gemini Flash ile başarıyla ayrıştırıldı.', seviye: FaturaLogSeviyesi.basarili);
+    oturum.log('✅ ${faturalar.length} fatura Gemini Flash ile ayrıştırıldı.', seviye: FaturaLogSeviyesi.basarili);
 
-    return FaturaDogrulamaServisi.dogrulaList(faturalar);
+    return _sonuclandir(
+      faturalar,
+      kaynakMetin: metin,
+      aiUretimi: true,
+      oturum: oturum,
+      kaynak: FaturaParseKaynaklari.sistemOkuma,
+      ekUyarilar: [
+        if (aiEksik != null) 'Yapay zeka çıktısı eksik: $aiEksik',
+        if (yanit.kesildi) 'Yapay zeka yanıtı sınırda kesildi; fatura sayısını kontrol edin.',
+      ],
+    );
   }
 
-  List<Map<String, dynamic>> _parseJsonList(String text) {
+  /// Ortak son adım: matematiksel doğrulama + bütünlük denetimi + terminal raporu.
+  Future<List<FaturaModel>> _sonuclandir(
+    List<FaturaModel> faturalar, {
+    required String kaynakMetin,
+    required bool aiUretimi,
+    required FaturaOkumaOturumu oturum,
+    String? kaynak,
+    List<String> ekUyarilar = const [],
+  }) async {
+    final isletmeVkn = await _isletmeVkn();
+    var uyariliSayisi = 0;
+
+    for (var i = 0; i < faturalar.length; i++) {
+      final f = faturalar[i];
+      if (kaynak != null) f.parsedBy = kaynak;
+
+      final once = FaturaOkumaAnlikGoruntusu.al(f);
+      FaturaDogrulamaServisi.dogrulaVeTamamla(f);
+
+      final uyarilar = <String>[
+        ...ekUyarilar,
+        ...FaturaButunlukDenetcisi.denetle(
+          fatura: f,
+          once: once,
+          kaynakMetin: kaynakMetin,
+          aiUretimi: aiUretimi,
+          isletmeVkn: isletmeVkn,
+        ),
+      ];
+      f.okumaUyarilari = uyarilar;
+
+      if (uyarilar.isNotEmpty) {
+        uyariliSayisi++;
+        final ad = f.firmaAdi.trim().isEmpty ? 'firma adı yok' : f.firmaAdi.trim();
+        oturum.log('   ⚠ Fatura ${i + 1} ($ad): ${uyarilar.length} kontrol uyarısı', seviye: FaturaLogSeviyesi.uyari);
+        for (final u in uyarilar) {
+          oturum.log('      • $u', seviye: FaturaLogSeviyesi.uyari);
+        }
+      }
+    }
+
+    if (faturalar.isNotEmpty) {
+      oturum.log(
+        uyariliSayisi == 0
+            ? '🛡️ Bütünlük denetimi: ${faturalar.length} fatura tutarlı (VKN, tarih, toplam, belge kanıtı).'
+            : '🛡️ Bütünlük denetimi: $uyariliSayisi/${faturalar.length} faturada kontrol edilmesi gereken alan var.',
+        seviye: uyariliSayisi == 0 ? FaturaLogSeviyesi.basarili : FaturaLogSeviyesi.uyari,
+      );
+    }
+    return faturalar;
+  }
+
+  /// Model yanıtındaki JSON dizisini (veya tek nesneyi) çözer.
+  @visibleForTesting
+  static List<Map<String, dynamic>> jsonListesiCoz(String text) {
     try {
       String cleanText = text.trim();
       if (cleanText.startsWith('```json')) cleanText = cleanText.substring(7);
@@ -230,22 +412,88 @@ class FaturaAyristirmaOrkestratoru {
       if (cleanText.endsWith('```')) cleanText = cleanText.substring(0, cleanText.length - 3);
       cleanText = cleanText.trim();
 
-      int s = cleanText.indexOf('[');
-      int e = cleanText.lastIndexOf(']');
-      if (s != -1 && e != -1 && e >= s) {
-        final decoded = jsonDecode(cleanText.substring(s, e + 1));
-        if (decoded is List) return List<Map<String, dynamic>>.from(decoded);
+      // 1. Önce doğrudan tam metni parse etmeyi dene (en güvenli yöntem)
+      try {
+        final direct = jsonDecode(cleanText);
+        if (direct is List) {
+          return direct.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+        }
+        if (direct is Map) {
+          return _maptenFaturaListesiCikar(Map<String, dynamic>.from(direct));
+        }
+      } catch (_) {
+        // Doğrudan decode başarısız olursa kırpma yöntemlerine geç
       }
 
-      int os = cleanText.indexOf('{');
-      int oe = cleanText.lastIndexOf('}');
-      if (os != -1 && oe != -1 && oe >= os) {
-        final decoded = jsonDecode(cleanText.substring(os, oe + 1));
-        if (decoded is Map) return [Map<String, dynamic>.from(decoded)];
+      // 2. Hangisi önce başlıyor: '[' mi yoksa '{' mi?
+      final sList = cleanText.indexOf('[');
+      final sObj = cleanText.indexOf('{');
+
+      // Eğer obje önce başlıyorsa veya liste hiç yoksa, önce dış objeyi yakala
+      if (sObj != -1 && (sList == -1 || sObj < sList)) {
+        final eObj = cleanText.lastIndexOf('}');
+        if (eObj > sObj) {
+          try {
+            final decodedObj = jsonDecode(cleanText.substring(sObj, eObj + 1));
+            if (decodedObj is Map) {
+              return _maptenFaturaListesiCikar(Map<String, dynamic>.from(decodedObj));
+            }
+          } catch (_) {}
+        }
+      }
+
+      // Eğer liste önce başlıyorsa veya obje ayrıştırılamadıysa dış listeyi yakala
+      if (sList != -1) {
+        final eList = cleanText.lastIndexOf(']');
+        if (eList > sList) {
+          try {
+            final decodedList = jsonDecode(cleanText.substring(sList, eList + 1));
+            if (decodedList is List) {
+              // Eğer bu liste kalem listesi değil de gerçek faturalar ise döndür
+              final list = decodedList.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+              if (list.isNotEmpty) {
+                // Kalem objesi ile fatura objesini ayırt et
+                final ilkEleman = list.first;
+                final faturaMi = ilkEleman.containsKey('firmaAdi') ||
+                    ilkEleman.containsKey('matrah') ||
+                    ilkEleman.containsKey('genelToplam') ||
+                    ilkEleman.containsKey('vergiNo');
+                if (faturaMi) return list;
+              }
+            }
+          } catch (_) {}
+        }
       }
     } catch (e) {
       debugPrint('[FaturaAyristirmaOrkestratoru] JSON parse hatası: $e');
     }
     return [];
+  }
+
+  static List<Map<String, dynamic>> _maptenFaturaListesiCikar(Map<String, dynamic> map) {
+    // 1. Obje doğrudan tek bir fatura mı?
+    final tekFatura = map.containsKey('firmaAdi') ||
+        map.containsKey('matrah') ||
+        map.containsKey('genelToplam') ||
+        map.containsKey('vergiNo');
+    if (tekFatura) {
+      return [map];
+    }
+
+    // 2. {"faturalar": [...]} veya {"invoices": [...]} gibi sarmalayıcı mı?
+    for (final v in map.values) {
+      if (v is List && v.isNotEmpty && v.first is Map) {
+        final altListe = v.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+        final ilk = altListe.first;
+        if (ilk.containsKey('firmaAdi') ||
+            ilk.containsKey('matrah') ||
+            ilk.containsKey('genelToplam') ||
+            ilk.containsKey('vergiNo')) {
+          return altListe;
+        }
+      }
+    }
+
+    return [map];
   }
 }

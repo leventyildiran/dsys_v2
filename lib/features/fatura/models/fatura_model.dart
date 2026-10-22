@@ -74,6 +74,11 @@ class FaturaModel {
   String? tahminiBirim;
   List<String> ekstraNotlar;
 
+  /// Okuma/bütünlük denetiminin ürettiği kontrol uyarıları (yalnızca ekranda).
+  ///
+  /// Bilinçli olarak [toMap]'e yazılmaz ve faturaya basılmaz; `ekstraNotlar`
+  /// ile karıştırılmamalıdır (o alan matbu çıktının her sayfasında görünür).
+  List<String> okumaUyarilari;
   FaturaModel({
     required this.id,
     required this.firmaAdi,
@@ -110,6 +115,7 @@ class FaturaModel {
     this.aciklama,
     this.tahminiBirim,
     this.ekstraNotlar = const [],
+    this.okumaUyarilari = const [],
   });
 
   bool get kaydaHazir =>

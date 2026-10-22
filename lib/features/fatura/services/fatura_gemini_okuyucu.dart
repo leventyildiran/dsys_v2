@@ -20,9 +20,16 @@ class GeminiOkumaYaniti {
     required this.ciktiToken,
     required this.dusunceToken,
     required this.maliyetTl,
+    this.bitisNedeni = '',
   });
 
   int get toplamToken => girdiToken + ciktiToken + dusunceToken;
+
+  /// Gemini `finishReason` (ör. STOP, MAX_TOKENS, SAFETY).
+  final String bitisNedeni;
+
+  /// Çıktı token sınırına takılıp JSON yarıda kesildiyse true.
+  bool get kesildi => bitisNedeni == 'MAX_TOKENS';
 }
 
 /// Fatura okuma için MALİYET KONTROLLÜ Gemini istemcisi (REST).
@@ -224,8 +231,11 @@ class FaturaGeminiOkuyucu {
     final json = jsonDecode(govde) as Map<String, dynamic>;
     final adaylar = json['candidates'] as List<dynamic>? ?? const [];
     final buffer = StringBuffer();
+    var bitisNedeni = '';
     if (adaylar.isNotEmpty) {
-      final content = (adaylar.first as Map<String, dynamic>)['content'];
+      final aday = adaylar.first as Map<String, dynamic>;
+      bitisNedeni = aday['finishReason']?.toString() ?? '';
+      final content = aday['content'];
       final parcalar = (content is Map ? content['parts'] : null) as List<dynamic>? ?? const [];
       for (final p in parcalar) {
         if (p is Map && p['thought'] == true) continue;
@@ -252,6 +262,7 @@ class FaturaGeminiOkuyucu {
         cikti: cikti,
         dusunce: dusunce,
       ),
+      bitisNedeni: bitisNedeni,
     );
   }
 }
