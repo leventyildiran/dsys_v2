@@ -731,19 +731,19 @@ class TabKatkiPayi extends StatelessWidget {
                     children: const [
                       Expanded(flex: 3, child: Text('PERSONEL / UNVAN', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                       SizedBox(width: 6),
-                      SizedBox(width: 70, child: Text('PUAN', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
+                      SizedBox(width: 65, child: Text('PUAN', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                       SizedBox(width: 6),
-                      SizedBox(width: 70, child: Text('UNVAN K.', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
+                      SizedBox(width: 65, child: Text('UNVAN K.', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                       SizedBox(width: 6),
-                      SizedBox(width: 60, child: Text('SAAT', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
+                      SizedBox(width: 100, child: Text('DANIŞMANLIK /\nHİZMET SAATİ', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 9.5))),
                       SizedBox(width: 6),
-                      SizedBox(width: 80, child: Text('MESAİ', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
+                      SizedBox(width: 130, child: Text('MESAİ DURUMU', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                       SizedBox(width: 6),
-                      SizedBox(width: 90, child: Text('NET KATKI', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
+                      SizedBox(width: 80, child: Text('NET KATKI', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                       SizedBox(width: 6),
-                      SizedBox(width: 90, child: Text('SAATLİK ÜCR.', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
+                      SizedBox(width: 85, child: Text('SAATLİK ÜCR.', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                       SizedBox(width: 6),
-                      SizedBox(width: 90, child: Text('EK DERS TAVAN', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
+                      SizedBox(width: 85, child: Text('EK DERS TAVAN', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                       SizedBox(width: 6),
                       SizedBox(width: 110, child: Text('ALACAĞI TUTAR', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF047857)))),
                       SizedBox(width: 40),
@@ -824,7 +824,7 @@ class TabKatkiPayi extends StatelessWidget {
 
                             // Taban Puan
                             SizedBox(
-                              width: 70,
+                              width: 65,
                               child: TextFormField(
                                 key: ValueKey('puan_${p.personelId}_$index'),
                                 initialValue: p.puan.toStringAsFixed(0),
@@ -846,7 +846,7 @@ class TabKatkiPayi extends StatelessWidget {
 
                             // Unvan Katsayısı
                             SizedBox(
-                              width: 70,
+                              width: 65,
                               child: TextFormField(
                                 key: ValueKey('unvanK_${p.personelId}_${index}_${p.unvan}_${p.unvanKatsayisi}'),
                                 initialValue: (p.unvanKatsayisi > 1.0 ? p.unvanKatsayisi : DanismanlikExcelHesaplama.unvanKatsayisi(p.unvan, p.unvanKatsayisi)).toStringAsFixed(1),
@@ -866,9 +866,9 @@ class TabKatkiPayi extends StatelessWidget {
                             ),
                             const SizedBox(width: 6),
 
-                            // Ders Saati
+                            // Danışmanlık / Hizmet Saati
                             SizedBox(
-                              width: 60,
+                              width: 100,
                               child: TextFormField(
                                 key: ValueKey('dersSaati_${p.personelId}_$index'),
                                 initialValue: p.dersSaati.toStringAsFixed(0),
@@ -888,26 +888,63 @@ class TabKatkiPayi extends StatelessWidget {
                             ),
                             const SizedBox(width: 6),
 
-                            // Mesai İçi / Dışı Toggle
+                            // Mesai Durumu (Açılır Menü / Dropdown)
                             SizedBox(
-                              width: 80,
-                              child: InkWell(
-                                onTap: () => onPersonelGuncelle(index, p.copyWith(mesaiIci: !p.mesaiIci)),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: p.mesaiIci ? const Color(0xFFEFF6FF) : const Color(0xFFFEF3C7),
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: p.mesaiIci ? const Color(0xFFBFDBFE) : const Color(0xFFFDE68A)),
+                              width: 130,
+                              height: 32,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6),
+                                decoration: BoxDecoration(
+                                  color: p.mesaiIci ? const Color(0xFFEFF6FF) : const Color(0xFFFEF3C7),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: p.mesaiIci ? const Color(0xFFBFDBFE) : const Color(0xFFFDE68A),
                                   ),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    p.mesaiIci ? 'Mesai İçi' : 'Mesai Dışı',
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<bool>(
+                                    value: p.mesaiIci,
+                                    isDense: true,
+                                    isExpanded: true,
+                                    icon: Icon(
+                                      Icons.arrow_drop_down,
+                                      size: 18,
+                                      color: p.mesaiIci ? const Color(0xFF1D4ED8) : const Color(0xFFB45309),
+                                    ),
                                     style: TextStyle(
-                                      fontSize: 10,
+                                      fontSize: 10.5,
                                       fontWeight: FontWeight.w700,
                                       color: p.mesaiIci ? const Color(0xFF1D4ED8) : const Color(0xFFB45309),
                                     ),
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: false,
+                                        child: Text(
+                                          'Mesai Dışı (3.2x)',
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFFB45309),
+                                          ),
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: true,
+                                        child: Text(
+                                          'Mesai İçi (2.0x)',
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF1D4ED8),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        onPersonelGuncelle(index, p.copyWith(mesaiIci: val));
+                                      }
+                                    },
                                   ),
                                 ),
                               ),
@@ -916,7 +953,7 @@ class TabKatkiPayi extends StatelessWidget {
 
                             // Bireysel Net Katkı Puanı (Puan * Katsayı * Saat)
                             SizedBox(
-                              width: 90,
+                              width: 80,
                               child: Text(
                                 s.bireyselNetKatkiPuani.toStringAsFixed(0),
                                 textAlign: TextAlign.right,
@@ -927,7 +964,7 @@ class TabKatkiPayi extends StatelessWidget {
 
                             // Kurs 1 Saatlik Ücreti
                             SizedBox(
-                              width: 90,
+                              width: 85,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 mainAxisSize: MainAxisSize.min,
@@ -969,7 +1006,7 @@ class TabKatkiPayi extends StatelessWidget {
 
                             // Ek Ders Tavanı
                             SizedBox(
-                              width: 90,
+                              width: 85,
                               child: Text(
                                 TurkceFormat.para(s.tavanSaatlikUcreti),
                                 textAlign: TextAlign.right,

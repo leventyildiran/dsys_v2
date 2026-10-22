@@ -437,8 +437,8 @@ class TabOzetIcmal extends StatelessWidget {
                             const SizedBox(width: 80, child: Text('Damga Vergisi', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFFDC2626)))),
                             const SizedBox(width: 110, child: Text('Net Tutar (TL)', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF047857)))),
                           ] else ...[
-                            const SizedBox(width: 50, child: Text('Saat', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
-                            const SizedBox(width: 80, child: Text('Mesai', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
+                            const SizedBox(width: 70, child: Text('Hizmet Saati', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
+                            const SizedBox(width: 85, child: Text('Mesai Durumu', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                             const SizedBox(width: 70, child: Text('Net Puan', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                             const SizedBox(width: 85, child: Text('Saatlik Ücret', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                             const SizedBox(width: 85, child: Text('Ek Ders Tavan', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
@@ -528,11 +528,11 @@ class TabOzetIcmal extends StatelessWidget {
                               ),
                             ] else ...[
                               SizedBox(
-                                width: 50,
+                                width: 70,
                                 child: Text('${p.dersSaati.toStringAsFixed(0)} Sa', textAlign: TextAlign.center, style: const TextStyle(fontSize: 11)),
                               ),
                               SizedBox(
-                                width: 80,
+                                width: 85,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                   decoration: BoxDecoration(
