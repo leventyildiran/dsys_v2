@@ -49,6 +49,7 @@ class FaturaModel {
   String numuneAciklamasi;
   List<Map<String, dynamic>> kalemler;
   bool isKdvMuaf;
+  bool kdvDahil;
   bool nakliYekunAktif;
   double matrah;
   double kdvOrani;
@@ -88,6 +89,7 @@ class FaturaModel {
     required this.numuneAciklamasi,
     required this.kalemler,
     required this.isKdvMuaf,
+    this.kdvDahil = false,
     this.nakliYekunAktif = false,
     required this.matrah,
     required this.kdvOrani,
@@ -146,6 +148,7 @@ class FaturaModel {
       'numuneAciklamasi': numuneAciklamasi,
       'kalemler': kalemler,
       'isKdvMuaf': isKdvMuaf,
+      'kdvDahil': kdvDahil,
       'nakliYekunAktif': nakliYekunAktif,
       'matrah': matrah,
       'kdvOrani': kdvOrani,
@@ -231,6 +234,7 @@ class FaturaModel {
       kdvTutari: _numParse(json['kdvTutari']),
       genelToplam: _numParse(json['genelToplam']),
       isKdvMuaf: json['isKdvMuaf'] == true,
+      kdvDahil: json['kdvDahil'] == true,
       nakliYekunAktif: json['nakliYekunAktif'] == true,
       kdvOrani: _normalizeKdvOrani(json['kdvOrani']),
       parsedBy: FaturaParseKaynaklari.normalize(json['parsedBy']?.toString()),
@@ -286,6 +290,7 @@ class FaturaModel {
       kdvTutari: 0,
       genelToplam: 0,
       isKdvMuaf: false,
+      kdvDahil: false,
       nakliYekunAktif: false,
       kdvOrani: fVarsayilanKdvOrani,
       parsedBy: FaturaParseKaynaklari.yeniFatura,

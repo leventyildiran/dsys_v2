@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:dsys_v2/features/fatura/models/fatura_model.dart';
 import 'package:dsys_v2/features/fatura/services/fatura_offline_parser.dart';
 import 'package:dsys_v2/features/fatura/services/fatura_dogrulama_servisi.dart';
 import 'package:dsys_v2/core/models/sistem_ayarlari_model.dart';
@@ -113,6 +114,49 @@ void main() {
       expect(f.kalemler, isNotEmpty);
       expect(f.matrah, equals(4000.0));
       expect(f.genelToplam, equals(4800.0));
+    });
+
+    test('KDV Dahil modunda girilen fiyat Genel Toplam olmalı, Matrah ve KDV içinden ayrıştırılmalı (%10 Diş)', () {
+      final f = FaturaModel.bos(id: '1');
+      f.kdvDahil = true;
+      f.kdvOrani = 10.0;
+      f.kalemler = [
+        {'cinsi': 'Diş Tedavi Hizmeti', 'miktar': 1, 'fiyat': 1100.0}
+      ];
+
+      final dogrulanmis = FaturaDogrulamaServisi.dogrulaVeTamamla(f);
+      expect(dogrulanmis.genelToplam, equals(1100.0));
+      expect(dogrulanmis.matrah, equals(1000.0));
+      expect(dogrulanmis.kdvTutari, equals(100.0));
+      expect(dogrulanmis.kdvOrani, equals(10.0));
+    });
+
+    test('Yumurta satış listesi KDV Dahil (%1 KDV) olarak kuruşu kuruşuna doğru hesaplanmalı', () {
+      const yumurtaMetni = '''
+      YUMURTA SATIŞ LİSTESİ
+      Tarih: 15.05.2026
+      
+      1 ALİ DEMİR 101,00 TL
+      2 AYŞE KAYA 202,00 TL
+      ''';
+
+      final faturalar = FaturaOfflineParser.parse(yumurtaMetni);
+      expect(faturalar, isNotEmpty);
+      expect(faturalar.length, equals(2));
+
+      final f1 = faturalar.first;
+      expect(f1.firmaAdi, equals('ALİ DEMİR'));
+      expect(f1.kdvDahil, isTrue);
+      expect(f1.kdvOrani, equals(1.0));
+      expect(f1.genelToplam, equals(101.0));
+      expect(f1.matrah, equals(100.0));
+      expect(f1.kdvTutari, equals(1.0));
+
+      final f2 = faturalar[1];
+      expect(f2.firmaAdi, equals('AYŞE KAYA'));
+      expect(f2.genelToplam, equals(202.0));
+      expect(f2.matrah, equals(200.0));
+      expect(f2.kdvTutari, equals(2.0));
     });
   });
 

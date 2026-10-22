@@ -323,6 +323,14 @@ class FaturaOfflineParser {
     final ibanMatch = _ibanRegex.firstMatch(text);
     final ibanStr = ibanMatch == null ? null : _normalizeIban(ibanMatch.group(0)!);
 
+    // KDV oranını belirle: Eğer metinde %10 geçiyorsa 10, yoksa temel gıda (yumurta) için %1
+    double kdvOrani = 1.0;
+    if (text.contains('%10') || text.contains('10%') || text.contains('kdv 10') || text.contains('kdv %10')) {
+      kdvOrani = 10.0;
+    } else if (text.contains('%20') || text.contains('20%') || text.contains('kdv 20')) {
+      kdvOrani = 20.0;
+    }
+
     for (final line in lines) {
       if (line.isEmpty || _atlanacakKalem(line) || _isMetadataLine(line)) continue;
       
@@ -345,7 +353,8 @@ class FaturaOfflineParser {
                 'fiyat': tutar,
               }
             ],
-            kdvOrani: 20,
+            kdvOrani: kdvOrani,
+            kdvDahil: true,
             muaf: text.toLowerCase().contains('muaf'),
             iban: ibanStr,
             hesapAdi: null,
@@ -714,6 +723,7 @@ class FaturaOfflineParser {
     required List<Map<String, dynamic>> kalemler,
     required double kdvOrani,
     required bool muaf,
+    bool kdvDahil = false,
     required String? iban,
     required String? hesapAdi,
     required String fullText,
@@ -724,7 +734,22 @@ class FaturaOfflineParser {
       final f = _parseNum(k['fiyat'].toString());
       matrah += (m <= 0 ? 1 : m) * f;
     }
-    final kdvTutari = muaf ? 0.0 : matrah * (kdvOrani / 100.0);
+
+    double genelToplam = 0;
+    double kdvTutari = 0;
+    if (kdvDahil) {
+      genelToplam = matrah;
+      if (muaf || kdvOrani <= 0) {
+        matrah = genelToplam;
+        kdvTutari = 0.0;
+      } else {
+        matrah = double.parse((genelToplam / (1 + (kdvOrani / 100.0))).toStringAsFixed(2));
+        kdvTutari = double.parse((genelToplam - matrah).toStringAsFixed(2));
+      }
+    } else {
+      kdvTutari = muaf ? 0.0 : matrah * (kdvOrani / 100.0);
+      genelToplam = matrah + kdvTutari;
+    }
 
     var melbes = _melbesRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
     var numune = _numuneRegex.firstMatch(fullText)?.group(1)?.trim() ?? '';
@@ -773,10 +798,11 @@ class FaturaOfflineParser {
       numuneAciklamasi: aciklama,
       kalemler: kalemler,
       isKdvMuaf: muaf,
+      kdvDahil: kdvDahil,
       matrah: matrah,
       kdvOrani: kdvOrani,
       kdvTutari: kdvTutari,
-      genelToplam: matrah + kdvTutari,
+      genelToplam: genelToplam,
       iban: iban,
       hesapAdi: hesapAdi != null
           ? FaturaMatbuConfig.formatHesapAdiMatbu(

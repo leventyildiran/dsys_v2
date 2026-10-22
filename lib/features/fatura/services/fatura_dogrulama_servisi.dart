@@ -81,6 +81,26 @@ class FaturaDogrulamaServisi {
       kdvOrani = fVarsayilanKdvOrani;
     }
 
+    // KDV Dahil modunda: Kalemler toplamı Genel Toplamdır; Matrah ve KDV geriye hesaplanır.
+    if (f.kdvDahil) {
+      if (genelToplam <= 0 && hesaplananMatrah > 0) {
+        genelToplam = hesaplananMatrah;
+      }
+      double kdvTutari = 0.0;
+      if (f.isKdvMuaf || kdvOrani <= 0) {
+        matrah = genelToplam;
+        kdvTutari = 0.0;
+      } else {
+        matrah = double.parse((genelToplam / (1 + (kdvOrani / 100))).toStringAsFixed(2));
+        kdvTutari = double.parse((genelToplam - matrah).toStringAsFixed(2));
+      }
+      f.matrah = double.parse(matrah.toStringAsFixed(2));
+      f.kdvOrani = kdvOrani;
+      f.kdvTutari = double.parse(kdvTutari.toStringAsFixed(2));
+      f.genelToplam = double.parse(genelToplam.toStringAsFixed(2));
+      return f;
+    }
+
     // Matrah sıfır ama kalemler toplamı varsa:
     if (matrah <= 0 && hesaplananMatrah > 0) {
       matrah = hesaplananMatrah;

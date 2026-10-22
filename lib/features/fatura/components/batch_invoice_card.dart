@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/turkce_format.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/models/firma_model.dart';
 import '../../../core/services/firma_service.dart';
 import '../../../core/models/hizmet_model.dart';
@@ -767,7 +768,7 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blueGrey.shade50,
+        color: AppColors.surfaceVariant,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -776,7 +777,22 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
             value: invoice.isKdvMuaf,
             onChanged: (v) => provider.toggleKdvMuaf(index, v),
           ),
-          const Text('KDV muaf', style: TextStyle(fontSize: 12)),
+          const Text('KDV Muaf', style: TextStyle(fontSize: 12)),
+          if (!invoice.isKdvMuaf) ...[
+            const SizedBox(width: 12),
+            Switch(
+              value: invoice.kdvDahil,
+              onChanged: (v) => provider.toggleKdvDahil(index, v),
+            ),
+            Text(
+              'KDV Dahil',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: invoice.kdvDahil ? FontWeight.w600 : FontWeight.normal,
+                color: invoice.kdvDahil ? AppColors.primary : AppColors.textSecondary,
+              ),
+            ),
+          ],
           const Spacer(),
           _totalChip('Matrah', TurkceFormat.para(invoice.matrah)),
           const SizedBox(width: 8),
