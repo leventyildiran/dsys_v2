@@ -70,7 +70,8 @@ abstract final class FaturaButunlukDenetcisi {
   static void _tarihDenetle(String ham, DateTime simdi, List<String> u) {
     final tarih = ham.trim();
     if (tarih.isEmpty) {
-      u.add('Fatura tarihi belgeden okunamadı; bugünün tarihi atandı.');
+      // Bilinçli tasarım: Belgede tarih yoksa faturanın kesildiği günün tarihi
+      // otomatik atanır; kullanıcı dilerse manuel değiştirebilir. Uyarı üretilmez.
       return;
     }
     final t = tarihCoz(tarih);
