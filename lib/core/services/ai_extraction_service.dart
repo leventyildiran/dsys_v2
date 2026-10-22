@@ -135,8 +135,13 @@ class AIExtractionService {
 
   String _buildPrompt(String rawText) {
     return '''
-Aşağıdaki metin ham bir analiz faturası / makbuzu dökümüdür.
-Lütfen bu metinden faturadaki kalemleri ve temel bilgileri çıkart.
+Aşağıdaki metin veya ekteki PDF/belge; üniversite döner sermaye işletmesine (Diş Hekimliği Fakültesi, UBATAM, TÖMER, Sağlık/Tıp, Ziraat, Mühendislik veya diğer birimler) ait resmi fatura(lar), e-Arşiv/e-Fatura veya harcama/makbuz evrakıdır.
+Lütfen bu belgeden faturadaki kalemleri ve temel bilgileri eksiksiz ve birebir çıkart.
+
+KRİTİK ÇOKLU FATURA KURALI:
+1. Bu PDF veya görsel çok sayfalı olabilir ve ARKA ARKAYA TARANMIŞ BİRDEN ÇOK FATURA içerebilir (ör. 2, 3, 5, 10 adet fatura).
+2. Belgedeki TÜM sayfaları baştan sona incele. Her bir faturayı aşağıdaki JSON listesine AYRI BİR ELEMAN olarak ekle.
+3. KESİNLİKLE SADECE İLK FATURAYI OKUYUP BIRAKMA! Belgede kaç adet fatura varsa HEPSİNİ tek tek diziye yaz.
 
 Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmalıdır:
 [
@@ -153,7 +158,7 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
     "numuneNo": "Numune Numarası (veya belgede Rapor No varsa 'Rapor No: ...')",
     "raporNo": "Varsa belgedeki Rapor No",
     "numuneAciklamasi": "Varsa numune açıklaması",
-    "tahminiBirim": "Belgeden anlaşılan Şube/Birim adı (TÖMER, UBATAM, TARIMSAL, SATIN ALMA vb.)",
+    "tahminiBirim": "Belgeden anlaşılan Şube/Birim adı (DİŞ HEKİMLİĞİ, TÖMER, UBATAM, SAĞLIK, TARIMSAL, SATIN ALMA vb.)",
     "hizmetTipi": "Aşağıdaki kurallara göre: EĞİTİM|DANIŞMANLIK|SATIŞ|ANALİZ|TEKSTİL_TASARIM|DİĞER",
     "kursAdi": "kurs/program adı (TÖMER/USEM ise)",
     "kurNo": (Sayısal, varsa),
@@ -169,9 +174,11 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
     "isKdvMuaf": (KDV 0 ise true, değilse false),
     "kalemler": [
       {
-        "cinsi": "Kalem Adı",
-        "miktar": Adet (sayısal),
-        "fiyat": Birim fiyat veya o kalemin satır tutarı (sayısal)
+        "cinsi": "Faturanın tablosundaki gerçek Mal/Hizmet adı (BİREBİR AYNEN KOPYALA, ASLA UYDURMA)",
+        "miktar": Adet (sayısal, yoksa 1),
+        "birimFiyat": KDV hariç tek birim fiyatı (sayısal),
+        "fiyat": KDV hariç tek birim fiyatı (sayısal, 'birimFiyat' ile aynı),
+        "tutar": Bu kalemin satır toplam tutarı (miktar * birimFiyat) (sayısal)
       }
     ]
   }
@@ -179,12 +186,13 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
 
 ÖNEMLİ KURALLAR:
 1. SADECE JSON ÇIKTISI VER. Yorum yapma, açıklamalar ekleme, markdown tickleri (```json) ekleme veya başa/sona yazı koyma!
-2. Faturadaki HER BİR HİZMET VEYA ÜRÜN KALEMİNİ eksiksiz olarak 'kalemler' dizisine ayrı bir obje olarak ekle. Hiçbir kalemi atlama veya birleştirme. Faturada ne kadar kalem varsa hepsi dizide olmalı!
-3. Faturada birden fazla müşteri verisi varsa liste içine birden fazla obje koy.
-4. "kalemler" listesinde, "fiyat" kısmına virgülleri noktaya çevirerek bir Number koy (örn: 1540.50). 
+2. FATURA KALEMLERİNİ KESİNLİKLE UYDURMA, DEĞİŞTİRME VEYA ÖZETLEME! Faturanın 'Mal / Hizmet' tablosunda veya satırlarında yazan gerçek adları (Örneğin Diş Hekimliği tedavileri, kompozit dolgu, implant, protez, medikal sarf, test, analiz vb.) HARFİ HARFİNE AYNEN 'cinsi' alanına kopyala. Asla kafandan analiz veya hizmet adı uydurma veya genel bir kalıba sokma!
+3. Faturadaki HER BİR HİZMET VEYA ÜRÜN KALEMİNİ eksiksiz olarak 'kalemler' dizisine ayrı bir obje olarak ekle. Hiçbir kalemi atlama veya birleştirme. Faturada ne kadar satır/kalem varsa hepsi dizide olmalı!
+4. 'kalemler' listesinde her kalem için sayısal değerlerde virgülleri noktaya çevirerek bir Number koy (örn: 1540.50). 'fiyat' alanına MUTLAKA tek birim fiyatını koy; satır toplamını koyma ('tutar' alanına satır toplamını koy).
 5. DİKKAT: Eğer bir alana dair veri (örneğin Melbes No, Numune No, İrsaliye No) belgede YOKSA, KESİNLİKLE uydurma yapma ve o alanı boş string ("") olarak bırak. Sadece metinde net olarak geçen değerleri kullan.
-6. Kurum/bakanlık adını (ör. "Çevre, Şehircilik ve İklim Değişikliği Bakanlığı") kalemler dizisine EKLEME. Bu bilgi yalnızca "melbesKurumOnEki" alanına yazılmalı; kalemler yalnızca gerçek analiz/hizmet satırlarını içermeli. Belgede Melbes veya çevre analizi geçiyorsa "melbesKurumOnEki" mutlaka "Çevre, Şehircilik ve İklim Değişikliği Bakanlığı" olmalı.
+6. Kurum/bakanlık adını (ör. "Çevre, Şehircilik ve İklim Değişikliği Bakanlığı") kalemler dizisine EKLEME. Bu bilgi yalnızca "melbesKurumOnEki" alanına yazılmalı; kalemler yalnızca gerçek hizmet/ürün satırlarını içermeli. Belgede Melbes veya çevre analizi geçiyorsa "melbesKurumOnEki" mutlaka "Çevre, Şehircilik ve İklim Değişikliği Bakanlığı" olmalı.
 7. "hizmetTipi" alanını aşağıdaki mantığa göre belirle:
+   - Metinde "Diş", "Tedavi", "Dolgu", "Protez", "İmplant", "Poliklinik", "Sağlık", "Hasta" geçiyorsa: DİĞER (veya sağlık hizmeti)
    - Metinde "Analiz", "Test", "Ölçüm", "Numune", "Deney" geçiyorsa: ANALİZ
    - Metinde "Eğitim", "Kurs", "Ders", "TÖMER", "Sertifika", "Kayıt" geçiyorsa: EĞİTİM
    - Metinde "Yumurta", "Tavuk", "Bal", "Süt", "Satış", "İhale" geçiyorsa: SATIŞ
@@ -193,8 +201,7 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
    - Hiçbiri değilse: DİĞER
 8. "adres", "vergiDairesi" ve "vergiNo" alanlarını belgede yer alan müşteri/alıcı bilgilerinden eksiksiz çek. Açık adres (mahalle, cadde, sokak, no, ilçe, il vb.) varsa tek parça string olarak "adres" alanına yaz; bulunamazsa "" bırak.
 
-Ham Fatura Metni:
-$rawText
+\${rawText.isNotEmpty ? "Ham Fatura Metni:\\n\$rawText" : ""}
 ''';
   }
 

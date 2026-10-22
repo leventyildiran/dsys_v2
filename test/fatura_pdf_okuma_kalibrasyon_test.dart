@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dsys_v2/features/fatura/services/fatura_offline_parser.dart';
+import 'package:dsys_v2/features/fatura/services/fatura_dogrulama_servisi.dart';
 import 'package:dsys_v2/core/models/sistem_ayarlari_model.dart';
 import 'package:dsys_v2/features/fatura/models/fatura_matbu_config.dart';
 
@@ -34,12 +35,59 @@ void main() {
       expect(f.vergiNo, equals('1234567890'));
       expect(f.vergiDairesi, contains('Uşak'));
       expect(f.kalemler.length, equals(2));
-      expect(f.kalemler[0]['cinsi'], contains('Su ve Toprak'));
+      expect(f.kalemler[0]['cinsi'], equals('Su ve Toprak Ağır Metal Analizi'));
       expect(f.kalemler[0]['fiyat'], equals(2500.0));
-      expect(f.kalemler[1]['cinsi'], contains('Numune Hazırlama'));
+      expect(f.kalemler[1]['cinsi'], equals('Numune Hazırlama Bedeli'));
       expect(f.kalemler[1]['fiyat'], equals(500.0));
       expect(f.matrah, equals(3000.0));
       expect(f.genelToplam, equals(3600.0));
+    });
+
+    test('Diş Hekimliği çok kalemli faturada kalem adları harfi harfine okunmalı ve uydurma yapılmamalı', () {
+      const disFaturasi = '''
+      T.C. UŞAK ÜNİVERSİTESİ DİŞ HEKİMLİĞİ FAKÜLTESİ
+      E-ARŞİV FATURA
+      Fatura No: DIS2026000005678
+      Tarih: 18.04.2026
+      
+      Sayın: MEHMET YILMAZ
+      Adres: Atatürk Mah. İnönü Cad. No:45 Merkez / Uşak
+      TCKN: 11111111110
+      
+      1 Kompozit Dolgu Tedavisi 2 ADET 750,00 1.500,00 TL
+      2 Kanal Tedavisi (Tek Kök) 1 ADET 1.200,00 1.200,00 TL
+      3 Diş Taşı Temizliği (Detertraj) 1 ADET 800,00 800,00 TL
+      
+      Mal Hizmet Toplam Tutarı: 3.500,00 TL
+      Hesaplanan KDV (%10): 350,00 TL
+      Ödenecek Tutar: 3.850,00 TL
+      ''';
+
+      final faturalar = FaturaOfflineParser.parse(disFaturasi);
+      expect(faturalar, isNotEmpty);
+      final f = faturalar.first;
+
+      expect(f.firmaAdi, equals('MEHMET YILMAZ'));
+      expect(f.vergiNo, equals('11111111110'));
+      expect(f.kalemler.length, equals(3));
+
+      expect(f.kalemler[0]['cinsi'], equals('Kompozit Dolgu Tedavisi'));
+      expect(f.kalemler[0]['miktar'], equals(2));
+      expect(f.kalemler[0]['birimFiyat'], equals(750.0));
+      expect(f.kalemler[0]['tutar'], equals(1500.0));
+
+      expect(f.kalemler[1]['cinsi'], equals('Kanal Tedavisi (Tek Kök)'));
+      expect(f.kalemler[1]['miktar'], equals(1));
+      expect(f.kalemler[1]['birimFiyat'], equals(1200.0));
+
+      expect(f.kalemler[2]['cinsi'], equals('Diş Taşı Temizliği (Detertraj)'));
+      expect(f.kalemler[2]['miktar'], equals(1));
+      expect(f.kalemler[2]['birimFiyat'], equals(800.0));
+
+      final dogrulanmis = FaturaDogrulamaServisi.dogrulaVeTamamla(f);
+      expect(dogrulanmis.matrah, equals(3500.0));
+      expect(dogrulanmis.kdvTutari, equals(350.0));
+      expect(dogrulanmis.genelToplam, equals(3850.0));
     });
 
     test('Kalem satırları ayrıştırılamasa dahi dip toplamdan fatura kurtarılmalı', () {

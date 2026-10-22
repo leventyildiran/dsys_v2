@@ -17,25 +17,47 @@ class FaturaDogrulamaServisi {
       
       final miktar = TurkceFormat.parseSayi(kalem['miktar'], fallback: 1.0);
       final safeMiktar = miktar <= 0 ? 1.0 : miktar;
-      kalem['miktar'] = safeMiktar;
+      kalem['miktar'] = safeMiktar == safeMiktar.roundToDouble() ? safeMiktar.toInt() : safeMiktar;
 
       double fiyat = TurkceFormat.parseSayi(kalem['fiyat'], fallback: 0.0);
+      final birimFiyat = TurkceFormat.parseSayi(kalem['birimFiyat'], fallback: 0.0);
       double tutar = TurkceFormat.parseSayi(kalem['tutar'], fallback: 0.0);
 
+      // birimFiyat varsa ve fiyat boşsa:
+      if (birimFiyat > 0 && fiyat <= 0) {
+        fiyat = birimFiyat;
+      }
+
       if (fiyat > 0 && tutar <= 0) {
-        tutar = fiyat * safeMiktar;
+        // Eğer f.matrah fiyata eşit ve miktar > 1 ise, LLM/parser satır toplamını fiyata yazmış demektir
+        if (f.matrah > 0 && (fiyat - f.matrah).abs() < 0.05 && safeMiktar > 1) {
+          tutar = fiyat;
+          fiyat = tutar / safeMiktar;
+        } else {
+          tutar = fiyat * safeMiktar;
+        }
         kalem['tutar'] = tutar;
+        kalem['fiyat'] = fiyat;
       } else if (tutar > 0 && fiyat <= 0) {
         fiyat = tutar / safeMiktar;
         kalem['fiyat'] = fiyat;
       } else if (fiyat > 0 && tutar > 0) {
-        // İkisi de varsa çarpımı teyit et (küçük yuvarlama farkı toleransı: 0.05)
-        final carpim = fiyat * safeMiktar;
-        if ((carpim - tutar).abs() > 0.05) {
-          tutar = carpim;
-          kalem['tutar'] = tutar;
+        // İkisi de varsa: Eğer fiyat ile tutar birbirine eşit ve miktar > 1 ise, birim fiyat satır toplamına bölünmelidir
+        if ((fiyat - tutar).abs() < 0.05 && safeMiktar > 1) {
+          fiyat = tutar / safeMiktar;
+          kalem['fiyat'] = fiyat;
+        } else {
+          final carpim = fiyat * safeMiktar;
+          if ((carpim - tutar).abs() > 0.05) {
+            tutar = carpim;
+            kalem['tutar'] = tutar;
+          }
         }
       }
+
+      kalem['birimFiyat'] = fiyat;
+      kalem['fiyat'] = fiyat;
+      kalem['tutar'] = tutar;
 
       hesaplananMatrah += tutar;
       duzeltilmisKalemler.add(kalem);

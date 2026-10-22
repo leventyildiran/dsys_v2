@@ -379,12 +379,6 @@ class FaturaOfflineParser {
     final adres = _extractAdres(lines, firmaAdi);
     final kalemler = <Map<String, dynamic>>[];
 
-    // Tutar Regex'i: İster TL/₺ ile bitsin, ister doğrudan sayısal tutarla (% ve parantez destekli)
-    final kalemRegex = RegExp(
-      r'^([A-Za-zÇĞİÖŞÜçğıöşü0-9\s.,_\-\/()%]+?)[\s\t:]+([\d.,]+)\s*(?:TL|₺)?\s*$',
-      caseSensitive: false,
-    );
-
     // Dip toplamları tara (Ödenecek Tutar, Genel Toplam, Mal Hizmet Toplam Tutarı, KDV vb.)
     final odenecekMatch = RegExp(
       r'(?:[öo]denecek\s*tutar|genel\s*toplam|toplam\s*tutar|fatura\s*toplam[ıi])\s*[:.\-]?\s*([\d.,]+)',
@@ -404,19 +398,9 @@ class FaturaOfflineParser {
     final dipKdvOrani = kdvOranMatch != null ? (double.tryParse(kdvOranMatch.group(1)!) ?? 20.0) : 20.0;
 
     for (final line in lines) {
-      if (_atlanacakKalem(line)) continue;
-      final m = kalemRegex.firstMatch(line);
-      if (m != null) {
-        var cinsi = m.group(1)!.trim();
-        // Baştaki sıra numarasını temizle (örn. "1 Test Analizi" -> "Test Analizi")
-        cinsi = cinsi.replaceFirst(RegExp(r'^\d+[\s\.\-]+'), '').trim();
-        final tutar = _parseNum(m.group(2)!);
-        if (cinsi.length >= 2 &&
-            tutar > 0 &&
-            !_atlanacakKalem(cinsi) &&
-            !_isMetadataLine(cinsi)) {
-          kalemler.add({'cinsi': cinsi, 'miktar': 1, 'fiyat': tutar});
-        }
+      final parsed = _parseKalemSatiri(line);
+      if (parsed != null) {
+        kalemler.add(parsed);
       }
     }
 
@@ -424,9 +408,11 @@ class FaturaOfflineParser {
     if (kalemler.isEmpty && (dipGenelToplam > 0 || dipMatrah > 0)) {
       final tutar = dipMatrah > 0 ? dipMatrah : dipGenelToplam;
       kalemler.add({
-        'cinsi': firmaAdi.isNotEmpty ? 'Hizmet / Analiz Bedeli' : 'Fatura Bedeli',
+        'cinsi': 'Fatura Bedeli',
         'miktar': 1,
+        'birimFiyat': tutar,
         'fiyat': tutar,
+        'tutar': tutar,
       });
     }
 
@@ -529,8 +515,85 @@ class FaturaOfflineParser {
     return '';
   }
 
+  static Map<String, dynamic>? _parseKalemSatiri(String rawLine) {
+    var line = rawLine.trim();
+    if (line.isEmpty || _atlanacakKalem(line) || _isMetadataLine(line)) return null;
+
+    // Baştaki sıra numarasını temizle (örn. "1 - " veya "1. " veya "1 ")
+    final siraMatch = RegExp(r'^\d+[\s\.\-]+').firstMatch(line);
+    if (siraMatch != null && siraMatch.end < line.length) {
+      line = line.substring(siraMatch.end).trim();
+    }
+
+    // 1. Çok kolonlu e-Fatura / Tablo formatı:
+    // "Su ve Toprak Ağır Metal Analizi 1 Adet 2.500,00 %20 500,00 2.500,00 TL"
+    // "Kompozit Dolgu Tedavisi 2 ADET 750,00 1.500,00"
+    // "Diş Çekimi ve Pansuman 1 500,00 500,00"
+    final multiColRegex = RegExp(
+      r'^(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:ADET|Adet|adet|KG|Kg|kg|LT|Lt|lt|METRE|Metre|m|KUTU|Kutu|kutu|PAKET|Paket|paket|AY|Ay|GÜN|Gün|SAAT|Saat|HİZMET|Hizmet|SEANS|Seans|AD|Ad)?\s+([\d.,]+)(?:\s+.*?)?(?:\s+([\d.,]+))?\s*(?:TL|₺)?$',
+      caseSensitive: false,
+    );
+    final mMulti = multiColRegex.firstMatch(line);
+    if (mMulti != null) {
+      final cinsi = mMulti.group(1)!.trim();
+      if (cinsi.length >= 2 && !_atlanacakKalem(cinsi) && !_isMetadataLine(cinsi)) {
+        final miktarNum = _parseNum(mMulti.group(2)!);
+        final miktar = miktarNum <= 0 ? 1.0 : miktarNum;
+        final sayi1 = _parseNum(mMulti.group(3)!);
+        final sayi2 = mMulti.group(4) != null ? _parseNum(mMulti.group(4)!) : 0.0;
+
+        double birimFiyat = sayi1;
+        double tutar = sayi2 > 0 ? sayi2 : (birimFiyat * miktar);
+
+        if (sayi2 > 0 && birimFiyat > 0) {
+          if ((sayi1 * miktar - sayi2).abs() < 0.05) {
+            birimFiyat = sayi1;
+            tutar = sayi2;
+          } else if ((sayi2 * miktar - sayi1).abs() < 0.05) {
+            birimFiyat = sayi2;
+            tutar = sayi1;
+          }
+        }
+
+        if (birimFiyat > 0 || tutar > 0) {
+          return {
+            'cinsi': cinsi,
+            'miktar': miktar == miktar.roundToDouble() ? miktar.toInt() : miktar,
+            'birimFiyat': birimFiyat > 0 ? birimFiyat : (tutar / miktar),
+            'fiyat': birimFiyat > 0 ? birimFiyat : (tutar / miktar),
+            'tutar': tutar > 0 ? tutar : (birimFiyat * miktar),
+          };
+        }
+      }
+    }
+
+    // 2. Basit format: <Açıklama> <Tutar> TL
+    final basitRegex = RegExp(
+      r'^([A-Za-zÇĞİÖŞÜçğıöşü0-9\s.,_\-\/()%]+?)[\s\t:]+([\d.,]+)\s*(?:TL|₺)?\s*$',
+      caseSensitive: false,
+    );
+    final mBasit = basitRegex.firstMatch(line);
+    if (mBasit != null) {
+      var cinsi = mBasit.group(1)!.trim();
+      cinsi = cinsi.replaceFirst(RegExp(r'^\d+[\s\.\-]+'), '').trim();
+      final tutar = _parseNum(mBasit.group(2)!);
+      if (cinsi.length >= 2 && tutar > 0 && !_atlanacakKalem(cinsi) && !_isMetadataLine(cinsi)) {
+        return {
+          'cinsi': cinsi,
+          'miktar': 1,
+          'birimFiyat': tutar,
+          'fiyat': tutar,
+          'tutar': tutar,
+        };
+      }
+    }
+
+    return null;
+  }
+
   static bool _isMetadataLine(String s) {
     final l = s.toLowerCase().trim();
+    if (l.isEmpty) return true;
     if (l == 'vkn' ||
         l == 'tc' ||
         l == 'tckn' ||
@@ -538,32 +601,69 @@ class FaturaOfflineParser {
         l == 'vd' ||
         l == 'v.d.' ||
         l == 'tel' ||
-        l == 'fax') {
+        l == 'fax' ||
+        l == 'mersis' ||
+        l == 'ettn' ||
+        l == 'sayfa' ||
+        l == 'tarih' ||
+        l == 'fatura' ||
+        l == 'adres' ||
+        l == 'toplam' ||
+        l == 'matrah' ||
+        l == 'kdv' ||
+        l == 'mal hizmet' ||
+        l == 'mal/hizmet') {
       return true;
     }
-    return l.contains('tarih') ||
-        l.contains('fatura no') ||
-        l.contains('fatura') ||
-        l.contains('sayfa') ||
-        l.contains('toplam') ||
-        l.contains('matrah') ||
-        l.contains('kdv') ||
-        l.contains('vergi') ||
-        l.contains('vkn') ||
-        l.contains('tckn') ||
-        l.contains('tc no') ||
-        l.contains('tc kimlik') ||
-        l.contains('tutar') ||
-        l.contains('ödenecek') ||
-        l.contains('odenecek') ||
-        l.contains('iban') ||
-        l.contains('mersis') ||
-        l.contains('ticaret') ||
-        l.contains('sayın') ||
-        l.contains('sayin') ||
-        l.contains('müşteri') ||
-        l.contains('musteri') ||
-        l.contains('adres');
+    return l.startsWith('fatura no') ||
+        l.startsWith('fatura tarihi') ||
+        l.startsWith('özelleştirme no') ||
+        l.startsWith('ozellestirme no') ||
+        l.startsWith('senaryo') ||
+        l.startsWith('fatura tipi') ||
+        l.startsWith('ettn') ||
+        l.startsWith('sayfa no') ||
+        l.startsWith('sayfa :') ||
+        l.startsWith('sayfa:') ||
+        l.startsWith('vergi') ||
+        l.startsWith('v.d.') ||
+        l.startsWith('vd:') ||
+        l.startsWith('vkn') ||
+        l.startsWith('tckn') ||
+        l.startsWith('tc no') ||
+        l.startsWith('tc kimlik') ||
+        l.startsWith('sayın') ||
+        l.startsWith('sayin') ||
+        l.startsWith('müşteri') ||
+        l.startsWith('musteri') ||
+        l.startsWith('alici') ||
+        l.startsWith('alıcı') ||
+        l.startsWith('satıcı') ||
+        l.startsWith('satici') ||
+        l.startsWith('düzenleyen') ||
+        l.startsWith('duzenleyen') ||
+        l.startsWith('iban') ||
+        l.startsWith('mersis') ||
+        l.startsWith('ticaret sicil') ||
+        l.startsWith('ödenecek tutar') ||
+        l.startsWith('odenecek tutar') ||
+        l.startsWith('genel toplam') ||
+        l.startsWith('toplam tutar') ||
+        l.startsWith('mal hizmet toplam') ||
+        l.startsWith('kdv matrahı') ||
+        l.startsWith('kdv matrahi') ||
+        l.startsWith('kdv tutarı') ||
+        l.startsWith('kdv tutari') ||
+        l.startsWith('hesaplanan kdv') ||
+        l.startsWith('ara toplam') ||
+        l.startsWith('yalnız ') ||
+        l.startsWith('yalniz ') ||
+        l.startsWith('mal hizmet') ||
+        l.startsWith('mal/hizmet') ||
+        l.startsWith('sıra no') ||
+        l.startsWith('sira no') ||
+        l.startsWith('tarih:') ||
+        l.startsWith('tarih :');
   }
 
   static String _extractFirmaAdi(List<String> lines) {
@@ -1106,7 +1206,7 @@ class FaturaOfflineParser {
       caseSensitive: false,
     ).firstMatch(text);
     final kdvMatch = RegExp(
-      r'(?:hesaplanan\s*kdv|toplam\s*kdv|kdv\s*tutar[ıi])\s*[:\-]?\s*([\d.,]+)',
+      r'(?:hesaplanan\s*kdv|toplam\s*kdv|kdv\s*tutar[ıi]|kdv)\s*(?:\([^)]*\))?\s*[:\-]?\s*([\d.,]+)',
       caseSensitive: false,
     ).firstMatch(text);
 
@@ -1131,11 +1231,18 @@ class FaturaOfflineParser {
     double kdvOrani = 20.0;
     if (matrah > 0 && kdvTutari > 0) {
       kdvOrani = (kdvTutari / matrah * 100).roundToDouble();
+    } else {
+      final oranMatch = RegExp(r'%\s*(\d{1,2})|kdv\s*oran[ıi]\s*[:.\-]?\s*%?\s*(\d{1,2})', caseSensitive: false).firstMatch(text);
+      if (oranMatch != null) {
+        kdvOrani = double.tryParse(oranMatch.group(1) ?? oranMatch.group(2) ?? '') ?? 20.0;
+      }
     }
 
     final effectiveMatrah = matrah > 0
         ? matrah
         : (genelToplam > 0 ? genelToplam / (1 + kdvOrani / 100) : 0.0);
+
+    final kalemler = _extractEArsivKalemleri(text, effectiveMatrah);
 
     return _build(
       firmaAdi: firmaAdi,
@@ -1143,13 +1250,7 @@ class FaturaOfflineParser {
       vergiDairesi: vdMatch?.group(1)?.trim() ?? '',
       vergiNo: vergiNo,
       tarih: _ilkTarih(text),
-      kalemler: [
-        {
-          'cinsi': firmaAdi.isNotEmpty ? 'Hizmet / Analiz Bedeli' : 'Fatura Bedeli',
-          'miktar': 1,
-          'fiyat': effectiveMatrah,
-        },
-      ],
+      kalemler: kalemler,
       kdvOrani: kdvOrani,
       muaf: lower.contains('muaf'),
       iban: _ibanRegex.firstMatch(text) != null
@@ -1158,6 +1259,34 @@ class FaturaOfflineParser {
       hesapAdi: null,
       fullText: text,
     );
+  }
+
+  static List<Map<String, dynamic>> _extractEArsivKalemleri(String text, double fallbackTutar) {
+    final lines = text.split('\n');
+    final kalemler = <Map<String, dynamic>>[];
+
+    for (final rawLine in lines) {
+      final parsed = _parseKalemSatiri(rawLine);
+      if (parsed != null) {
+        kalemler.add(parsed);
+      }
+    }
+
+    if (kalemler.isNotEmpty) return kalemler;
+
+    if (fallbackTutar > 0) {
+      return [
+        {
+          'cinsi': 'Fatura Bedeli',
+          'miktar': 1,
+          'birimFiyat': fallbackTutar,
+          'fiyat': fallbackTutar,
+          'tutar': fallbackTutar,
+        }
+      ];
+    }
+
+    return [];
   }
 
   // --------------------------------------------------------------------------
