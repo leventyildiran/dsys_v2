@@ -1464,6 +1464,11 @@ class BeyannameProvider with ChangeNotifier {
     return _aiAjanServisi.tekilFaturaAiCozumle(belge);
   }
 
+  /// Belgedeki (taranmış çok sayfalı PDF dahil) tüm faturaları AI / deterministik motorla analiz eder
+  Future<List<Map<String, dynamic>>> belgedekiFaturalariAiCozumle(BirimYuklenenBelge belge) {
+    return _aiAjanServisi.belgedekiFaturalariAiCozumle(belge);
+  }
+
   /// Tekil çözümlenen veya düzenlenen faturayı birimin analiz sonucuna ve KDV 2 masasına kaydeder.
   void tekilFaturaKaydet({
     required String birimAdi,
@@ -1472,6 +1477,8 @@ class BeyannameProvider with ChangeNotifier {
   }) {
     final fAdi = (faturaMap['firmaAdi'] as String? ?? 'Firma').trim();
     final vNo = (faturaMap['vergiTcNo'] as String? ?? '').trim();
+    final fNo = (faturaMap['faturaNo'] as String? ?? '').trim();
+    final fTarih = (faturaMap['faturaTarihi'] as String? ?? '').trim();
     final mtr = TurkceFormat.parseSayi(faturaMap['matrahTutari']);
     final kdv = TurkceFormat.parseSayi(faturaMap['kdvTutari']);
     final tvk = TurkceFormat.parseSayi(faturaMap['tevkifatTutari']);
@@ -1482,9 +1489,15 @@ class BeyannameProvider with ChangeNotifier {
     final mevcutSonuc = getBirimAnalizSonucu(birimAdi);
     if (mevcutSonuc != null) {
       final yeniTevkifatlar = List<Map<String, dynamic>>.from(mevcutSonuc.tevkifatFaturalari);
-      final idx = yeniTevkifatlar.indexWhere((t) =>
-          (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0 &&
-          (t['vergiTcNo'] == vNo || t['firmaAdi']?.toString().toLowerCase() == fAdi.toLowerCase()));
+      final idx = yeniTevkifatlar.indexWhere((t) {
+        if (fNo.isNotEmpty && t['faturaNo'] != null && t['faturaNo'].toString().trim() == fNo) {
+          return true;
+        }
+        final ayniFirma = (vNo.isNotEmpty && t['vergiTcNo'] == vNo) ||
+            t['firmaAdi']?.toString().toLowerCase().trim() == fAdi.toLowerCase();
+        final ayniMatrah = (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0;
+        return ayniFirma && ayniMatrah;
+      });
       if (idx >= 0) {
         yeniTevkifatlar[idx] = Map<String, dynamic>.from(faturaMap);
       } else {
@@ -1518,11 +1531,20 @@ class BeyannameProvider with ChangeNotifier {
       );
     }
 
-    // 2. KDV 2 Masasına Ekle/Güncelle (Mükerrerlik engellenir)
+    // 2. KDV 2 Masasına Ekle/Güncelle (Mükerrerlik doğru biçimde engellenir, farklı faturalar korunur)
     if (masayaAktar && mtr > 0) {
-      final existingIndex = _tevkifatKayitlari.indexWhere((x) =>
-          BirimAdlandirma.canonicalKey(x.birimAdi ?? '') == BirimAdlandirma.canonicalKey(birimAdi) &&
-          ((x.matrahTutari - mtr).abs() < 1.0 || (vNo.isNotEmpty && x.vergiTcNo == vNo)));
+      final existingIndex = _tevkifatKayitlari.indexWhere((x) {
+        if (BirimAdlandirma.canonicalKey(x.birimAdi ?? '') != BirimAdlandirma.canonicalKey(birimAdi)) {
+          return false;
+        }
+        if (fNo.isNotEmpty && x.faturaNo != null && x.faturaNo!.trim().isNotEmpty && x.faturaNo!.trim() == fNo) {
+          return true;
+        }
+        final ayniFirma = (vNo.isNotEmpty && x.vergiTcNo == vNo) ||
+            (x.firmaAdi.toLowerCase().trim() == fAdi.toLowerCase());
+        final ayniMatrah = (x.matrahTutari - mtr).abs() < 1.0;
+        return ayniFirma && ayniMatrah;
+      });
 
       final kayit = TevkifatFirmaKaydi(
         id: existingIndex >= 0
@@ -1537,6 +1559,8 @@ class BeyannameProvider with ChangeNotifier {
         kdvTutari: kdv,
         tevkifatTutari: tvk,
         birimAdi: birimAdi,
+        faturaNo: fNo.isNotEmpty ? fNo : null,
+        faturaTarihi: fTarih.isNotEmpty ? fTarih : null,
       );
 
       if (existingIndex >= 0) {
@@ -2335,6 +2359,8 @@ class BeyannameProvider with ChangeNotifier {
       for (final tf in sonuc.tevkifatFaturalari) {
         final fAdi = tf['firmaAdi'] as String? ?? 'Firma';
         final vNo = (tf['vergiTcNo'] as String? ?? '').trim();
+        final fNo = (tf['faturaNo'] as String? ?? '').trim();
+        final fTarih = (tf['faturaTarihi'] as String? ?? '').trim();
         final mtr = TurkceFormat.parseSayi(tf['matrahTutari']);
         final kdv = TurkceFormat.parseSayi(tf['kdvTutari']);
         final tvk = TurkceFormat.parseSayi(tf['tevkifatTutari']);
@@ -2349,12 +2375,18 @@ class BeyannameProvider with ChangeNotifier {
         }
 
         if (mtr > 0) {
-          final existingIndex = _tevkifatKayitlari.indexWhere(
-            (x) =>
-                BirimAdlandirma.canonicalKey(x.birimAdi ?? '') == BirimAdlandirma.canonicalKey(birimAdi) &&
-                (x.matrahTutari - mtr).abs() < 1.0 &&
-                (x.vergiTcNo == vNo || x.firmaAdi.toLowerCase() == fAdi.toLowerCase()),
-          );
+          final existingIndex = _tevkifatKayitlari.indexWhere((x) {
+            if (BirimAdlandirma.canonicalKey(x.birimAdi ?? '') != BirimAdlandirma.canonicalKey(birimAdi)) {
+              return false;
+            }
+            if (fNo.isNotEmpty && x.faturaNo != null && x.faturaNo!.trim().isNotEmpty && x.faturaNo!.trim() == fNo) {
+              return true;
+            }
+            final ayniFirma = (vNo.isNotEmpty && x.vergiTcNo == vNo) ||
+                (x.firmaAdi.toLowerCase().trim() == fAdi.toLowerCase().trim());
+            final ayniMatrah = (x.matrahTutari - mtr).abs() < 1.0;
+            return ayniFirma && ayniMatrah;
+          });
           final kayit = TevkifatFirmaKaydi(
             id: existingIndex >= 0
                 ? _tevkifatKayitlari[existingIndex].id
@@ -2368,6 +2400,8 @@ class BeyannameProvider with ChangeNotifier {
             kdvTutari: kdv,
             tevkifatTutari: tvk,
             birimAdi: birimAdi,
+            faturaNo: fNo.isNotEmpty ? fNo : null,
+            faturaTarihi: fTarih.isNotEmpty ? fTarih : null,
           );
           if (existingIndex >= 0) {
             _tevkifatKayitlari[existingIndex] = kayit;

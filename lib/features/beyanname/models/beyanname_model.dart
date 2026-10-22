@@ -175,6 +175,8 @@ class TevkifatFirmaKaydi {
   final double kdvTutari;
   final double tevkifatTutari;
   final String? birimAdi;
+  final String? faturaNo;
+  final String? faturaTarihi;
 
   const TevkifatFirmaKaydi({
     required this.id,
@@ -187,6 +189,8 @@ class TevkifatFirmaKaydi {
     required this.kdvTutari,
     required this.tevkifatTutari,
     this.birimAdi,
+    this.faturaNo,
+    this.faturaTarihi,
   });
 
   /// Toplama/raporlamada kullanılan kanonik tevkifat etiketi.
@@ -208,6 +212,8 @@ class TevkifatFirmaKaydi {
     double? kdvTutari,
     double? tevkifatTutari,
     String? birimAdi,
+    String? faturaNo,
+    String? faturaTarihi,
   }) {
     return TevkifatFirmaKaydi(
       id: id ?? this.id,
@@ -220,6 +226,8 @@ class TevkifatFirmaKaydi {
       kdvTutari: kdvTutari ?? this.kdvTutari,
       tevkifatTutari: tevkifatTutari ?? this.tevkifatTutari,
       birimAdi: birimAdi ?? this.birimAdi,
+      faturaNo: faturaNo ?? this.faturaNo,
+      faturaTarihi: faturaTarihi ?? this.faturaTarihi,
     );
   }
 
@@ -234,6 +242,8 @@ class TevkifatFirmaKaydi {
         'kdvTutari': kdvTutari,
         'tevkifatTutari': tevkifatTutari,
         'birimAdi': birimAdi,
+        'faturaNo': faturaNo,
+        'faturaTarihi': faturaTarihi,
       };
 
   factory TevkifatFirmaKaydi.fromMap(Map<String, dynamic> map) => TevkifatFirmaKaydi(
@@ -247,6 +257,8 @@ class TevkifatFirmaKaydi {
         kdvTutari: (map['kdvTutari'] as num?)?.toDouble() ?? 0.0,
         tevkifatTutari: (map['tevkifatTutari'] as num?)?.toDouble() ?? 0.0,
         birimAdi: map['birimAdi'] as String?,
+        faturaNo: map['faturaNo'] as String?,
+        faturaTarihi: map['faturaTarihi'] as String?,
       );
 }
 

@@ -54,6 +54,9 @@ class _TekilFaturaAiDialogState extends State<TekilFaturaAiDialog> {
   bool _isLoading = true;
   String? _errorMessage;
 
+  List<Map<String, dynamic>> _bulunanFaturalar = [];
+  int _seciliFaturaIndex = 0;
+
   late TextEditingController _firmaCtrl;
   late TextEditingController _vknCtrl;
   late TextEditingController _faturaNoCtrl;
@@ -98,31 +101,18 @@ class _TekilFaturaAiDialogState extends State<TekilFaturaAiDialog> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _bulunanFaturalar = [];
+      _seciliFaturaIndex = 0;
     });
 
     try {
-      final res = await widget.provider.tekilFaturaAiCozumle(widget.belge);
+      final list = await widget.provider.belgedekiFaturalariAiCozumle(widget.belge);
       if (!mounted) return;
 
-      if (res != null) {
-        _firmaCtrl.text = res['firmaAdi']?.toString() ?? '';
-        _vknCtrl.text = res['vergiTcNo']?.toString() ?? '';
-        _faturaNoCtrl.text = res['faturaNo']?.toString() ?? '';
-        _tarihCtrl.text = res['faturaTarihi']?.toString() ?? '';
-        _matrahCtrl.text = TurkceFormat.paraKalem(TurkceFormat.parseSayi(res['matrahTutari']));
-        _kdvCtrl.text = TurkceFormat.paraKalem(TurkceFormat.parseSayi(res['kdvTutari']));
-        _tevkifatTutarCtrl.text = TurkceFormat.paraKalem(TurkceFormat.parseSayi(res['tevkifatTutari']));
-        _tevkifatTuruCtrl.text = res['tevkifatTuru']?.toString() ?? '';
-
-        final kOran = (res['kdvOrani'] as num?)?.toInt() ?? 20;
-        if ([1, 8, 10, 18, 20].contains(kOran)) {
-          _seciliKdvOrani = kOran;
-        }
-
-        final tOran = res['tevkifatOrani']?.toString().trim() ?? '9/10';
-        if (['9/10', '7/10', '5/10', '2/10', '3/10', '4/10'].contains(tOran)) {
-          _seciliTevkifatOrani = tOran;
-        }
+      if (list.isNotEmpty) {
+        _bulunanFaturalar = List<Map<String, dynamic>>.from(list);
+        _seciliFaturaIndex = 0;
+        _faturayiFormaYukle(0);
       } else {
         _errorMessage = 'Belgeden fatura ve tevkifat bilgisi çıkarılamadı. Bilgileri elle tamamlayabilirsiniz.';
       }
@@ -135,6 +125,45 @@ class _TekilFaturaAiDialogState extends State<TekilFaturaAiDialog> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _faturayiFormaYukle(int index) {
+    if (index < 0 || index >= _bulunanFaturalar.length) return;
+    final res = _bulunanFaturalar[index];
+    _firmaCtrl.text = res['firmaAdi']?.toString() ?? '';
+    _vknCtrl.text = res['vergiTcNo']?.toString() ?? '';
+    _faturaNoCtrl.text = res['faturaNo']?.toString() ?? '';
+    _tarihCtrl.text = res['faturaTarihi']?.toString() ?? '';
+    _matrahCtrl.text = TurkceFormat.paraKalem(TurkceFormat.parseSayi(res['matrahTutari']));
+    _kdvCtrl.text = TurkceFormat.paraKalem(TurkceFormat.parseSayi(res['kdvTutari']));
+    _tevkifatTutarCtrl.text = TurkceFormat.paraKalem(TurkceFormat.parseSayi(res['tevkifatTutari']));
+    _tevkifatTuruCtrl.text = res['tevkifatTuru']?.toString() ?? '';
+
+    final kOran = (res['kdvOrani'] as num?)?.toInt() ?? 20;
+    if ([1, 8, 10, 18, 20].contains(kOran)) {
+      _seciliKdvOrani = kOran;
+    }
+
+    final tOran = res['tevkifatOrani']?.toString().trim() ?? '9/10';
+    if (['9/10', '7/10', '5/10', '2/10', '3/10', '4/10'].contains(tOran)) {
+      _seciliTevkifatOrani = tOran;
+    }
+  }
+
+  void _mevcutFaturayiSenkronizeEt() {
+    if (_seciliFaturaIndex < 0 || _seciliFaturaIndex >= _bulunanFaturalar.length) return;
+    _bulunanFaturalar[_seciliFaturaIndex] = {
+      'firmaAdi': _firmaCtrl.text.trim(),
+      'vergiTcNo': _vknCtrl.text.trim(),
+      'faturaNo': _faturaNoCtrl.text.trim(),
+      'faturaTarihi': _tarihCtrl.text.trim(),
+      'matrahTutari': TurkceFormat.parseSayi(_matrahCtrl.text),
+      'kdvOrani': _seciliKdvOrani,
+      'kdvTutari': TurkceFormat.parseSayi(_kdvCtrl.text),
+      'tevkifatOrani': _seciliTevkifatOrani,
+      'tevkifatTutari': TurkceFormat.parseSayi(_tevkifatTutarCtrl.text),
+      'tevkifatTuru': _tevkifatTuruCtrl.text.trim(),
+    };
   }
 
   void _otomatikHesapla() {
@@ -246,6 +275,11 @@ class _TekilFaturaAiDialogState extends State<TekilFaturaAiDialog> {
                     ),
                   ),
 
+                  // Çoklu Fatura Gezinti Kartı (Varsa)
+                  if (_bulunanFaturalar.length > 1) ...[
+                    _buildCokluFaturaGezintiBari(),
+                  ],
+
                   if (_errorMessage != null) ...[
                     const SizedBox(height: 10),
                     Container(
@@ -277,20 +311,48 @@ class _TekilFaturaAiDialogState extends State<TekilFaturaAiDialog> {
 
                   const SizedBox(height: 18),
 
-                  // Kaydet & Aktar Butonu
-                  FilledButton.icon(
-                    onPressed: _kaydetVeAktar,
-                    icon: const Icon(Icons.check_circle_rounded, size: 18),
-                    label: const Text(
-                      'KDV 2 Masasına Ekle / Güncelle',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  // Kaydet & Aktar Butonları
+                  if (_bulunanFaturalar.length > 1) ...[
+                    FilledButton.icon(
+                      onPressed: _tumunuKaydetVeAktar,
+                      icon: const Icon(Icons.done_all_rounded, size: 18),
+                      label: Text(
+                        'Tüm Faturaları KDV 2 Masasına Aktar (${_bulunanFaturalar.length} Fatura)',
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
                     ),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _kaydetVeAktar,
+                      icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+                      label: Text(
+                        'Yalnızca Bu Faturayı Aktar (${_seciliFaturaIndex + 1} / ${_bulunanFaturalar.length})',
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
                     ),
-                  ),
+                  ] else ...[
+                    FilledButton.icon(
+                      onPressed: _kaydetVeAktar,
+                      icon: const Icon(Icons.check_circle_rounded, size: 18),
+                      label: const Text(
+                        'KDV 2 Masasına Ekle / Güncelle',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -632,6 +694,122 @@ class _TekilFaturaAiDialogState extends State<TekilFaturaAiDialog> {
         content: Text('✓ $firma faturası KDV 2 tevkifat masasına aktarıldı ve birim özetine eklendi.'),
         backgroundColor: AppColors.success,
         duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _tumunuKaydetVeAktar() {
+    _mevcutFaturayiSenkronizeEt();
+    int aktarilanSayisi = 0;
+
+    for (final f in _bulunanFaturalar) {
+      final mtr = TurkceFormat.parseSayi(f['matrahTutari']);
+      if (mtr <= 0) continue;
+      final kdv = TurkceFormat.parseSayi(f['kdvTutari']);
+      final tvk = TurkceFormat.parseSayi(f['tevkifatTutari']);
+      final oran = f['tevkifatOrani']?.toString().trim() ?? '9/10';
+      final kdvOrani = (f['kdvOrani'] as num?)?.toInt() ?? 20;
+
+      final faturaMap = {
+        'firmaAdi': (f['firmaAdi']?.toString().trim().isNotEmpty ?? false)
+            ? f['firmaAdi'].toString().trim()
+            : 'Düzenleyen Firma',
+        'vergiTcNo': f['vergiTcNo']?.toString().trim() ?? '',
+        'faturaNo': f['faturaNo']?.toString().trim() ?? '',
+        'faturaTarihi': f['faturaTarihi']?.toString().trim() ?? '',
+        'matrahTutari': mtr,
+        'kdvOrani': kdvOrani,
+        'kdvTutari': kdv > 0 ? kdv : mtr * (kdvOrani / 100.0),
+        'tevkifatOrani': oran,
+        'tevkifatTutari': tvk > 0 ? tvk : kdv * 0.9,
+        'tevkifatTuru': f['tevkifatTuru']?.toString().trim() ?? '',
+      };
+
+      widget.provider.tekilFaturaKaydet(
+        birimAdi: widget.birimAdi,
+        faturaMap: faturaMap,
+        masayaAktar: true,
+      );
+      aktarilanSayisi++;
+    }
+
+    Navigator.of(context).pop();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✓ ${widget.birimAdi} için toplam $aktarilanSayisi adet fatura KDV 2 masasına aktarıldı!'),
+        backgroundColor: AppColors.success,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  Widget _buildCokluFaturaGezintiBari() {
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.primarySubtle,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.primary.withAlpha(80)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.collections_bookmark_rounded, size: 16, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Belgede ${_bulunanFaturalar.length} fatura bulundu (Fatura ${_seciliFaturaIndex + 1} / ${_bulunanFaturalar.length})',
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_left_rounded, size: 20),
+            tooltip: 'Önceki Fatura',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            onPressed: _seciliFaturaIndex > 0
+                ? () {
+                    _mevcutFaturayiSenkronizeEt();
+                    setState(() {
+                      _seciliFaturaIndex--;
+                      _faturayiFormaYukle(_seciliFaturaIndex);
+                    });
+                  }
+                : null,
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              '${_seciliFaturaIndex + 1} / ${_bulunanFaturalar.length}',
+              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right_rounded, size: 20),
+            tooltip: 'Sonraki Fatura',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            onPressed: _seciliFaturaIndex < _bulunanFaturalar.length - 1
+                ? () {
+                    _mevcutFaturayiSenkronizeEt();
+                    setState(() {
+                      _seciliFaturaIndex++;
+                      _faturayiFormaYukle(_seciliFaturaIndex);
+                    });
+                  }
+                : null,
+          ),
+        ],
       ),
     );
   }

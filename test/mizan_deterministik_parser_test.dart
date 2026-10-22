@@ -267,5 +267,76 @@ Tevkifat Tutarı: 8.000,00 TL
       expect(faturalar.first['matrahTutari'], 100000.0);
       expect(faturalar.first['tevkifatTutari'], 8000.0);
     });
+
+    test('Arka arkaya taranmış çoklu diş/medikal tevkifat faturalarının tümü eksiksiz yakalanır', () {
+      const cokluFaturaMetni = '''
+--- SAYFA 1 ---
+e-Arşiv Fatura
+ÖZEL DİŞ VE PROTEZ TİC. LTD. ŞTİ.
+VKN: 4110649065
+Fatura No: GIB2024000000001
+Fatura Tarihi: 12.03.2025
+Sayın: DİŞ HEKİMLİĞİ FAKÜLTESİ DÖNER SERMAYE İŞLETMESİ
+Alıcı VKN: 8960855757
+Mal Hizmet Toplam Tutarı: 15.000,00 TL
+Hesaplanan KDV (%20): 3.000,00 TL
+Tevkifat Oranı: 9/10
+Tevkifat Tutarı: 2.700,00 TL
+Ödenecek Tutar: 15.300,00 TL
+
+\f
+--- SAYFA 2 ---
+e-Fatura
+DENTAL İMPLANT VE MEDİKAL ÜRÜNLER SAN. A.Ş.
+VKN: 6191268620
+FATURA NO ABC2024000000045
+Tarih: 15.03.2025
+ALICI: ÜNİVERSİTE DÖNER SERMAYE SAYIN YÖNETİCİLİĞİ
+Vergi Matrahı: 25.000,00 TL
+KDV Tutarı: 5.000,00 TL
+Tevkifat (7/10): 3.500,00 TL
+Net Ödenecek: 26.500,00 TL
+
+\f
+--- SAYFA 3 ---
+TEMEL FATURA
+DİŞ KLİNİK TEKNİK SERVİS VE CİHAZ LTD. ŞTİ.
+Vergi Kimlik No: 6210490464
+Fatura No: GIB2024000000099
+Fatura Düzenleme Tarihi: 18.03.2025
+Müşteri: REKTÖRLÜK DÖNER SERMAYE
+Toplam Matrah: 10.000,00 TL
+Hesaplanan KDV: 2.000,00 TL
+Tevkifat Oranı: 5/10
+Tevkif Edilen KDV: 1.000,00 TL
+''';
+
+      final faturalar = MizanDeterministikParser.parseTevkifatFaturalari(cokluFaturaMetni);
+      expect(faturalar.length, 3, reason: 'Arka arkaya taranmış 3 diş faturasının üçü de çıkarılmalıdır');
+
+      // Fatura 1
+      expect(faturalar[0]['vergiTcNo'], '4110649065');
+      expect(faturalar[0]['matrahTutari'], 15000.0);
+      expect(faturalar[0]['kdvTutari'], 3000.0);
+      expect(faturalar[0]['tevkifatTutari'], 2700.0);
+      expect(faturalar[0]['tevkifatOrani'], '9/10');
+      expect(faturalar[0]['faturaNo'], 'GIB2024000000001');
+
+      // Fatura 2
+      expect(faturalar[1]['vergiTcNo'], '6191268620');
+      expect(faturalar[1]['matrahTutari'], 25000.0);
+      expect(faturalar[1]['kdvTutari'], 5000.0);
+      expect(faturalar[1]['tevkifatTutari'], 3500.0);
+      expect(faturalar[1]['tevkifatOrani'], '7/10');
+      expect(faturalar[1]['faturaNo'], 'ABC2024000000045');
+
+      // Fatura 3
+      expect(faturalar[2]['vergiTcNo'], '6210490464');
+      expect(faturalar[2]['matrahTutari'], 10000.0);
+      expect(faturalar[2]['kdvTutari'], 2000.0);
+      expect(faturalar[2]['tevkifatTutari'], 1000.0);
+      expect(faturalar[2]['tevkifatOrani'], '5/10');
+      expect(faturalar[2]['faturaNo'], 'GIB2024000000099');
+    });
   });
 }

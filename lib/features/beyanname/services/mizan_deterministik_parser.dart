@@ -526,197 +526,335 @@ class MizanDeterministikParser {
     );
   }
 
+  static bool _isAliciSatiri(String line) {
+    final u = line.toUpperCase();
+    return u.contains('ÜNİVERSİTE') ||
+        u.contains('UNIVERSITE') ||
+        u.contains('DÖNER SERMAYE') ||
+        u.contains('DONER SERMAYE') ||
+        u.contains('FAKÜLTE') ||
+        u.contains('REKTÖRLÜK') ||
+        u.startsWith('ALICI') ||
+        u.startsWith('SAYIN');
+  }
+
+  /// Tek bir fatura metin bloğundan satıcı, vergi no, matrah ve tevkifatı çıkarır.
+  static Map<String, dynamic>? _parseTekilTevkifatBlok(String blok) {
+    final lines = blok
+        .split(RegExp(r'\r?\n'))
+        .map((l) => l.replaceAll('|', ' ').trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
+    if (lines.isEmpty) return null;
+
+    // 1. Satıcı VKN / TCKN Bul (Resmi GİB algoritmasıyla doğrulanmış, Alıcı/Üniversite hariç)
+    String vkn = '';
+    int vknLineIndex = -1;
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final prevLine = i > 0 ? lines[i - 1].toUpperCase() : '';
+      final prev2Line = i > 1 ? lines[i - 2].toUpperCase() : '';
+      final isAliciBlogu = prevLine.contains('ÜNİVERSİTE') ||
+          prev2Line.contains('ÜNİVERSİTE') ||
+          prevLine.contains('UNIVERSITE') ||
+          prev2Line.contains('UNIVERSITE') ||
+          prevLine.contains('DÖNER SERMAYE') ||
+          prev2Line.contains('DÖNER SERMAYE') ||
+          prevLine.contains('SAYIN') ||
+          prev2Line.contains('SAYIN') ||
+          prevLine.contains('ALICI') ||
+          line.toUpperCase().contains('ALICI');
+      if (isAliciBlogu) continue;
+
+      for (final m in RegExp(r'\b\d{10,11}\b').allMatches(line)) {
+        final aday = m.group(0)!;
+        if (aday.length == 10 && BeyannameDenetimServisi.dogrulaVkn(aday)) {
+          vkn = aday;
+          vknLineIndex = i;
+          break;
+        } else if (aday.length == 11 && BeyannameDenetimServisi.dogrulaTckn(aday)) {
+          vkn = aday;
+          vknLineIndex = i;
+          break;
+        }
+      }
+      if (vkn.isNotEmpty) break;
+    }
+
+    // 1b. Eğer algoritma ile eşleşmediyse ama satırda açık VKN / TCKN etiketi varsa
+    if (vkn.isEmpty) {
+      for (int i = 0; i < lines.length; i++) {
+        final line = lines[i];
+        final prevLine = i > 0 ? lines[i - 1].toUpperCase() : '';
+        final isAlici = prevLine.contains('ALICI') ||
+            prevLine.contains('SAYIN') ||
+            line.toUpperCase().contains('ALICI') ||
+            _isAliciSatiri(line);
+        if (isAlici) continue;
+
+        final vknEtiket = RegExp(
+          r'(?:vergi\s*(?:kimlik\s*)?no|vkn|tckn)\s*[:.\-]?\s*(\d{10,11})\b',
+          caseSensitive: false,
+        ).firstMatch(line);
+        if (vknEtiket != null) {
+          vkn = vknEtiket.group(1)!;
+          vknLineIndex = i;
+          break;
+        }
+      }
+    }
+
+    // 2. Satıcı (Düzenleyen) Firma / Şahıs Adını Tamamen Dinamik Bul (Üniversite / Alıcı hariç)
+    String firmaAdi = '';
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final upper = line.toUpperCase();
+      if (upper.contains('ÜNİVERSİTE') ||
+          upper.contains('UNIVERSITE') ||
+          upper.contains('DÖNER SERMAYE') ||
+          upper.contains('DONER SERMAYE') ||
+          upper.contains('FAKÜLTE') ||
+          upper.contains('REKTÖRLÜK') ||
+          upper.startsWith('ALICI') ||
+          upper.startsWith('SAYIN')) {
+        continue;
+      }
+      // a) Açık etiket varsa ("SATICI: ...", "UNVANI: ...")
+      final etiketMatch = RegExp(
+        r'^(?:sat[ıi]c[ıi]|d[üu]zenleyen|firma\s*unvan[ıi]?|unvan[ıi]?|ad[ıi]\s*soyad[ıi])\s*[:.\-]\s*(.+)$',
+        caseSensitive: false,
+      ).firstMatch(line);
+      if (etiketMatch != null && etiketMatch.group(1)!.trim().length > 3) {
+        firmaAdi = etiketMatch.group(1)!.trim();
+        break;
+      }
+      // b) Kurumsal şirket eki varsa (herhangi bir sektördeki tüm A.Ş., Ltd. Şti., Koop., Ortaklığı, Medikal vb.)
+      if (line.length > 5 &&
+          (upper.contains('A.Ş') ||
+              upper.contains('LTD') ||
+              upper.contains('ŞTİ') ||
+              upper.contains('LİMİTED') ||
+              upper.contains('ANONİM') ||
+              upper.contains('SAN.') ||
+              upper.contains('SANAYİ') ||
+              upper.contains('TİC.') ||
+              upper.contains('TİCARET') ||
+              upper.contains('KOOP') ||
+              upper.contains('MEDİKAL') ||
+              upper.contains('DENTAL') ||
+              upper.contains('ORTAKLIĞI'))) {
+        firmaAdi = line
+            .replaceFirst(RegExp(r'^(?:sat[ıi]c[ıi]|firma|unvan[ıi]?)\s*[:.\-]?\s*', caseSensitive: false), '')
+            .trim();
+        break;
+      }
+    }
+    // c) Şahıs firması veya şirket eki olmayan özel ünvan ise: Satıcı VKN satırının hemen üstündeki anlamlı satırı al
+    if (firmaAdi.isEmpty && vknLineIndex > 0) {
+      for (int j = vknLineIndex - 1; j >= max(0, vknLineIndex - 4); j--) {
+        final adaySatir = lines[j].trim();
+        final upper = adaySatir.toUpperCase();
+        if (adaySatir.length > 4 &&
+            !upper.contains('E-FATURA') &&
+            !upper.contains('E-ARŞİV') &&
+            !upper.contains('VERGİ DAİRESİ') &&
+            !upper.contains('TEL:') &&
+            !upper.contains('ADRES') &&
+            !upper.contains('MAHALLESİ') &&
+            !upper.contains('CADDESİ') &&
+            !upper.contains('SOKAK') &&
+            upper != 'SATICI' &&
+            upper != 'SATICI:' &&
+            !RegExp(r'^\d+$').hasMatch(adaySatir)) {
+          firmaAdi = adaySatir;
+          break;
+        }
+      }
+    }
+
+    // 3. Fatura No ve Tarih tespiti
+    String faturaNo = '';
+    final fNoMatch = RegExp(
+      r'(?:fatura\s*(?:no|numaras[ıi]|s[ıi]ra\s*no)\s*[:.\-]?\s*|ettn\s*[:.\-]?\s*)([A-Z0-9\-]{8,36})',
+      caseSensitive: false,
+    ).firstMatch(blok);
+    if (fNoMatch != null) {
+      faturaNo = fNoMatch.group(1)!.trim();
+    } else {
+      final gibMatch = RegExp(r'\b([A-Z]{3}\d{13})\b').firstMatch(blok);
+      if (gibMatch != null) {
+        faturaNo = gibMatch.group(1)!;
+      }
+    }
+
+    String faturaTarihi = '';
+    final tarihMatch = RegExp(
+      r'(?:fatura\s*tarihi?|d[üu]zenleme\s*tarihi?|tarih)\s*[:.\-]?\s*(\d{1,2}[./]\d{1,2}[./]\d{2,4})',
+      caseSensitive: false,
+    ).firstMatch(blok);
+    if (tarihMatch != null) {
+      faturaTarihi = tarihMatch.group(1)!;
+    }
+
+    // 4. Tevkifat Oranı Tespiti (9/10, 7/10, 5/10, 4/10, 3/10, 2/10)
+    String tevkifatOrani = '9/10';
+    double tevkifatKatsayi = 0.9;
+    final oranMatch = RegExp(r'\b([234579])\s*/\s*10\b').firstMatch(blok);
+    if (oranMatch != null) {
+      final pay = int.parse(oranMatch.group(1)!);
+      tevkifatOrani = '$pay/10';
+      tevkifatKatsayi = pay / 10.0;
+    } else {
+      final yuzdeTevkifat = RegExp(
+        r'tevkifat[^\n\r\d]*(?:%\s*)?(90|70|50|40|30|20)\b',
+        caseSensitive: false,
+      ).firstMatch(blok);
+      if (yuzdeTevkifat != null) {
+        final yuzde = int.parse(yuzdeTevkifat.group(1)!);
+        final pay = yuzde ~/ 10;
+        tevkifatOrani = '$pay/10';
+        tevkifatKatsayi = pay / 10.0;
+      }
+    }
+
+    // 5. Matrah, KDV ve Tevkifat Tutarı Tespiti
+    final matrahMatch = RegExp(
+      r'(?:mal\s*hizmet\s*toplam\s*tutar[ıi]?|vergi\s*matrah[ıi]|matrah(?:\s*tutar[ıi])?)\s*[:.\-]?\s*([\d.,]+)',
+      caseSensitive: false,
+    ).firstMatch(blok);
+    final kdvMatch = RegExp(
+      r'(?:hesaplanan\s*kdv|toplam\s*kdv|kdv\s*tutar[ıi])\s*(?:\(%\s*\d+\))?\s*[:.\-]?\s*([\d.,]+)',
+      caseSensitive: false,
+    ).firstMatch(blok);
+    final tevkifatMatch = RegExp(
+      r'(?:hesaplanan\s*kdv\s*tevkifat|tevkifat\s*tutar[ıi]|tevkif\s*edilen\s*kdv)\s*(?:\(\d+/10\))?\s*[:.\-]?\s*([\d.,]+)',
+      caseSensitive: false,
+    ).firstMatch(blok);
+
+    double matrah = matrahMatch != null ? TurkceFormat.parseSayi(matrahMatch.group(1)) : 0.0;
+    double kdv = kdvMatch != null ? TurkceFormat.parseSayi(kdvMatch.group(1)) : 0.0;
+    double tevkifat = tevkifatMatch != null ? TurkceFormat.parseSayi(tevkifatMatch.group(1)) : 0.0;
+
+    if (matrah == 0) {
+      final araToplamMatch = RegExp(
+        r'(?:ara\s*toplam|toplam\s*tutar)\s*[:.\-]?\s*([\d.,]+)',
+        caseSensitive: false,
+      ).firstMatch(blok);
+      if (araToplamMatch != null) {
+        matrah = TurkceFormat.parseSayi(araToplamMatch.group(1));
+      }
+    }
+
+    if (matrah > 0 && kdv == 0) {
+      final kdvOranMatch = RegExp(r'kdv\s*(?:oran[ıi])?\s*%?\s*(10|20)\b', caseSensitive: false).firstMatch(blok);
+      final oran = kdvOranMatch != null ? int.parse(kdvOranMatch.group(1)!) : 20;
+      kdv = double.parse((matrah * (oran / 100.0)).toStringAsFixed(2));
+    }
+    if (kdv > 0 && tevkifat == 0) {
+      tevkifat = double.parse((kdv * tevkifatKatsayi).toStringAsFixed(2));
+    }
+    if (matrah > 0 && kdv > 0 && tevkifat > 0 && oranMatch == null) {
+      final r = ((tevkifat / kdv) * 10).round();
+      if (const [2, 3, 4, 5, 7, 9].contains(r)) {
+        tevkifatOrani = '$r/10';
+      }
+    }
+
+    if (matrah > 0 && (firmaAdi.isNotEmpty || vkn.isNotEmpty)) {
+      return {
+        'firmaAdi': firmaAdi.isNotEmpty ? firmaAdi : 'Düzenleyen Firma',
+        'vergiTcNo': vkn,
+        'faturaNo': faturaNo,
+        'faturaTarihi': faturaTarihi,
+        'matrahTutari': matrah,
+        'kdvTutari': kdv,
+        'tevkifatTutari': tevkifat,
+        'tevkifatOrani': tevkifatOrani,
+      };
+    }
+    return null;
+  }
+
   /// Ek belge / fatura metninden GİB KDV 2 Tevkifat faturalarını kural tabanlı çıkarır.
+  /// Arka arkaya taranmış çok sayfalı veya tek parçada birleştirilmiş çoklu faturaların TÜMÜNÜ eksiksiz yakalar.
   static List<Map<String, dynamic>> parseTevkifatFaturalari(String rawText) {
     if (rawText.trim().isEmpty) return [];
     final sonuclar = <Map<String, dynamic>>[];
 
-    // Çoklu fatura varsa ETTN veya "e-Arşiv Fatura" / "e-Fatura" sınırlarından böl
-    final parcalar = <String>[];
+    // 1. Çoklu fatura varsa form feed (\f), sayfa çizgisi veya fatura başlığı sınırlarından akıllıca böl
     final bolucuRegex = RegExp(
-      r'(?=(?:e-ar[şs]iv\s*fatura|e-fatura|fatura\s*no\s*:))',
+      r'(?=(?:\f|\x0C|---\s*SAYFA\s*\d+\s*---|===\s*SAYFA\s*\d+\s*===|(?:e-ar[şs]iv(?:\s*fatura)?|e-fatura|ettn\s*[:.\-]?|özelle[şs]tirme\s*no|(?:temel|ticari|kamu|istisna|tevkifat)\s*fatura)\b))',
       caseSensitive: false,
     );
     final adayParcalar = rawText.split(bolucuRegex).where((p) => p.trim().length > 40).toList();
+    final parcalar = <String>[];
     if (adayParcalar.length > 1) {
       parcalar.addAll(adayParcalar);
     } else {
       parcalar.add(rawText);
     }
 
-    for (final blok in parcalar) {
-      final lines = blok
-          .split(RegExp(r'\r?\n'))
-          .map((l) => l.replaceAll('|', ' ').trim())
-          .where((l) => l.isNotEmpty)
-          .toList();
-      if (lines.isEmpty) continue;
-
-      // 1. Satıcı VKN / TCKN Bul (Resmi GİB algoritmasıyla doğrulanmış, Alıcı/Üniversite hariç)
-      String vkn = '';
-      int vknLineIndex = -1;
-      for (int i = 0; i < lines.length; i++) {
-        final line = lines[i];
-        // "SAYIN" / "ALICI" / "ÜNİVERSİTE" bloğuna ait VKN'yi atla
-        final prevLine = i > 0 ? lines[i - 1].toUpperCase() : '';
-        final prev2Line = i > 1 ? lines[i - 2].toUpperCase() : '';
-        final isAliciBlogu = prevLine.contains('ÜNİVERSİTE') ||
-            prev2Line.contains('ÜNİVERSİTE') ||
-            prevLine.contains('UNIVERSITE') ||
-            prev2Line.contains('UNIVERSITE') ||
-            prevLine.contains('DÖNER SERMAYE') ||
-            prev2Line.contains('DÖNER SERMAYE') ||
-            prevLine.contains('SAYIN') ||
-            prev2Line.contains('SAYIN') ||
-            prevLine.contains('ALICI') ||
-            line.toUpperCase().contains('ALICI');
-        if (isAliciBlogu) continue;
-
-        for (final m in RegExp(r'\b\d{10,11}\b').allMatches(line)) {
-          final aday = m.group(0)!;
-          if (aday.length == 10 && BeyannameDenetimServisi.dogrulaVkn(aday)) {
-            vkn = aday;
-            vknLineIndex = i;
-            break;
-          } else if (aday.length == 11 && BeyannameDenetimServisi.dogrulaTckn(aday)) {
-            vkn = aday;
-            vknLineIndex = i;
-            break;
+    // 2. Parça içinde birden çok satıcı VKN varsa alt bloklara ayır
+    final nihaiBloklar = <String>[];
+    for (final p in parcalar) {
+      final lines = p.split('\n');
+      final vknPozisyonlari = <int>[];
+      final gorulenVknler = <String>{};
+      int charOffset = 0;
+      for (final line in lines) {
+        if (!_isAliciSatiri(line)) {
+          for (final m in RegExp(r'\b\d{10,11}\b').allMatches(line)) {
+            final val = m.group(0)!;
+            final gecerli = (val.length == 10 && BeyannameDenetimServisi.dogrulaVkn(val)) ||
+                (val.length == 11 && BeyannameDenetimServisi.dogrulaTckn(val)) ||
+                RegExp(r'(?:vergi\s*(?:kimlik\s*)?no|vkn|tckn)\s*[:.\-]?\s*\d{10,11}\b', caseSensitive: false).hasMatch(line);
+            if (gecerli && !gorulenVknler.contains(val)) {
+              gorulenVknler.add(val);
+              vknPozisyonlari.add(charOffset);
+              break;
+            }
           }
         }
-        if (vkn.isNotEmpty) break;
+        charOffset += line.length + 1;
       }
 
-      // 2. Satıcı (Düzenleyen) Firma / Şahıs Adını Tamamen Dinamik Bul (Üniversite / Alıcı hariç)
-      String firmaAdi = '';
-      for (int i = 0; i < lines.length; i++) {
-        final line = lines[i];
-        final upper = line.toUpperCase();
-        if (upper.contains('ÜNİVERSİTE') ||
-            upper.contains('UNIVERSITE') ||
-            upper.contains('DÖNER SERMAYE') ||
-            upper.contains('DONER SERMAYE') ||
-            upper.contains('FAKÜLTE') ||
-            upper.contains('REKTÖRLÜK') ||
-            upper.startsWith('ALICI') ||
-            upper.startsWith('SAYIN')) {
-          continue;
-        }
-        // a) Açık etiket varsa ("SATICI: ...", "UNVANI: ...")
-        final etiketMatch = RegExp(
-          r'^(?:sat[ıi]c[ıi]|d[üu]zenleyen|firma\s*unvan[ıi]?|unvan[ıi]?|ad[ıi]\s*soyad[ıi])\s*[:.\-]\s*(.+)$',
-          caseSensitive: false,
-        ).firstMatch(line);
-        if (etiketMatch != null && etiketMatch.group(1)!.trim().length > 3) {
-          firmaAdi = etiketMatch.group(1)!.trim();
-          break;
-        }
-        // b) Kurumsal şirket eki varsa (herhangi bir sektördeki tüm A.Ş., Ltd. Şti., Koop., Ortaklığı vb.)
-        if (line.length > 5 &&
-            (upper.contains('A.Ş') ||
-                upper.contains('LTD') ||
-                upper.contains('ŞTİ') ||
-                upper.contains('LİMİTED') ||
-                upper.contains('ANONİM') ||
-                upper.contains('SAN.') ||
-                upper.contains('SANAYİ') ||
-                upper.contains('TİC.') ||
-                upper.contains('TİCARET') ||
-                upper.contains('KOOP') ||
-                upper.contains('ORTAKLIĞI'))) {
-          firmaAdi = line
-              .replaceFirst(RegExp(r'^(?:sat[ıi]c[ıi]|firma|unvan[ıi]?)\s*[:.\-]?\s*', caseSensitive: false), '')
-              .trim();
-          break;
-        }
-      }
-      // c) Şahıs firması veya şirket eki olmayan özel ünvan ise: Satıcı VKN satırının hemen üstündeki anlamlı satırı al
-      if (firmaAdi.isEmpty && vknLineIndex > 0) {
-        for (int j = vknLineIndex - 1; j >= max(0, vknLineIndex - 4); j--) {
-          final adaySatir = lines[j].trim();
-          final upper = adaySatir.toUpperCase();
-          if (adaySatir.length > 4 &&
-              !upper.contains('E-FATURA') &&
-              !upper.contains('E-ARŞİV') &&
-              !upper.contains('VERGİ DAİRESİ') &&
-              !upper.contains('TEL:') &&
-              !upper.contains('ADRES') &&
-              !upper.contains('MAHALLESİ') &&
-              !upper.contains('CADDESİ') &&
-              !upper.contains('SOKAK') &&
-              upper != 'SATICI' &&
-              upper != 'SATICI:' &&
-              !RegExp(r'^\d+$').hasMatch(adaySatir)) {
-            firmaAdi = adaySatir;
-            break;
+      if (vknPozisyonlari.length > 1) {
+        for (int i = 0; i < vknPozisyonlari.length; i++) {
+          final bas = max(0, vknPozisyonlari[i] - 120);
+          final bit = (i + 1 < vknPozisyonlari.length)
+              ? max(bas + 40, vknPozisyonlari[i + 1] - 120)
+              : p.length;
+          if (bit > bas) {
+            nihaiBloklar.add(p.substring(bas, bit));
           }
         }
-      }
-
-      // 3. Tevkifat Oranı Tespiti (9/10, 7/10, 5/10, 4/10, 3/10, 2/10)
-      String tevkifatOrani = '9/10';
-      double tevkifatKatsayi = 0.9;
-      final oranMatch = RegExp(r'\b([234579])\s*/\s*10\b').firstMatch(blok);
-      if (oranMatch != null) {
-        final pay = int.parse(oranMatch.group(1)!);
-        tevkifatOrani = '$pay/10';
-        tevkifatKatsayi = pay / 10.0;
       } else {
-        final yuzdeTevkifat = RegExp(
-          r'tevkifat[^\n\r\d]*(?:%\s*)?(90|70|50|40|30|20)\b',
-          caseSensitive: false,
-        ).firstMatch(blok);
-        if (yuzdeTevkifat != null) {
-          final yuzde = int.parse(yuzdeTevkifat.group(1)!);
-          final pay = yuzde ~/ 10;
-          tevkifatOrani = '$pay/10';
-          tevkifatKatsayi = pay / 10.0;
-        }
+        nihaiBloklar.add(p);
       }
+    }
 
-      // 4. Matrah, KDV ve Tevkifat Tutarı Tespiti
-      final matrahMatch = RegExp(
-        r'(?:mal\s*hizmet\s*toplam\s*tutar[ıi]?|vergi\s*matrah[ıi]|matrah(?:\s*tutar[ıi])?)\s*[:.\-]?\s*([\d.,]+)',
-        caseSensitive: false,
-      ).firstMatch(blok);
-      final kdvMatch = RegExp(
-        r'(?:hesaplanan\s*kdv|toplam\s*kdv|kdv\s*tutar[ıi])\s*(?:\(%\s*\d+\))?\s*[:.\-]?\s*([\d.,]+)',
-        caseSensitive: false,
-      ).firstMatch(blok);
-      final tevkifatMatch = RegExp(
-        r'(?:hesaplanan\s*kdv\s*tevkifat|tevkifat\s*tutar[ıi]|tevkif\s*edilen\s*kdv)\s*(?:\(\d+/10\))?\s*[:.\-]?\s*([\d.,]+)',
-        caseSensitive: false,
-      ).firstMatch(blok);
-
-      double matrah = matrahMatch != null ? TurkceFormat.parseSayi(matrahMatch.group(1)) : 0.0;
-      double kdv = kdvMatch != null ? TurkceFormat.parseSayi(kdvMatch.group(1)) : 0.0;
-      double tevkifat = tevkifatMatch != null ? TurkceFormat.parseSayi(tevkifatMatch.group(1)) : 0.0;
-
-      if (matrah > 0 && kdv == 0) {
-        final kdvOranMatch = RegExp(r'kdv\s*(?:oran[ıi])?\s*%?\s*(10|20)\b', caseSensitive: false).firstMatch(blok);
-        final oran = kdvOranMatch != null ? int.parse(kdvOranMatch.group(1)!) : 20;
-        kdv = double.parse((matrah * (oran / 100.0)).toStringAsFixed(2));
-      }
-      if (kdv > 0 && tevkifat == 0) {
-        tevkifat = double.parse((kdv * tevkifatKatsayi).toStringAsFixed(2));
-      }
-      if (matrah > 0 && kdv > 0 && tevkifat > 0 && oranMatch == null) {
-        // KDV ve Tevkifat tutarından gerçek oranı otomatik bul (örn. 7/10, 5/10)
-        final r = ((tevkifat / kdv) * 10).round();
-        if (const [2, 3, 4, 5, 7, 9].contains(r)) {
-          tevkifatOrani = '$r/10';
-        }
-      }
-
-      if (matrah > 0 && (firmaAdi.isNotEmpty || vkn.isNotEmpty)) {
-        sonuclar.add({
-          'firmaAdi': firmaAdi.isNotEmpty ? firmaAdi : 'Düzenleyen Firma',
-          'vergiTcNo': vkn,
-          'matrahTutari': matrah,
-          'kdvTutari': kdv,
-          'tevkifatTutari': tevkifat,
-          'tevkifatOrani': tevkifatOrani,
+    // 3. Her bloğu tek tek ayrıştır ve mükerrer olmayanları ekle
+    for (final blok in nihaiBloklar) {
+      final f = _parseTekilTevkifatBlok(blok);
+      if (f != null) {
+        final mtr = TurkceFormat.parseSayi(f['matrahTutari']);
+        final mukerrer = sonuclar.any((mevcut) {
+          final ayniFaturaNo = mevcut['faturaNo'] != null &&
+              mevcut['faturaNo'].toString().trim().isNotEmpty &&
+              f['faturaNo'] != null &&
+              f['faturaNo'].toString().trim().isNotEmpty &&
+              mevcut['faturaNo'].toString().trim() == f['faturaNo'].toString().trim();
+          if (ayniFaturaNo) return true;
+          final ayniFirma = (mevcut['vergiTcNo']?.toString().isNotEmpty == true &&
+                  mevcut['vergiTcNo'] == f['vergiTcNo']) ||
+              (mevcut['firmaAdi']?.toString().toLowerCase().trim() ==
+                  f['firmaAdi']?.toString().toLowerCase().trim());
+          final ayniMatrah = (TurkceFormat.parseSayi(mevcut['matrahTutari']) - mtr).abs() < 1.0;
+          return ayniFirma && ayniMatrah;
         });
+        if (!mukerrer) {
+          sonuclar.add(f);
+        }
       }
     }
 

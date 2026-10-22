@@ -102,6 +102,7 @@ class BeyannameAiAjanServisi {
         final extractor = PdfTextExtractor(doc);
         for (int p = 0; p < pagesToExtract; p++) {
           final pageText = extractor.extractText(startPageIndex: p, endPageIndex: p);
+          if (p > 0) sb.writeln('\n\f\n--- SAYFA ${p + 1} ---\n');
           sb.writeln(pageText);
           // Her sayfada browser event loop'a nefes aldır (Web donmasını ve "Sayfa Yanıt Vermiyor" uyarısını engelle!)
           await Future.delayed(const Duration(milliseconds: 10));
@@ -307,8 +308,8 @@ class BeyannameAiAjanServisi {
           final digerBelge = ekBelgeler[k];
           final digerBelgeMetni = await belgeMetniniCikar(digerBelge);
           try {
-            final textForFatura = digerBelgeMetni.length > 25000
-                ? digerBelgeMetni.substring(0, 25000)
+            final textForFatura = digerBelgeMetni.length > 500000
+                ? digerBelgeMetni.substring(0, 500000)
                 : digerBelgeMetni;
 
             // Belgedeki tüm resmi doğrulanmış VKN/TCKN adaylarını çıkar
@@ -322,14 +323,25 @@ class BeyannameAiAjanServisi {
               }
             }
 
-            // 1. Öncelik: Tevkifat faturasına özel deterministik ayrıştırıcı
+            // 1. Öncelik: Tevkifat faturasına özel deterministik ayrıştırıcı (Çoklu / arka arkaya taranmış faturalar dahil)
             final ozelTevkifatlar = MizanDeterministikParser.parseTevkifatFaturalari(textForFatura);
             if (ozelTevkifatlar.isNotEmpty) {
               for (final ot in ozelTevkifatlar) {
                 final mtr = TurkceFormat.parseSayi(ot['matrahTutari']);
-                final mukerrer = tevkifatFaturaListesi.any(
-                  (t) => mtr > 0 && (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0,
-                );
+                final mukerrer = tevkifatFaturaListesi.any((t) {
+                  final ayniFaturaNo = t['faturaNo'] != null &&
+                      t['faturaNo'].toString().trim().isNotEmpty &&
+                      ot['faturaNo'] != null &&
+                      ot['faturaNo'].toString().trim().isNotEmpty &&
+                      t['faturaNo'].toString().trim() == ot['faturaNo'].toString().trim();
+                  if (ayniFaturaNo) return true;
+                  final ayniFirma = (t['vergiTcNo']?.toString().isNotEmpty == true &&
+                          t['vergiTcNo'] == ot['vergiTcNo']) ||
+                      (t['firmaAdi']?.toString().toLowerCase().trim() ==
+                          ot['firmaAdi']?.toString().toLowerCase().trim());
+                  final ayniMatrah = (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0;
+                  return ayniFirma && ayniMatrah;
+                });
                 if (!mukerrer) tevkifatFaturaListesi.add(ot);
               }
             } else {
@@ -354,7 +366,9 @@ class BeyannameAiAjanServisi {
                               u.contains('LTD') ||
                               u.contains('ŞTİ') ||
                               u.contains('TİC') ||
-                              u.contains('SAN'))) {
+                              u.contains('SAN') ||
+                              u.contains('MEDİKAL') ||
+                              u.contains('DENTAL'))) {
                         firma = l;
                         break;
                       }
@@ -378,9 +392,12 @@ class BeyannameAiAjanServisi {
                   }
 
                   final mtr = f.matrah;
-                  final mukerrer = tevkifatFaturaListesi.any(
-                    (t) => mtr > 0 && (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0,
-                  );
+                  final mukerrer = tevkifatFaturaListesi.any((t) {
+                    final ayniFirma = (t['vergiTcNo']?.toString().isNotEmpty == true && t['vergiTcNo'] == vkn) ||
+                        (t['firmaAdi']?.toString().toLowerCase().trim() == firma.toLowerCase().trim());
+                    final ayniMatrah = (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0;
+                    return ayniFirma && ayniMatrah;
+                  });
                   if (!mukerrer) {
                     tevkifatFaturaListesi.add({
                       'firmaAdi': firma.isNotEmpty ? firma : 'Düzenleyen Firma',
@@ -409,9 +426,20 @@ class BeyannameAiAjanServisi {
               final ocrFaturalar = await _taranmisFaturaOcr(ayarlar: ayarlar, belge: digerBelge);
               for (final f in ocrFaturalar) {
                 final mtr = TurkceFormat.parseSayi(f['matrahTutari']);
-                final mukerrer = tevkifatFaturaListesi.any(
-                  (t) => mtr > 0 && (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0,
-                );
+                final mukerrer = tevkifatFaturaListesi.any((t) {
+                  final ayniFaturaNo = t['faturaNo'] != null &&
+                      t['faturaNo'].toString().trim().isNotEmpty &&
+                      f['faturaNo'] != null &&
+                      f['faturaNo'].toString().trim().isNotEmpty &&
+                      t['faturaNo'].toString().trim() == f['faturaNo'].toString().trim();
+                  if (ayniFaturaNo) return true;
+                  final ayniFirma = (t['vergiTcNo']?.toString().isNotEmpty == true &&
+                          t['vergiTcNo'] == f['vergiTcNo']) ||
+                      (t['firmaAdi']?.toString().toLowerCase().trim() ==
+                          f['firmaAdi']?.toString().toLowerCase().trim());
+                  final ayniMatrah = (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0;
+                  return ayniFirma && ayniMatrah;
+                });
                 if (!mukerrer) tevkifatFaturaListesi.add(f);
               }
               yield AjanLogMesaji(
@@ -758,9 +786,50 @@ class BeyannameAiAjanServisi {
       m['firmaAdi'] = (m['firmaAdi']?.toString().trim().isNotEmpty ?? false)
           ? m['firmaAdi'].toString().trim()
           : 'Düzenleyen Firma';
+      m['faturaNo'] = m['faturaNo']?.toString().trim() ?? '';
+      m['faturaTarihi'] = m['faturaTarihi']?.toString().trim() ?? '';
       sonuc.add(m);
     }
     return sonuc;
+  }
+
+  /// Bir belgedeki (ör. çok sayfalı taranmış PDF veya tekil fatura) TÜM tevkifat faturalarını
+  /// deterministik ve AI motorlarıyla eksiksiz çıkarır.
+  Future<List<Map<String, dynamic>>> belgedekiFaturalariAiCozumle(BirimYuklenenBelge belge) async {
+    final metin = await belgeMetniniCikar(belge);
+
+    // 1. Deterministik & Offline ayrıştırmayı öncelikle dene (Hızlı, Kesin, Çoklu)
+    if (metin.trim().isNotEmpty) {
+      final ozelTevkifatlar = MizanDeterministikParser.parseTevkifatFaturalari(metin);
+      if (ozelTevkifatlar.isNotEmpty) {
+        return ozelTevkifatlar;
+      }
+    }
+
+    final ayarlar = await _ayarlarService.getAyarlar();
+    final hasAi = ayarlar.geminiApiKey.trim().isNotEmpty || ayarlar.deepseekApiKey.trim().isNotEmpty;
+
+    // 2. Taranmış PDF veya imaj ise Gemini Vision ile çoklu OCR analizi yap
+    if (hasAi) {
+      if (belge.dosyaBytes != null && belge.dosyaBytes!.isNotEmpty) {
+        try {
+          final ocrSonuc = await _taranmisFaturaOcr(ayarlar: ayarlar, belge: belge);
+          if (ocrSonuc.isNotEmpty) {
+            return ocrSonuc;
+          }
+        } catch (e) {
+          debugPrint('[belgedekiFaturalariAiCozumle] OCR hatası: $e');
+        }
+      }
+    }
+
+    // 3. Yedek tekil fatura AI analizi
+    final tekil = await tekilFaturaAiCozumle(belge);
+    if (tekil != null) {
+      return [tekil];
+    }
+
+    return [];
   }
 
   /// Tek bir faturayı (veya ek evrakı) AI ve kural tabanlı motorla çözümler.
@@ -885,11 +954,31 @@ ${textForFatura.isNotEmpty ? "\nBELGE METNİ:\n$textForFatura" : ""}
 
   String _buildSadeceFaturaOcrPrompt() {
     return '''
-Ekteki belge taranmış bir fatura / ek evraktır. Yalnızca KDV TEVKİFATLI faturaları çıkar.
-Kurallar: Rakam uydurma. Okuyamadığın alanı boş bırak. VKN 10, TCKN 11 hanedir.
-Tutarları sayı olarak ver (ör. 12345.67). Tevkifat oranı "9/10", "7/10", "5/10", "2/10" biçimindedir.
-SADECE şu JSON'u döndür, başka metin yazma:
-{"tevkifatFaturalari":[{"firmaAdi":"","vergiTcNo":"","matrahTutari":0,"kdvTutari":0,"tevkifatTutari":0,"tevkifatOrani":"9/10"}]}
+Sen Türkiye Vergi Mevzuatında (KDVK, KDV 2 Genel Tebliği) uzman bir mali müşavirsin.
+Ekteki belge bir kamu kurumuna (örneğin Diş Hekimliği Fakültesi veya diğer döner sermaye birimlerine) kesilmiş TARANMIŞ FATURALARDIR.
+
+KRİTİK UYARI VE ÇOKLU FATURA KURALI:
+1. Bu PDF veya görsel çok sayfalı olabilir ve ARKA ARKAYA TARANMIŞ BİRDEN ÇOK FATURA içerebilir (ör. 2, 3, 5, 10 adet fatura).
+2. Belgedeki TÜM sayfaları baştan sona incele. Her bir tevkifatlı faturayı 'tevkifatFaturalari' listesine AYRI BİR ELEMAN olarak ekle.
+3. KESİNLİKLE SADECE İLK FATURAYI OKUYUP BIRAKMA! Belgede kaç adet fatura varsa HEPSİNİ tek tek diziye yaz.
+4. Rakam uydurma. Okuyamadığın alanı boş bırak. VKN 10, TCKN 11 hanedir.
+5. Tutarları sayı olarak ver (ör. 12345.67). Tevkifat oranı "9/10", "7/10", "5/10", "4/10", "3/10", "2/10" biçimindedir.
+
+SADECE geçerli bir JSON döndür, başka hiçbir metin veya markdown ekleme:
+{
+  "tevkifatFaturalari": [
+    {
+      "firmaAdi": "Düzenleyen Firma Tam Unvanı",
+      "vergiTcNo": "10 veya 11 Haneli VKN/TCKN",
+      "faturaNo": "GIB2024000000001",
+      "faturaTarihi": "01.01.2025",
+      "matrahTutari": 10000.0,
+      "kdvTutari": 2000.0,
+      "tevkifatTutari": 1800.0,
+      "tevkifatOrani": "9/10"
+    }
+  ]
+}
 ''';
   }
 
@@ -1273,9 +1362,12 @@ ARANACAK HESAP KODLARI VE KURALLAR:
    - 600 hesabı borç bakiyesi veriyor mu? -> "is600TersBakiye": true/false
 8. TEVKİFATLI FATURALAR (KDV 2 TEVKİFATI) VE DÜZENLEYEN FİRMA TESPİTİ:
    - Ekli belgelerde (taranmış PDF, imaj veya dijital fatura) yer alan faturaları bizzat incele.
+   - KRİTİK ÇOKLU FATURA KURALI: Ekli PDF veya belgeler çok sayfalı olabilir ve ARKA ARKAYA TARANMIŞ BİRDEN FAZLA FATURA içerebilir (ör. Diş Hekimliği, UBATAM vb. birimlere ait 2, 3, 5, 10 fatura).
+   - Belgedeki BÜTÜN faturaları tek tek incele ve "tevkifatFaturalari" dizisine her bir faturayı ayrı bir nesne olarak ekle. KESİNLİKLE sadece ilk faturayı okuyup bırakma; kaç fatura varsa HEPSİNİ listeye ekle!
    - Faturayı düzenleyen / satan firmanın tam ticari unvanını ("firmaAdi") doğrudan belgenin üzerinden oku.
    - Faturayı düzenleyen firmanın 10 haneli Vergi Kimlik Numarasını (VKN) veya 11 haneli T.C. Kimlik Numarasını ("vergiTcNo") faturanın üzerindeki VKN/TCKN/Vergi No alanından veya kaşeden oku.
-   - Faturanın matrah tutarını ("matrahTutari"), KDV tutarını ("kdvTutari"), tevkifat tutarını ("tevkifatTutari") ve tevkifat oranını ("tevkifatOrani": "9/10", "5/10", "7/10", "2/10" vb.) kuruşu kuruşuna çıkar.
+   - Varsa Fatura Numarasını ("faturaNo") ve Tarihini ("faturaTarihi") çıkar.
+   - Faturanın matrah tutarını ("matrahTutari"), KDV tutarını ("kdvTutari"), tevkifat tutarını ("tevkifatTutari") ve tevkifat oranını ("tevkifatOrani": "9/10", "5/10", "7/10", "4/10", "3/10", "2/10" vb.) kuruşu kuruşuna çıkar.
    - DİKKAT: Firma adı ve VKN ASLA uydurma veya varsayılan olamaz. Belgede basılı olan gerçek satıcı unvanını ve vergi numarasını çıkar. Herhangi bir firmaya ait olabilir (yazılım, medikal, temizlik, kırtasiye, teknik servis vb.).
    - Eğer fatura mevcut ancak mizandaki 600/391/191 hesaplarına henüz yansımamışsa veya tutarlar arasında mutabakatsızlık varsa "aciklama" alanına açıkça yaz.
 9. YARDIMCI MİZAN (MUAVİN / ALT HESAP MİZANI) MUTABAKATI:
