@@ -90,8 +90,40 @@ class FaturaDogrulamaServisi {
       if (f.isKdvMuaf || kdvOrani <= 0) {
         matrah = genelToplam;
         kdvTutari = 0.0;
+        for (var kalem in f.kalemler) {
+          final miktar = TurkceFormat.parseSayi(kalem['miktar'], fallback: 1.0);
+          final safeMiktar = miktar <= 0 ? 1.0 : miktar;
+          final fVal = TurkceFormat.parseSayi(kalem['fiyat'], fallback: 0.0);
+          kalem['kdvDahilFiyat'] = fVal;
+          kalem['birimFiyat'] = fVal;
+          kalem['tutar'] = double.parse((safeMiktar * fVal).toStringAsFixed(2));
+        }
       } else {
-        matrah = double.parse((genelToplam / (1 + (kdvOrani / 100))).toStringAsFixed(2));
+        double yeniMatrah = 0.0;
+        for (var kalem in f.kalemler) {
+          final miktar = TurkceFormat.parseSayi(kalem['miktar'], fallback: 1.0);
+          final safeMiktar = miktar <= 0 ? 1.0 : miktar;
+          final brutFiyat = TurkceFormat.parseSayi(
+            kalem['kdvDahilFiyat'] ?? kalem['fiyat'],
+            fallback: 0.0,
+          );
+          if (brutFiyat > 0) {
+            kalem['kdvDahilFiyat'] = brutFiyat;
+            final netFiyat = double.parse(
+              (brutFiyat / (1 + (kdvOrani / 100.0))).toStringAsFixed(2),
+            );
+            kalem['fiyat'] = netFiyat;
+            kalem['birimFiyat'] = netFiyat;
+            final tutar = double.parse((safeMiktar * netFiyat).toStringAsFixed(2));
+            kalem['tutar'] = tutar;
+            yeniMatrah += tutar;
+          }
+        }
+        if (yeniMatrah > 0) {
+          matrah = yeniMatrah;
+        } else {
+          matrah = double.parse((genelToplam / (1 + (kdvOrani / 100))).toStringAsFixed(2));
+        }
         kdvTutari = double.parse((genelToplam - matrah).toStringAsFixed(2));
       }
       f.matrah = double.parse(matrah.toStringAsFixed(2));

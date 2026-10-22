@@ -36,15 +36,18 @@ class FaturaKuyrukProvider extends ChangeNotifier {
   int? geriYuklenenKuyrukSayisi;
 
   // ── Birim & Hizmet Cache ────────────────────────────────
-  final BirimService _birimService = BirimService();
+  BirimService get _birimService => _lazyBirimService ??= BirimService();
+  BirimService? _lazyBirimService;
   List<BirimModel> _birimlerList = [];
   Map<String, BirimModel> _birimlerById = {};
   Map<String, BirimModel> _birimlerCache = {};
-  final HizmetService _hizmetService = HizmetService();
+  HizmetService get _hizmetService => _lazyHizmetService ??= HizmetService();
+  HizmetService? _lazyHizmetService;
   List<HizmetModel> _tumHizmetler = [];
 
   // ── Servisler ───────────────────────────────────────────
-  final FaturaService _faturaService = FaturaService();
+  FaturaService get _faturaService => _lazyFaturaService ??= FaturaService();
+  FaturaService? _lazyFaturaService;
 
   // ── Timer ───────────────────────────────────────────────
   Timer? _kuyrukKaydetTimer;
@@ -354,6 +357,20 @@ class FaturaKuyrukProvider extends ChangeNotifier {
     if (invoiceIndex < 0 || invoiceIndex >= pendingInvoices.length) return;
     final currentInvoice = pendingInvoices[invoiceIndex];
     if (kalemIndex < 0 || kalemIndex >= currentInvoice.kalemler.length) return;
+
+    if (key == 'fiyat' && currentInvoice.kdvDahil) {
+      final girilenFiyat = TurkceFormat.parseSayi(value, fallback: 0.0);
+      currentInvoice.kalemler[kalemIndex]['kdvDahilFiyat'] = girilenFiyat;
+      final kdvOrani = currentInvoice.isKdvMuaf ? 0.0 : currentInvoice.kdvOrani;
+      final netFiyat = kdvOrani > 0 ? (girilenFiyat / (1 + kdvOrani / 100.0)) : girilenFiyat;
+      final safeNet = double.parse(netFiyat.toStringAsFixed(2));
+      currentInvoice.kalemler[kalemIndex]['fiyat'] = safeNet;
+      currentInvoice.kalemler[kalemIndex]['birimFiyat'] = safeNet;
+      _recalculateTotals(currentInvoice);
+      _queueChanged();
+      return;
+    }
+
     currentInvoice.kalemler[kalemIndex][key] = value;
     if (key == 'birimAdi') _updateIbanForInvoice(currentInvoice);
     if (key == 'miktar' || key == 'fiyat') _recalculateTotals(currentInvoice);
@@ -456,6 +473,19 @@ class FaturaKuyrukProvider extends ChangeNotifier {
           value,
           fallback: currentInvoice.kdvOrani,
         );
+        if (currentInvoice.kdvDahil) {
+          final oran = currentInvoice.isKdvMuaf ? 0.0 : currentInvoice.kdvOrani;
+          for (var kalem in currentInvoice.kalemler) {
+            final brut = TurkceFormat.parseSayi(kalem['kdvDahilFiyat'] ?? kalem['fiyat'], fallback: 0.0);
+            if (brut > 0) {
+              kalem['kdvDahilFiyat'] = brut;
+              final net = oran > 0 ? (brut / (1 + oran / 100.0)) : brut;
+              final safeNet = double.parse(net.toStringAsFixed(2));
+              kalem['fiyat'] = safeNet;
+              kalem['birimFiyat'] = safeNet;
+            }
+          }
+        }
         _recalculateTotals(currentInvoice);
       case 'kdvTutari':
         if (!currentInvoice.isKdvMuaf) {
@@ -514,6 +544,30 @@ class FaturaKuyrukProvider extends ChangeNotifier {
     if (index < 0 || index >= pendingInvoices.length) return;
     final currentInvoice = pendingInvoices[index];
     currentInvoice.kdvDahil = value;
+    final oran = currentInvoice.isKdvMuaf ? 0.0 : currentInvoice.kdvOrani;
+
+    for (var kalem in currentInvoice.kalemler) {
+      if (value) {
+        final brut = TurkceFormat.parseSayi(kalem['kdvDahilFiyat'] ?? kalem['fiyat'], fallback: 0.0);
+        if (brut > 0) {
+          kalem['kdvDahilFiyat'] = brut;
+          final net = oran > 0 ? (brut / (1 + oran / 100.0)) : brut;
+          final safeNet = double.parse(net.toStringAsFixed(2));
+          kalem['fiyat'] = safeNet;
+          kalem['birimFiyat'] = safeNet;
+        }
+      } else {
+        if (kalem['kdvDahilFiyat'] != null) {
+          final brut = TurkceFormat.parseSayi(kalem['kdvDahilFiyat'], fallback: 0.0);
+          if (brut > 0) {
+            kalem['fiyat'] = brut;
+            kalem['birimFiyat'] = brut;
+          }
+          kalem.remove('kdvDahilFiyat');
+        }
+      }
+    }
+
     _recalculateTotals(currentInvoice);
     _queueChanged();
   }
@@ -740,43 +794,39 @@ class FaturaKuyrukProvider extends ChangeNotifier {
   // ─────────────────────────────────────────────────────────
 
   void _recalculateTotals(FaturaModel invoice) {
-    double toplamKalemTutar = 0;
+    double matrah = 0;
+    double toplamBrut = 0;
+
     for (var kalem in invoice.kalemler) {
       final miktar = TurkceFormat.parseSayi(kalem['miktar'], fallback: 0.0);
       final safeMiktar = miktar <= 0 ? 1.0 : miktar;
-      final fiyat = TurkceFormat.parseSayi(kalem['fiyat'], fallback: 0.0);
-      final satirtutari = safeMiktar * fiyat;
+      final netFiyat = TurkceFormat.parseSayi(kalem['fiyat'], fallback: 0.0);
+      final satirtutari = double.parse((safeMiktar * netFiyat).toStringAsFixed(2));
       kalem['tutar'] = satirtutari;
-      kalem['birimFiyat'] = fiyat;
-      toplamKalemTutar += satirtutari;
+      kalem['birimFiyat'] = netFiyat;
+      matrah += satirtutari;
+
+      if (kalem['kdvDahilFiyat'] != null) {
+        final brutFiyat = TurkceFormat.parseSayi(kalem['kdvDahilFiyat'], fallback: 0.0);
+        toplamBrut += (safeMiktar * brutFiyat);
+      }
     }
 
-    if (invoice.kdvDahil) {
-      invoice.genelToplam = double.parse(toplamKalemTutar.toStringAsFixed(2));
-      if (invoice.isKdvMuaf || invoice.kdvOrani <= 0) {
-        invoice.kdvTutari = 0.0;
-        invoice.matrah = invoice.genelToplam;
-      } else {
-        invoice.matrah = double.parse(
-          (invoice.genelToplam / (1 + invoice.kdvOrani / 100.0)).toStringAsFixed(2),
-        );
-        invoice.kdvTutari = double.parse(
-          (invoice.genelToplam - invoice.matrah).toStringAsFixed(2),
-        );
-      }
+    invoice.matrah = double.parse(matrah.toStringAsFixed(2));
+
+    if (invoice.isKdvMuaf || invoice.kdvOrani <= 0) {
+      invoice.kdvTutari = 0.0;
+      invoice.genelToplam = invoice.matrah;
+    } else if (invoice.kdvDahil && toplamBrut > 0) {
+      invoice.genelToplam = double.parse(toplamBrut.toStringAsFixed(2));
+      invoice.kdvTutari = double.parse((invoice.genelToplam - invoice.matrah).toStringAsFixed(2));
     } else {
-      invoice.matrah = double.parse(toplamKalemTutar.toStringAsFixed(2));
-      if (invoice.isKdvMuaf || invoice.kdvOrani <= 0) {
-        invoice.kdvTutari = 0.0;
-        invoice.genelToplam = invoice.matrah;
-      } else {
-        invoice.kdvTutari = double.parse(
-          (invoice.matrah * (invoice.kdvOrani / 100.0)).toStringAsFixed(2),
-        );
-        invoice.genelToplam = double.parse(
-          (invoice.matrah + invoice.kdvTutari).toStringAsFixed(2),
-        );
-      }
+      invoice.kdvTutari = double.parse(
+        (invoice.matrah * (invoice.kdvOrani / 100.0)).toStringAsFixed(2),
+      );
+      invoice.genelToplam = double.parse(
+        (invoice.matrah + invoice.kdvTutari).toStringAsFixed(2),
+      );
     }
   }
 

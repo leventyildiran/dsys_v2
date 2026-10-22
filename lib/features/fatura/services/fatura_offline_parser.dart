@@ -742,8 +742,29 @@ class FaturaOfflineParser {
       if (muaf || kdvOrani <= 0) {
         matrah = genelToplam;
         kdvTutari = 0.0;
+        for (final k in kalemler) {
+          final m = _parseNum(k['miktar'].toString());
+          final safeM = m <= 0 ? 1.0 : m;
+          final f = _parseNum(k['fiyat'].toString());
+          k['kdvDahilFiyat'] = f;
+          k['birimFiyat'] = f;
+          k['tutar'] = double.parse((safeM * f).toStringAsFixed(2));
+        }
       } else {
-        matrah = double.parse((genelToplam / (1 + (kdvOrani / 100.0))).toStringAsFixed(2));
+        double yeniMatrah = 0.0;
+        for (final k in kalemler) {
+          final m = _parseNum(k['miktar'].toString());
+          final safeM = m <= 0 ? 1.0 : m;
+          final brut = _parseNum(k['fiyat'].toString());
+          k['kdvDahilFiyat'] = brut;
+          final net = double.parse((brut / (1 + (kdvOrani / 100.0))).toStringAsFixed(2));
+          k['fiyat'] = net;
+          k['birimFiyat'] = net;
+          final tutar = double.parse((safeM * net).toStringAsFixed(2));
+          k['tutar'] = tutar;
+          yeniMatrah += tutar;
+        }
+        matrah = double.parse(yeniMatrah.toStringAsFixed(2));
         kdvTutari = double.parse((genelToplam - matrah).toStringAsFixed(2));
       }
     } else {

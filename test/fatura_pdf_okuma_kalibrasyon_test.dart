@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dsys_v2/features/fatura/models/fatura_model.dart';
 import 'package:dsys_v2/features/fatura/services/fatura_offline_parser.dart';
 import 'package:dsys_v2/features/fatura/services/fatura_dogrulama_servisi.dart';
+import 'package:dsys_v2/features/fatura/providers/fatura_kuyruk_provider.dart';
 import 'package:dsys_v2/core/models/sistem_ayarlari_model.dart';
 import 'package:dsys_v2/features/fatura/models/fatura_matbu_config.dart';
 
@@ -148,15 +149,88 @@ void main() {
       expect(f1.firmaAdi, equals('ALİ DEMİR'));
       expect(f1.kdvDahil, isTrue);
       expect(f1.kdvOrani, equals(1.0));
+      expect(f1.kalemler[0]['fiyat'], equals(100.0));
+      expect(f1.kalemler[0]['birimFiyat'], equals(100.0));
+      expect(f1.kalemler[0]['kdvDahilFiyat'], equals(101.0));
       expect(f1.genelToplam, equals(101.0));
       expect(f1.matrah, equals(100.0));
       expect(f1.kdvTutari, equals(1.0));
 
       final f2 = faturalar[1];
       expect(f2.firmaAdi, equals('AYŞE KAYA'));
+      expect(f2.kalemler[0]['fiyat'], equals(200.0));
+      expect(f2.kalemler[0]['kdvDahilFiyat'], equals(202.0));
       expect(f2.genelToplam, equals(202.0));
       expect(f2.matrah, equals(200.0));
       expect(f2.kdvTutari, equals(2.0));
+    });
+
+    test('KDV Dahil modunda 6 TL olan yumurta %10 KDV ile net birim fiyatı 5,45 TL ve matrahı 5,45 TL olmalı', () {
+      final f = FaturaModel.bos();
+      f.kdvDahil = true;
+      f.kdvOrani = 10.0;
+      f.kalemler = [
+        {
+          'cinsi': 'Yumurta Satışı',
+          'miktar': 1.0,
+          'fiyat': 6.0,
+          'tutar': 6.0,
+        }
+      ];
+
+      final dogrulanmis = FaturaDogrulamaServisi.dogrulaVeTamamla(f);
+      expect(dogrulanmis.kdvDahil, isTrue);
+      expect(dogrulanmis.kalemler[0]['fiyat'], equals(5.45));
+      expect(dogrulanmis.kalemler[0]['birimFiyat'], equals(5.45));
+      expect(dogrulanmis.kalemler[0]['tutar'], equals(5.45));
+      expect(dogrulanmis.kalemler[0]['kdvDahilFiyat'], equals(6.0));
+      expect(dogrulanmis.matrah, equals(5.45));
+      expect(dogrulanmis.kdvTutari, equals(0.55));
+      expect(dogrulanmis.genelToplam, equals(6.00));
+    });
+
+    test('FaturaKuyrukProvider KDV Dahil şalteri açılıp kapandığında birim fiyatı ve toplamları dinamik güncellemeli', () {
+      final provider = FaturaKuyrukProvider();
+      final fatura = FaturaModel.bos(id: 'test_kdv_dahil');
+      fatura.kdvDahil = false;
+      fatura.kdvOrani = 10.0;
+      fatura.kalemler = [
+        {
+          'cinsi': 'Yumurta',
+          'miktar': 1.0,
+          'fiyat': 6.0,
+          'tutar': 6.0,
+        }
+      ];
+
+      provider.setInvoicesFromParse([fatura]);
+      expect(provider.pendingInvoices[0].kalemler[0]['fiyat'], equals(6.0));
+
+      // 1. KDV Dahil aç: 6 TL brüt -> 5.45 TL net birim fiyat
+      provider.toggleKdvDahil(0, true);
+      expect(provider.pendingInvoices[0].kdvDahil, isTrue);
+      expect(provider.pendingInvoices[0].kalemler[0]['fiyat'], equals(5.45));
+      expect(provider.pendingInvoices[0].kalemler[0]['tutar'], equals(5.45));
+      expect(provider.pendingInvoices[0].matrah, equals(5.45));
+      expect(provider.pendingInvoices[0].kdvTutari, equals(0.55));
+      expect(provider.pendingInvoices[0].genelToplam, equals(6.00));
+
+      // 2. KDV Dahil modunda fiyatı 11.00 TL (brüt) olarak güncelle -> 10.00 TL net
+      provider.updateKalem(0, 0, 'fiyat', 11.0);
+      expect(provider.pendingInvoices[0].kalemler[0]['fiyat'], equals(10.00));
+      expect(provider.pendingInvoices[0].kalemler[0]['tutar'], equals(10.00));
+      expect(provider.pendingInvoices[0].matrah, equals(10.00));
+      expect(provider.pendingInvoices[0].kdvTutari, equals(1.00));
+      expect(provider.pendingInvoices[0].genelToplam, equals(11.00));
+
+      // 3. KDV Dahil kapat -> 11.00 TL net birim fiyata döner, üzerine %10 KDV eklenir
+      provider.toggleKdvDahil(0, false);
+      expect(provider.pendingInvoices[0].kdvDahil, isFalse);
+      expect(provider.pendingInvoices[0].kalemler[0]['fiyat'], equals(11.00));
+      expect(provider.pendingInvoices[0].kalemler[0]['tutar'], equals(11.00));
+      expect(provider.pendingInvoices[0].matrah, equals(11.00));
+      expect(provider.pendingInvoices[0].kdvTutari, equals(1.10));
+      expect(provider.pendingInvoices[0].genelToplam, equals(12.10));
     });
   });
 

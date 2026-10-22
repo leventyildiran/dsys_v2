@@ -691,14 +691,20 @@ class _BatchInvoiceCardState extends State<BatchInvoiceCard> {
                     const SizedBox(width: 6),
                     SizedBox(
                       width: 100,
-                      child: _KalemFiyatAlani(
-                        fieldKey: ValueKey('kalem_${index}_${ki}_fiyat'),
-                        value: provider.parseTurkceSayi(
-                          k['fiyat'],
-                          fallback: 0,
+                      child: Tooltip(
+                        message: invoice.kdvDahil && k['kdvDahilFiyat'] != null
+                            ? 'KDV Dahil Brüt: ${TurkceFormat.paraKalem(provider.parseTurkceSayi(k['kdvDahilFiyat']))} TL'
+                            : '',
+                        child: _KalemFiyatAlani(
+                          fieldKey: ValueKey('kalem_${index}_${ki}_fiyat'),
+                          value: provider.parseTurkceSayi(
+                            k['fiyat'],
+                            fallback: 0,
+                          ),
+                          isKdvDahil: invoice.kdvDahil,
+                          onChanged: (v) =>
+                              provider.updateKalem(index, ki, 'fiyat', v),
                         ),
-                        onChanged: (v) =>
-                            provider.updateKalem(index, ki, 'fiyat', v),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -1360,11 +1366,13 @@ class _KalemFiyatAlani extends StatefulWidget {
     required this.fieldKey,
     required this.value,
     required this.onChanged,
+    this.isKdvDahil = false,
   });
 
   final Key fieldKey;
   final double value;
   final ValueChanged<double> onChanged;
+  final bool isKdvDahil;
 
   @override
   State<_KalemFiyatAlani> createState() => _KalemFiyatAlaniState();
@@ -1423,13 +1431,13 @@ class _KalemFiyatAlaniState extends State<_KalemFiyatAlani> {
       focusNode: _focusNode,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-      decoration: const InputDecoration(
-        labelText: 'Fiyat',
+      decoration: InputDecoration(
+        labelText: widget.isKdvDahil ? 'Net Fiyat' : 'Fiyat',
         hintText: '0,00',
         isDense: true,
-        border: OutlineInputBorder(),
+        border: const OutlineInputBorder(),
         suffixText: 'TL',
-        suffixStyle: TextStyle(
+        suffixStyle: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
           color: Colors.black54,
