@@ -200,5 +200,72 @@ DEVREDEN KDV HESABI
       expect(sonuc.muhtasarDamga360, 500.0);
       expect(sonuc.damgaVergisi360, 1500.0);
     });
+
+    test('601 Yurtdışı Satışlar hesabı hasılata dahil edilir', () {
+      const sampleText = '''
+600 YURTİÇİ SATIŞLAR 0,00 80.000,00 0,00 80.000,00
+601 YURTDIŞI SATIŞLAR 0,00 20.000,00 0,00 20.000,00
+610 SATIŞTAN İADELER 2.000,00 0,00 2.000,00 0,00
+''';
+      final sonuc = MizanDeterministikParser.analizEt(
+        birimAdi: 'TÖMER',
+        aylikMizanMetni: sampleText,
+        yillikMizanMetni: '',
+      );
+
+      // (80.000 + 20.000) - 2.000 = 98.000
+      expect(sonuc.hasilat600Aylik, 98000.0);
+    });
+
+    test('%1 KDV oranı (391.01 ve 191.01) başarıyla ayrıştırılır', () {
+      const sampleText = '''
+600 YURTİÇİ SATIŞLAR 0,00 100.000,00 0,00 100.000,00
+391.01 HESAPLANAN KDV %1 0,00 1.000,00 0,00 1.000,00
+191.01 İNDİRİLECEK KDV %1 300,00 0,00 300,00 0,00
+''';
+      final sonuc = MizanDeterministikParser.analizEt(
+        birimAdi: 'TADAUM',
+        aylikMizanMetni: sampleText,
+        yillikMizanMetni: '',
+      );
+
+      expect(sonuc.hesaplananKdv1, 1000.0);
+      expect(sonuc.hesaplananKdvMatrah1, 100000.0);
+      expect(sonuc.indirilecekKdv1, 300.0);
+      expect(sonuc.indirilecekKdvMatrah1, 30000.0);
+    });
+
+    test('Herhangi bir birimde 123 Kredi Kartı POS hesabı dinamik okunur', () {
+      const sampleText = '''
+600 YURTİÇİ SATIŞLAR 0,00 60.000,00 0,00 60.000,00
+123 KREDİ KARTI VE POS ALACAKLARI 15.000,00 0,00 15.000,00 0,00
+''';
+      final sonuc = MizanDeterministikParser.analizEt(
+        birimAdi: 'YENİ_KURULAN_BİRİM',
+        aylikMizanMetni: sampleText,
+        yillikMizanMetni: '',
+      );
+
+      expect(sonuc.krediKarti123, 15000.0);
+    });
+
+    test('Faturadan 4/10 ve 2/10 Tevkifat oranları başarıyla okunur', () {
+      const faturaText = '''
+e-Arşiv Fatura
+FATURA NO: GIB2026000000001
+VKN: 1234567890
+ABC MÜHENDİSLİK TİC. LTD. ŞTİ.
+Vergi Matrahı: 100.000,00 TL
+KDV Oranı: %20
+Hesaplanan KDV: 20.000,00 TL
+Tevkifat Oranı: 4/10
+Tevkifat Tutarı: 8.000,00 TL
+''';
+      final faturalar = MizanDeterministikParser.parseTevkifatFaturalari(faturaText);
+      expect(faturalar.isNotEmpty, isTrue);
+      expect(faturalar.first['tevkifatOrani'], '4/10');
+      expect(faturalar.first['matrahTutari'], 100000.0);
+      expect(faturalar.first['tevkifatTutari'], 8000.0);
+    });
   });
 }

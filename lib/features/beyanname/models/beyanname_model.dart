@@ -1,10 +1,14 @@
 import '../../birim/models/birim_model.dart';
 
-/// Tevkifat Türleri: 9/10, 7/10, 5/10
+/// Tevkifat Türleri: 10/10, 9/10, 7/10, 5/10, 4/10, 3/10, 2/10
 enum TevkifatTuru {
+  onBoluOn('10/10', 10, 10),
   dokuzBoluOn('9/10', 9, 10),
   yediBoluOn('7/10', 7, 10),
-  besBoluOn('5/10', 5, 10);
+  besBoluOn('5/10', 5, 10),
+  dortBoluOn('4/10', 4, 10),
+  ucBoluOn('3/10', 3, 10),
+  ikiBoluOn('2/10', 2, 10);
 
   final String etiket;
   final int pay;
@@ -15,11 +19,27 @@ enum TevkifatTuru {
   double get oran => pay / payda;
 
   static TevkifatTuru fromString(String val) {
-    if (val.contains('9/10') || val.contains('9 / 10') || val.contains('9/1O')) {
+    final clean = val.replaceAll(' ', '').replaceAll('O', '0').toUpperCase();
+    if (clean.contains('10/10') || clean.contains('TAM')) {
+      return TevkifatTuru.onBoluOn;
+    }
+    if (clean.contains('9/10')) {
       return TevkifatTuru.dokuzBoluOn;
     }
-    if (val.contains('7/10') || val.contains('7 / 10') || val.contains('7/1O')) {
+    if (clean.contains('7/10')) {
       return TevkifatTuru.yediBoluOn;
+    }
+    if (clean.contains('5/10')) {
+      return TevkifatTuru.besBoluOn;
+    }
+    if (clean.contains('4/10')) {
+      return TevkifatTuru.dortBoluOn;
+    }
+    if (clean.contains('3/10')) {
+      return TevkifatTuru.ucBoluOn;
+    }
+    if (clean.contains('2/10')) {
+      return TevkifatTuru.ikiBoluOn;
     }
     return TevkifatTuru.besBoluOn;
   }
@@ -29,11 +49,15 @@ enum TevkifatTuru {
 class Kdv1BirimSatiri {
   final String birimId;
   final String birimAdi;
+  final double hesaplananKdv1;
+  final double hesaplananMatrah1;
   final double hesaplananKdv10;
   final double hesaplananMatrah10;
   final double hesaplananKdv20;
   final double hesaplananMatrah20;
 
+  final double indirilecekKdv1;
+  final double indirilecekMatrah1;
   final double indirilecekKdv10;
   final double indirilecekMatrah10;
   final double indirilecekKdv20;
@@ -42,31 +66,39 @@ class Kdv1BirimSatiri {
   const Kdv1BirimSatiri({
     required this.birimId,
     required this.birimAdi,
+    this.hesaplananKdv1 = 0.0,
+    this.hesaplananMatrah1 = 0.0,
     this.hesaplananKdv10 = 0.0,
     this.hesaplananMatrah10 = 0.0,
     this.hesaplananKdv20 = 0.0,
     this.hesaplananMatrah20 = 0.0,
+    this.indirilecekKdv1 = 0.0,
+    this.indirilecekMatrah1 = 0.0,
     this.indirilecekKdv10 = 0.0,
     this.indirilecekMatrah10 = 0.0,
     this.indirilecekKdv20 = 0.0,
     this.indirilecekMatrah20 = 0.0,
   });
 
-  double get toplamHesaplananKdv => hesaplananKdv10 + hesaplananKdv20;
-  double get toplamHesaplananMatrah => hesaplananMatrah10 + hesaplananMatrah20;
+  double get toplamHesaplananKdv => hesaplananKdv1 + hesaplananKdv10 + hesaplananKdv20;
+  double get toplamHesaplananMatrah => hesaplananMatrah1 + hesaplananMatrah10 + hesaplananMatrah20;
 
-  double get toplamIndirilecekKdv => indirilecekKdv10 + indirilecekKdv20;
-  double get toplamIndirilecekMatrah => indirilecekMatrah10 + indirilecekMatrah20;
+  double get toplamIndirilecekKdv => indirilecekKdv1 + indirilecekKdv10 + indirilecekKdv20;
+  double get toplamIndirilecekMatrah => indirilecekMatrah1 + indirilecekMatrah10 + indirilecekMatrah20;
 
   double get netOdenecekKdv => toplamHesaplananKdv - toplamIndirilecekKdv;
 
   Kdv1BirimSatiri copyWith({
     String? birimId,
     String? birimAdi,
+    double? hesaplananKdv1,
+    double? hesaplananMatrah1,
     double? hesaplananKdv10,
     double? hesaplananMatrah10,
     double? hesaplananKdv20,
     double? hesaplananMatrah20,
+    double? indirilecekKdv1,
+    double? indirilecekMatrah1,
     double? indirilecekKdv10,
     double? indirilecekMatrah10,
     double? indirilecekKdv20,
@@ -75,10 +107,14 @@ class Kdv1BirimSatiri {
     return Kdv1BirimSatiri(
       birimId: birimId ?? this.birimId,
       birimAdi: birimAdi ?? this.birimAdi,
+      hesaplananKdv1: hesaplananKdv1 ?? this.hesaplananKdv1,
+      hesaplananMatrah1: hesaplananMatrah1 ?? this.hesaplananMatrah1,
       hesaplananKdv10: hesaplananKdv10 ?? this.hesaplananKdv10,
       hesaplananMatrah10: hesaplananMatrah10 ?? this.hesaplananMatrah10,
       hesaplananKdv20: hesaplananKdv20 ?? this.hesaplananKdv20,
       hesaplananMatrah20: hesaplananMatrah20 ?? this.hesaplananMatrah20,
+      indirilecekKdv1: indirilecekKdv1 ?? this.indirilecekKdv1,
+      indirilecekMatrah1: indirilecekMatrah1 ?? this.indirilecekMatrah1,
       indirilecekKdv10: indirilecekKdv10 ?? this.indirilecekKdv10,
       indirilecekMatrah10: indirilecekMatrah10 ?? this.indirilecekMatrah10,
       indirilecekKdv20: indirilecekKdv20 ?? this.indirilecekKdv20,
@@ -89,10 +125,14 @@ class Kdv1BirimSatiri {
   Map<String, dynamic> toMap() => {
         'birimId': birimId,
         'birimAdi': birimAdi,
+        'hesaplananKdv1': hesaplananKdv1,
+        'hesaplananMatrah1': hesaplananMatrah1,
         'hesaplananKdv10': hesaplananKdv10,
         'hesaplananMatrah10': hesaplananMatrah10,
         'hesaplananKdv20': hesaplananKdv20,
         'hesaplananMatrah20': hesaplananMatrah20,
+        'indirilecekKdv1': indirilecekKdv1,
+        'indirilecekMatrah1': indirilecekMatrah1,
         'indirilecekKdv10': indirilecekKdv10,
         'indirilecekMatrah10': indirilecekMatrah10,
         'indirilecekKdv20': indirilecekKdv20,
@@ -102,10 +142,14 @@ class Kdv1BirimSatiri {
   factory Kdv1BirimSatiri.fromMap(Map<String, dynamic> map) => Kdv1BirimSatiri(
         birimId: map['birimId'] as String? ?? '',
         birimAdi: map['birimAdi'] as String? ?? '',
+        hesaplananKdv1: (map['hesaplananKdv1'] as num?)?.toDouble() ?? 0.0,
+        hesaplananMatrah1: (map['hesaplananMatrah1'] as num?)?.toDouble() ?? 0.0,
         hesaplananKdv10: (map['hesaplananKdv10'] as num?)?.toDouble() ?? 0.0,
         hesaplananMatrah10: (map['hesaplananMatrah10'] as num?)?.toDouble() ?? 0.0,
         hesaplananKdv20: (map['hesaplananKdv20'] as num?)?.toDouble() ?? 0.0,
         hesaplananMatrah20: (map['hesaplananMatrah20'] as num?)?.toDouble() ?? 0.0,
+        indirilecekKdv1: (map['indirilecekKdv1'] as num?)?.toDouble() ?? 0.0,
+        indirilecekMatrah1: (map['indirilecekMatrah1'] as num?)?.toDouble() ?? 0.0,
         indirilecekKdv10: (map['indirilecekKdv10'] as num?)?.toDouble() ?? 0.0,
         indirilecekMatrah10: (map['indirilecekMatrah10'] as num?)?.toDouble() ?? 0.0,
         indirilecekKdv20: (map['indirilecekKdv20'] as num?)?.toDouble() ?? 0.0,

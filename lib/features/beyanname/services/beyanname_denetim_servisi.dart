@@ -137,6 +137,18 @@ class BeyannameDenetimServisi {
         ));
       }
 
+      // 5b. 391.01 Hesaplanan KDV (%1)
+      if (sonuc.hesaplananKdv1 > 0 || sonuc.hesaplananKdvMatrah1 > 0) {
+        neredenNereye.add(NeredenNereyeKaydi(
+          birimAdi: birimAdi,
+          kaynakBelge: 'Aylık Mizan',
+          hesapKoduVeAdi: '391.01 Hesaplanan KDV (%1)',
+          bulunanTutar: sonuc.hesaplananKdv1,
+          hedefAlan: 'KDV 1 Masası -> %1 Hesaplanan KDV',
+          aciklama: 'Matrah: ${TurkceFormat.para(sonuc.hesaplananKdvMatrah1)}',
+        ));
+      }
+
       // 6. 191 İndirilecek KDV
       if (sonuc.toplamIndirilecekKdv > 0) {
         neredenNereye.add(NeredenNereyeKaydi(
@@ -388,6 +400,37 @@ class BeyannameDenetimServisi {
             bulunanDeger: sonuc.hesaplananKdv10,
             fark: 0.0,
             aciklama: 'Matrah (${TurkceFormat.para(sonuc.hesaplananKdvMatrah10)}) x %10 = ${TurkceFormat.para(sonuc.hesaplananKdv10)} tam mutabık.',
+          ));
+        }
+      }
+
+      if (sonuc.hesaplananKdvMatrah1 > 0) {
+        final beklenenKdv1 = sonuc.hesaplananKdvMatrah1 * 0.01;
+        final kdv1Farki = (beklenenKdv1 - sonuc.hesaplananKdv1).abs();
+        if (kdv1Farki > 1.0) {
+          kontroller.add(MutabakatKontrolKaydi(
+            id: 'sen-4c-${kontrolIdSayac++}',
+            senaryoNo: 4,
+            birimAdi: birimAdi,
+            baslik: '%1 KDV Matematiksel Uyuşmazlığı',
+            seviye: DenetimSeviyesi.hata,
+            beklenenDeger: beklenenKdv1,
+            bulunanDeger: sonuc.hesaplananKdv1,
+            fark: beklenenKdv1 - sonuc.hesaplananKdv1,
+            aciklama: 'Matrah (${TurkceFormat.para(sonuc.hesaplananKdvMatrah1)}) x %1 = ${TurkceFormat.para(beklenenKdv1)} olmalıdır. Mizandaki KDV: ${TurkceFormat.para(sonuc.hesaplananKdv1)}.',
+            cozumOnerisi: '1\'lik matrah ve vergi ayrımını kontrol ediniz.',
+          ));
+        } else {
+          kontroller.add(MutabakatKontrolKaydi(
+            id: 'sen-4c-${kontrolIdSayac++}',
+            senaryoNo: 4,
+            birimAdi: birimAdi,
+            baslik: '%1 KDV Matematiksel Sağlaması Doğrulandı',
+            seviye: DenetimSeviyesi.bilgi,
+            beklenenDeger: beklenenKdv1,
+            bulunanDeger: sonuc.hesaplananKdv1,
+            fark: 0.0,
+            aciklama: 'Matrah (${TurkceFormat.para(sonuc.hesaplananKdvMatrah1)}) x %1 = ${TurkceFormat.para(sonuc.hesaplananKdv1)} tam mutabık.',
           ));
         }
       }

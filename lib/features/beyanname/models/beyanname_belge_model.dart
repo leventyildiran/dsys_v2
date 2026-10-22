@@ -91,13 +91,17 @@ class BirimMizanAnalizSonucu {
   final double hasilat600Kumulatif;
   final double krediKarti123;
 
-  // 391 Hesaplanan KDV (%10 ve %20)
+  // 391 Hesaplanan KDV (%1, %10 ve %20)
+  final double hesaplananKdvMatrah1;
+  final double hesaplananKdv1;
   final double hesaplananKdvMatrah10;
   final double hesaplananKdv10;
   final double hesaplananKdvMatrah20;
   final double hesaplananKdv20;
 
-  // 191 İndirilecek KDV (%10 ve %20)
+  // 191 İndirilecek KDV (%1, %10 ve %20)
+  final double indirilecekKdvMatrah1;
+  final double indirilecekKdv1;
   final double indirilecekKdvMatrah10;
   final double indirilecekKdv10;
   final double indirilecekKdvMatrah20;
@@ -133,10 +137,14 @@ class BirimMizanAnalizSonucu {
     this.hasilat600Aylik = 0.0,
     this.hasilat600Kumulatif = 0.0,
     this.krediKarti123 = 0.0,
+    this.hesaplananKdvMatrah1 = 0.0,
+    this.hesaplananKdv1 = 0.0,
     this.hesaplananKdvMatrah10 = 0.0,
     this.hesaplananKdv10 = 0.0,
     this.hesaplananKdvMatrah20 = 0.0,
     this.hesaplananKdv20 = 0.0,
+    this.indirilecekKdvMatrah1 = 0.0,
+    this.indirilecekKdv1 = 0.0,
     this.indirilecekKdvMatrah10 = 0.0,
     this.indirilecekKdv10 = 0.0,
     this.indirilecekKdvMatrah20 = 0.0,
@@ -155,9 +163,9 @@ class BirimMizanAnalizSonucu {
     this.hamJson,
   });
 
-  double get toplamHesaplananKdv => hesaplananKdv10 + hesaplananKdv20;
-  double get toplamHesaplananMatrah => hesaplananKdvMatrah10 + hesaplananKdvMatrah20;
-  double get toplamIndirilecekKdv => indirilecekKdv10 + indirilecekKdv20;
+  double get toplamHesaplananKdv => hesaplananKdv1 + hesaplananKdv10 + hesaplananKdv20;
+  double get toplamHesaplananMatrah => hesaplananKdvMatrah1 + hesaplananKdvMatrah10 + hesaplananKdvMatrah20;
+  double get toplamIndirilecekKdv => indirilecekKdv1 + indirilecekKdv10 + indirilecekKdv20;
   double get netKdv => toplamHesaplananKdv - toplamIndirilecekKdv;
 
   Map<String, dynamic> toMap() => {
@@ -166,10 +174,14 @@ class BirimMizanAnalizSonucu {
         'hasilat600Aylik': hasilat600Aylik,
         'hasilat600Kumulatif': hasilat600Kumulatif,
         'krediKarti123': krediKarti123,
+        'hesaplananKdvMatrah1': hesaplananKdvMatrah1,
+        'hesaplananKdv1': hesaplananKdv1,
         'hesaplananKdvMatrah10': hesaplananKdvMatrah10,
         'hesaplananKdv10': hesaplananKdv10,
         'hesaplananKdvMatrah20': hesaplananKdvMatrah20,
         'hesaplananKdv20': hesaplananKdv20,
+        'indirilecekKdvMatrah1': indirilecekKdvMatrah1,
+        'indirilecekKdv1': indirilecekKdv1,
         'indirilecekKdvMatrah10': indirilecekKdvMatrah10,
         'indirilecekKdv10': indirilecekKdv10,
         'indirilecekKdvMatrah20': indirilecekKdvMatrah20,
@@ -204,10 +216,14 @@ class BirimMizanAnalizSonucu {
       hasilat600Aylik: TurkceFormat.parseSayi(map['hasilat600Aylik']),
       hasilat600Kumulatif: TurkceFormat.parseSayi(map['hasilat600Kumulatif']),
       krediKarti123: TurkceFormat.parseSayi(map['krediKarti123']),
+      hesaplananKdvMatrah1: TurkceFormat.parseSayi(map['hesaplananKdvMatrah1']),
+      hesaplananKdv1: TurkceFormat.parseSayi(map['hesaplananKdv1']),
       hesaplananKdvMatrah10: TurkceFormat.parseSayi(map['hesaplananKdvMatrah10']),
       hesaplananKdv10: TurkceFormat.parseSayi(map['hesaplananKdv10']),
       hesaplananKdvMatrah20: TurkceFormat.parseSayi(map['hesaplananKdvMatrah20']),
       hesaplananKdv20: TurkceFormat.parseSayi(map['hesaplananKdv20']),
+      indirilecekKdvMatrah1: TurkceFormat.parseSayi(map['indirilecekKdvMatrah1']),
+      indirilecekKdv1: TurkceFormat.parseSayi(map['indirilecekKdv1']),
       indirilecekKdvMatrah10: TurkceFormat.parseSayi(map['indirilecekKdvMatrah10']),
       indirilecekKdv10: TurkceFormat.parseSayi(map['indirilecekKdv10']),
       indirilecekKdvMatrah20: TurkceFormat.parseSayi(map['indirilecekKdvMatrah20']),

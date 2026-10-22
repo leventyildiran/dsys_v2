@@ -170,7 +170,7 @@ void main() {
 
     test('4. birimMasalariniGeriCek masadaki verileri sıfırlar ancak belgeleri ve analizi korur', () {
       // 1. Önce TÖMER için belge ekle ve analiz sonucunu masaya uygula
-      provider.belgeEkle(
+      provider.belgeYukle(
         birimAdi: 'TÖMER',
         slotTuru: BirimBelgeSlotTuru.aylikMizan,
         dosyaAdi: 'tomer_aylik.xlsx',
@@ -229,7 +229,7 @@ void main() {
     });
 
     test('5. birimiTamamenSifirla hem belgeleri hem analizleri hem de masaları temizler', () {
-      provider.belgeEkle(
+      provider.belgeYukle(
         birimAdi: 'TÖMER',
         slotTuru: BirimBelgeSlotTuru.aylikMizan,
         dosyaAdi: 'tomer_aylik.xlsx',
@@ -268,7 +268,7 @@ void main() {
     });
 
     test('6. belgeBiriminiDegistir yanlış birime yüklenen belgeyi başka birime taşır', () {
-      provider.belgeEkle(
+      provider.belgeYukle(
         birimAdi: 'TÖMER',
         slotTuru: BirimBelgeSlotTuru.aylikMizan,
         dosyaAdi: 'yanlis_yuklenen_dis_hekimligi_mizani.pdf',
@@ -331,7 +331,7 @@ void main() {
       expect(dSatiri.damgaVergisi, 1200.0);
 
       // BirimVergiIcmalSatiri'ne yansımış mı?
-      final icmal = provider.birimBazliVergiler.firstWhere((x) => x.birimAdi == 'UBATAM');
+      final icmal = provider.birimIcmalListesi.firstWhere((x) => x.kisaAd == 'UBATAM' || x.birimAdi.contains('UBATAM'));
       expect(icmal.muhtasarGelir, 7500.0);
       expect(icmal.muhtasarDamga, 420.0);
       expect(icmal.muhtasarKesilenDamga, 1200.0);

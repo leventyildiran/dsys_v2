@@ -1,16 +1,16 @@
-/// KDV oranı tanımı (örn. %10, %20).
+/// KDV oranÄ± tanÄ±mÄ± (Ã¶rn. %10, %20).
 ///
-/// Kurum bazlı yapılandırmada hangi KDV oranlarının kullanılacağını ve
-/// doğrulama motorunun hangi oranları kontrol edeceğini belirler.
+/// Kurum bazlÄ± yapÄ±landÄ±rmada hangi KDV oranlarÄ±nÄ±n kullanÄ±lacaÄŸÄ±nÄ± ve
+/// doÄŸrulama motorunun hangi oranlarÄ± kontrol edeceÄŸini belirler.
 class KdvOranTanimi {
   final int oran; // 1, 8, 10, 20 ...
-  final String? etiket; // boşsa "%<oran>" üretilir
+  final String? etiket; // boÅŸsa "%<oran>" Ã¼retilir
 
   const KdvOranTanimi({required this.oran, this.etiket});
 
   String get gorunenEtiket => etiket ?? '%$oran';
 
-  /// Doğrulama için kesir karşılığı (örn. 20 -> 0.20).
+  /// DoÄŸrulama iÃ§in kesir karÅŸÄ±lÄ±ÄŸÄ± (Ã¶rn. 20 -> 0.20).
   double get kesir => oran / 100.0;
 
   Map<String, dynamic> toMap() => {'oran': oran, 'etiket': etiket};
@@ -21,10 +21,10 @@ class KdvOranTanimi {
       );
 }
 
-/// Tevkifat türü tanımı (serbest pay/payda).
+/// Tevkifat tÃ¼rÃ¼ tanÄ±mÄ± (serbest pay/payda).
 ///
-/// Sabit enum yerine kurum kendi tevkifat listesini tanımlayabilir
-/// (örn. 9/10, 7/10, 5/10, 4/10, 3/10, 2/10 ...).
+/// Sabit enum yerine kurum kendi tevkifat listesini tanÄ±mlayabilir
+/// (Ã¶rn. 9/10, 7/10, 5/10, 4/10, 3/10, 2/10 ...).
 class TevkifatTanimi {
   final String etiket;
   final int pay;
@@ -51,22 +51,22 @@ class TevkifatTanimi {
       );
 }
 
-/// Yıllık asgari ücret vergi istisnası tablosu.
+/// YÄ±llÄ±k asgari Ã¼cret vergi istisnasÄ± tablosu.
 ///
-/// Kurum yeni bir yıl (örn. 2026) eklemek istediğinde kod değiştirmeden
-/// yapılandırmaya kayıt ekler. Tablo boşsa hesaplama motoru kendi yerleşik
-/// (2025) tablosunu kullanmaya devam eder; böylece mevcut davranış birebir
+/// Kurum yeni bir yÄ±l (Ã¶rn. 2026) eklemek istediÄŸinde kod deÄŸiÅŸtirmeden
+/// yapÄ±landÄ±rmaya kayÄ±t ekler. Tablo boÅŸsa hesaplama motoru kendi yerleÅŸik
+/// (2025) tablosunu kullanmaya devam eder; bÃ¶ylece mevcut davranÄ±ÅŸ birebir
 /// korunur (parite).
 class AsgariUcretYilTablosu {
   final int yil;
 
-  /// Ay (1-12) -> aylık asgari ücret gelir vergisi matrahı (TL).
+  /// Ay (1-12) -> aylÄ±k asgari Ã¼cret gelir vergisi matrahÄ± (TL).
   final Map<int, double> aylikMatrah;
 
-  /// Ay (1-12) -> aylık gelir vergisi istisnası tutarı (TL).
+  /// Ay (1-12) -> aylÄ±k gelir vergisi istisnasÄ± tutarÄ± (TL).
   final Map<int, double> aylikGelirVergisi;
 
-  /// Ay (1-12) -> aylık damga vergisi istisnası tutarı (TL).
+  /// Ay (1-12) -> aylÄ±k damga vergisi istisnasÄ± tutarÄ± (TL).
   final Map<int, double> aylikDamgaVergisi;
 
   const AsgariUcretYilTablosu({
@@ -121,9 +121,9 @@ class AsgariUcretYilTablosu {
   }
 }
 
-/// Kurum bazlı beyanname blok görünürlüğü.
+/// Kurum bazlÄ± beyanname blok gÃ¶rÃ¼nÃ¼rlÃ¼ÄŸÃ¼.
 ///
-/// Bir kurumda karşılığı olmayan tablo (örn. kredi kartı 123) gizlenebilir.
+/// Bir kurumda karÅŸÄ±lÄ±ÄŸÄ± olmayan tablo (Ã¶rn. kredi kartÄ± 123) gizlenebilir.
 class BeyannameBloklari {
   final bool kdv1;
   final bool kdv2;
@@ -184,25 +184,25 @@ class BeyannameBloklari {
       );
 }
 
-/// Kurum bazlı beyanname yapılandırması.
+/// Kurum bazlÄ± beyanname yapÄ±landÄ±rmasÄ±.
 ///
-/// Kod içindeki sabit varsayımların (KDV oranları, tevkifat türleri, damga
-/// oranı, görünür bloklar) TAMAMINI tek kaynakta toplar.
+/// Kod iÃ§indeki sabit varsayÄ±mlarÄ±n (KDV oranlarÄ±, tevkifat tÃ¼rleri, damga
+/// oranÄ±, gÃ¶rÃ¼nÃ¼r bloklar) TAMAMINI tek kaynakta toplar.
 ///
-/// ÖNEMLİ: [varsayilan] değerleri bugünkü sabit değerlerle birebir aynıdır;
-/// bu yüzden mevcut tek-kurum kurulumu davranışı değişmez.
+/// Ã–NEMLÄ°: [varsayilan] deÄŸerleri bugÃ¼nkÃ¼ sabit deÄŸerlerle birebir aynÄ±dÄ±r;
+/// bu yÃ¼zden mevcut tek-kurum kurulumu davranÄ±ÅŸÄ± deÄŸiÅŸmez.
 class BeyannameKonfigurasyonu {
   final String kurumId;
   final List<KdvOranTanimi> kdvOranlari;
   final List<TevkifatTanimi> tevkifatTurleri;
 
-  /// Damga vergisi oranı "binde" cinsinden (varsayılan binde 9,48).
+  /// Damga vergisi oranÄ± "binde" cinsinden (varsayÄ±lan binde 9,48).
   final double damgaBinde;
 
   final BeyannameBloklari bloklar;
 
-  /// Yıllık asgari ücret istisna tabloları. Boşsa motor yerleşik
-  /// (2025) tablosunu kullanır — mevcut davranış değişmez.
+  /// YÄ±llÄ±k asgari Ã¼cret istisna tablolarÄ±. BoÅŸsa motor yerleÅŸik
+  /// (2025) tablosunu kullanÄ±r â€” mevcut davranÄ±ÅŸ deÄŸiÅŸmez.
   final List<AsgariUcretYilTablosu> asgariUcretTablolari;
 
   const BeyannameKonfigurasyonu({
@@ -232,12 +232,12 @@ class BeyannameKonfigurasyonu {
     );
   }
 
-  // --- Varsayılanlar (bugünkü sabit değerler) ---
+  // --- VarsayÄ±lanlar (bugÃ¼nkÃ¼ sabit deÄŸerler) ---
 
-  /// Damga vergisi oranı: binde 9,48 (Mizan 360.03.05).
+  /// Damga vergisi oranÄ±: binde 9,48 (Mizan 360.03.05).
   static const double varsayilanDamgaBinde = 9.48;
 
-  /// Damga oranının kesir karşılığı (0.00948).
+  /// Damga oranÄ±nÄ±n kesir karÅŸÄ±lÄ±ÄŸÄ± (0.00948).
   static double get varsayilanDamgaOrani => varsayilanDamgaBinde / 1000.0;
 
   static const List<KdvOranTanimi> varsayilanKdvOranlari = [
@@ -251,12 +251,12 @@ class BeyannameKonfigurasyonu {
     TevkifatTanimi(etiket: '5/10', pay: 5, payda: 10),
   ];
 
-  /// Tek-kurum davranışını birebir koruyan varsayılan yapılandırma.
+  /// Tek-kurum davranÄ±ÅŸÄ±nÄ± birebir koruyan varsayÄ±lan yapÄ±landÄ±rma.
   static const BeyannameKonfigurasyonu varsayilan = BeyannameKonfigurasyonu();
 
   // --- Sorgular ---
 
-  /// Belirli bir KDV oranının kesir karşılığı; tanımlı değilse oran/100 döner.
+  /// Belirli bir KDV oranÄ±nÄ±n kesir karÅŸÄ±lÄ±ÄŸÄ±; tanÄ±mlÄ± deÄŸilse oran/100 dÃ¶ner.
   double oranKesri(int oran) {
     for (final o in kdvOranlari) {
       if (o.oran == oran) return o.kesir;
@@ -264,7 +264,7 @@ class BeyannameKonfigurasyonu {
     return oran / 100.0;
   }
 
-  // --- Serileştirme (Faz 1: Firestore) ---
+  // --- SerileÅŸtirme (Faz 1: Firestore) ---
 
   Map<String, dynamic> toMap() => {
         'kurumId': kurumId,

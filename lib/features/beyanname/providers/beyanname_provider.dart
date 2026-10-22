@@ -1726,8 +1726,9 @@ class BeyannameProvider with ChangeNotifier {
     if (damgaIdx >= 0) {
       final s = _damgaSatirlari[damgaIdx];
       _damgaSatirlari[damgaIdx] = DamgaVergisiBirimSatiri(
-        birimId: s.birimId,
         birimAdi: s.birimAdi,
+        damgaVergisi: 0.0,
+        matrah: 0.0,
       );
     }
 
@@ -1735,8 +1736,7 @@ class BeyannameProvider with ChangeNotifier {
     final hasIdx = _hasiat600Satirlari.indexWhere((x) => BirimAdlandirma.canonicalKey(x.birimAdi) == cKey);
     if (hasIdx >= 0) {
       final s = _hasiat600Satirlari[hasIdx];
-      _hasiat600Satirlari[hasIdx] = Hasilat600BirimSatiri(
-        birimId: s.birimId,
+      _hasiat600Satirlari[hasIdx] = Hasiat600BirimSatiri(
         birimAdi: s.birimAdi,
       );
     }
@@ -2190,10 +2190,14 @@ class BeyannameProvider with ChangeNotifier {
         final mevcut = _kdv1Satirlari[kdvIndex];
         if (uzerineEkle) {
           _kdv1Satirlari[kdvIndex] = mevcut.copyWith(
+            hesaplananMatrah1: mevcut.hesaplananMatrah1 + sonuc.hesaplananKdvMatrah1,
+            hesaplananKdv1: mevcut.hesaplananKdv1 + sonuc.hesaplananKdv1,
             hesaplananMatrah10: mevcut.hesaplananMatrah10 + sonuc.hesaplananKdvMatrah10,
             hesaplananKdv10: mevcut.hesaplananKdv10 + sonuc.hesaplananKdv10,
             hesaplananMatrah20: mevcut.hesaplananMatrah20 + sonuc.hesaplananKdvMatrah20,
             hesaplananKdv20: mevcut.hesaplananKdv20 + sonuc.hesaplananKdv20,
+            indirilecekMatrah1: mevcut.indirilecekMatrah1 + sonuc.indirilecekKdvMatrah1,
+            indirilecekKdv1: mevcut.indirilecekKdv1 + sonuc.indirilecekKdv1,
             indirilecekMatrah10: mevcut.indirilecekMatrah10 + sonuc.indirilecekKdvMatrah10,
             indirilecekKdv10: mevcut.indirilecekKdv10 + sonuc.indirilecekKdv10,
             indirilecekMatrah20: mevcut.indirilecekMatrah20 + sonuc.indirilecekKdvMatrah20,
@@ -2201,10 +2205,14 @@ class BeyannameProvider with ChangeNotifier {
           );
         } else if (mizanVerisiVar) {
           _kdv1Satirlari[kdvIndex] = mevcut.copyWith(
+            hesaplananMatrah1: sonuc.hesaplananKdvMatrah1,
+            hesaplananKdv1: sonuc.hesaplananKdv1,
             hesaplananMatrah10: sonuc.hesaplananKdvMatrah10,
             hesaplananKdv10: sonuc.hesaplananKdv10,
             hesaplananMatrah20: sonuc.hesaplananKdvMatrah20,
             hesaplananKdv20: sonuc.hesaplananKdv20,
+            indirilecekMatrah1: sonuc.indirilecekKdvMatrah1,
+            indirilecekKdv1: sonuc.indirilecekKdv1,
             indirilecekMatrah10: sonuc.indirilecekKdvMatrah10,
             indirilecekKdv10: sonuc.indirilecekKdv10,
             indirilecekMatrah20: sonuc.indirilecekKdvMatrah20,
@@ -2215,10 +2223,14 @@ class BeyannameProvider with ChangeNotifier {
         _kdv1Satirlari.add(Kdv1BirimSatiri(
           birimId: BirimAdlandirma.canonicalKey(birimAdi),
           birimAdi: birimAdi,
+          hesaplananMatrah1: sonuc.hesaplananKdvMatrah1,
+          hesaplananKdv1: sonuc.hesaplananKdv1,
           hesaplananMatrah10: sonuc.hesaplananKdvMatrah10,
           hesaplananKdv10: sonuc.hesaplananKdv10,
           hesaplananMatrah20: sonuc.hesaplananKdvMatrah20,
           hesaplananKdv20: sonuc.hesaplananKdv20,
+          indirilecekMatrah1: sonuc.indirilecekKdvMatrah1,
+          indirilecekKdv1: sonuc.indirilecekKdv1,
           indirilecekMatrah10: sonuc.indirilecekKdvMatrah10,
           indirilecekKdv10: sonuc.indirilecekKdv10,
           indirilecekMatrah20: sonuc.indirilecekKdvMatrah20,
@@ -2373,7 +2385,7 @@ class BeyannameProvider with ChangeNotifier {
         final gv = sonuc.muhtasarGelir360;
         final dv = sonuc.muhtasarDamga360;
         final brut = dv > 0 ? (dv / 0.00759) : (gv > 0 ? gv / 0.15 : 0.0);
-        final net = max(0.0, brut - gv - dv);
+        final net = (brut - gv - dv > 0) ? (brut - gv - dv) : 0.0;
 
         if (muhtasarIndex >= 0) {
           final m = _muhtasarSatirlari[muhtasarIndex];

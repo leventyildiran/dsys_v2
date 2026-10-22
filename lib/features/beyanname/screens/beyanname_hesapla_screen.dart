@@ -992,120 +992,228 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
           ],
         ),
         const SizedBox(height: 6),
-        _buildTableContainer(
-          [
-            // Başlık Satırı
-            _headerRow(
-              ['AÇIKLAMA / KALEM', 'KDV %10', 'KDV %20', 'HESAPLANAN TOPLAM KDV (%10 ve %20 Toplamları)'],
-              bg: const Color(0xFFDBEAFE),
-              textColor: const Color(0xFF1E3A8A),
-              alignments: const [TextAlign.left, TextAlign.right, TextAlign.right, TextAlign.right],
-            ),
-            // Hesaplanan KDV
-            _dataRow('HESAPLANAN MATRAH', [
-              TurkceFormat.para(k1.matrah10Hesaplanan),
-              TurkceFormat.para(k1.matrah20Hesaplanan),
-              TurkceFormat.para(k1.matrah10Hesaplanan + k1.matrah20Hesaplanan),
-            ]),
-            _dataRow('HESAPLANAN KDV TUTARI', [
-              TurkceFormat.para(k1.kdv10Hesaplanan),
-              TurkceFormat.para(k1.kdv20Hesaplanan),
-              TurkceFormat.para(k1.toplamHesaplananKdv),
-            ], isBold: true, bg: const Color(0xFFF8FAFC)),
-            _dataRow('MATRAH + KDV TUTARI TOPLAMI', [
-              TurkceFormat.para(k1.matrah10Hesaplanan + k1.kdv10Hesaplanan),
-              TurkceFormat.para(k1.matrah20Hesaplanan + k1.kdv20Hesaplanan),
-              TurkceFormat.para(k1.matrah10Hesaplanan + k1.matrah20Hesaplanan + k1.toplamHesaplananKdv),
-            ]),
-            // Ayraç satırı
-            _dividerRow('İNDİRİLECEK KDV', 4, bg: const Color(0xFFBFDBFE), textColor: const Color(0xFF1D4ED8)),
-            // İndirilecek KDV
-            _dataRow('İNDİRİLECEK MATRAH', [
-              TurkceFormat.para(k1.matrah10Indirilecek),
-              TurkceFormat.para(k1.matrah20Indirilecek),
-              TurkceFormat.para(k1.matrah10Indirilecek + k1.matrah20Indirilecek),
-            ]),
-            _dataRow('İNDİRİLECEK KDV TUTARI', [
-              TurkceFormat.para(k1.kdv10Indirilecek),
-              TurkceFormat.para(k1.kdv20Indirilecek),
-              TurkceFormat.para(k1.toplamIndirilecekKdv),
-            ], isBold: true, bg: const Color(0xFFF8FAFC)),
-            _dataRow('MATRAH + KDV TUTARI TOPLAMI', [
-              TurkceFormat.para(k1.matrah10Indirilecek + k1.kdv10Indirilecek),
-              TurkceFormat.para(k1.matrah20Indirilecek + k1.kdv20Indirilecek),
-              TurkceFormat.para(k1.matrah10Indirilecek + k1.matrah20Indirilecek + k1.toplamIndirilecekKdv),
-            ]),
-            if (k1.oncekiDonemdenDevredenKdv > 0)
-              _dataRow('ÖNCEKİ DÖNEMDEN DEVREDEN KDV', [
-                '-',
-                '-',
-                TurkceFormat.para(k1.oncekiDonemdenDevredenKdv),
-              ]),
-            // Vurgulu Net Ödenecek / Devreden KDV Satırı
-            _highlightRow(
-              k1.sonrakiDonemeDevredenKdv > 0
-                  ? 'SONRAKİ DÖNEME DEVREDEN KDV'
-                  : 'ÖDENECEK KDV (HESAPLANAN - İNDİRİLECEK - DEVİR)',
-              TurkceFormat.para(k1.sonrakiDonemeDevredenKdv > 0 ? k1.sonrakiDonemeDevredenKdv : k1.odenecekKdv1),
-              k1.sonrakiDonemeDevredenKdv > 0 ? const Color(0xFFD97706) : const Color(0xFF1D4ED8),
-              colSpan: 4,
-            ),
-          ],
-          borderColor: const Color(0xFFBFDBFE),
-          gridColor: const Color(0xFFEFF6FF),
-          columnWidths: const {
-            0: FlexColumnWidth(2.8),
-            1: FlexColumnWidth(1.2),
-            2: FlexColumnWidth(1.2),
-            3: FlexColumnWidth(1.8),
+        Builder(
+          builder: (context) {
+            final hasKdv1 = k1.matrah1Hesaplanan > 0 ||
+                k1.kdv1Hesaplanan > 0 ||
+                k1.matrah1Indirilecek > 0 ||
+                k1.kdv1Indirilecek > 0;
+
+            if (hasKdv1) {
+              return _buildTableContainer(
+                [
+                  _headerRow(
+                    ['AÇIKLAMA / KALEM', 'KDV %1', 'KDV %10', 'KDV %20', 'HESAPLANAN TOPLAM KDV (%1, %10, %20)'],
+                    bg: const Color(0xFFDBEAFE),
+                    textColor: const Color(0xFF1E3A8A),
+                    alignments: const [TextAlign.left, TextAlign.right, TextAlign.right, TextAlign.right, TextAlign.right],
+                  ),
+                  _dataRow('HESAPLANAN MATRAH', [
+                    TurkceFormat.para(k1.matrah1Hesaplanan),
+                    TurkceFormat.para(k1.matrah10Hesaplanan),
+                    TurkceFormat.para(k1.matrah20Hesaplanan),
+                    TurkceFormat.para(k1.matrah1Hesaplanan + k1.matrah10Hesaplanan + k1.matrah20Hesaplanan),
+                  ]),
+                  _dataRow('HESAPLANAN KDV TUTARI', [
+                    TurkceFormat.para(k1.kdv1Hesaplanan),
+                    TurkceFormat.para(k1.kdv10Hesaplanan),
+                    TurkceFormat.para(k1.kdv20Hesaplanan),
+                    TurkceFormat.para(k1.toplamHesaplananKdv),
+                  ], isBold: true, bg: const Color(0xFFF8FAFC)),
+                  _dataRow('MATRAH + KDV TUTARI TOPLAMI', [
+                    TurkceFormat.para(k1.matrah1Hesaplanan + k1.kdv1Hesaplanan),
+                    TurkceFormat.para(k1.matrah10Hesaplanan + k1.kdv10Hesaplanan),
+                    TurkceFormat.para(k1.matrah20Hesaplanan + k1.kdv20Hesaplanan),
+                    TurkceFormat.para(k1.matrah1Hesaplanan + k1.matrah10Hesaplanan + k1.matrah20Hesaplanan + k1.toplamHesaplananKdv),
+                  ]),
+                  _dividerRow('İNDİRİLECEK KDV', 5, bg: const Color(0xFFBFDBFE), textColor: const Color(0xFF1D4ED8)),
+                  _dataRow('İNDİRİLECEK MATRAH', [
+                    TurkceFormat.para(k1.matrah1Indirilecek),
+                    TurkceFormat.para(k1.matrah10Indirilecek),
+                    TurkceFormat.para(k1.matrah20Indirilecek),
+                    TurkceFormat.para(k1.matrah1Indirilecek + k1.matrah10Indirilecek + k1.matrah20Indirilecek),
+                  ]),
+                  _dataRow('İNDİRİLECEK KDV TUTARI', [
+                    TurkceFormat.para(k1.kdv1Indirilecek),
+                    TurkceFormat.para(k1.kdv10Indirilecek),
+                    TurkceFormat.para(k1.kdv20Indirilecek),
+                    TurkceFormat.para(k1.toplamIndirilecekKdv),
+                  ], isBold: true, bg: const Color(0xFFF8FAFC)),
+                  _dataRow('MATRAH + KDV TUTARI TOPLAMI', [
+                    TurkceFormat.para(k1.matrah1Indirilecek + k1.kdv1Indirilecek),
+                    TurkceFormat.para(k1.matrah10Indirilecek + k1.kdv10Indirilecek),
+                    TurkceFormat.para(k1.matrah20Indirilecek + k1.kdv20Indirilecek),
+                    TurkceFormat.para(k1.matrah1Indirilecek + k1.matrah10Indirilecek + k1.matrah20Indirilecek + k1.toplamIndirilecekKdv),
+                  ]),
+                  if (k1.oncekiDonemdenDevredenKdv > 0)
+                    _dataRow('ÖNCEKİ DÖNEMDEN DEVREDEN KDV', [
+                      '-',
+                      '-',
+                      '-',
+                      TurkceFormat.para(k1.oncekiDonemdenDevredenKdv),
+                    ]),
+                  _highlightRow(
+                    k1.sonrakiDonemeDevredenKdv > 0
+                        ? 'SONRAKİ DÖNEME DEVREDEN KDV'
+                        : 'ÖDENECEK KDV (HESAPLANAN - İNDİRİLECEK - DEVİR)',
+                    TurkceFormat.para(k1.sonrakiDonemeDevredenKdv > 0 ? k1.sonrakiDonemeDevredenKdv : k1.odenecekKdv1),
+                    k1.sonrakiDonemeDevredenKdv > 0 ? const Color(0xFFD97706) : const Color(0xFF1D4ED8),
+                    colSpan: 5,
+                  ),
+                ],
+                borderColor: const Color(0xFFBFDBFE),
+                gridColor: const Color(0xFFEFF6FF),
+                columnWidths: const {
+                  0: FlexColumnWidth(2.6),
+                  1: FlexColumnWidth(1.1),
+                  2: FlexColumnWidth(1.1),
+                  3: FlexColumnWidth(1.1),
+                  4: FlexColumnWidth(1.6),
+                },
+              );
+            }
+
+            return _buildTableContainer(
+              [
+                // Başlık Satırı
+                _headerRow(
+                  ['AÇIKLAMA / KALEM', 'KDV %10', 'KDV %20', 'HESAPLANAN TOPLAM KDV (%10 ve %20 Toplamları)'],
+                  bg: const Color(0xFFDBEAFE),
+                  textColor: const Color(0xFF1E3A8A),
+                  alignments: const [TextAlign.left, TextAlign.right, TextAlign.right, TextAlign.right],
+                ),
+                // Hesaplanan KDV
+                _dataRow('HESAPLANAN MATRAH', [
+                  TurkceFormat.para(k1.matrah10Hesaplanan),
+                  TurkceFormat.para(k1.matrah20Hesaplanan),
+                  TurkceFormat.para(k1.matrah10Hesaplanan + k1.matrah20Hesaplanan),
+                ]),
+                _dataRow('HESAPLANAN KDV TUTARI', [
+                  TurkceFormat.para(k1.kdv10Hesaplanan),
+                  TurkceFormat.para(k1.kdv20Hesaplanan),
+                  TurkceFormat.para(k1.toplamHesaplananKdv),
+                ], isBold: true, bg: const Color(0xFFF8FAFC)),
+                _dataRow('MATRAH + KDV TUTARI TOPLAMI', [
+                  TurkceFormat.para(k1.matrah10Hesaplanan + k1.kdv10Hesaplanan),
+                  TurkceFormat.para(k1.matrah20Hesaplanan + k1.kdv20Hesaplanan),
+                  TurkceFormat.para(k1.matrah10Hesaplanan + k1.matrah20Hesaplanan + k1.toplamHesaplananKdv),
+                ]),
+                // Ayraç satırı
+                _dividerRow('İNDİRİLECEK KDV', 4, bg: const Color(0xFFBFDBFE), textColor: const Color(0xFF1D4ED8)),
+                // İndirilecek KDV
+                _dataRow('İNDİRİLECEK MATRAH', [
+                  TurkceFormat.para(k1.matrah10Indirilecek),
+                  TurkceFormat.para(k1.matrah20Indirilecek),
+                  TurkceFormat.para(k1.matrah10Indirilecek + k1.matrah20Indirilecek),
+                ]),
+                _dataRow('İNDİRİLECEK KDV TUTARI', [
+                  TurkceFormat.para(k1.kdv10Indirilecek),
+                  TurkceFormat.para(k1.kdv20Indirilecek),
+                  TurkceFormat.para(k1.toplamIndirilecekKdv),
+                ], isBold: true, bg: const Color(0xFFF8FAFC)),
+                _dataRow('MATRAH + KDV TUTARI TOPLAMI', [
+                  TurkceFormat.para(k1.matrah10Indirilecek + k1.kdv10Indirilecek),
+                  TurkceFormat.para(k1.matrah20Indirilecek + k1.kdv20Indirilecek),
+                  TurkceFormat.para(k1.matrah10Indirilecek + k1.matrah20Indirilecek + k1.toplamIndirilecekKdv),
+                ]),
+                if (k1.oncekiDonemdenDevredenKdv > 0)
+                  _dataRow('ÖNCEKİ DÖNEMDEN DEVREDEN KDV', [
+                    '-',
+                    '-',
+                    TurkceFormat.para(k1.oncekiDonemdenDevredenKdv),
+                  ]),
+                // Vurgulu Net Ödenecek / Devreden KDV Satırı
+                _highlightRow(
+                  k1.sonrakiDonemeDevredenKdv > 0
+                      ? 'SONRAKİ DÖNEME DEVREDEN KDV'
+                      : 'ÖDENECEK KDV (HESAPLANAN - İNDİRİLECEK - DEVİR)',
+                  TurkceFormat.para(k1.sonrakiDonemeDevredenKdv > 0 ? k1.sonrakiDonemeDevredenKdv : k1.odenecekKdv1),
+                  k1.sonrakiDonemeDevredenKdv > 0 ? const Color(0xFFD97706) : const Color(0xFF1D4ED8),
+                  colSpan: 4,
+                ),
+              ],
+              borderColor: const Color(0xFFBFDBFE),
+              gridColor: const Color(0xFFEFF6FF),
+              columnWidths: const {
+                0: FlexColumnWidth(2.8),
+                1: FlexColumnWidth(1.2),
+                2: FlexColumnWidth(1.2),
+                3: FlexColumnWidth(1.8),
+              },
+            );
           },
         ),
         const SizedBox(height: 16),
 
-        // --- 2. KDV 2 TEVKİFATLAR BÖLÜMÜ (9/10, 7/10, 5/10) ---
-        _buildSheetTitle('KDV 2 TEVKİFAT ÖZETİ (9/10, 7/10, 5/10 ORANLARI)', accentColor: const Color(0xFFD97706)),
+        // --- 2. KDV 2 TEVKİFATLAR BÖLÜMÜ ---
+        _buildSheetTitle('KDV 2 TEVKİFAT ÖZETİ (GİB BDP & TEVKİFAT ORANLARI)', accentColor: const Color(0xFFD97706)),
         const SizedBox(height: 6),
-        _buildTableContainer(
-          [
-            _headerRow(
-              ['TEVKİFAT TÜRÜ', 'MATRAH TOPLAMI', 'KDV TOPLAMI', 'ORAN', 'TEVKİFAT TUTARI'],
-              bg: const Color(0xFFFEF3C7),
-              textColor: const Color(0xFF92400E),
-              alignments: const [TextAlign.left, TextAlign.right, TextAlign.right, TextAlign.center, TextAlign.right],
-            ),
-            _dataRow('9 / 10 Tevkifatlar', [
-              TurkceFormat.para(k2.turMatrahToplam[TevkifatTuru.dokuzBoluOn.etiket] ?? 0),
-              TurkceFormat.para(k2.turKdvToplam[TevkifatTuru.dokuzBoluOn.etiket] ?? 0),
-              '9 / 10 (%90)',
-              TurkceFormat.para(k2.turTevkifatToplam[TevkifatTuru.dokuzBoluOn.etiket] ?? 0),
-            ]),
-            _dataRow('7 / 10 Tevkifatlar', [
-              TurkceFormat.para(k2.turMatrahToplam[TevkifatTuru.yediBoluOn.etiket] ?? 0),
-              TurkceFormat.para(k2.turKdvToplam[TevkifatTuru.yediBoluOn.etiket] ?? 0),
-              '7 / 10 (%70)',
-              TurkceFormat.para(k2.turTevkifatToplam[TevkifatTuru.yediBoluOn.etiket] ?? 0),
-            ]),
-            _dataRow('5 / 10 Tevkifatlar', [
-              TurkceFormat.para(k2.turMatrahToplam[TevkifatTuru.besBoluOn.etiket] ?? 0),
-              TurkceFormat.para(k2.turKdvToplam[TevkifatTuru.besBoluOn.etiket] ?? 0),
-              '5 / 10 (%50)',
-              TurkceFormat.para(k2.turTevkifatToplam[TevkifatTuru.besBoluOn.etiket] ?? 0),
-            ]),
-            _highlightRow(
-              'BÜTÜN TEVKİFAT TÜRLERİNİN (9/10+7/10+5/10) TEVKİFAT TOPLAMI',
-              TurkceFormat.para(k2.butunTevkifatlarToplami),
-              const Color(0xFFD97706),
-              colSpan: 5,
-            ),
-          ],
-          borderColor: const Color(0xFFFDE68A),
-          gridColor: const Color(0xFFFFFBEB),
-          columnWidths: const {
-            0: FlexColumnWidth(2.6),
-            1: FlexColumnWidth(1.3),
-            2: FlexColumnWidth(1.3),
-            3: FlexColumnWidth(1.1),
-            4: FlexColumnWidth(1.4),
+        Builder(
+          builder: (context) {
+            final Map<String, ({double matrah, double kdv, double tevkifat, String yuzde})> tevkifatSatirlari = {};
+            final bilinenler = [
+              ('10/10', '10 / 10 (%100)'),
+              ('9/10', '9 / 10 (%90)'),
+              ('7/10', '7 / 10 (%70)'),
+              ('5/10', '5 / 10 (%50)'),
+              ('4/10', '4 / 10 (%40)'),
+              ('3/10', '3 / 10 (%30)'),
+              ('2/10', '2 / 10 (%20)'),
+            ];
+
+            for (final t in bilinenler) {
+              final mtr = k2.turMatrahToplam[t.$1] ?? 0;
+              final kdvTutar = k2.turKdvToplam[t.$1] ?? 0;
+              final tvk = k2.turTevkifatToplam[t.$1] ?? 0;
+              if (['9/10', '7/10', '5/10'].contains(t.$1) || mtr > 0 || tvk > 0) {
+                tevkifatSatirlari[t.$1] = (matrah: mtr, kdv: kdvTutar, tevkifat: tvk, yuzde: t.$2);
+              }
+            }
+
+            for (final k in k2.turTevkifatToplam.keys) {
+              if (!tevkifatSatirlari.containsKey(k) &&
+                  ((k2.turTevkifatToplam[k] ?? 0) > 0 || (k2.turMatrahToplam[k] ?? 0) > 0)) {
+                tevkifatSatirlari[k] = (
+                  matrah: k2.turMatrahToplam[k] ?? 0,
+                  kdv: k2.turKdvToplam[k] ?? 0,
+                  tevkifat: k2.turTevkifatToplam[k] ?? 0,
+                  yuzde: k,
+                );
+              }
+            }
+
+            return _buildTableContainer(
+              [
+                _headerRow(
+                  ['TEVKİFAT TÜRÜ', 'MATRAH TOPLAMI', 'KDV TOPLAMI', 'ORAN', 'TEVKİFAT TUTARI'],
+                  bg: const Color(0xFFFEF3C7),
+                  textColor: const Color(0xFF92400E),
+                  alignments: const [TextAlign.left, TextAlign.right, TextAlign.right, TextAlign.center, TextAlign.right],
+                ),
+                for (final entry in tevkifatSatirlari.entries)
+                  _dataRow('${entry.key} Tevkifatlar', [
+                    TurkceFormat.para(entry.value.matrah),
+                    TurkceFormat.para(entry.value.kdv),
+                    entry.value.yuzde,
+                    TurkceFormat.para(entry.value.tevkifat),
+                  ]),
+                _highlightRow(
+                  'BÜTÜN TEVKİFAT TÜRLERİNİN TEVKİFAT TOPLAMI',
+                  TurkceFormat.para(k2.butunTevkifatlarToplami),
+                  const Color(0xFFD97706),
+                  colSpan: 5,
+                ),
+              ],
+              borderColor: const Color(0xFFFDE68A),
+              gridColor: const Color(0xFFFFFBEB),
+              columnWidths: const {
+                0: FlexColumnWidth(2.6),
+                1: FlexColumnWidth(1.3),
+                2: FlexColumnWidth(1.3),
+                3: FlexColumnWidth(1.1),
+                4: FlexColumnWidth(1.4),
+              },
+            );
           },
         ),
         const SizedBox(height: 16),

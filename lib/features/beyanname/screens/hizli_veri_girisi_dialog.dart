@@ -202,6 +202,7 @@ class _HizliVeriGirisiDialogState extends State<HizliVeriGirisiDialog> {
 
   List<TevkifatTanimi> get _tumTevkifatTurleri {
     final map = <String, TevkifatTanimi>{
+      '10/10': const TevkifatTanimi(etiket: '10/10', pay: 10, payda: 10),
       '9/10': const TevkifatTanimi(etiket: '9/10', pay: 9, payda: 10),
       '7/10': const TevkifatTanimi(etiket: '7/10', pay: 7, payda: 10),
       '5/10': const TevkifatTanimi(etiket: '5/10', pay: 5, payda: 10),

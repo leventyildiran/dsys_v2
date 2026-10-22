@@ -462,12 +462,13 @@ class MizanDeterministikParser {
     return hesaplar;
   }
 
-  /// Alt hesaplardan (%10 ve %20) KDV kırılımını çıkarır.
-  static ({double kdv10, double kdv20}) _ayristirKdvOranlari(
+  /// Alt hesaplardan (%1, %10 ve %20) KDV kırılımını çıkarır.
+  static ({double kdv1, double kdv10, double kdv20}) _ayristirKdvOranlari(
     Map<String, MizanHesapSatiri> hesaplar,
     String anaKod, {
     required bool isAlacak,
   }) {
+    double kdv1 = 0.0;
     double kdv10 = 0.0;
     double kdv20 = 0.0;
 
@@ -507,9 +508,19 @@ class MizanDeterministikParser {
           adUpper.contains('%18')) {
         kdv20 += tutar;
       }
+      // %1 KDV ipuçları: .01, .1 veya hesap adında %1 / % 1 / 1 KDV (ancak %10 ve %18 hariç)
+      else if (sonParca == '01' ||
+          sonParca == '1' ||
+          ((adUpper.contains('%1') || adUpper.contains('% 1')) &&
+              !adUpper.contains('%10') &&
+              !adUpper.contains('%18')) ||
+          adUpper.contains('1 KDV')) {
+        kdv1 += tutar;
+      }
     }
 
     return (
+      kdv1: double.parse(kdv1.toStringAsFixed(2)),
       kdv10: double.parse(kdv10.toStringAsFixed(2)),
       kdv20: double.parse(kdv20.toStringAsFixed(2)),
     );
@@ -765,12 +776,20 @@ class MizanDeterministikParser {
     final bool hasYillik = yillikHesaplar.isNotEmpty;
     final bool hasYardimci = yardimciHesaplar.isNotEmpty;
 
-    // --- 1. 600 Hasılat & 123 POS Hesabı ---
-    // Net Satışlar: 600 Yurtiçi Satışlar (Alacak) - 610 Satıştan İadeler (Borç) - 611 Satış İskontoları (Borç)
+    // --- 1. 600 Hasılat (600 Yurtiçi + 601 Yurtdışı) & 123 POS Hesabı ---
+    // Net Satışlar: 600 Yurtiçi + 601 Yurtdışı Satışlar (Alacak) - 610 Satıştan İadeler (Borç) - 611 Satış İskontoları (Borç)
     double hesaplaNetHasilat(Map<String, MizanHesapSatiri> hesaplar) {
-      if (!hesaplar.containsKey('600')) return 0.0;
-      final h600 = hesaplar['600']!;
-      final brut = h600.alacak > 0 ? h600.alacak : h600.alacakKalan;
+      double brut = 0.0;
+      if (hesaplar.containsKey('600')) {
+        final h600 = hesaplar['600']!;
+        brut += h600.alacak > 0 ? h600.alacak : h600.alacakKalan;
+      }
+      if (hesaplar.containsKey('601')) {
+        final h601 = hesaplar['601']!;
+        brut += h601.alacak > 0 ? h601.alacak : h601.alacakKalan;
+      }
+
+      if (brut <= 0) return 0.0;
 
       double iade = 0.0;
       if (hesaplar.containsKey('610')) {
@@ -789,11 +808,11 @@ class MizanDeterministikParser {
     double hasilat600Aylik = 0.0;
     double hasilat600Kumulatif = 0.0;
 
-    if (hasYillik && yillikHesaplar.containsKey('600')) {
+    if (hasYillik && (yillikHesaplar.containsKey('600') || yillikHesaplar.containsKey('601'))) {
       hasilat600Kumulatif = hesaplaNetHasilat(yillikHesaplar);
     }
 
-    if (hasAylik && aylikHesaplar.containsKey('600')) {
+    if (hasAylik && (aylikHesaplar.containsKey('600') || aylikHesaplar.containsKey('601'))) {
       hasilat600Aylik = hesaplaNetHasilat(aylikHesaplar);
     } else if (hasilat600Kumulatif > 0) {
       if (oncekiAylarHasilat > 0 && hasilat600Kumulatif >= oncekiAylarHasilat) {
@@ -809,11 +828,9 @@ class MizanDeterministikParser {
     }
 
     // 123 Kredi Kartı / POS:
-    // Üniversite döner sermayesinde sadece hasta kabul / poliklinik yapan sağlık birimlerinde (Ağız ve Diş Sağlığı)
-    // POS terminali tahsilatı bulunur. Tasarım, tarımsal, kurs vb. merkezlere konsolide mizandan POS sızması engellenir.
-    // Kullanıcı kuralı: Diş Hekimliği kredi kartı tutarı için YILLIK MİZANDAKİ 123 Borç Kalan (bakiye) tutarına bakılır.
+    // Konsolide mizan sızıntısı engellenerek, mizanında 123 hesabı olan tüm birimler için (Sağlık, Sosyal Tesisler, DTS Satış, TÖMER vb.)
     double krediKarti123 = 0.0;
-    if (isSaglikPosBirimi) {
+    if (!isAylikKonsolideMizan || isSaglikPosBirimi) {
       if (hasYillik && yillikHesaplar.containsKey('123') && yillikHesaplar['123']!.borcKalan > 0) {
         krediKarti123 = yillikHesaplar['123']!.borcKalan;
       } else if (hasAylik && aylikHesaplar.containsKey('123')) {
@@ -824,19 +841,20 @@ class MizanDeterministikParser {
       }
     }
 
-    // --- 2. 391 Hesaplanan KDV (%10 ve %20) ---
+    // --- 2. 391 Hesaplanan KDV (%1, %10 ve %20) ---
     final aktifHesaplar = hasAylik ? aylikHesaplar : yillikHesaplar;
 
     var kdv391Kirilim = _ayristirKdvOranlari(aktifHesaplar, '391', isAlacak: true);
-    if (kdv391Kirilim.kdv10 == 0.0 && kdv391Kirilim.kdv20 == 0.0 && hasYardimci) {
+    if (kdv391Kirilim.kdv1 == 0.0 && kdv391Kirilim.kdv10 == 0.0 && kdv391Kirilim.kdv20 == 0.0 && hasYardimci) {
       kdv391Kirilim = _ayristirKdvOranlari(yardimciHesaplar, '391', isAlacak: true);
     }
 
+    double kdv1 = kdv391Kirilim.kdv1;
     double kdv10 = kdv391Kirilim.kdv10;
     double kdv20 = kdv391Kirilim.kdv20;
 
     // Alt hesap kırılımı yoksa ve ana 391 hesabı varsa:
-    if (kdv10 == 0.0 && kdv20 == 0.0 && aktifHesaplar.containsKey('391')) {
+    if (kdv1 == 0.0 && kdv10 == 0.0 && kdv20 == 0.0 && aktifHesaplar.containsKey('391')) {
       final ana391 = aktifHesaplar['391']!.alacak > 0
           ? aktifHesaplar['391']!.alacak
           : aktifHesaplar['391']!.alacakKalan;
@@ -844,8 +862,11 @@ class MizanDeterministikParser {
         final bKey = BirimAdlandirma.canonicalKey(birimAdi);
         final isEgitimBirimi = bKey.contains('tomer') || bKey.contains('usem');
         final isOran10Uyumlu = hasilat600Aylik > 0 && (ana391 - hasilat600Aylik * 0.10).abs() <= 1.0;
+        final isOran1Uyumlu = hasilat600Aylik > 0 && (ana391 - hasilat600Aylik * 0.01).abs() <= 1.0;
 
-        if (isOran10Uyumlu || (isEgitimBirimi && (hasilat600Aylik == 0 || (ana391 - hasilat600Aylik * 0.20).abs() > 1.0))) {
+        if (isOran1Uyumlu) {
+          kdv1 = ana391;
+        } else if (isOran10Uyumlu || (isEgitimBirimi && (hasilat600Aylik == 0 || (ana391 - hasilat600Aylik * 0.20).abs() > 1.0))) {
           kdv10 = ana391;
         } else {
           kdv20 = ana391;
@@ -853,15 +874,18 @@ class MizanDeterministikParser {
       }
     }
 
+    double matrah1 = kdv1 > 0 ? double.parse((kdv1 / 0.01).toStringAsFixed(2)) : 0.0;
     double matrah10 = kdv10 > 0 ? double.parse((kdv10 / 0.10).toStringAsFixed(2)) : 0.0;
     double matrah20 = kdv20 > 0 ? double.parse((kdv20 / 0.20).toStringAsFixed(2)) : 0.0;
 
     // Kuruş Yuvarlama Senkronizasyonu: Matrah ile 600 Hasılat arasındaki fark <= 0,50 TL ise 600 Hasılat'a eşitle
     if (hasilat600Aylik > 0) {
-      if (matrah20 > 0 && matrah10 == 0 && (matrah20 - hasilat600Aylik).abs() <= 0.50) {
+      if (matrah20 > 0 && matrah10 == 0 && matrah1 == 0 && (matrah20 - hasilat600Aylik).abs() <= 0.50) {
         matrah20 = hasilat600Aylik;
-      } else if (matrah10 > 0 && matrah20 == 0 && (matrah10 - hasilat600Aylik).abs() <= 0.50) {
+      } else if (matrah10 > 0 && matrah20 == 0 && matrah1 == 0 && (matrah10 - hasilat600Aylik).abs() <= 0.50) {
         matrah10 = hasilat600Aylik;
+      } else if (matrah1 > 0 && matrah20 == 0 && matrah10 == 0 && (matrah1 - hasilat600Aylik).abs() <= 0.50) {
+        matrah1 = hasilat600Aylik;
       }
     }
 
@@ -871,8 +895,10 @@ class MizanDeterministikParser {
     if (isYillikMizandanOkundu) {
       if (hasilat600Aylik == 0.0) {
         // Bu ay hiç hasılat yoksa (TADAUM gibi), yıllık kümülatif mizan KDV'si bu aya yazılamaz
+        kdv1 = 0.0;
         kdv10 = 0.0;
         kdv20 = 0.0;
+        matrah1 = 0.0;
         matrah10 = 0.0;
         matrah20 = 0.0;
       } else {
@@ -886,19 +912,24 @@ class MizanDeterministikParser {
           kdv10 = double.parse((hasilat600Aylik * 0.10).toStringAsFixed(2));
           matrah10 = hasilat600Aylik;
         }
+        if (kdv1 > 0 && (kdv1 > hasilat600Aylik || matrah1 > hasilat600Aylik * 1.5)) {
+          kdv1 = double.parse((hasilat600Aylik * 0.01).toStringAsFixed(2));
+          matrah1 = hasilat600Aylik;
+        }
       }
     }
 
-    // --- 3. 191 İndirilecek KDV (%10 ve %20) ---
+    // --- 3. 191 İndirilecek KDV (%1, %10 ve %20) ---
     var kdv191Kirilim = _ayristirKdvOranlari(aktifHesaplar, '191', isAlacak: false);
-    if (kdv191Kirilim.kdv10 == 0.0 && kdv191Kirilim.kdv20 == 0.0 && hasYardimci) {
+    if (kdv191Kirilim.kdv1 == 0.0 && kdv191Kirilim.kdv10 == 0.0 && kdv191Kirilim.kdv20 == 0.0 && hasYardimci) {
       kdv191Kirilim = _ayristirKdvOranlari(yardimciHesaplar, '191', isAlacak: false);
     }
 
+    double ind1 = kdv191Kirilim.kdv1;
     double ind10 = kdv191Kirilim.kdv10;
     double ind20 = kdv191Kirilim.kdv20;
 
-    if (ind10 == 0.0 && ind20 == 0.0 && aktifHesaplar.containsKey('191')) {
+    if (ind1 == 0.0 && ind10 == 0.0 && ind20 == 0.0 && aktifHesaplar.containsKey('191')) {
       ind20 = aktifHesaplar['191']!.borc > 0
           ? aktifHesaplar['191']!.borc
           : aktifHesaplar['191']!.borcKalan;
@@ -906,10 +937,12 @@ class MizanDeterministikParser {
 
     if (isYillikMizandanOkundu) {
       // Yıllık kümülatif 191 tutarı tek bir aya indirilecek KDV olarak yazılamaz
+      ind1 = 0.0;
       ind10 = 0.0;
       ind20 = 0.0;
     }
 
+    final double indMatrah1 = ind1 > 0 ? double.parse((ind1 / 0.01).toStringAsFixed(2)) : 0.0;
     final double indMatrah10 = ind10 > 0 ? double.parse((ind10 / 0.10).toStringAsFixed(2)) : 0.0;
     final double indMatrah20 = ind20 > 0 ? double.parse((ind20 / 0.20).toStringAsFixed(2)) : 0.0;
 
@@ -927,22 +960,7 @@ class MizanDeterministikParser {
     double bulDamga360(Map<String, MizanHesapSatiri> hesapMap, {required bool isYillik}) {
       if (hesapMap.isEmpty) return 0.0;
 
-      // A) Doğrudan 360.03.05 veya 360.3.5 veya 360.03.5
-      for (final key in hesapMap.keys) {
-        final norm = key.replaceAll(RegExp(r'\.0+'), '.');
-        if (norm == '360.3.5' || key == '360.03.05') {
-          final s = hesapMap[key]!;
-          if (!isYillik) {
-            if (s.alacak > 0) return s.alacak;
-            if (s.alacakKalan > 0) return s.alacakKalan;
-          } else {
-            if (s.alacakKalan > 0) return s.alacakKalan;
-            if (s.alacak > 0) return s.alacak;
-          }
-        }
-      }
-
-      // B) 360.03 alt hesapları taraması: Ücret damgası (.01) hariç tüm damgaları topla
+      // A) 360.03 alt hesapları taraması: Ücret damgası (.01) hariç tüm damgaları topla
       // Örn: 360.03.02 (İhale), 360.03.03 (Sözleşme), 360.03.05 (Diğer ödemeler), 360.03.09 (Diğer)
       double altToplam = 0.0;
       bool altHesapBulundu = false;
@@ -1138,8 +1156,8 @@ class MizanDeterministikParser {
     double yardimci600 = 0.0;
 
     if (hasYardimci) {
-      yardimci391 = yardimciHesaplar['391']?.alacak ?? (kdv391Kirilim.kdv10 + kdv391Kirilim.kdv20);
-      yardimci191 = yardimciHesaplar['191']?.borc ?? (kdv191Kirilim.kdv10 + kdv191Kirilim.kdv20);
+      yardimci391 = yardimciHesaplar['391']?.alacak ?? (kdv391Kirilim.kdv1 + kdv391Kirilim.kdv10 + kdv391Kirilim.kdv20);
+      yardimci191 = yardimciHesaplar['191']?.borc ?? (kdv191Kirilim.kdv1 + kdv191Kirilim.kdv10 + kdv191Kirilim.kdv20);
       yardimci600 = yardimciHesaplar['600']?.alacak ?? 0.0;
     }
 
@@ -1150,10 +1168,14 @@ class MizanDeterministikParser {
       'hasilat600Aylik': hasilat600Aylik,
       'hasilat600Kumulatif': hasilat600Kumulatif,
       'krediKarti123': krediKarti123,
+      'hesaplananKdvMatrah1': matrah1,
+      'hesaplananKdv1': kdv1,
       'hesaplananKdvMatrah10': matrah10,
       'hesaplananKdv10': kdv10,
       'hesaplananKdvMatrah20': matrah20,
       'hesaplananKdv20': kdv20,
+      'indirilecekKdvMatrah1': indMatrah1,
+      'indirilecekKdv1': ind1,
       'indirilecekKdvMatrah10': indMatrah10,
       'indirilecekKdv10': ind10,
       'indirilecekKdvMatrah20': indMatrah20,
@@ -1180,10 +1202,14 @@ class MizanDeterministikParser {
       hasilat600Aylik: hasilat600Aylik,
       hasilat600Kumulatif: hasilat600Kumulatif,
       krediKarti123: krediKarti123,
+      hesaplananKdvMatrah1: matrah1,
+      hesaplananKdv1: kdv1,
       hesaplananKdvMatrah10: matrah10,
       hesaplananKdv10: kdv10,
       hesaplananKdvMatrah20: matrah20,
       hesaplananKdv20: kdv20,
+      indirilecekKdvMatrah1: indMatrah1,
+      indirilecekKdv1: ind1,
       indirilecekKdvMatrah10: indMatrah10,
       indirilecekKdv10: ind10,
       indirilecekKdvMatrah20: indMatrah20,

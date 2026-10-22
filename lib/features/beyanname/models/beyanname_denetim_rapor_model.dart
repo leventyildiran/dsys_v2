@@ -163,6 +163,11 @@ class BeyannameAjanRaporu {
   bool get kritikHataVarMi => kritikHataSayisi > 0;
 
   BeyannameAjanRaporu copyWith({
+    List<String>? analizEdilenBirimler,
+    int? toplamDosyaSayisi,
+    Map<String, BirimMizanAnalizSonucu>? birimSonuclari,
+    List<NeredenNereyeKaydi>? neredenNereyeListesi,
+    List<MutabakatKontrolKaydi>? denetimKontrolleri,
     bool? uygulandiMi,
     DateTime? uygulanmaTarihi,
   }) {
@@ -171,11 +176,11 @@ class BeyannameAjanRaporu {
       yil: yil,
       ay: ay,
       olusturulmaTarihi: olusturulmaTarihi,
-      analizEdilenBirimler: analizEdilenBirimler,
-      toplamDosyaSayisi: toplamDosyaSayisi,
-      birimSonuclari: birimSonuclari,
-      neredenNereyeListesi: neredenNereyeListesi,
-      denetimKontrolleri: denetimKontrolleri,
+      analizEdilenBirimler: analizEdilenBirimler ?? this.analizEdilenBirimler,
+      toplamDosyaSayisi: toplamDosyaSayisi ?? this.toplamDosyaSayisi,
+      birimSonuclari: birimSonuclari ?? this.birimSonuclari,
+      neredenNereyeListesi: neredenNereyeListesi ?? this.neredenNereyeListesi,
+      denetimKontrolleri: denetimKontrolleri ?? this.denetimKontrolleri,
       uygulandiMi: uygulandiMi ?? this.uygulandiMi,
       uygulanmaTarihi: uygulanmaTarihi ?? this.uygulanmaTarihi,
     );

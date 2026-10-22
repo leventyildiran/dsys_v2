@@ -181,66 +181,77 @@ class _OkunanVerilerOnizlemeKartiState extends State<OkunanVerilerOnizlemeKarti>
 
           if (!_daraltilmis) ...[
             // Mizan Özet Tablosu
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: DataTable(
-              headingRowHeight: 30,
-              dataRowMinHeight: 32,
-              dataRowMaxHeight: 38,
-              columnSpacing: 14,
-              horizontalMargin: 8,
-              headingRowColor: WidgetStateProperty.all(AppColors.surfaceVariant),
-              columns: const [
-                DataColumn(label: Text('BİRİM', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
-                DataColumn(numeric: true, label: Text('600 AYLIK HASILAT', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
-                DataColumn(numeric: true, label: Text('600 KÜMÜLATİF', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
-                DataColumn(numeric: true, label: Text('123 KREDİ KARTI', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
-                DataColumn(numeric: true, label: Text('391 KDV (%10)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
-                DataColumn(numeric: true, label: Text('391 KDV (%20)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
-                DataColumn(numeric: true, label: Text('191 İND. (%10)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
-                DataColumn(numeric: true, label: Text('191 İND. (%20)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
-                DataColumn(numeric: true, label: Text('360 DAMGA V.', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
-                DataColumn(numeric: true, label: Text('MUHTASAR GV', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
-                DataColumn(numeric: true, label: Text('MUHTASAR DV', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
-                DataColumn(numeric: true, label: Text('KDV 2 TEVKİFAT', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
-              ],
-              rows: birimler.map((BirimMizanAnalizSonucu b) {
-                final toplamTevkifat = b.tevkifatFaturalari.fold<double>(
-                  0.0,
-                  (sum, f) => sum + ((f['tevkifatTutari'] as num?)?.toDouble() ?? 0.0),
-                );
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      Text(
-                        b.birimAdi,
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                      ),
-                    ),
-                    DataCell(_tutarText(b.hasilat600Aylik, highlight: true)),
-                    DataCell(_tutarText(b.hasilat600Kumulatif)),
-                    DataCell(_tutarText(b.krediKarti123)),
-                    DataCell(_tutarText(b.hesaplananKdv10)),
-                    DataCell(_tutarText(b.hesaplananKdv20)),
-                    DataCell(_tutarText(b.indirilecekKdv10)),
-                    DataCell(_tutarText(b.indirilecekKdv20)),
-                    DataCell(_tutarText(b.damgaVergisi360)),
-                    DataCell(_tutarText(b.muhtasarGelir360)),
-                    DataCell(_tutarText(b.muhtasarDamga360)),
-                    DataCell(
-                      b.tevkifatFaturalari.isEmpty
-                          ? const Text('-', style: TextStyle(fontSize: 11, color: AppColors.textMuted))
-                          : Text(
-                              '${b.tevkifatFaturalari.length} Fatura (${TurkceFormat.para(toplamTevkifat)})',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.info),
+            Builder(
+              builder: (context) {
+                final hasKdv1 = birimler.any((b) => b.hesaplananKdv1 > 0 || b.indirilecekKdv1 > 0);
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  child: DataTable(
+                    headingRowHeight: 30,
+                    dataRowMinHeight: 32,
+                    dataRowMaxHeight: 38,
+                    columnSpacing: 14,
+                    horizontalMargin: 8,
+                    headingRowColor: WidgetStateProperty.all(AppColors.surfaceVariant),
+                    columns: [
+                      const DataColumn(label: Text('BİRİM', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                      const DataColumn(numeric: true, label: Text('600 AYLIK HASILAT', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                      const DataColumn(numeric: true, label: Text('600 KÜMÜLATİF', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                      const DataColumn(numeric: true, label: Text('123 KREDİ KARTI', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                      if (hasKdv1)
+                        const DataColumn(numeric: true, label: Text('391 KDV (%1)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                      const DataColumn(numeric: true, label: Text('391 KDV (%10)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                      const DataColumn(numeric: true, label: Text('391 KDV (%20)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                      if (hasKdv1)
+                        const DataColumn(numeric: true, label: Text('191 İND. (%1)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                      const DataColumn(numeric: true, label: Text('191 İND. (%10)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                      const DataColumn(numeric: true, label: Text('191 İND. (%20)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                      const DataColumn(numeric: true, label: Text('360 DAMGA V.', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                      const DataColumn(numeric: true, label: Text('MUHTASAR GV', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                      const DataColumn(numeric: true, label: Text('MUHTASAR DV', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                      const DataColumn(numeric: true, label: Text('KDV 2 TEVKİFAT', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold))),
+                    ],
+                    rows: birimler.map((BirimMizanAnalizSonucu b) {
+                      final toplamTevkifat = b.tevkifatFaturalari.fold<double>(
+                        0.0,
+                        (sum, f) => sum + ((f['tevkifatTutari'] as num?)?.toDouble() ?? 0.0),
+                      );
+                      return DataRow(
+                        cells: [
+                          DataCell(
+                            Text(
+                              b.birimAdi,
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                             ),
-                    ),
-                  ],
+                          ),
+                          DataCell(_tutarText(b.hasilat600Aylik, highlight: true)),
+                          DataCell(_tutarText(b.hasilat600Kumulatif)),
+                          DataCell(_tutarText(b.krediKarti123)),
+                          if (hasKdv1) DataCell(_tutarText(b.hesaplananKdv1)),
+                          DataCell(_tutarText(b.hesaplananKdv10)),
+                          DataCell(_tutarText(b.hesaplananKdv20)),
+                          if (hasKdv1) DataCell(_tutarText(b.indirilecekKdv1)),
+                          DataCell(_tutarText(b.indirilecekKdv10)),
+                          DataCell(_tutarText(b.indirilecekKdv20)),
+                          DataCell(_tutarText(b.damgaVergisi360)),
+                          DataCell(_tutarText(b.muhtasarGelir360)),
+                          DataCell(_tutarText(b.muhtasarDamga360)),
+                          DataCell(
+                            b.tevkifatFaturalari.isEmpty
+                                ? const Text('-', style: TextStyle(fontSize: 11, color: AppColors.textMuted))
+                                : Text(
+                                    '${b.tevkifatFaturalari.length} Fatura (${TurkceFormat.para(toplamTevkifat)})',
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.info),
+                                  ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
                 );
-              }).toList(),
+              },
             ),
-          ),
 
           // Tevkifat Faturaları Listesi (Varsa)
           if (tevkifatListesi.isNotEmpty) ...[

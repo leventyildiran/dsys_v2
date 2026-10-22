@@ -14,6 +14,8 @@ class AsgariUcretIstisnasi {
 
 /// KDV 1 Konsolide Özeti
 class Kdv1KonsolideSonuc {
+  final double matrah1Hesaplanan;
+  final double kdv1Hesaplanan;
   final double matrah10Hesaplanan;
   final double kdv10Hesaplanan;
   final double matrah20Hesaplanan;
@@ -21,6 +23,8 @@ class Kdv1KonsolideSonuc {
   final double toplamHesaplananKdv;
   final double toplamHesaplananMatrahVeKdv;
 
+  final double matrah1Indirilecek;
+  final double kdv1Indirilecek;
   final double matrah10Indirilecek;
   final double kdv10Indirilecek;
   final double matrah20Indirilecek;
@@ -33,12 +37,16 @@ class Kdv1KonsolideSonuc {
   final double sonrakiDonemeDevredenKdv;
 
   const Kdv1KonsolideSonuc({
+    this.matrah1Hesaplanan = 0.0,
+    this.kdv1Hesaplanan = 0.0,
     required this.matrah10Hesaplanan,
     required this.kdv10Hesaplanan,
     required this.matrah20Hesaplanan,
     required this.kdv20Hesaplanan,
     required this.toplamHesaplananKdv,
     required this.toplamHesaplananMatrahVeKdv,
+    this.matrah1Indirilecek = 0.0,
+    this.kdv1Indirilecek = 0.0,
     required this.matrah10Indirilecek,
     required this.kdv10Indirilecek,
     required this.matrah20Indirilecek,
@@ -176,33 +184,41 @@ class BeyannameHesaplamaMotoru {
     List<Kdv1BirimSatiri> satirlar, {
     double oncekiDonemdenDevredenKdv = 0.0,
   }) {
+    double matrah1H = 0;
+    double kdv1H = 0;
     double matrah10H = 0;
     double kdv10H = 0;
     double matrah20H = 0;
     double kdv20H = 0;
 
+    double matrah1I = 0;
+    double kdv1I = 0;
     double matrah10I = 0;
     double kdv10I = 0;
     double matrah20I = 0;
     double kdv20I = 0;
 
     for (final s in satirlar) {
+      matrah1H += s.hesaplananMatrah1;
+      kdv1H += s.hesaplananKdv1;
       matrah10H += s.hesaplananMatrah10;
       kdv10H += s.hesaplananKdv10;
       matrah20H += s.hesaplananMatrah20;
       kdv20H += s.hesaplananKdv20;
 
+      matrah1I += s.indirilecekMatrah1;
+      kdv1I += s.indirilecekKdv1;
       matrah10I += s.indirilecekMatrah10;
       kdv10I += s.indirilecekKdv10;
       matrah20I += s.indirilecekMatrah20;
       kdv20I += s.indirilecekKdv20;
     }
 
-    final topHesaplananKdv = round(kdv10H + kdv20H);
-    final topHesaplananMatrahVeKdv = round(matrah10H + kdv10H + matrah20H + kdv20H);
+    final topHesaplananKdv = round(kdv1H + kdv10H + kdv20H);
+    final topHesaplananMatrahVeKdv = round(matrah1H + kdv1H + matrah10H + kdv10H + matrah20H + kdv20H);
 
-    final topIndirilecekKdv = round(kdv10I + kdv20I);
-    final topIndirilecekMatrahVeKdv = round(matrah10I + kdv10I + matrah20I + kdv20I);
+    final topIndirilecekKdv = round(kdv1I + kdv10I + kdv20I);
+    final topIndirilecekMatrahVeKdv = round(matrah1I + kdv1I + matrah10I + kdv10I + matrah20I + kdv20I);
 
     final toplamIndirimVeDevir = round(topIndirilecekKdv + oncekiDonemdenDevredenKdv);
 
@@ -215,12 +231,16 @@ class BeyannameHesaplamaMotoru {
         : 0.0;
 
     return Kdv1KonsolideSonuc(
+      matrah1Hesaplanan: round(matrah1H),
+      kdv1Hesaplanan: round(kdv1H),
       matrah10Hesaplanan: round(matrah10H),
       kdv10Hesaplanan: round(kdv10H),
       matrah20Hesaplanan: round(matrah20H),
       kdv20Hesaplanan: round(kdv20H),
       toplamHesaplananKdv: topHesaplananKdv,
       toplamHesaplananMatrahVeKdv: topHesaplananMatrahVeKdv,
+      matrah1Indirilecek: round(matrah1I),
+      kdv1Indirilecek: round(kdv1I),
       matrah10Indirilecek: round(matrah10I),
       kdv10Indirilecek: round(kdv10I),
       matrah20Indirilecek: round(matrah20I),
