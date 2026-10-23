@@ -185,6 +185,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
       try {
         final mevcut = await _sistemAyarlari.getAyarlar();
         await _sistemAyarlari.saveAyarlar(mevcut.copyWith(memurMaasKatsayisi: d));
+        DanismanlikExcelHesaplama.memurMaasKatsayisiGuncel = d;
       } catch (_) {}
 
       try {

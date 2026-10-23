@@ -15,6 +15,7 @@ import '../services/danismanlik_service.dart';
 import '../services/danismanlik_excel_hesaplama.dart';
 import '../services/taksit_onay_akisi.dart';
 import '../services/taksit_service.dart';
+import '../../../core/services/sistem_ayarlari_service.dart';
 
 class DanismanlikDetayProvider extends ChangeNotifier {
   DanismanlikDetayProvider(
@@ -328,10 +329,17 @@ class DanismanlikDetayProvider extends ChangeNotifier {
     TaksitModel taksit,
     String islemAyi,
   ) async {
+    final ayarlar = await SistemAyarlariService().getAyarlar();
+    final memurKatsayi = ayarlar.memurMaasKatsayisi > 0
+        ? ayarlar.memurMaasKatsayisi
+        : DanismanlikExcelHesaplama.memurMaasKatsayisiGuncel;
+    DanismanlikExcelHesaplama.memurMaasKatsayisiGuncel = memurKatsayi;
+
     if (danismanlik.tur == DanismanlikTuru.standart) {
       final excel = DanismanlikExcelHesaplama.hesaplaDanismanlik(
         danismanlik: danismanlik,
         brutTaksitTutari: taksit.brutTutar,
+        memurMaasKatsayisi: memurKatsayi,
       );
 
       final k = excel.kesinti;

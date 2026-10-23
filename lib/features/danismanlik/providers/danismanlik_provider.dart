@@ -6,6 +6,7 @@ import '../models/danismanlik_model.dart';
 import '../services/danismanlik_excel_hesaplama.dart';
 import '../../personel/models/personel_model.dart';
 import '../services/danismanlik_service.dart';
+import '../../../core/services/sistem_ayarlari_service.dart';
 
 /// Canlı önizleme hesaplama sonucu.
 class OnizlemeSonucu {
@@ -496,9 +497,16 @@ class DanismanlikProvider extends ChangeNotifier {
         personeller: List.from(_personeller),
         createdAt: DateTime.now(),
       );
+      final ayarlar = await SistemAyarlariService().getAyarlar();
+      final memurKatsayi = ayarlar.memurMaasKatsayisi > 0
+          ? ayarlar.memurMaasKatsayisi
+          : DanismanlikExcelHesaplama.memurMaasKatsayisiGuncel;
+      DanismanlikExcelHesaplama.memurMaasKatsayisiGuncel = memurKatsayi;
+
       final excel = DanismanlikExcelHesaplama.hesaplaDanismanlik(
         danismanlik: gecici,
         brutTaksitTutari: _brutTaksitTutari,
+        memurMaasKatsayisi: memurKatsayi,
       );
       final k = excel.kesinti;
       final kesinti = KesintiBilgisi(

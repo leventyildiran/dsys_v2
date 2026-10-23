@@ -25,6 +25,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
 
   late TextEditingController _kurumAdiController;
   late TextEditingController _varsayilanKdvController;
+  late TextEditingController _memurMaasKatsayisiController;
   late TextEditingController _ebysDomainController;
   late TextEditingController _hesapAdiController;
   late TextEditingController _ibanController;
@@ -49,6 +50,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
     super.initState();
     _kurumAdiController = TextEditingController();
     _varsayilanKdvController = TextEditingController();
+    _memurMaasKatsayisiController = TextEditingController();
     _ebysDomainController = TextEditingController();
     _hesapAdiController = TextEditingController();
     _ibanController = TextEditingController();
@@ -68,6 +70,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
     setState(() {
       _kurumAdiController.text = ayarlar.kurumAdi;
       _varsayilanKdvController.text = ayarlar.varsayilanKdvOrani.toString();
+      _memurMaasKatsayisiController.text = ayarlar.memurMaasKatsayisi > 0 ? ayarlar.memurMaasKatsayisi.toString() : '1.387871';
       _ebysDomainController.text = ayarlar.ebysDomain;
       _hesapAdiController.text = ayarlar.hesapAdi;
       _ibanController.text = ayarlar.iban;
@@ -115,6 +118,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
             if (item['unvan']!.text.trim().isNotEmpty)
               item['unvan']!.text.trim(): double.tryParse(item['katsayi']!.text.replaceAll(',', '.')) ?? 1.0
         },
+        memurMaasKatsayisi: double.tryParse(_memurMaasKatsayisiController.text.replaceAll(',', '.')) ?? 1.387871,
       );
       await _service.saveAyarlar(ayarlar);
       if (mounted) {
@@ -140,6 +144,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
   void dispose() {
     _kurumAdiController.dispose();
     _varsayilanKdvController.dispose();
+    _memurMaasKatsayisiController.dispose();
     _ebysDomainController.dispose();
     _hesapAdiController.dispose();
     _ibanController.dispose();
@@ -358,6 +363,18 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
             ),
           ),
         ],
+      ),
+      const SizedBox(height: 20),
+      TextFormField(
+        controller: _memurMaasKatsayisiController,
+        decoration: const InputDecoration(
+          labelText: 'Memur Maaş Katsayısı (Danışmanlık / Ek Ders Tavanı)',
+          hintText: '1.387871',
+          helperText: 'Danışmanlık ve döner sermaye ek ders tavan hesaplamalarında kullanılan güncel katsayı.',
+          border: OutlineInputBorder(),
+          prefixIcon: Icon(Icons.calculate_outlined),
+        ),
+        keyboardType: TextInputType.numberWithOptions(decimal: true),
       ),
       const SizedBox(height: 20),
       TextFormField(

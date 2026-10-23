@@ -37,7 +37,11 @@ class DanismanlikExcelHesaplama {
   DanismanlikExcelHesaplama._();
 
   /// Güncel memur maaş katsayısı (ek ders tavanı)
-  static const double memurMaasKatsayisiGuncel = 1.387871;
+  static double _memurMaasKatsayisiGuncel = 1.387871;
+  static double get memurMaasKatsayisiGuncel => _memurMaasKatsayisiGuncel;
+  static set memurMaasKatsayisiGuncel(double v) {
+    if (v > 0) _memurMaasKatsayisiGuncel = v;
+  }
 
   static DanismanlikExcelProfili profilFromDanismanlik(DanismanlikModel d) {
     switch (d.tur) {
@@ -686,6 +690,7 @@ class DanismanlikExcelHesaplama {
   static DanismanlikExcelSonuc hesaplaDanismanlik({
     required DanismanlikModel danismanlik,
     required double brutTaksitTutari,
+    double? memurMaasKatsayisi,
   }) {
     final kesinti = kesintilerBrutten(
       brutTutar: brutTaksitTutari,
@@ -700,6 +705,7 @@ class DanismanlikExcelHesaplama {
       kesinti: kesinti,
       personeller: personeller,
       profil: profilFromDanismanlik(danismanlik),
+      memurMaasKatsayisi: memurMaasKatsayisi ?? memurMaasKatsayisiGuncel,
     );
   }
 
