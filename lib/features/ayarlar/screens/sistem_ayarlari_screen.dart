@@ -30,6 +30,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
   late TextEditingController _ibanController;
   late TextEditingController _isletmeVknController;
   late TextEditingController _geminiKeyController;
+  late TextEditingController _geminiYedekKeyController;
   late TextEditingController _geminiModelController;
   late TextEditingController _visionKeyController;
   late TextEditingController _deepseekUrlController;
@@ -37,6 +38,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
   late TextEditingController _deepseekModelController;
   List<YkUyeModel> _kurulUyeleri = [];
   bool _geminiKeyGizli = true;
+  bool _geminiYedekKeyGizli = true;
   bool _visionKeyGizli = true;
   bool _deepseekKeyGizli = true;
 
@@ -52,6 +54,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
     _ibanController = TextEditingController();
     _isletmeVknController = TextEditingController();
     _geminiKeyController = TextEditingController();
+    _geminiYedekKeyController = TextEditingController();
     _geminiModelController = TextEditingController();
     _visionKeyController = TextEditingController();
     _deepseekUrlController = TextEditingController();
@@ -70,6 +73,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
       _ibanController.text = ayarlar.iban;
       _isletmeVknController.text = ayarlar.isletmeVkn.isNotEmpty ? ayarlar.isletmeVkn : '8960453664';
       _geminiKeyController.text = ayarlar.geminiApiKey;
+      _geminiYedekKeyController.text = ayarlar.geminiYedekApiKey;
       _geminiModelController.text = ayarlar.geminiModel.isNotEmpty ? ayarlar.geminiModel : 'gemini-3.6-flash';
       _visionKeyController.text = ayarlar.visionApiKey;
       _deepseekUrlController.text = ayarlar.deepseekApiUrl;
@@ -97,6 +101,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
         varsayilanKdvOrani: double.tryParse(_varsayilanKdvController.text.replaceAll(',', '.')) ?? 20.0,
         ebysDomain: _ebysDomainController.text.trim(),
         geminiApiKey: _geminiKeyController.text.trim(),
+        geminiYedekApiKey: _geminiYedekKeyController.text.trim(),
         geminiModel: _geminiModelController.text.trim().isNotEmpty
             ? _geminiModelController.text.trim()
             : 'gemini-3.6-flash',
@@ -140,6 +145,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
     _ibanController.dispose();
     _isletmeVknController.dispose();
     _geminiKeyController.dispose();
+    _geminiYedekKeyController.dispose();
     _geminiModelController.dispose();
     _visionKeyController.dispose();
     _deepseekUrlController.dispose();
@@ -482,12 +488,21 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
       ),
       const SizedBox(height: 24),
       _buildApiKeyField(
-        label: 'Gemini API Key (birim hesabı)',
+        label: 'Gemini API Key (Birincil / Ücretsiz AI Studio)',
         controller: _geminiKeyController,
         gizli: _geminiKeyGizli,
         onToggleGizlilik: () => setState(() => _geminiKeyGizli = !_geminiKeyGizli),
         yardim:
-            'Zorunlu önerilir. Boş bırakılırsa fatura PDF\'leri yapay zeka ile okunamaz (yalnızca çevrimdışı kural devreye girer).',
+            'Öncelikli olarak bu ücretsiz anahtar kullanılır (0 TL). Kota dolana veya 5 deneme aşılana kadar harcama yapmaz.',
+      ),
+      const SizedBox(height: 16),
+      _buildApiKeyField(
+        label: 'Gemini API Key (Yedek / Ücretli Billing - Opsiyonel)',
+        controller: _geminiYedekKeyController,
+        gizli: _geminiYedekKeyGizli,
+        onToggleGizlilik: () => setState(() => _geminiYedekKeyGizli = !_geminiYedekKeyGizli),
+        yardim:
+            'Ücretsiz anahtar 5 denemede yanıt veremezse veya kotası (429) dolarsa kesintisiz devam etmek için otomatik olarak bu ücretli anahtar devreye girer.',
       ),
       const SizedBox(height: 16),
       TextField(

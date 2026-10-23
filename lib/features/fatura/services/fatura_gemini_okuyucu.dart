@@ -104,8 +104,11 @@ class FaturaGeminiOkuyucu {
   /// [prompt] metnini (ve yalnızca gerekiyorsa [pdf] baytlarını) gönderir.
   ///
   /// [log] terminale satır yazmak için kullanılır.
+  /// [yedekApiKey] varsa, birincil anahtar 5 denemede cevap veremezse veya kotası
+  /// dolarsa (429) otomatik olarak yedek (ücretli) anahtara geçilir.
   Future<GeminiOkumaYaniti> oku({
     required String apiKey,
+    String? yedekApiKey,
     required String prompt,
     String? tercihModel,
     Uint8List? pdf,
@@ -116,49 +119,98 @@ class FaturaGeminiOkuyucu {
     final sira = modelSirasi(tercihModel);
     final hasPdf = pdf != null && pdf.isNotEmpty;
     final timeout = Duration(seconds: hasPdf ? 120 : 45);
+
+    final cleanPrimary = apiKey.trim();
+    final cleanYedek = (yedekApiKey ?? '').trim();
+
+    // Denenecek anahtarlar sırası: önce birincil (ücretsiz), sonra varsa yedek (ücretli)
+    final anahtarlar = <String>[];
+    if (cleanPrimary.isNotEmpty) anahtarlar.add(cleanPrimary);
+    if (cleanYedek.isNotEmpty && !anahtarlar.contains(cleanYedek)) {
+      anahtarlar.add(cleanYedek);
+    }
+    if (anahtarlar.isEmpty) {
+      throw Exception('API Anahtarı bulunamadı. Lütfen Sistem Ayarları sayfasından anahtarınızı girin.');
+    }
+
     Object? sonHata;
 
     try {
-      for (final model in sira) {
-        iptalKontrol?.call();
-        var dusunmeKapat = true;
-        for (var deneme = 0; deneme < 3; deneme++) {
-          try {
-            log?.call('   ↳ $model çağrılıyor${hasPdf ? ' (taranmış belge, görsel mod)' : ' (yalnızca metin)'}…');
-            final yanit = await _istek(
-              client: client,
-              apiKey: apiKey,
-              model: model,
-              prompt: prompt,
-              pdf: hasPdf ? pdf : null,
-              dusunmeKapat: dusunmeKapat,
-            ).timeout(timeout);
-            if (yanit.metin.trim().isNotEmpty) return yanit;
-            sonHata = '$model boş yanıt döndü';
-            break;
-          } on _GeminiHttpHatasi catch (e) {
-            sonHata = e;
-            if (e.kod == 400 && dusunmeKapat && e.govde.toLowerCase().contains('think')) {
-              dusunmeKapat = false; // Bu model thinkingConfig desteklemiyor
-              continue;
+      for (var anahtarIdx = 0; anahtarIdx < anahtarlar.length; anahtarIdx++) {
+        final aktifAnahtar = anahtarlar[anahtarIdx];
+        final bool isYedek = anahtarIdx > 0;
+        final int maxToplamDeneme = isYedek ? 3 : 5; // Ücretsiz anahtarla en fazla 5 deneme
+
+        if (isYedek) {
+          log?.call(
+            '⚠️ Birincil (ücretsiz) API yanıt vermedi veya kotası doldu ($sonHata). '
+            'Kesintisiz işlem için yedek (ücretli) API anahtarına geçiliyor…',
+            uyari: true,
+          );
+        }
+
+        var toplamDeneme = 0;
+        var anahtariDegistir = false;
+
+        for (final model in sira) {
+          if (anahtariDegistir) break;
+          iptalKontrol?.call();
+          var dusunmeKapat = true;
+
+          for (var deneme = 0; deneme < 2; deneme++) {
+            toplamDeneme++;
+            if (toplamDeneme > maxToplamDeneme) {
+              anahtariDegistir = true;
+              break;
             }
-            if (e.kod == 503 && deneme == 0) {
-              log?.call('   ↳ $model yoğun (503), 2 sn sonra tekrar…', uyari: true);
-              await Future.delayed(const Duration(seconds: 2));
-              continue;
+
+            try {
+              final modEtiketi = isYedek ? ' (yedek API)' : ' (birincil API)';
+              log?.call('   ↳ $model çağrılıyor$modEtiketi${hasPdf ? ' (taranmış görsel mod)' : ' (metin)'}…');
+              final yanit = await _istek(
+                client: client,
+                apiKey: aktifAnahtar,
+                model: model,
+                prompt: prompt,
+                pdf: hasPdf ? pdf : null,
+                dusunmeKapat: dusunmeKapat,
+              ).timeout(timeout);
+
+              if (yanit.metin.trim().isNotEmpty) return yanit;
+              sonHata = '$model boş yanıt döndü';
+              break;
+            } on _GeminiHttpHatasi catch (e) {
+              sonHata = e;
+              if (e.kod == 400 && dusunmeKapat && e.govde.toLowerCase().contains('think')) {
+                dusunmeKapat = false; // Bu model thinkingConfig desteklemiyor
+                continue;
+              }
+              if (e.kod == 503 && deneme == 0) {
+                log?.call('   ↳ $model yoğun (503), 2 sn sonra tekrar…', uyari: true);
+                await Future.delayed(const Duration(seconds: 2));
+                continue;
+              }
+              if (e.kod == 429) {
+                log?.call(
+                  '   ↳ $model kotası dolu (429)${anahtarlar.length > 1 && !isYedek ? ' — yedek anahtara geçilecek.' : ' — sonraki model deneniyor.'}',
+                  uyari: true,
+                );
+                // Ücretsiz anahtarda kota (429) dolduysa ve yedek varsa hemen yedeğe geç
+                if (!isYedek && anahtarlar.length > 1) {
+                  anahtariDegistir = true;
+                  break;
+                }
+              } else if (e.kod == 404) {
+                log?.call('   ↳ $model bu anahtarla erişilebilir değil (404).', uyari: true);
+              } else {
+                log?.call('   ↳ $model hata ${e.kod}: ${e.kisaMesaj}', uyari: true);
+              }
+              break;
+            } on TimeoutException {
+              sonHata = '$model ${timeout.inSeconds} sn içinde yanıt vermedi';
+              log?.call('   ↳ $model zaman aşımı.', uyari: true);
+              break;
             }
-            if (e.kod == 429) {
-              log?.call('   ↳ $model kotası dolu (429) — ücretsiz kota modele özeldir, sonraki model deneniyor.', uyari: true);
-            } else if (e.kod == 404) {
-              log?.call('   ↳ $model bu anahtarla erişilebilir değil (404).', uyari: true);
-            } else {
-              log?.call('   ↳ $model hata ${e.kod}: ${e.kisaMesaj}', uyari: true);
-            }
-            break;
-          } on TimeoutException {
-            sonHata = '$model ${timeout.inSeconds} sn içinde yanıt vermedi';
-            log?.call('   ↳ $model zaman aşımı.', uyari: true);
-            break;
           }
         }
       }
@@ -170,12 +222,12 @@ class FaturaGeminiOkuyucu {
       final e = sonHata;
       if (e.kod == 429) {
         throw Exception(
-          'Ücretsiz API kotası doldu (429). Birkaç dakika sonra tekrar deneyin '
-          'veya Sistem Ayarlarından faturalandırmayı açın.',
+          'API kotası doldu (429). Lütfen Sistem Ayarları sayfasından yedek bir ücretli anahtar tanımlayın '
+          'veya birkaç dakika sonra tekrar deneyin.',
         );
       }
       if (e.kod == 400 && e.govde.contains('API_KEY')) {
-        throw Exception('API anahtarı geçersiz. Sistem Ayarlarını kontrol edin.');
+        throw Exception('API anahtarı geçersiz. Sistem Ayarlarından anahtarlarınızı kontrol edin.');
       }
     }
     throw Exception('Okuma servisi yanıt vermedi: $sonHata');

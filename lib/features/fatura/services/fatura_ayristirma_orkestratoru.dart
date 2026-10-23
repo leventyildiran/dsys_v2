@@ -303,7 +303,9 @@ class FaturaAyristirmaOrkestratoru {
 
     final ayarlar = await _ayarlar();
     _isletmeVknOnbellek ??= ayarlar.isletmeVkn;
-    if (ayarlar.geminiApiKey.trim().isEmpty) {
+    final primaryKey = ayarlar.geminiApiKey.trim();
+    final yedekKey = ayarlar.geminiYedekApiKey.trim();
+    if (primaryKey.isEmpty && yedekKey.isEmpty) {
       throw Exception('API Anahtarı bulunamadı. Lütfen Sistem Ayarları sayfasından anahtarınızı girin.');
     }
 
@@ -333,7 +335,8 @@ class FaturaAyristirmaOrkestratoru {
     }
 
     final yanit = await _geminiOkuyucu.oku(
-      apiKey: ayarlar.geminiApiKey,
+      apiKey: primaryKey.isNotEmpty ? primaryKey : yedekKey,
+      yedekApiKey: primaryKey.isNotEmpty && yedekKey.isNotEmpty ? yedekKey : null,
       prompt: prompt,
       tercihModel: ayarlar.geminiModel,
       pdf: gonderilecekPdf,

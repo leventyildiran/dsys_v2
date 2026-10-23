@@ -40,6 +40,8 @@ class SistemAyarlariModel {
   final double varsayilanKdvOrani;
   final String ebysDomain;
   final String geminiApiKey;
+  /// Ücretsiz API kotası aşılırsa kesintisiz geçiş yapılacak yedek (ücretli) Gemini anahtarı.
+  final String geminiYedekApiKey;
   /// Tercih edilen Gemini modeli (örn. 'gemini-2.5-flash', 'gemini-2.0-flash').
   final String geminiModel;
   /// Taranmış PDF için Gemini düşünce devreye giren Google Cloud Vision OCR anahtarı.
@@ -59,6 +61,7 @@ class SistemAyarlariModel {
     this.varsayilanKdvOrani = 20.0,
     this.ebysDomain = 'usak.local',
     required this.geminiApiKey,
+    this.geminiYedekApiKey = '',
     this.geminiModel = 'gemini-3.6-flash',
     this.visionApiKey = '',
     required this.deepseekApiUrl,
@@ -89,6 +92,7 @@ class SistemAyarlariModel {
       varsayilanKdvOrani: (json['varsayilanKdvOrani'] as num?)?.toDouble() ?? 20.0,
       ebysDomain: rawEbysDomain.isNotEmpty ? rawEbysDomain : 'usak.local',
       geminiApiKey: json['geminiApiKey'] ?? '',
+      geminiYedekApiKey: json['geminiYedekApiKey']?.toString().trim() ?? '',
       geminiModel: resolvedModel,
       visionApiKey: json['visionApiKey']?.toString() ?? '',
       deepseekApiUrl: json['deepseekApiUrl'] ?? '',
@@ -118,6 +122,7 @@ class SistemAyarlariModel {
       'varsayilanKdvOrani': varsayilanKdvOrani,
       'ebysDomain': ebysDomain,
       'geminiApiKey': geminiApiKey,
+      'geminiYedekApiKey': geminiYedekApiKey,
       'geminiModel': geminiModel,
       'visionApiKey': visionApiKey,
       'deepseekApiUrl': deepseekApiUrl,
@@ -137,6 +142,7 @@ class SistemAyarlariModel {
     double? varsayilanKdvOrani,
     String? ebysDomain,
     String? geminiApiKey,
+    String? geminiYedekApiKey,
     String? geminiModel,
     String? visionApiKey,
     String? deepseekApiUrl,
@@ -154,6 +160,7 @@ class SistemAyarlariModel {
       varsayilanKdvOrani: varsayilanKdvOrani ?? this.varsayilanKdvOrani,
       ebysDomain: ebysDomain ?? this.ebysDomain,
       geminiApiKey: geminiApiKey ?? this.geminiApiKey,
+      geminiYedekApiKey: geminiYedekApiKey ?? this.geminiYedekApiKey,
       geminiModel: geminiModel ?? this.geminiModel,
       visionApiKey: visionApiKey ?? this.visionApiKey,
       deepseekApiUrl: deepseekApiUrl ?? this.deepseekApiUrl,
@@ -174,6 +181,7 @@ class SistemAyarlariModel {
       varsayilanKdvOrani: 20.0,
       ebysDomain: 'usak.local',
       geminiApiKey: '',
+      geminiYedekApiKey: '',
       geminiModel: 'gemini-3.6-flash',
       visionApiKey: '',
       deepseekApiUrl: '',

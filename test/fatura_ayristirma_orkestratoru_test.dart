@@ -71,6 +71,18 @@ void main() {
       // (1000 * 0.10 + 500 * 0.40) / 1M = (100 + 200) / 1M = 0.0003 USD * 42 = 0.0126 TL
       expect(tl, closeTo(0.0126, 0.001));
     });
+
+    test('Birincil ve yedek anahtar ikisi de boşken hata fırlatmalı', () async {
+      final reader = FaturaGeminiOkuyucu();
+      expect(
+        () => reader.oku(
+          apiKey: '',
+          yedekApiKey: '',
+          prompt: 'test',
+        ),
+        throwsA(isA<Exception>()),
+      );
+    });
   });
 
   group('FaturaKaliteKapisi Testleri', () {
