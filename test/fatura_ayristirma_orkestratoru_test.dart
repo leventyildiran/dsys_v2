@@ -51,7 +51,7 @@ void main() {
       expect(FaturaGeminiOkuyucu.ucuzModelMi('gemini-2.5-pro'), isFalse);
       expect(FaturaGeminiOkuyucu.ucuzModelMi('gemini-1.5-flash'), isTrue);
       expect(FaturaGeminiOkuyucu.ucuzModelMi('gemini-2.0-flash'), isTrue);
-      expect(FaturaGeminiOkuyucu.ucuzModelMi('gemini-2.5-flash-lite'), isTrue);
+      expect(FaturaGeminiOkuyucu.ucuzModelMi('gemini-3.5-flash-lite'), isTrue);
     });
 
     test('Model listesi yalnızca Flash modellerini içermeli', () {

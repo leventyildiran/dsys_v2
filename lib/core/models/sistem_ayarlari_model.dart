@@ -42,7 +42,7 @@ class SistemAyarlariModel {
   final String geminiApiKey;
   /// Ücretsiz API kotası aşılırsa kesintisiz geçiş yapılacak yedek (ücretli) Gemini anahtarı.
   final String geminiYedekApiKey;
-  /// Tercih edilen Gemini modeli (örn. 'gemini-2.5-flash', 'gemini-2.0-flash').
+  /// Tercih edilen Gemini modeli (örn. 'gemini-3.8-flash', 'gemini-3.5-flash-lite').
   final String geminiModel;
   /// Taranmış PDF için Gemini düşünce devreye giren Google Cloud Vision OCR anahtarı.
   final String visionApiKey;
@@ -80,9 +80,11 @@ class SistemAyarlariModel {
     if (resolvedModel.isEmpty ||
         resolvedModel == 'gemini-flash-latest' ||
         resolvedModel == 'gemini-2.5-flash' ||
+        resolvedModel == 'gemini-2.5-flash-lite' ||
         resolvedModel == 'gemini-2.0-flash' ||
-        resolvedModel == 'gemini-1.5-flash') {
-      resolvedModel = 'gemini-3.6-flash';
+        resolvedModel == 'gemini-1.5-flash' ||
+        resolvedModel == 'gemini-3.6-flash') {
+      resolvedModel = 'gemini-3.8-flash';
     }
     return SistemAyarlariModel(
       kurumAdi: rawKurumAdi.isNotEmpty ? rawKurumAdi : 'Uşak Üniversitesi',
