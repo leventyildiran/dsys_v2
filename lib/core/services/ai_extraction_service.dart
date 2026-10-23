@@ -202,6 +202,11 @@ Benden beklenen JSON formatı SADECE aşağıdaki gibi bir LİSTE (Array) olmal�
    - Metinde "Tasarım", "Tekstil", "Kumaş", "Deri" geçiyorsa: TEKSTİL_TASARIM
    - Hiçbiri değilse: DİĞER
 8. "adres", "vergiDairesi" ve "vergiNo" alanlarını belgede yer alan müşteri/alıcı bilgilerinden eksiksiz çek. Açık adres (mahalle, cadde, sokak, no, ilçe, il vb.) varsa tek parça string olarak "adres" alanına yaz; bulunamazsa "" bırak.
+9. EBYS ÜST YAZISI VE TARANMIŞ EKLER (ÇOK ÖNEMLİ):
+   Eğer belgenin başında veya ilk sayfasında bir resmi kurum/rektörlük üst yazısı (Sayı, Konu: Faturalar, "yazımız ekinde sunulmuştur", EBYS, Elektronik İmza Kanunu, "Gereğini arz ederim" vb.) varsa BU ÜST YAZI FATURA DEĞİLDİR! Üst yazıyı yazan personeli (Bilgisayar İşletmeni, Şube Müdürü vb.) veya birim müdürünü KESİNLİKLE alıcı/müşteri yapma!
+   Asıl faturalar üst yazının EKİNDE yer alan sayfalardaki tablolardır. Belgedeki HER BİR EK SAYFA / AYRI TABLO için ayrı bir fatura nesnesi üret.
+10. YÖN VE DÖNDÜRME (TERS / YATAY SAYFALAR):
+   Taranmış sayfalar yatay (landscape) veya ters (180 derece) olabilir. Sayfadaki yazıları doğru okuma yönüne göre oku. Tablolardaki Firma/Kurum Adı, Adres, V.D., Vergi No, Melbes No, Numune No, Rapor No ve Mal/Hizmet kalemlerini eksiksiz çek.
 
 ${rawText.isNotEmpty ? 'Ham Fatura Metni:\n$rawText' : ''}
 ''';

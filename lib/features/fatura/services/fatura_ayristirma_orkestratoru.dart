@@ -78,6 +78,24 @@ class FaturaAyristirmaOrkestratoru {
     return bozuk / t.length < 0.05;
   }
 
+  /// PDF metni bir EBYS üst yazısı, resmi sevk yazısı veya taranmış ek içeriyor mu?
+  static bool _ebysVeyaEkBelgeMi(String metin) {
+    if (metin.trim().isEmpty) return false;
+    final lower = metin.toLowerCase();
+    return lower.contains('ebys') ||
+        lower.contains('elektronik imza kanununun') ||
+        lower.contains('belge doğrulama kodu') ||
+        lower.contains('belge dogrulama kodu') ||
+        lower.contains('döner sermaye işletme müdürlüğü') ||
+        lower.contains('doner sermaye isletme mudurlugu') ||
+        lower.contains('yazımız ekinde') ||
+        lower.contains('yazimiz ekinde') ||
+        lower.contains('fatura talep') ||
+        lower.contains('fatura taslakları') ||
+        lower.contains('fatura taslaklari') ||
+        lower.contains('fatura düzenlenmesi');
+  }
+
   /// Tek bir belgeyi kademeli olarak ayrıştırır ve faturaları döner.
   Future<List<FaturaModel>> ayristir({
     required Uint8List? bytes,
@@ -181,12 +199,17 @@ class FaturaAyristirmaOrkestratoru {
 
     oturum.iptalKontrol();
 
+    final bool ebysVeyaEk = _ebysVeyaEkBelgeMi(metin);
+    if (ebysVeyaEk) {
+      oturum.log('📋 EBYS üst yazısı / resmi sevk yazısı tespit edildi. Ekli fatura sayfaları taranıyor...', seviye: FaturaLogSeviyesi.bilgi);
+    }
+
     // ─────────────────────────────────────────────────────────
     // KATMAN 3: Yerel Görsel / OCR Katmanı (0 TL)
     // ─────────────────────────────────────────────────────────
-    if (metin.isEmpty && bytes != null && ext == 'pdf') {
+    if ((metin.isEmpty || kismiSonuc.isEmpty || ebysVeyaEk) && bytes != null && ext == 'pdf') {
       oturum.katmanDegisti('Katman 3: Yerel OCR');
-      oturum.log('📷 [KATMAN 3] Taranmış PDF görseli tespit edildi, yerel OCR taranıyor...', seviye: FaturaLogSeviyesi.katman);
+      oturum.log('📷 [KATMAN 3] Taranmış/ekli PDF görsel katmanı taranıyor...', seviye: FaturaLogSeviyesi.katman);
       oturum.dosyaIciIlerleme(0.6);
 
       final jpegs = FaturaYerelOcr.pdfIciJpegler(bytes);
@@ -224,7 +247,7 @@ class FaturaAyristirmaOrkestratoru {
           }
         }
       } else {
-        oturum.log('   ↳ Yerel OCR bu ortamda aktif değil veya resim bulunamadı.', seviye: FaturaLogSeviyesi.bilgi);
+        oturum.log('   ↳ Yerel OCR bu ortamda aktif değil veya doğrudan resim akışı bulunamadı.', seviye: FaturaLogSeviyesi.bilgi);
       }
     }
 
@@ -235,7 +258,13 @@ class FaturaAyristirmaOrkestratoru {
     // Asla Pro model çağrılmaz! Düşünme token'ı kapalıdır.
     // ─────────────────────────────────────────────────────────
     try {
-      return await _yapayZekaIleOku(bytes: bytes, metin: metin, oturum: oturum);
+      return await _yapayZekaIleOku(
+        bytes: bytes,
+        metin: metin,
+        oturum: oturum,
+        kismiSonucVarMi: kismiSonuc.isNotEmpty,
+        ebysVeyaEk: ebysVeyaEk,
+      );
     } on FaturaOkumaIptalEdildi {
       rethrow;
     } catch (e) {
@@ -265,6 +294,8 @@ class FaturaAyristirmaOrkestratoru {
     required Uint8List? bytes,
     required String metin,
     required FaturaOkumaOturumu oturum,
+    bool kismiSonucVarMi = false,
+    bool ebysVeyaEk = false,
   }) async {
     oturum.katmanDegisti('Katman 4: Gemini Flash AI');
     oturum.log('🤖 [KATMAN 4] Karmaşık tablo/evrak için Gemini Flash AI devrede...', seviye: FaturaLogSeviyesi.katman);
@@ -285,12 +316,18 @@ class FaturaAyristirmaOrkestratoru {
 
     final prompt = AIExtractionService.faturaPromptu(metin);
 
-    // KATI KURAL: Eğer metin başarıyla çıkarıldıysa, devasa PDF dosyasını ASLA internete gönderme!
-    // Yalnızca metin tamamen boşsa (taranmış resim) mecburen PDF görseli verilir.
-    final gonderilecekPdf = metin.isEmpty ? bytes : null;
+    // KURAL: Eğer dijital metinden kural motoru hiçbir fatura çıkaramadıysa (veya belge bir EBYS üst yazısı / taranmış ek içeriyorsa),
+    // salt üst yazı metnini göndermek faturanın bulunamamasına yol açar.
+    // Bu durumda asıl fatura tablolarının bulunduğu PDF görsel modunda gönderilmelidir.
+    final bool gorselGerekiyor = metin.isEmpty || !kismiSonucVarMi || ebysVeyaEk;
+    final gonderilecekPdf = gorselGerekiyor ? bytes : null;
 
     if (gonderilecekPdf != null) {
-      oturum.log('   ↳ Metin katmanı bulunamadığı için PDF görsel modunda gönderiliyor...', seviye: FaturaLogSeviyesi.uyari);
+      if (ebysVeyaEk) {
+        oturum.log('   ↳ EBYS üst yazısı / taranmış ekler tespit edildi; PDF görsel modunda inceleniyor...', seviye: FaturaLogSeviyesi.bilgi);
+      } else {
+        oturum.log('   ↳ Metin katmanı yetersiz veya taranmış olduğu için PDF görsel modunda gönderiliyor...', seviye: FaturaLogSeviyesi.uyari);
+      }
     } else {
       oturum.log('   ↳ Cihazda çıkarılmış arındırılmış metin gönderiliyor (Dev PDF yüklenmedi, maliyet minimum).', seviye: FaturaLogSeviyesi.bilgi);
     }
