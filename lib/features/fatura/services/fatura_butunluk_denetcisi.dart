@@ -53,15 +53,6 @@ abstract final class FaturaButunlukDenetcisi {
     _toplamDenetle(once.genelToplam, fatura.genelToplam, uyarilar);
     _kimlikDenetle(fatura, isletmeVkn, uyarilar);
 
-    if (aiUretimi) {
-      if (kaynakMetin.trim().isEmpty || gorselVeyaEkliBelge) {
-        // Belge görsel modda veya ekli sayfalardan/taranmış tablolardan okunduğunda,
-        // salt ilk sayfa üst yazı metninde kelime kelime arama yapmak hatalı alarm verir.
-        // Tarih, matematiksel sağlama ve VKN algoritması zaten yukarıda denetlenmiştir.
-      } else {
-        _belgeKanitiDenetle(fatura, once, kaynakMetin, uyarilar);
-      }
-    }
     return uyarilar;
   }
 
@@ -159,58 +150,7 @@ abstract final class FaturaButunlukDenetcisi {
     }
   }
 
-  // ── Belge kanıtı (AI uydurma tespiti) ─────────────────────────────────
-
-  static void _belgeKanitiDenetle(
-    FaturaModel f,
-    FaturaOkumaAnlikGoruntusu once,
-    String metin,
-    List<String> u,
-  ) {
-    final sikistirilmis = metin.replaceAll(RegExp(r'\s+'), '');
-    final rakamlar = VergiKimlikDogrulayici.sadeceRakam(metin);
-    final normalMetin = normalize(metin);
-
-    final no = VergiKimlikDogrulayici.sadeceRakam(f.vergiNo);
-    if (no.length >= 10 && !rakamlar.contains(no)) {
-      u.add('VKN/TCKN ($no) belgede geçmiyor — yapay zeka hatalı üretmiş olabilir.');
-    }
-
-    if (once.genelToplam > 0 && !tutarMetindeVarMi(once.genelToplam, sikistirilmis)) {
-      u.add(
-        'Genel toplam (${trTutar(once.genelToplam)} TL) belgede geçmiyor — '
-        'yapay zeka hesaplamış veya yanlış okumuş olabilir.',
-      );
-    }
-
-    final firmaKelimesi = _ayirtEdiciKelime(f.firmaAdi);
-    if (firmaKelimesi != null && !normalMetin.contains(firmaKelimesi)) {
-      u.add('Firma adı ("${f.firmaAdi}") belgede bulunamadı.');
-    }
-
-    final bulunamayan = <String>[];
-    for (final k in f.kalemler) {
-      final cinsi = (k['cinsi'] ?? '').toString();
-      final kelime = _ayirtEdiciKelime(cinsi);
-      if (kelime != null && !normalMetin.contains(kelime)) bulunamayan.add(cinsi);
-    }
-    if (bulunamayan.isNotEmpty) {
-      u.add('Belgede bulunamayan kalem: ${bulunamayan.take(3).join(', ')}'
-          '${bulunamayan.length > 3 ? ' (+${bulunamayan.length - 3})' : ''}.');
-    }
-  }
-
-  /// Tutarın metinde yaygın Türkçe/İngilizce biçimlerden biriyle geçip
-  /// geçmediğini kontrol eder. [sikistirilmisMetin] boşluksuz olmalıdır.
-  static bool tutarMetindeVarMi(double tutar, String sikistirilmisMetin) {
-    final adaylar = <String>{
-      trTutar(tutar), // 1.234,56
-      trTutar(tutar).replaceAll('.', ''), // 1234,56
-      tutar.toStringAsFixed(2), // 1234.56
-      _enTutar(tutar), // 1,234.56
-    };
-    return adaylar.any(sikistirilmisMetin.contains);
-  }
+  // ── Matematiksel Formatlama ─────────────────────────────────────────────
 
   /// 1234.5 → "1.234,50"
   static String trTutar(double v) {
@@ -220,11 +160,6 @@ abstract final class FaturaButunlukDenetcisi {
     return '${v < 0 ? '-' : ''}$tam,${parcalar[1]}';
   }
 
-  static String _enTutar(double v) {
-    final parcalar = v.abs().toStringAsFixed(2).split('.');
-    return '${_binlikAyir(parcalar[0], ',')}.${parcalar[1]}';
-  }
-
   static String _binlikAyir(String tam, String ayrac) {
     final sb = StringBuffer();
     for (var i = 0; i < tam.length; i++) {
@@ -232,19 +167,6 @@ abstract final class FaturaButunlukDenetcisi {
       sb.write(tam[i]);
     }
     return sb.toString();
-  }
-
-  static const Set<String> _genelKelimeler = {
-    'limited', 'sirketi', 'anonim', 'sanayi', 'ticaret', 'hizmet', 'hizmeti',
-    'bedeli', 'analiz', 'analizi', 'adet', 'tekstil', 'insaat', 'turizm',
-  };
-
-  /// Karşılaştırma için ilk ayırt edici (≥4 harf, genel olmayan) kelime.
-  static String? _ayirtEdiciKelime(String s) {
-    for (final k in normalize(s).split(RegExp(r'[^a-z0-9]+'))) {
-      if (k.length >= 4 && !_genelKelimeler.contains(k)) return k;
-    }
-    return null;
   }
 
   /// Türkçe karakterleri katlayıp küçük harfe çevirir (OCR/PDF farklarına dayanıklı).
