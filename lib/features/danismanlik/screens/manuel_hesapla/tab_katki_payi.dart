@@ -737,7 +737,7 @@ class TabKatkiPayi extends StatelessWidget {
                       SizedBox(width: 6),
                       SizedBox(width: 100, child: Text('DANIŞMANLIK /\nHİZMET SAATİ', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 9.5))),
                       SizedBox(width: 6),
-                      SizedBox(width: 130, child: Text('MESAİ DURUMU', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
+                      SizedBox(width: 145, child: Text('MESAİ / DANIŞMANLIK', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 10.5))),
                       SizedBox(width: 6),
                       SizedBox(width: 80, child: Text('NET KATKI', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
                       SizedBox(width: 6),
@@ -888,52 +888,71 @@ class TabKatkiPayi extends StatelessWidget {
                             ),
                             const SizedBox(width: 6),
 
-                            // Mesai Durumu (Açılır Menü / Dropdown)
+                            // Mesai / Danışmanlık Durumu (Açılır Menü / Dropdown)
                             SizedBox(
-                              width: 130,
+                              width: 145,
                               height: 32,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6),
                                 decoration: BoxDecoration(
-                                  color: p.mesaiIci ? const Color(0xFFEFF6FF) : const Color(0xFFFEF3C7),
+                                  color: p.tavanYok
+                                      ? const Color(0xFFECFDF5)
+                                      : (p.mesaiIci ? const Color(0xFFEFF6FF) : const Color(0xFFFEF3C7)),
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
-                                    color: p.mesaiIci ? const Color(0xFFBFDBFE) : const Color(0xFFFDE68A),
+                                    color: p.tavanYok
+                                        ? const Color(0xFFA7F3D0)
+                                        : (p.mesaiIci ? const Color(0xFFBFDBFE) : const Color(0xFFFDE68A)),
                                   ),
                                 ),
                                 child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<bool>(
-                                    value: p.mesaiIci,
+                                  child: DropdownButton<String>(
+                                    value: p.tavanYok ? 'tavanYok' : (p.mesaiIci ? 'mesaiIci' : 'mesaiDisi'),
                                     isDense: true,
                                     isExpanded: true,
                                     icon: Icon(
                                       Icons.arrow_drop_down,
                                       size: 18,
-                                      color: p.mesaiIci ? const Color(0xFF1D4ED8) : const Color(0xFFB45309),
+                                      color: p.tavanYok
+                                          ? const Color(0xFF047857)
+                                          : (p.mesaiIci ? const Color(0xFF1D4ED8) : const Color(0xFFB45309)),
                                     ),
                                     style: TextStyle(
-                                      fontSize: 10.5,
+                                      fontSize: 10,
                                       fontWeight: FontWeight.w700,
-                                      color: p.mesaiIci ? const Color(0xFF1D4ED8) : const Color(0xFFB45309),
+                                      color: p.tavanYok
+                                          ? const Color(0xFF047857)
+                                          : (p.mesaiIci ? const Color(0xFF1D4ED8) : const Color(0xFFB45309)),
                                     ),
                                     items: const [
                                       DropdownMenuItem(
-                                        value: false,
+                                        value: 'tavanYok',
+                                        child: Text(
+                                          'Danışmanlık (Tavan Yok)',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF047857),
+                                          ),
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'mesaiDisi',
                                         child: Text(
                                           'Mesai Dışı (3.2x)',
                                           style: TextStyle(
-                                            fontSize: 10.5,
+                                            fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                             color: Color(0xFFB45309),
                                           ),
                                         ),
                                       ),
                                       DropdownMenuItem(
-                                        value: true,
+                                        value: 'mesaiIci',
                                         child: Text(
                                           'Mesai İçi (2.0x)',
                                           style: TextStyle(
-                                            fontSize: 10.5,
+                                            fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                             color: Color(0xFF1D4ED8),
                                           ),
@@ -941,8 +960,12 @@ class TabKatkiPayi extends StatelessWidget {
                                       ),
                                     ],
                                     onChanged: (val) {
-                                      if (val != null) {
-                                        onPersonelGuncelle(index, p.copyWith(mesaiIci: val));
+                                      if (val == 'tavanYok') {
+                                        onPersonelGuncelle(index, p.copyWith(tavanYok: true, mesaiIci: false));
+                                      } else if (val == 'mesaiIci') {
+                                        onPersonelGuncelle(index, p.copyWith(tavanYok: false, mesaiIci: true));
+                                      } else if (val == 'mesaiDisi') {
+                                        onPersonelGuncelle(index, p.copyWith(tavanYok: false, mesaiIci: false));
                                       }
                                     },
                                   ),
@@ -1008,9 +1031,15 @@ class TabKatkiPayi extends StatelessWidget {
                             SizedBox(
                               width: 85,
                               child: Text(
-                                TurkceFormat.para(s.tavanSaatlikUcreti),
+                                p.tavanYok || s.tavanSaatlikUcreti <= 0
+                                    ? 'Tavan Yok'
+                                    : TurkceFormat.para(s.tavanSaatlikUcreti),
                                 textAlign: TextAlign.right,
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: (p.tavanYok || s.tavanSaatlikUcreti <= 0) ? FontWeight.w700 : FontWeight.normal,
+                                  color: (p.tavanYok || s.tavanSaatlikUcreti <= 0) ? const Color(0xFF059669) : const Color(0xFF64748B),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 6),

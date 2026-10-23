@@ -22,7 +22,8 @@ class DanismanlikHesaplamaServisi {
   }
 
   /// 1 Saatlik Tavan (Limit) Ek Ders Ücretini hesaplar
-  static double hesaplaSaatlikTavanUcret(int ekGosterge, bool mesaiIci) {
+  static double hesaplaSaatlikTavanUcret(int ekGosterge, bool mesaiIci, [bool tavanYok = false]) {
+    if (tavanYok) return 0.0;
     double bazUcret = ekGosterge * memurMaasKatsayisi;
     if (mesaiIci) {
       // Mesai içi %200
@@ -67,6 +68,7 @@ class DanismanlikHesaplamaServisi {
           faaliyetAdeti: p.faaliyetAdeti,
           faaliyetTabanPuani: p.faaliyetTabanPuani,
           mesaiIci: p.mesaiIci,
+          tavanYok: p.tavanYok,
           toplamPuan: toplamPuan,
           bireyselPuan: bireyselPuan,
           brutHakedis: 0, // Aşağıda hesaplanacak
@@ -95,12 +97,12 @@ class DanismanlikHesaplamaServisi {
           : 0.0;
 
       // Tavan Limit Kontrolü
-      double tavanSaatlik = hesaplaSaatlikTavanUcret(p.ekGosterge, p.mesaiIci);
+      double tavanSaatlik = hesaplaSaatlikTavanUcret(p.ekGosterge, p.mesaiIci, p.tavanYok);
       double odenebilirHakedis = brutHakedis;
       double fazlalikHavuzTutari = 0.0;
       bool tavanKontrol = false;
 
-      if (saatlikBrutUcret > tavanSaatlik) {
+      if (tavanSaatlik > 0 && saatlikBrutUcret > tavanSaatlik) {
         tavanKontrol = true;
         // Sadece katı kesinti açıkken parayı kes, Bilgi Notu modunda tam hakediş korunur
         if (tavanUygula && katiKesinti) {
@@ -120,6 +122,7 @@ class DanismanlikHesaplamaServisi {
           faaliyetAdeti: p.faaliyetAdeti,
           faaliyetTabanPuani: p.faaliyetTabanPuani,
           mesaiIci: p.mesaiIci,
+          tavanYok: p.tavanYok,
           toplamPuan: p.toplamPuan,
           bireyselPuan: p.bireyselPuan,
           brutHakedis: brutHakedis,

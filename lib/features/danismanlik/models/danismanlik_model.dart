@@ -46,6 +46,7 @@ class PersonelGorevAtama {
     this.faaliyetPuani = 0,
     this.dersSaati = 1,
     this.mesaiIci = true,
+    this.tavanYok = false,
     this.faaliyetTuru,
   });
 
@@ -54,6 +55,7 @@ class PersonelGorevAtama {
   double faaliyetPuani;
   double dersSaati;
   bool mesaiIci;
+  bool tavanYok;
   String? faaliyetTuru;
 
   Map<String, dynamic> toMap() {
@@ -63,6 +65,7 @@ class PersonelGorevAtama {
       'faaliyetPuani': faaliyetPuani,
       'dersSaati': dersSaati,
       'mesaiIci': mesaiIci,
+      'tavanYok': tavanYok,
       'faaliyetTuru': faaliyetTuru,
     };
   }
@@ -77,6 +80,7 @@ class PersonelGorevAtama {
       faaliyetPuani: (map['faaliyetPuani'] as num?)?.toDouble() ?? 0,
       dersSaati: (map['dersSaati'] as num?)?.toDouble() ?? 1,
       mesaiIci: map['mesaiIci'] as bool? ?? true,
+      tavanYok: map['tavanYok'] as bool? ?? false,
       faaliyetTuru: map['faaliyetTuru'] as String?,
     );
   }

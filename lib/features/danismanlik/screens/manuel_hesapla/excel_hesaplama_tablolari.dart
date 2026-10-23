@@ -11,12 +11,12 @@ class ExcelHesaplamaTablolari extends StatelessWidget {
     super.key,
     required this.excelSonuc,
     required this.maksAkademikPay,
-    this.memurMaasKatsayisi = DanismanlikExcelHesaplama.memurMaasKatsayisiGuncel,
+    this.memurMaasKatsayisi,
   });
 
   final DanismanlikExcelSonuc excelSonuc;
   final double maksAkademikPay;
-  final double memurMaasKatsayisi;
+  final double? memurMaasKatsayisi;
 
   @override
   Widget build(BuildContext context) {
@@ -29,9 +29,10 @@ class ExcelHesaplamaTablolari extends StatelessWidget {
     final kursSaatlik = personel?.kursSaatlikUcreti ??
         (dersSaati > 0 ? (bireyselPuan * excelSonuc.donemKatsayi / dersSaati) : 0.0);
 
+    final aktifMemurKatsayisi = memurMaasKatsayisi ?? DanismanlikExcelHesaplama.memurMaasKatsayisiGuncel;
     final ekGosterge = personel?.girdi.ekGosterge ?? 160;
-    final mesaiIciUcret = ekGosterge * memurMaasKatsayisi * 2;
-    final mesaiDisiUcret = ekGosterge * memurMaasKatsayisi * 3.2;
+    final mesaiIciUcret = ekGosterge * aktifMemurKatsayisi * 2;
+    final mesaiDisiUcret = ekGosterge * aktifMemurKatsayisi * 3.2;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -122,7 +123,7 @@ class ExcelHesaplamaTablolari extends StatelessWidget {
               ]),
               _tabloVeriSatiri([
                 ekGosterge.toString(),
-                memurMaasKatsayisi.toString().replaceAll('.', ','),
+                aktifMemurKatsayisi.toString().replaceAll('.', ','),
                 mesaiIciUcret.toStringAsFixed(5).replaceAll('.', ','),
                 TurkceFormat.para(mesaiDisiUcret),
               ], ozelRenkler: [

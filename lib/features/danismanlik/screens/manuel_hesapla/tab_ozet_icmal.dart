@@ -536,16 +536,22 @@ class TabOzetIcmal extends StatelessWidget {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: p.mesaiIci ? const Color(0xFFEFF6FF) : const Color(0xFFFEF3C7),
+                                    color: p.tavanYok
+                                        ? const Color(0xFFECFDF5)
+                                        : (p.mesaiIci ? const Color(0xFFEFF6FF) : const Color(0xFFFEF3C7)),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
-                                    p.mesaiIci ? 'Mesai İçi' : 'Mesai Dışı',
+                                    p.tavanYok
+                                        ? 'Danışmanlık'
+                                        : (p.mesaiIci ? 'Mesai İçi' : 'Mesai Dışı'),
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
-                                      color: p.mesaiIci ? const Color(0xFF1D4ED8) : const Color(0xFFB45309),
+                                      color: p.tavanYok
+                                          ? const Color(0xFF047857)
+                                          : (p.mesaiIci ? const Color(0xFF1D4ED8) : const Color(0xFFB45309)),
                                     ),
                                   ),
                                 ),
@@ -560,7 +566,15 @@ class TabOzetIcmal extends StatelessWidget {
                               ),
                               SizedBox(
                                 width: 85,
-                                child: Text(TurkceFormat.para(s.tavanSaatlikUcreti), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                child: Text(
+                                  (p.tavanYok || s.tavanSaatlikUcreti <= 0) ? 'Tavan Yok' : TurkceFormat.para(s.tavanSaatlikUcreti),
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: (p.tavanYok || s.tavanSaatlikUcreti <= 0) ? FontWeight.w600 : FontWeight.normal,
+                                    color: (p.tavanYok || s.tavanSaatlikUcreti <= 0) ? const Color(0xFF059669) : const Color(0xFF64748B),
+                                  ),
+                                ),
                               ),
                               SizedBox(
                                 width: 120,

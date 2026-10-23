@@ -15,6 +15,7 @@ class DagitimModel {
     required this.faaliyetAdeti,
     required this.faaliyetTabanPuani,
     this.mesaiIci = true,
+    this.tavanYok = false,
     required this.toplamPuan,
     required this.bireyselPuan,
     required this.brutHakedis,
@@ -33,6 +34,7 @@ class DagitimModel {
   final int faaliyetAdeti;
   final double faaliyetTabanPuani;
   final bool mesaiIci;
+  final bool tavanYok;
 
   final double toplamPuan;
   final double bireyselPuan; // puan × unvan katsayısı
@@ -53,6 +55,7 @@ class DagitimModel {
       faaliyetAdeti: (map['faaliyetAdeti'] as num?)?.toInt() ?? 1,
       faaliyetTabanPuani: (map['faaliyetTabanPuani'] as num?)?.toDouble() ?? 0.0,
       mesaiIci: map['mesaiIci'] as bool? ?? true,
+      tavanYok: map['tavanYok'] as bool? ?? false,
       toplamPuan: (map['toplamPuan'] as num?)?.toDouble() ?? 0.0,
       bireyselPuan: (map['bireyselPuan'] as num?)?.toDouble() ?? 0.0,
       brutHakedis: (map['brutHakedis'] as num?)?.toDouble() ?? 0.0,
@@ -73,6 +76,7 @@ class DagitimModel {
       'faaliyetAdeti': faaliyetAdeti,
       'faaliyetTabanPuani': faaliyetTabanPuani,
       'mesaiIci': mesaiIci,
+      'tavanYok': tavanYok,
       'toplamPuan': toplamPuan,
       'bireyselPuan': bireyselPuan,
       'brutHakedis': brutHakedis,

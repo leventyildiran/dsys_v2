@@ -39,6 +39,7 @@ class DanismanlikExcelHesaplama {
   /// Güncel memur maaş katsayısı (ek ders tavanı)
   static double _memurMaasKatsayisiGuncel = 1.387871;
   static double get memurMaasKatsayisiGuncel => _memurMaasKatsayisiGuncel;
+  static double get memurMaasKatsayisi => _memurMaasKatsayisiGuncel;
   static set memurMaasKatsayisiGuncel(double v) {
     if (v > 0) _memurMaasKatsayisiGuncel = v;
   }
@@ -224,6 +225,7 @@ class DanismanlikExcelHesaplama {
             ekGosterge: ekGosterge(p.personel.unvan),
             dersSaati: p.dersSaati > 0 ? p.dersSaati : 1,
             mesaiIci: p.mesaiIci,
+            tavanYok: p.tavanYok,
             faaliyetTuru: p.faaliyetTuru ?? 'Danışmanlık',
           ),
         )
@@ -324,9 +326,11 @@ class DanismanlikExcelHesaplama {
     if (enYuksekUnvanliPersonel != null) {
       enYuksekUnvanAdi = enYuksekUnvanliPersonel.unvan;
       final bazSaatlik = enYuksekUnvanliPersonel.ekGosterge * aktifMemurKatsayisi;
-      final tavanSaatlik = enYuksekUnvanliPersonel.mesaiIci ? bazSaatlik * 2 : bazSaatlik * 3.2;
+      final tavanSaatlik = enYuksekUnvanliPersonel.tavanYok
+          ? 0.0
+          : (enYuksekUnvanliPersonel.mesaiIci ? bazSaatlik * 2 : bazSaatlik * 3.2);
       final saatlikNetPuan = enYuksekUnvanliPersonel.puan * enYuksekUnvanliPersonel.unvanKatsayisi;
-      if (saatlikNetPuan > 0) {
+      if (saatlikNetPuan > 0 && tavanSaatlik > 0) {
         enYuksekUnvanKatsayisi = _round(tavanSaatlik / saatlikNetPuan, 2);
         enYuksekUnvanAciklama = 'Listede en yüksek unvanlı öğretim elemanı (${enYuksekUnvanliPersonel.unvan} ${enYuksekUnvanliPersonel.adSoyad}) baz alınmıştır.';
       }
@@ -371,9 +375,11 @@ class DanismanlikExcelHesaplama {
         } else {
           // Otomatik unvan tavan katsayısı (her unvan kendi tavanını tam alır)
           final bazSaatlik = p.ekGosterge * aktifMemurKatsayisi;
-          final tavanSaatlik = p.mesaiIci ? bazSaatlik * 2 : bazSaatlik * 3.2;
+          final tavanSaatlik = p.tavanYok
+              ? 0.0
+              : (p.mesaiIci ? bazSaatlik * 2 : bazSaatlik * 3.2);
           final saatlikNetPuan = p.puan * p.unvanKatsayisi;
-          if (saatlikNetPuan > 0) {
+          if (saatlikNetPuan > 0 && tavanSaatlik > 0) {
             pKatsayi = _round(tavanSaatlik / saatlikNetPuan, 2);
           }
         }
@@ -389,7 +395,9 @@ class DanismanlikExcelHesaplama {
 
       // C32 = A32*B32*2, D32 = C32*1.6  → mesai dışı = A*B*3.2
       final bazSaatlik = p.ekGosterge * aktifMemurKatsayisi;
-      final tavanSaatlik = p.mesaiIci ? bazSaatlik * 2 : bazSaatlik * 3.2;
+      final tavanSaatlik = p.tavanYok
+          ? 0.0
+          : (p.mesaiIci ? bazSaatlik * 2 : bazSaatlik * 3.2);
 
       final tavanAsildi = kursSaatlik > tavanSaatlik && tavanSaatlik > 0;
       
@@ -419,6 +427,7 @@ class DanismanlikExcelHesaplama {
           faaliyetAdeti: p.dersSaati.round(),
           faaliyetTabanPuani: p.puan,
           mesaiIci: p.mesaiIci,
+          tavanYok: p.tavanYok,
           toplamPuan: toplamPuan,
           bireyselPuan: s.bireyselNetKatkiPuani,
           brutHakedis: brutHakedis,
@@ -612,7 +621,9 @@ class DanismanlikExcelHesaplama {
       // Tavan kontrolü (58/e Danışmanlık ve Hizmet Sözleşmelerinde tavan uygulanmaz; isteğe bağlı tavanUygula == true ise uygulanır)
       final aktifMemurKatsayisi = memurMaasKatsayisi ?? memurMaasKatsayisiGuncel;
       final bazSaatlik = p.ekGosterge * aktifMemurKatsayisi;
-      final tavanSaatlik = p.mesaiIci ? bazSaatlik * 2 : bazSaatlik * 3.2;
+      final tavanSaatlik = p.tavanYok
+          ? 0.0
+          : (p.mesaiIci ? bazSaatlik * 2 : bazSaatlik * 3.2);
       final tavanTutari = (p.dersSaati > 0)
           ? _round(tavanSaatlik * p.dersSaati, 2)
           : brutHakedis;
@@ -658,6 +669,7 @@ class DanismanlikExcelHesaplama {
           faaliyetAdeti: p.dersSaati.round() > 0 ? p.dersSaati.round() : 1,
           faaliyetTabanPuani: p.puan,
           mesaiIci: p.mesaiIci,
+          tavanYok: p.tavanYok,
           toplamPuan: toplamOran,
           bireyselPuan: p.puan,
           brutHakedis: brutHakedis,
@@ -779,6 +791,7 @@ class ExcelPersonelGirdi {
     required this.ekGosterge,
     required this.dersSaati,
     this.mesaiIci = true,
+    this.tavanYok = false,
     this.faaliyetTuru = 'Danışmanlık',
   });
 
@@ -790,6 +803,7 @@ class ExcelPersonelGirdi {
   final int ekGosterge;
   final double dersSaati;
   final bool mesaiIci;
+  final bool tavanYok;
   final String faaliyetTuru;
 
   ExcelPersonelGirdi copyWith({
@@ -800,6 +814,7 @@ class ExcelPersonelGirdi {
     int? ekGosterge,
     double? dersSaati,
     bool? mesaiIci,
+    bool? tavanYok,
     String? faaliyetTuru,
   }) {
     return ExcelPersonelGirdi(
@@ -811,6 +826,7 @@ class ExcelPersonelGirdi {
       ekGosterge: ekGosterge ?? this.ekGosterge,
       dersSaati: dersSaati ?? this.dersSaati,
       mesaiIci: mesaiIci ?? this.mesaiIci,
+      tavanYok: tavanYok ?? this.tavanYok,
       faaliyetTuru: faaliyetTuru ?? this.faaliyetTuru,
     );
   }
@@ -824,6 +840,7 @@ class ExcelPersonelGirdi {
     'ekGosterge': ekGosterge,
     'dersSaati': dersSaati,
     'mesaiIci': mesaiIci,
+    'tavanYok': tavanYok,
     'faaliyetTuru': faaliyetTuru,
   };
 
@@ -836,6 +853,7 @@ class ExcelPersonelGirdi {
     ekGosterge: (map['ekGosterge'] as num?)?.toInt() ?? 160,
     dersSaati: (map['dersSaati'] as num?)?.toDouble() ?? 5.0,
     mesaiIci: map['mesaiIci'] as bool? ?? false,
+    tavanYok: map['tavanYok'] as bool? ?? false,
     faaliyetTuru: map['faaliyetTuru'] as String? ?? 'Danışmanlık',
   );
 }

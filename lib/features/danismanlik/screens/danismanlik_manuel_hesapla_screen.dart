@@ -669,6 +669,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
           ekGosterge: DanismanlikExcelHesaplama.ekGosterge(unvanNorm),
           dersSaati: p.dersSaati > 0 ? p.dersSaati : 1.0,
           mesaiIci: p.mesaiIci,
+          tavanYok: p.tavanYok,
           faaliyetTuru: p.faaliyetTuru ?? (_aktifSablonTuru == 'usem' || _aktifSablonTuru == 'tomer' ? 'Kurs/Eğitim' : 'Danışmanlık'),
         );
       }).toList();
@@ -705,7 +706,8 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
           unvanKatsayisi: 2.0,
           ekGosterge: 160,
           dersSaati: 5.0,
-          mesaiIci: false, // Mesai Dışı
+          mesaiIci: false,
+          tavanYok: true, // DTS danışmanlığında sanayi danışmanlığı yapıldığı için tavan uygulanmaz
           faaliyetTuru: 'Danışmanlık',
         ),
       ];
@@ -755,6 +757,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
           ekGosterge: 200,
           dersSaati: 1.0,
           mesaiIci: false,
+          tavanYok: true,
           faaliyetTuru: 'Danışmanlık',
         ),
       ];
@@ -806,6 +809,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
           ekGosterge: 300,
           dersSaati: 10.0,
           mesaiIci: false,
+          tavanYok: true,
           faaliyetTuru: '2547 Madde 58/e Danışmanlık',
         ),
       ];
@@ -921,6 +925,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
           ekGosterge: 300,
           dersSaati: 10.0,
           mesaiIci: false,
+          tavanYok: true,
           faaliyetTuru: 'Danışmanlık',
         ),
       ];
@@ -1034,12 +1039,16 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
     );
 
     if (yeniPersoneller != null && yeniPersoneller.isNotEmpty && mounted) {
+      final isDanismanlik = _aktifSablonTuru != 'usem' && _aktifSablonTuru != 'tomer';
+      final ayarlanmis = isDanismanlik
+          ? yeniPersoneller.map((p) => p.copyWith(tavanYok: true)).toList()
+          : yeniPersoneller;
       setState(() {
         // Eğer mevcut listede sadece tek bir boş kayıt varsa, onu doğrudan ezebiliriz
         if (_personeller.length == 1 && _personeller.first.adSoyad.trim().isEmpty) {
-          _personeller = List.from(yeniPersoneller);
+          _personeller = List.from(ayarlanmis);
         } else {
-          _personeller.addAll(yeniPersoneller);
+          _personeller.addAll(ayarlanmis);
         }
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1421,6 +1430,7 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                   onPersonelEkle: () {
                     setState(() {
                       final is58kOrE = _aktifSablonTuru == '58k' || _aktifSablonTuru == '58e';
+                      final isDanismanlik = _aktifSablonTuru != 'usem' && _aktifSablonTuru != 'tomer';
                       final unvan = is58kOrE ? 'Dr. Öğr. Üyesi' : 'Öğr. Gör. Dr.';
                       final unvanK = DanismanlikExcelHesaplama.unvanKatsayisi(unvan);
                       final ekGosterge = DanismanlikExcelHesaplama.ekGosterge(unvan);
@@ -1434,7 +1444,8 @@ class _DanismanlikManuelHesaplaScreenState extends State<DanismanlikManuelHesapl
                           ekGosterge: ekGosterge,
                           dersSaati: is58kOrE ? 1.0 : 5.0,
                           mesaiIci: false,
-                          faaliyetTuru: is58kOrE ? 'Danışmanlık' : 'Danışmanlık',
+                          tavanYok: isDanismanlik,
+                          faaliyetTuru: 'Danışmanlık',
                         ),
                       );
                     });

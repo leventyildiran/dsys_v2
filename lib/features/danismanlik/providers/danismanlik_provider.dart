@@ -66,7 +66,14 @@ class PersonelDagitimSonucu {
 
 class DanismanlikProvider extends ChangeNotifier {
   DanismanlikProvider({DanismanlikService? danismanlikService})
-    : _danismanlikService = danismanlikService ?? DanismanlikService();
+    : _danismanlikService = danismanlikService ?? DanismanlikService() {
+    SistemAyarlariService().getAyarlar().then((ayarlar) {
+      if (ayarlar.memurMaasKatsayisi > 0) {
+        DanismanlikExcelHesaplama.memurMaasKatsayisiGuncel = ayarlar.memurMaasKatsayisi;
+        _hesapla();
+      }
+    }).catchError((_) {});
+  }
 
   final DanismanlikService _danismanlikService;
 
@@ -497,11 +504,7 @@ class DanismanlikProvider extends ChangeNotifier {
         personeller: List.from(_personeller),
         createdAt: DateTime.now(),
       );
-      final ayarlar = await SistemAyarlariService().getAyarlar();
-      final memurKatsayi = ayarlar.memurMaasKatsayisi > 0
-          ? ayarlar.memurMaasKatsayisi
-          : DanismanlikExcelHesaplama.memurMaasKatsayisiGuncel;
-      DanismanlikExcelHesaplama.memurMaasKatsayisiGuncel = memurKatsayi;
+      final memurKatsayi = DanismanlikExcelHesaplama.memurMaasKatsayisiGuncel;
 
       final excel = DanismanlikExcelHesaplama.hesaplaDanismanlik(
         danismanlik: gecici,
