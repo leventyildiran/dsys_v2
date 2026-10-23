@@ -59,7 +59,6 @@ class FaturaGeminiOkuyucu {
   static const List<String> yedekFlashModeller = [
     'gemini-3.8-flash',
     'gemini-3.5-flash-lite',
-    'gemini-3.5-flash',
   ];
 
   static const int _maksModelDenemesi = 3;

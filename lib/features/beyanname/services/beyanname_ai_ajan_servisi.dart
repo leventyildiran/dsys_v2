@@ -1232,7 +1232,6 @@ $logMetni
     const officialModels = [
       'gemini-3.8-flash',
       'gemini-3.5-flash-lite',
-      'gemini-3.5-flash',
     ];
     for (final m in officialModels) {
       if (!modelOrder.contains(m)) modelOrder.add(m);

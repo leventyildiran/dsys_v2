@@ -24,7 +24,6 @@ class AIExtractionService {
     const officialModels = [
       'gemini-3.8-flash',
       'gemini-3.5-flash-lite',
-      'gemini-3.5-flash',
     ];
     for (final m in officialModels) {
       // Maliyet koruması: Pro modeller yedek zincirde asla denenmez.
