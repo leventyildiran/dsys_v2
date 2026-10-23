@@ -12,6 +12,7 @@ class GeminiOkumaYaniti {
   final int ciktiToken;
   final int dusunceToken;
   final double maliyetTl;
+  final bool yedekKullanildi;
 
   const GeminiOkumaYaniti({
     required this.metin,
@@ -21,6 +22,7 @@ class GeminiOkumaYaniti {
     required this.dusunceToken,
     required this.maliyetTl,
     this.bitisNedeni = '',
+    this.yedekKullanildi = false,
   });
 
   int get toplamToken => girdiToken + ciktiToken + dusunceToken;
@@ -174,6 +176,7 @@ class FaturaGeminiOkuyucu {
                 prompt: prompt,
                 pdf: hasPdf ? pdf : null,
                 dusunmeKapat: dusunmeKapat,
+                isYedek: isYedek,
               ).timeout(timeout);
 
               if (yanit.metin.trim().isNotEmpty) return yanit;
@@ -240,6 +243,7 @@ class FaturaGeminiOkuyucu {
     required String prompt,
     required Uint8List? pdf,
     required bool dusunmeKapat,
+    bool isYedek = false,
   }) async {
     final uri = Uri.parse(
       'https://generativelanguage.googleapis.com/v1beta/models/'
@@ -315,6 +319,7 @@ class FaturaGeminiOkuyucu {
         dusunce: dusunce,
       ),
       bitisNedeni: bitisNedeni,
+      yedekKullanildi: isYedek,
     );
   }
 }

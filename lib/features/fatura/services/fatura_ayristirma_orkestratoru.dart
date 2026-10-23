@@ -344,16 +344,22 @@ class FaturaAyristirmaOrkestratoru {
       iptalKontrol: oturum.iptalKontrol,
     );
 
+    final apiTipiEtiketi = yanit.yedekKullanildi
+        ? '🟡 [YEDEK / ÜCRETLİ API]'
+        : '🟢 [BİRİNCİL / ÜCRETSİZ API]';
+
+    final efektifMaliyet = yanit.yedekKullanildi ? yanit.maliyetTl : 0.0;
+
     oturum.apiKullanimiEkle(
       token: yanit.toplamToken,
-      maliyetTl: yanit.maliyetTl,
+      maliyetTl: efektifMaliyet,
     );
 
     oturum.log(
-      '   ↳ Yanıt alındı: ${yanit.model} | Token: ${yanit.toplamToken} '
+      '   ↳ $apiTipiEtiketi Yanıt alındı: ${yanit.model} | Token: ${yanit.toplamToken} '
       '(Girdi: ${yanit.girdiToken}, Çıktı: ${yanit.ciktiToken}) | '
-      'Tahmini Maliyet: ${FaturaOkumaOturumu.maliyetMetni(yanit.maliyetTl)}',
-      seviye: FaturaLogSeviyesi.maliyet,
+      'Maliyet: ${yanit.yedekKullanildi ? FaturaOkumaOturumu.maliyetMetni(efektifMaliyet) : '0,00 TL (Ücretsiz)'}',
+      seviye: yanit.yedekKullanildi ? FaturaLogSeviyesi.maliyet : FaturaLogSeviyesi.basarili,
     );
 
     final parsedJsonList = jsonListesiCoz(yanit.metin);
@@ -373,9 +379,12 @@ class FaturaAyristirmaOrkestratoru {
     // kabul edilmez, kullanıcıya gösterilir.
     final aiEksik = FaturaKaliteKapisi.eksikNedeni(faturalar, metin);
 
-    oturum.faturaEklendi(faturalar.length, ucretsiz: false);
+    oturum.faturaEklendi(faturalar.length, ucretsiz: !yanit.yedekKullanildi);
     oturum.dosyaIciIlerleme(1.0);
-    oturum.log('✅ ${faturalar.length} fatura Gemini Flash ile ayrıştırıldı.', seviye: FaturaLogSeviyesi.basarili);
+    final basariEtiketi = yanit.yedekKullanildi
+        ? '✅ ${faturalar.length} fatura Yedek (Ücretli) API ile ayrıştırıldı.'
+        : '🎉 ${faturalar.length} fatura Birincil (Ücretsiz) API ile sıfır maliyetle ayrıştırıldı! (0,00 TL)';
+    oturum.log(basariEtiketi, seviye: FaturaLogSeviyesi.basarili);
 
     return _sonuclandir(
       faturalar,
