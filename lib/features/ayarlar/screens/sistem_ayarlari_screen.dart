@@ -509,7 +509,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
         controller: _geminiModelController,
         decoration: InputDecoration(
           labelText: 'Gemini Modeli (Düzenlenebilir)',
-          hintText: 'örn: gemini-3.6-flash, gemini-flash-latest',
+          hintText: 'örn: gemini-3.8-flash, gemini-3.5-flash-lite',
           prefixIcon: const Icon(Icons.psychology),
           border: const OutlineInputBorder(),
           helperText: 'İstediğiniz model adını doğrudan yazabilir veya aşağıdaki hızlı önerilerden seçebilirsiniz.',

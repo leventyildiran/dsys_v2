@@ -1131,7 +1131,7 @@ $logMetni
         ? base
         : '$base/chat/completions';
     final resolvedModel = modelName.trim().isEmpty
-        ? 'google/gemini-2.0-flash-001'
+        ? 'deepseek/deepseek-chat'
         : modelName.trim();
 
     final response = await http.post(
