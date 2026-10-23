@@ -3,7 +3,9 @@
 abstract final class FaturaParseKaynaklari {
   static const arsivSablonu = 'Arşiv şablonu';
   static const sistemOkuma = 'Sistem okuma';
-  static const cevrimdisi = 'Çevrimdışı kural';
+  static const ucretsizApi = 'Ücretsiz AI (0 TL)';
+  static const ucretliApi = 'Yedek AI (Ücretli)';
+  static const cevrimdisi = 'Çevrimdışı kural (0 TL)';
   static const excelToplu = 'Excel toplu aktarım';
   static const manuel = 'Manuel giriş';
   static const kopya = 'Kopya';
@@ -15,6 +17,15 @@ abstract final class FaturaParseKaynaklari {
     final v = (raw ?? '').trim();
     if (v.isEmpty) return 'Bilinmiyor';
     final lower = v.toLowerCase();
+    if (lower.contains('ücretsiz') || lower.contains('ucretsiz')) {
+      return ucretsizApi;
+    }
+    if (lower.contains('yedek ai') || lower.contains('ücretli') || lower.contains('ucretli')) {
+      return ucretliApi;
+    }
+    if (lower.contains('tier 3') || lower.contains('çevrimdışı') || lower.contains('cevrimdisi')) {
+      return cevrimdisi;
+    }
     if (lower.contains('gemini') ||
         lower.contains('deepseek') ||
         lower.contains('yapay zeka') ||
@@ -24,9 +35,6 @@ abstract final class FaturaParseKaynaklari {
         lower.contains('ai parser') ||
         lower.contains('sistem')) {
       return sistemOkuma;
-    }
-    if (lower.contains('tier 3') || lower.contains('çevrimdışı')) {
-      return cevrimdisi;
     }
     if (lower.contains('akıllı eşleştirme') || lower.contains('arşiv şablonu')) {
       return arsivSablonu;

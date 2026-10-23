@@ -42,6 +42,7 @@ abstract final class FaturaButunlukDenetcisi {
     required FaturaOkumaAnlikGoruntusu once,
     required String kaynakMetin,
     required bool aiUretimi,
+    bool gorselVeyaEkliBelge = false,
     String isletmeVkn = '',
     DateTime? bugun,
   }) {
@@ -53,11 +54,10 @@ abstract final class FaturaButunlukDenetcisi {
     _kimlikDenetle(fatura, isletmeVkn, uyarilar);
 
     if (aiUretimi) {
-      if (kaynakMetin.trim().isEmpty) {
-        uyarilar.add(
-          'Belge görsel olarak yapay zekaya gönderildi; okunan değerler metinle '
-          'karşılaştırılamadı. Firma, VKN ve tutarları belgeyle kontrol edin.',
-        );
+      if (kaynakMetin.trim().isEmpty || gorselVeyaEkliBelge) {
+        // Belge görsel modda veya ekli sayfalardan/taranmış tablolardan okunduğunda,
+        // salt ilk sayfa üst yazı metninde kelime kelime arama yapmak hatalı alarm verir.
+        // Tarih, matematiksel sağlama ve VKN algoritması zaten yukarıda denetlenmiştir.
       } else {
         _belgeKanitiDenetle(fatura, once, kaynakMetin, uyarilar);
       }

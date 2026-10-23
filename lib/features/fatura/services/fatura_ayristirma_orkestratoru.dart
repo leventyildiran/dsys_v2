@@ -386,12 +386,17 @@ class FaturaAyristirmaOrkestratoru {
         : '🎉 ${faturalar.length} fatura Birincil (Ücretsiz) API ile sıfır maliyetle ayrıştırıldı! (0,00 TL)';
     oturum.log(basariEtiketi, seviye: FaturaLogSeviyesi.basarili);
 
+    final kaynakEtiketi = yanit.yedekKullanildi
+        ? FaturaParseKaynaklari.ucretliApi
+        : FaturaParseKaynaklari.ucretsizApi;
+
     return _sonuclandir(
       faturalar,
       kaynakMetin: metin,
       aiUretimi: true,
       oturum: oturum,
-      kaynak: FaturaParseKaynaklari.sistemOkuma,
+      kaynak: kaynakEtiketi,
+      gorselVeyaEkliBelge: gonderilecekPdf != null,
       ekUyarilar: [
         if (aiEksik != null) 'Yapay zeka çıktısı eksik: $aiEksik',
         if (yanit.kesildi) 'Yapay zeka yanıtı sınırda kesildi; fatura sayısını kontrol edin.',
@@ -406,6 +411,7 @@ class FaturaAyristirmaOrkestratoru {
     required bool aiUretimi,
     required FaturaOkumaOturumu oturum,
     String? kaynak,
+    bool gorselVeyaEkliBelge = false,
     List<String> ekUyarilar = const [],
   }) async {
     final isletmeVkn = await _isletmeVkn();
@@ -425,6 +431,7 @@ class FaturaAyristirmaOrkestratoru {
           once: once,
           kaynakMetin: kaynakMetin,
           aiUretimi: aiUretimi,
+          gorselVeyaEkliBelge: gorselVeyaEkliBelge,
           isletmeVkn: isletmeVkn,
         ),
       ];
