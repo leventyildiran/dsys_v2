@@ -140,7 +140,7 @@ class FaturaGeminiOkuyucu {
       for (var anahtarIdx = 0; anahtarIdx < anahtarlar.length; anahtarIdx++) {
         final aktifAnahtar = anahtarlar[anahtarIdx];
         final bool isYedek = anahtarIdx > 0;
-        final int maxToplamDeneme = isYedek ? 3 : 5; // Ücretsiz anahtarla en fazla 5 deneme
+        final int maxToplamDeneme = isYedek ? 3 : 6; // Ücretsiz anahtarla en fazla 6 deneme
 
         if (isYedek) {
           log?.call(
@@ -158,7 +158,7 @@ class FaturaGeminiOkuyucu {
           iptalKontrol?.call();
           var dusunmeKapat = true;
 
-          for (var deneme = 0; deneme < 2; deneme++) {
+          for (var deneme = 0; deneme < 3; deneme++) {
             toplamDeneme++;
             if (toplamDeneme > maxToplamDeneme) {
               anahtariDegistir = true;
@@ -187,10 +187,13 @@ class FaturaGeminiOkuyucu {
                 dusunmeKapat = false; // Bu model thinkingConfig desteklemiyor
                 continue;
               }
-              if (e.kod == 503 && deneme == 0) {
-                log?.call('   ↳ $model yoğun (503), 2 sn sonra tekrar…', uyari: true);
-                await Future.delayed(const Duration(seconds: 2));
-                continue;
+              if (e.kod == 503) {
+                if (deneme < 2) {
+                  final beklemeSuresi = (deneme + 1) * 3; // 3 sn, sonra 6 sn
+                  log?.call('   ↳ $model sunucu anlık yoğun (503), $beklemeSuresi sn sonra tekrar deneniyor…', uyari: true);
+                  await Future.delayed(Duration(seconds: beklemeSuresi));
+                  continue;
+                }
               }
               if (e.kod == 429) {
                 log?.call(
