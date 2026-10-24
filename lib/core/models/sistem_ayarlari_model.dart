@@ -62,7 +62,7 @@ class SistemAyarlariModel {
     this.ebysDomain = 'usak.local',
     required this.geminiApiKey,
     this.geminiYedekApiKey = '',
-    this.geminiModel = 'gemini-3.8-flash',
+    this.geminiModel = 'gemini-3.5-flash',
     this.visionApiKey = '',
     required this.deepseekApiUrl,
     required this.deepseekApiKey,
@@ -86,7 +86,7 @@ class SistemAyarlariModel {
         resolvedModel == 'gemini-3.5-flash' ||
         resolvedModel == 'gemini-3.6-flash' ||
         resolvedModel == 'gemini-3.7-flash') {
-      resolvedModel = 'gemini-3.8-flash';
+      resolvedModel = 'gemini-3.5-flash';
     }
     return SistemAyarlariModel(
       kurumAdi: rawKurumAdi.isNotEmpty ? rawKurumAdi : 'Uşak Üniversitesi',
@@ -186,7 +186,7 @@ class SistemAyarlariModel {
       ebysDomain: 'usak.local',
       geminiApiKey: '',
       geminiYedekApiKey: '',
-      geminiModel: 'gemini-3.8-flash',
+      geminiModel: 'gemini-3.5-flash',
       visionApiKey: '',
       deepseekApiUrl: '',
       deepseekApiKey: '',

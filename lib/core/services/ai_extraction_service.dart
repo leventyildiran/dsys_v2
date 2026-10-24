@@ -22,7 +22,7 @@ class AIExtractionService {
       modelOrder.add(cleanPreferred);
     }
     const officialModels = [
-      'gemini-3.8-flash',
+      'gemini-3.5-flash',
       'gemini-3.5-flash-lite',
     ];
     for (final m in officialModels) {

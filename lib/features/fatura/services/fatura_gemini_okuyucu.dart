@@ -57,8 +57,9 @@ class FaturaGeminiOkuyucu {
 
   /// Tercih edilen model başarısız olursa denenecek ucuz modeller (sırayla).
   static const List<String> yedekFlashModeller = [
-    'gemini-3.8-flash',
-    'gemini-3.5-flash-lite',
+    'gemini-3.5-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-flash-latest',
   ];
 
   static const int _maksModelDenemesi = 3;
@@ -254,8 +255,8 @@ class FaturaGeminiOkuyucu {
     final parts = <Map<String, dynamic>>[
       if (pdf != null)
         {
-          'inline_data': {
-            'mime_type': 'application/pdf',
+          'inlineData': {
+            'mimeType': 'application/pdf',
             'data': base64Encode(pdf),
           },
         },

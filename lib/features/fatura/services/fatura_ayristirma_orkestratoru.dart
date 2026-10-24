@@ -336,7 +336,7 @@ class FaturaAyristirmaOrkestratoru {
 
     final yanit = await _geminiOkuyucu.oku(
       apiKey: primaryKey.isNotEmpty ? primaryKey : yedekKey,
-      yedekApiKey: primaryKey.isNotEmpty && yedekKey.isNotEmpty ? yedekKey : null,
+      yedekApiKey: null, // Asla gizlice ucretli anahtara gecip kullaniciya para harcatma!
       prompt: prompt,
       tercihModel: ayarlar.geminiModel,
       pdf: gonderilecekPdf,

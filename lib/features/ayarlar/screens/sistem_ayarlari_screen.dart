@@ -77,7 +77,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
       _isletmeVknController.text = ayarlar.isletmeVkn.isNotEmpty ? ayarlar.isletmeVkn : '8960453664';
       _geminiKeyController.text = ayarlar.geminiApiKey;
       _geminiYedekKeyController.text = ayarlar.geminiYedekApiKey;
-      _geminiModelController.text = ayarlar.geminiModel.isNotEmpty ? ayarlar.geminiModel : 'gemini-3.8-flash';
+      _geminiModelController.text = ayarlar.geminiModel.isNotEmpty ? ayarlar.geminiModel : 'gemini-3.5-flash';
       _visionKeyController.text = ayarlar.visionApiKey;
       _deepseekUrlController.text = ayarlar.deepseekApiUrl;
       _deepseekKeyController.text = ayarlar.deepseekApiKey;
@@ -107,7 +107,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
         geminiYedekApiKey: _geminiYedekKeyController.text.trim(),
         geminiModel: _geminiModelController.text.trim().isNotEmpty
             ? _geminiModelController.text.trim()
-            : 'gemini-3.8-flash',
+            : 'gemini-3.5-flash',
         visionApiKey: _visionKeyController.text.trim(),
         deepseekApiUrl: _deepseekUrlController.text.trim(),
         deepseekApiKey: _deepseekKeyController.text.trim(),
@@ -544,7 +544,7 @@ class _SistemAyarlariScreenState extends State<SistemAyarlariScreen> {
         spacing: 8,
         runSpacing: 6,
         children: [
-          'gemini-3.8-flash',
+          'gemini-3.5-flash',
           'gemini-3.5-flash-lite',
         ].map((m) {
           final isSelected = _geminiModelController.text.trim() == m;

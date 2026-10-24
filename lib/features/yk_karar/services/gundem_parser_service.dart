@@ -152,7 +152,7 @@ $pdfText
       final modelOrder = <String>[];
       if (ayarlar.geminiModel.isNotEmpty) modelOrder.add(ayarlar.geminiModel);
       for (final m in const [
-        'gemini-3.8-flash',
+        'gemini-3.5-flash',
         'gemini-3.5-flash-lite',
       ]) {
         if (!modelOrder.contains(m)) modelOrder.add(m);
