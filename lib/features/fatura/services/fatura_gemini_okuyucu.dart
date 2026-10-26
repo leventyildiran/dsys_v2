@@ -116,6 +116,7 @@ class FaturaGeminiOkuyucu {
     Uint8List? pdf,
     void Function(String mesaj, {bool uyari})? log,
     void Function()? iptalKontrol,
+    bool isYedek = false,
   }) async {
     final client = _client ?? http.Client();
     final sira = modelSirasi(tercihModel);
@@ -140,8 +141,8 @@ class FaturaGeminiOkuyucu {
     try {
       for (var anahtarIdx = 0; anahtarIdx < anahtarlar.length; anahtarIdx++) {
         final aktifAnahtar = anahtarlar[anahtarIdx];
-        final bool isYedek = anahtarIdx > 0;
-        final int maxToplamDeneme = isYedek ? 3 : 6; // Ücretsiz anahtarla en fazla 6 deneme
+        final bool aktifIsYedek = isYedek || (anahtarIdx > 0);
+        final int maxToplamDeneme = aktifIsYedek ? 3 : 10; // Ücretsiz anahtarla tam 10 deneme!
 
         if (isYedek) {
           log?.call(
@@ -159,7 +160,7 @@ class FaturaGeminiOkuyucu {
           iptalKontrol?.call();
           var dusunmeKapat = true;
 
-          for (var deneme = 0; deneme < 3; deneme++) {
+          for (var deneme = 0; deneme < 5; deneme++) {
             toplamDeneme++;
             if (toplamDeneme > maxToplamDeneme) {
               anahtariDegistir = true;
@@ -167,7 +168,7 @@ class FaturaGeminiOkuyucu {
             }
 
             try {
-              final modEtiketi = isYedek ? ' (yedek API)' : ' (birincil API)';
+              final modEtiketi = aktifIsYedek ? ' (yedek API)' : ' (birincil API)';
               log?.call('   ↳ $model çağrılıyor$modEtiketi${hasPdf ? ' (taranmış görsel mod)' : ' (metin)'}…');
               final yanit = await _istek(
                 client: client,
@@ -176,7 +177,7 @@ class FaturaGeminiOkuyucu {
                 prompt: prompt,
                 pdf: hasPdf ? pdf : null,
                 dusunmeKapat: dusunmeKapat,
-                isYedek: isYedek,
+                isYedek: aktifIsYedek,
               ).timeout(timeout);
 
               if (yanit.metin.trim().isNotEmpty) return yanit;
@@ -189,9 +190,9 @@ class FaturaGeminiOkuyucu {
                 continue;
               }
               if (e.kod == 503) {
-                if (deneme < 2) {
-                  final beklemeSuresi = (deneme + 1) * 3; // 3 sn, sonra 6 sn
-                  log?.call('   ↳ $model sunucu anlık yoğun (503), $beklemeSuresi sn sonra tekrar deneniyor…', uyari: true);
+                if (deneme < 4) {
+                  final beklemeSuresi = (deneme + 1) * 2; // 2s, 4s, 6s, 8s
+                  log?.call('   ↳ $model sunucu anlık yoğun (503), $beklemeSuresi sn sonra tekrar deneniyor (Deneme ${deneme + 1}/5)…', uyari: true);
                   await Future.delayed(Duration(seconds: beklemeSuresi));
                   continue;
                 }

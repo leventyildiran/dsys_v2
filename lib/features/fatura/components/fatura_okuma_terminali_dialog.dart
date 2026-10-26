@@ -44,6 +44,7 @@ class _FaturaOkumaTerminaliDialogState extends State<FaturaOkumaTerminaliDialog>
   void initState() {
     super.initState();
     widget.oturum.addListener(_onOturumGuncellendi);
+    widget.oturum.ucretliOnayIstegi = _ucretliOnaySor;
     _baslat();
   }
 
@@ -81,9 +82,95 @@ class _FaturaOkumaTerminaliDialogState extends State<FaturaOkumaTerminaliDialog>
 
   @override
   void dispose() {
+    widget.oturum.ucretliOnayIstegi = null;
     widget.oturum.removeListener(_onOturumGuncellendi);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<bool> _ucretliOnaySor({
+    required String dosyaAdi,
+    required String yerelDurum,
+    required double tahminiMaliyetTl,
+  }) async {
+    if (!mounted) return false;
+    final onay = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFFD97706), width: 1.5),
+        ),
+        title: Row(
+          children: const [
+            Icon(Icons.monetization_on_outlined, color: Color(0xFFF59E0B), size: 24),
+            SizedBox(width: 8),
+            Text(
+              'Ücretli API Onayı',
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Ücretsiz Google API 10 deneme yaptı ve yanıt veremedi (sunucu yoğunluğu/kota).',
+              style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF334155)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('• Belge: $dosyaAdi', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text('• Durum: $yerelDurum', style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text(
+                    '• Tahmini Maliyet: ~${tahminiMaliyetTl.toStringAsFixed(2)} TL',
+                    style: const TextStyle(color: Color(0xFFFBBF24), fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Faturanın kalanını tamamlamak için ücretli yedek API anahtarına gönderilsin mi?',
+              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        actions: [
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF94A3B8),
+              side: const BorderSide(color: Color(0xFF475569)),
+            ),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hayır, Yerelde Kalsın (0 TL)'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD97706),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Evet, Ücretliye Gönder'),
+          ),
+        ],
+      ),
+    );
+    return onay == true;
   }
 
   @override

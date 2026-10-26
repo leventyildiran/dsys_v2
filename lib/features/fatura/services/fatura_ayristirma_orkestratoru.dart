@@ -260,6 +260,7 @@ class FaturaAyristirmaOrkestratoru {
     try {
       return await _yapayZekaIleOku(
         bytes: bytes,
+        fileName: fileName,
         metin: metin,
         oturum: oturum,
         kismiSonucVarMi: kismiSonuc.isNotEmpty,
@@ -292,6 +293,7 @@ class FaturaAyristirmaOrkestratoru {
 
   Future<List<FaturaModel>> _yapayZekaIleOku({
     required Uint8List? bytes,
+    required String fileName,
     required String metin,
     required FaturaOkumaOturumu oturum,
     bool kismiSonucVarMi = false,
@@ -334,15 +336,55 @@ class FaturaAyristirmaOrkestratoru {
       oturum.log('   ↳ Cihazda çıkarılmış arındırılmış metin gönderiliyor (Dev PDF yüklenmedi, maliyet minimum).', seviye: FaturaLogSeviyesi.bilgi);
     }
 
-    final yanit = await _geminiOkuyucu.oku(
-      apiKey: primaryKey.isNotEmpty ? primaryKey : yedekKey,
-      yedekApiKey: null, // Asla gizlice ucretli anahtara gecip kullaniciya para harcatma!
-      prompt: prompt,
-      tercihModel: ayarlar.geminiModel,
-      pdf: gonderilecekPdf,
-      log: (mesaj, {uyari = false}) => oturum.log(mesaj, seviye: uyari ? FaturaLogSeviyesi.uyari : FaturaLogSeviyesi.bilgi),
-      iptalKontrol: oturum.iptalKontrol,
-    );
+    GeminiOkumaYaniti yanit;
+    try {
+      // 1. Önce tamamen ÜCRETSİZ birincil anahtarla 10 denemeye kadar çalıştırılır
+      yanit = await _geminiOkuyucu.oku(
+        apiKey: primaryKey.isNotEmpty ? primaryKey : yedekKey,
+        yedekApiKey: null, // Asla gizlice ücretliye geçme
+        prompt: prompt,
+        tercihModel: ayarlar.geminiModel,
+        pdf: gonderilecekPdf,
+        log: (mesaj, {uyari = false}) => oturum.log(mesaj, seviye: uyari ? FaturaLogSeviyesi.uyari : FaturaLogSeviyesi.bilgi),
+        iptalKontrol: oturum.iptalKontrol,
+        isYedek: primaryKey.isEmpty && yedekKey.isNotEmpty,
+      );
+    } catch (e) {
+      // 2. Ücretsiz API 10 denemede yanıt veremediyse ve yedek ücretli anahtar tanımlıysa: KULLANICIYA SOR!
+      if (primaryKey.isNotEmpty && yedekKey.isNotEmpty && oturum.ucretliOnayIstegi != null) {
+        oturum.log(
+          '⚠️ Ücretsiz API 10 denemede yanıt veremedi (Google sunucu yoğunluğu veya kota).',
+          seviye: FaturaLogSeviyesi.uyari,
+        );
+        final yerelDurumMetni = kismiSonucVarMi
+            ? 'Yerel kural motoru kısmi verileri okudu (bazı alanlar eksik olabilir).'
+            : 'Yerel kural motoru fatura verilerini tam çıkaramadı.';
+
+        final bool izinVerildi = await oturum.ucretliOnayIstegi!(
+          dosyaAdi: fileName,
+          yerelDurum: yerelDurumMetni,
+          tahminiMaliyetTl: 0.25,
+        );
+
+        if (izinVerildi) {
+          oturum.log('🟡 Kullanıcı onayı alındı: Ücretli API ile eksiksiz ayrıştırma başlatılıyor...', seviye: FaturaLogSeviyesi.uyari);
+          yanit = await _geminiOkuyucu.oku(
+            apiKey: yedekKey,
+            prompt: prompt,
+            tercihModel: ayarlar.geminiModel,
+            pdf: gonderilecekPdf,
+            log: (mesaj, {uyari = false}) => oturum.log(mesaj, seviye: uyari ? FaturaLogSeviyesi.uyari : FaturaLogSeviyesi.bilgi),
+            iptalKontrol: oturum.iptalKontrol,
+            isYedek: true,
+          );
+        } else {
+          oturum.log('🛡️ Kullanıcı ücretli API kullanımını reddetti. Yerel sonuçla devam ediliyor (0,00 TL).', seviye: FaturaLogSeviyesi.basarili);
+          rethrow;
+        }
+      } else {
+        rethrow;
+      }
+    }
 
     final apiTipiEtiketi = yanit.yedekKullanildi
         ? '🟡 [YEDEK / ÜCRETLİ API]'

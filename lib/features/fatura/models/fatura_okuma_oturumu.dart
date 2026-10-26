@@ -38,6 +38,13 @@ class FaturaOkumaOturumu extends ChangeNotifier {
   /// true ise her log satırı debugPrint ile de yazılır.
   final bool konsolaYaz;
 
+  /// Ücretsiz API 10 denemede yanıt veremezse, ücretli API'ye geçilmeden önce kullanıcıya sorulacak onay fonksiyonu.
+  Future<bool> Function({
+    required String dosyaAdi,
+    required String yerelDurum,
+    required double tahminiMaliyetTl,
+  })? ucretliOnayIstegi;
+
   final List<FaturaOkumaLog> _loglar = [];
   List<FaturaOkumaLog> get loglar => List.unmodifiable(_loglar);
 
