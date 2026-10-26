@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!-- SheetJS & Tesseract.js -->
+  <!-- SheetJS, Tesseract.js v5, Mozilla PDF.js & jsQR (GİB e-Fatura Karekod + Yerel PDF OCR) -->
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -61,6 +63,142 @@
         }
       });
     }
+
+    // PDF.js Worker ayarı
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    // DSYS Yerel GİB Karekod (jsQR) + PDF.js Canvas + Tesseract.js OCR Motoru (0 TL, Cihaz İçi)
+    window.dsysYerelBelgeMotoru = {
+      _bolgeQrAra: function(ctx, x, y, w, h) {
+        if (!window.jsQR || w <= 10 || h <= 10) return null;
+        try {
+          var imgData = ctx.getImageData(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
+          var code = window.jsQR(imgData.data, imgData.width, imgData.height, {
+            inversionAttempts: 'attemptBoth'
+          });
+          if (code && code.data && code.data.trim().length > 5) {
+            return code.data.trim();
+          }
+        } catch (e) {}
+        return null;
+      },
+
+      _canvasQrTara: function(canvas) {
+        var bulunanlar = [];
+        var ctx = canvas.getContext('2d', { willReadFrequently: true });
+        var W = canvas.width;
+        var H = canvas.height;
+        // GİB e-Fatura karekodu genelde sağ üst veya sol üst köşededir;
+        // önce köşeleri yüksek çözünürlükle, sonra tüm sayfayı tara:
+        var bolgeler = [
+          [W * 0.45, 0, W * 0.55, H * 0.38], // Sağ üst (En yaygın GİB e-Fatura konumu)
+          [0, 0, W * 0.55, H * 0.38],        // Sol üst
+          [0, 0, W, H * 0.45],               // Üst yarı
+          [0, 0, W, H],                      // Tüm sayfa
+          [0, H * 0.55, W, H * 0.45]         // Alt yarı (bazı özel şablonlar)
+        ];
+        for (var i = 0; i < bolgeler.length; i++) {
+          var b = bolgeler[i];
+          var qr = this._bolgeQrAra(ctx, b[0], b[1], b[2], b[3]);
+          if (qr && bulunanlar.indexOf(qr) === -1) {
+            bulunanlar.push(qr);
+          }
+        }
+        return bulunanlar;
+      },
+
+      taraBase64: async function(base64Data, isPdf, maxSayfa, ocrCalistir) {
+        var qrListesi = [];
+        var ocrMetinParcalari = [];
+        try {
+          var raw = atob(base64Data);
+          var uint8 = new Uint8Array(raw.length);
+          for (var i = 0; i < raw.length; i++) {
+            uint8[i] = raw.charCodeAt(i);
+          }
+
+          if (isPdf && window.pdfjsLib) {
+            var loadingTask = window.pdfjsLib.getDocument({ data: uint8 });
+            var pdf = await loadingTask.promise;
+            var limit = Math.min(pdf.numPages, maxSayfa || 6);
+
+            for (var p = 1; p <= limit; p++) {
+              var page = await pdf.getPage(p);
+              var viewport = page.getViewport({ scale: 2.2 });
+              var canvas = document.createElement('canvas');
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+              var ctx = canvas.getContext('2d', { willReadFrequently: true });
+              await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+              // 1) GİB Karekod (QR) Taraması (~10ms)
+              var sayfaQr = this._canvasQrTara(canvas);
+              for (var q = 0; q < sayfaQr.length; q++) {
+                if (qrListesi.indexOf(sayfaQr[q]) === -1) {
+                  qrListesi.push(sayfaQr[q]);
+                }
+              }
+
+              // 2) Yerel Türkçe OCR (Tesseract.js)
+              if (ocrCalistir && window.Tesseract) {
+                try {
+                  var dataUrl = canvas.toDataURL('image/jpeg', 0.90);
+                  var res = await window.Tesseract.recognize(dataUrl, 'tur');
+                  if (res && res.data && res.data.text) {
+                    ocrMetinParcalari.push(res.data.text.trim());
+                  }
+                } catch (ocrErr) {
+                  console.warn('Tesseract sayfa OCR uyarısı:', ocrErr);
+                }
+              }
+            }
+          } else {
+            // PNG / JPEG Görsel
+            var img = new Image();
+            var mime = isPdf ? 'application/pdf' : 'image/jpeg';
+            var loadPromise = new Promise(function(resolve, reject) {
+              img.onload = resolve;
+              img.onerror = reject;
+            });
+            img.src = 'data:' + mime + ';base64,' + base64Data;
+            await loadPromise;
+
+            var canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || img.width;
+            canvas.height = img.naturalHeight || img.height;
+            var ctx = canvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(img, 0, 0);
+
+            var imgQr = this._canvasQrTara(canvas);
+            for (var k = 0; k < imgQr.length; k++) {
+              if (qrListesi.indexOf(imgQr[k]) === -1) {
+                qrListesi.push(imgQr[k]);
+              }
+            }
+
+            if (ocrCalistir && window.Tesseract) {
+              try {
+                var dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+                var res = await window.Tesseract.recognize(dataUrl, 'tur');
+                if (res && res.data && res.data.text) {
+                  ocrMetinParcalari.push(res.data.text.trim());
+                }
+              } catch (ocrErr) {}
+            }
+          }
+        } catch (err) {
+          console.warn('dsysYerelBelgeMotoru hatası:', err);
+        }
+
+        return JSON.stringify({
+          qrListesi: qrListesi,
+          ocrMetni: ocrMetinParcalari.join('\n\f\n')
+        });
+      }
+    };
   </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>

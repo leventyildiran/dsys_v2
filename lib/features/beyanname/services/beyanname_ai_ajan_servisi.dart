@@ -10,6 +10,7 @@ import '../../../core/services/sistem_ayarlari_service.dart';
 import '../../../core/turkce_format.dart';
 import '../../fatura/services/excel_universal_parser.dart';
 import '../../fatura/services/fatura_offline_parser.dart';
+import '../../fatura/services/yerel_ocr/fatura_yerel_ocr.dart';
 import '../models/beyanname_belge_model.dart';
 import '../models/beyanname_denetim_rapor_model.dart';
 import 'beyanname_denetim_servisi.dart';
@@ -419,9 +420,70 @@ class BeyannameAiAjanServisi {
           } catch (_) {}
 
           final taranmisBelge = digerBelgeMetni.trim().length < 50;
-          final yerelBasarisiz = taranmisBelge || buBelgedenYerelBulunan == 0;
+          String ekYerelOcrMetni = '';
+
+          // KATMAN 2.5: Cihaz İçi GİB e-Fatura Karekod (jsQR) + UBL + PDF.js/Tesseract Yerel OCR (0,00 TL, API'siz)
+          if ((taranmisBelge || buBelgedenYerelBulunan == 0) &&
+              digerBelge.dosyaBytes != null &&
+              digerBelge.dosyaBytes!.isNotEmpty) {
+            try {
+              final yerelTarama = await const FaturaYerelOcr().pdfVeyaGorselTara(
+                digerBelge.dosyaBytes!,
+                isPdf: digerBelge.isPdf,
+                maxSayfa: 6,
+                ocrCalistir: true,
+              );
+              ekYerelOcrMetni = yerelTarama.birlesikMetin;
+
+              // 1) GİB Resmi e-Fatura Karekodu / UBL yakalandıysa %100 kesinlikle ekle!
+              if (yerelTarama.gibFaturalari.isNotEmpty) {
+                for (final gib in yerelTarama.gibFaturalari) {
+                  if (gib.matrah <= 0) continue;
+                  final map = gib.toBeyannameTevkifatMap();
+                  final mukerrer = tevkifatFaturaListesi.any((t) =>
+                      (t['faturaNo']?.toString().isNotEmpty == true &&
+                          t['faturaNo'] == map['faturaNo']) ||
+                      (t['vergiTcNo'] == map['vergiTcNo'] &&
+                          (TurkceFormat.parseSayi(t['matrahTutari']) - gib.matrah).abs() < 1.0));
+                  if (!mukerrer) {
+                    tevkifatFaturaListesi.add(map);
+                    buBelgedenYerelBulunan++;
+                  }
+                }
+                yield AjanLogMesaji(
+                  zaman: DateTime.now(),
+                  mesaj: '🎯 [$birimAdi] "${digerBelge.dosyaAdi}" GİB e-Fatura Karekodu / UBL ile API\'ye gitmeden %100 kesinlikle yerelde çözüldü (${yerelTarama.gibFaturalari.length} fatura, 0,00 TL)!',
+                  birimAdi: birimAdi,
+                );
+              } else if (ekYerelOcrMetni.isNotEmpty) {
+                // 2) Yerel PDF.js + Tesseract.js metnini deterministik motora ver
+                final yerelOcrTevkifat = MizanDeterministikParser.parseTevkifatFaturalari(ekYerelOcrMetni);
+                for (final ot in yerelOcrTevkifat) {
+                  final mtr = TurkceFormat.parseSayi(ot['matrahTutari']);
+                  final mukerrer = tevkifatFaturaListesi.any((t) =>
+                      (t['vergiTcNo'] == ot['vergiTcNo'] &&
+                          (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0));
+                  if (!mukerrer) {
+                    tevkifatFaturaListesi.add(ot);
+                    buBelgedenYerelBulunan++;
+                  }
+                }
+                if (yerelOcrTevkifat.isNotEmpty) {
+                  yield AjanLogMesaji(
+                    zaman: DateTime.now(),
+                    mesaj: '⚡ [$birimAdi] "${digerBelge.dosyaAdi}" Cihaz içi Yerel OCR (PDF.js + Tesseract) ile API\'ye gitmeden çözüldü (${yerelOcrTevkifat.length} fatura, 0,00 TL)!',
+                    birimAdi: birimAdi,
+                  );
+                }
+              }
+            } catch (e) {
+              debugPrint('[$birimAdi] Yerel Karekod/OCR tarama uyarısı: $e');
+            }
+          }
+
+          final yerelBasarisiz = buBelgedenYerelBulunan == 0;
           if (yerelBasarisiz && (hasGemini || hasOpenRouter)) {
-            // Yerel okuma başarısız olduysa veya taranmış görselse: Önce Ücretsiz API (8 deneme), olmazsa Ücretli API!
+            // Yerel okuma + GİB Karekod + Yerel OCR de çözemediyse: Önce Ücretsiz API (8 deneme), olmazsa Ücretli API!
             yield AjanLogMesaji(
               zaman: DateTime.now(),
               mesaj: taranmisBelge
@@ -432,10 +494,13 @@ class BeyannameAiAjanServisi {
             );
             try {
               final araLoglar = <String>[];
+              final birlesikYardimciMetin = [digerBelgeMetni, ekYerelOcrMetni]
+                  .where((s) => s.trim().isNotEmpty)
+                  .join('\n\n');
               final ocrFaturalar = await _taranmisFaturaOcr(
                 ayarlar: ayarlar,
                 belge: digerBelge,
-                ekMetin: digerBelgeMetni,
+                ekMetin: birlesikYardimciMetin,
                 onLog: (m) => araLoglar.add(m),
               );
               for (final logMsg in araLoglar) {
@@ -825,7 +890,7 @@ class BeyannameAiAjanServisi {
   }
 
   /// Bir belgedeki (ör. çok sayfalı taranmış PDF veya tekil fatura) TÜM tevkifat faturalarını
-  /// deterministik ve AI motorlarıyla eksiksiz çıkarır.
+  /// deterministik, yerel GİB Karekod/OCR ve AI motorlarıyla eksiksiz çıkarır.
   Future<List<Map<String, dynamic>>> belgedekiFaturalariAiCozumle(BirimYuklenenBelge belge) async {
     final metin = await belgeMetniniCikar(belge);
 
@@ -834,6 +899,34 @@ class BeyannameAiAjanServisi {
       final ozelTevkifatlar = MizanDeterministikParser.parseTevkifatFaturalari(metin);
       if (ozelTevkifatlar.isNotEmpty) {
         return ozelTevkifatlar;
+      }
+    }
+
+    // 1.5. Cihaz İçi GİB e-Fatura Karekod (jsQR) + UBL + PDF.js/Tesseract Yerel OCR (0,00 TL, API'siz)
+    String yerelOcrMetni = '';
+    if (belge.dosyaBytes != null && belge.dosyaBytes!.isNotEmpty) {
+      try {
+        final yerelTarama = await const FaturaYerelOcr().pdfVeyaGorselTara(
+          belge.dosyaBytes!,
+          isPdf: belge.isPdf,
+          maxSayfa: 6,
+          ocrCalistir: true,
+        );
+        if (yerelTarama.gibFaturalari.isNotEmpty) {
+          return yerelTarama.gibFaturalari
+              .where((g) => g.matrah > 0)
+              .map((g) => g.toBeyannameTevkifatMap())
+              .toList();
+        }
+        yerelOcrMetni = yerelTarama.birlesikMetin;
+        if (yerelOcrMetni.isNotEmpty) {
+          final yerelOcrTevkifat = MizanDeterministikParser.parseTevkifatFaturalari(yerelOcrMetni);
+          if (yerelOcrTevkifat.isNotEmpty) {
+            return yerelOcrTevkifat;
+          }
+        }
+      } catch (e) {
+        debugPrint('[belgedekiFaturalariAiCozumle] Yerel Karekod/OCR uyarısı: $e');
       }
     }
 
@@ -846,10 +939,13 @@ class BeyannameAiAjanServisi {
     if (hasAi) {
       if (belge.dosyaBytes != null && belge.dosyaBytes!.isNotEmpty) {
         try {
+          final birlesikMetin = [metin, yerelOcrMetni]
+              .where((s) => s.trim().isNotEmpty)
+              .join('\n\n');
           final ocrSonuc = await _taranmisFaturaOcr(
             ayarlar: ayarlar,
             belge: belge,
-            ekMetin: metin,
+            ekMetin: birlesikMetin,
           );
           if (ocrSonuc.isNotEmpty) {
             return ocrSonuc;

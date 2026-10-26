@@ -205,49 +205,57 @@ class FaturaAyristirmaOrkestratoru {
     }
 
     // ─────────────────────────────────────────────────────────
-    // KATMAN 3: Yerel Görsel / OCR Katmanı (0 TL)
+    // KATMAN 3: Yerel GİB Karekod (jsQR) + UBL + PDF.js / Tesseract OCR Katmanı (0 TL)
     // ─────────────────────────────────────────────────────────
-    if ((metin.isEmpty || kismiSonuc.isEmpty || ebysVeyaEk) && bytes != null && ext == 'pdf') {
-      oturum.katmanDegisti('Katman 3: Yerel OCR');
-      oturum.log('📷 [KATMAN 3] Taranmış/ekli PDF görsel katmanı taranıyor...', seviye: FaturaLogSeviyesi.katman);
+    final bool gorselVeyaPdf = ext == 'pdf' || ext == 'png' || ext == 'jpg' || ext == 'jpeg';
+    if ((metin.isEmpty || kismiSonuc.isEmpty || ebysVeyaEk) && bytes != null && gorselVeyaPdf) {
+      oturum.katmanDegisti('Katman 3: GİB Karekod & Yerel OCR');
+      oturum.log('📷 [KATMAN 3] GİB e-Fatura Karekodu, gömülü UBL ve yerel görsel OCR taranıyor (0,00 TL)...', seviye: FaturaLogSeviyesi.katman);
       oturum.dosyaIciIlerleme(0.6);
 
-      final jpegs = FaturaYerelOcr.pdfIciJpegler(bytes);
-      if (jpegs.isNotEmpty && _yerelOcr.destekleniyor) {
-        oturum.log('   ↳ PDF içinde ${jpegs.length} sayfa görüntüsü bulundu, yerel OCR çalıştırılıyor...', seviye: FaturaLogSeviyesi.bilgi);
-        final sb = StringBuffer();
-        for (var idx = 0; idx < jpegs.length; idx++) {
-          oturum.iptalKontrol();
-          final sayfaMetni = await _yerelOcr.gorseldenMetin(jpegs[idx]);
-          if (sayfaMetni.trim().isNotEmpty) {
-            sb.writeln(sayfaMetni.trim());
-          }
-        }
-        final ocrMetin = sb.toString().trim();
-        if (ocrMetin.isNotEmpty) {
-          metin = ocrMetin;
-          oturum.log('   ↳ Yerel OCR metin çıkardı (${metin.length} karakter). Kural motoruna veriliyor...', seviye: FaturaLogSeviyesi.basarili);
-          final ocrSonuc = FaturaOfflineParser.parse(metin);
-          final ocrEksik = FaturaKaliteKapisi.eksikNedeni(ocrSonuc, metin);
-          if (ocrSonuc.isNotEmpty && ocrEksik == null) {
-            oturum.faturaEklendi(ocrSonuc.length, ucretsiz: true);
-            oturum.dosyaIciIlerleme(1.0);
-            oturum.log('🎉 Yerel OCR + Kural motoru ile ${ocrSonuc.length} fatura sıfır maliyetle çözüldü!', seviye: FaturaLogSeviyesi.basarili);
-            return _sonuclandir(
-              ocrSonuc,
-              kaynakMetin: metin,
-              aiUretimi: false,
-              oturum: oturum,
-              kaynak: FaturaParseKaynaklari.cevrimdisi,
-              ekUyarilar: const ['Taranmış belgeden OCR ile okundu; rakamları belgeyle karşılaştırın.'],
-            );
-          } else if (ocrSonuc.isNotEmpty) {
-            kismiSonuc = ocrSonuc;
-            kismiNeden = ocrEksik;
-          }
+      final tarama = await _yerelOcr.pdfVeyaGorselTara(
+        bytes,
+        isPdf: ext == 'pdf',
+        maxSayfa: 6,
+        ocrCalistir: true,
+      );
+
+      if (tarama.gibFaturalari.isNotEmpty) {
+        oturum.log(
+          '   ↳ 🎯 ${tarama.gibFaturalari.length} adet GİB e-Fatura Karekodu / UBL verisi yakalandı! (VKN, Matrah, KDV ve Tevkifat %100 kesin)',
+          seviye: FaturaLogSeviyesi.basarili,
+        );
+      }
+
+      final yeniMetin = tarama.birlesikMetin;
+      if (yeniMetin.isNotEmpty) {
+        metin = metin.isEmpty ? yeniMetin : '$yeniMetin\n\n$metin';
+        oturum.log('   ↳ Yerel Karekod/OCR katmanı veri çıkardı (${metin.length} karakter). Kural motoruna veriliyor...', seviye: FaturaLogSeviyesi.basarili);
+        final ocrSonuc = FaturaOfflineParser.parse(metin);
+        final ocrEksik = FaturaKaliteKapisi.eksikNedeni(ocrSonuc, metin);
+        if (ocrSonuc.isNotEmpty && (ocrEksik == null || tarama.gibFaturalari.isNotEmpty)) {
+          oturum.faturaEklendi(ocrSonuc.length, ucretsiz: true);
+          oturum.dosyaIciIlerleme(1.0);
+          oturum.log(
+            '🎉 [BAŞARILI] Yerel GİB Karekod + OCR + Kural motoru ile ${ocrSonuc.length} fatura sıfır maliyetle çözüldü! (Maliyet: 0,00 TL)',
+            seviye: FaturaLogSeviyesi.basarili,
+          );
+          return _sonuclandir(
+            ocrSonuc,
+            kaynakMetin: metin,
+            aiUretimi: false,
+            oturum: oturum,
+            kaynak: FaturaParseKaynaklari.cevrimdisi,
+            ekUyarilar: tarama.gibFaturalari.isNotEmpty
+                ? const ['GİB Resmi e-Fatura Karekodu ve yerel OCR ile doğrulandı.']
+                : const ['Taranmış belgeden yerel OCR ile okundu; rakamları belgeyle karşılaştırın.'],
+          );
+        } else if (ocrSonuc.isNotEmpty) {
+          kismiSonuc = ocrSonuc;
+          kismiNeden = ocrEksik;
         }
       } else {
-        oturum.log('   ↳ Yerel OCR bu ortamda aktif değil veya doğrudan resim akışı bulunamadı.', seviye: FaturaLogSeviyesi.bilgi);
+        oturum.log('   ↳ Yerel Karekod/OCR katmanında metin bulunamadı, bulut katmanına geçiliyor.', seviye: FaturaLogSeviyesi.bilgi);
       }
     }
 
