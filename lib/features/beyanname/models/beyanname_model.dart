@@ -246,20 +246,39 @@ class TevkifatFirmaKaydi {
         'faturaTarihi': faturaTarihi,
       };
 
-  factory TevkifatFirmaKaydi.fromMap(Map<String, dynamic> map) => TevkifatFirmaKaydi(
-        id: map['id'] as String? ?? '',
-        firmaAdi: map['firmaAdi'] as String? ?? '',
-        vergiTcNo: map['vergiTcNo'] as String? ?? '',
-        tevkifatTuru: TevkifatTuru.fromString(map['tevkifatTuru'] as String? ?? '9/10'),
-        tevkifatEtiketi: map['tevkifatEtiketi'] as String?,
-        kdvOrani: (map['kdvOrani'] as num?)?.toInt() ?? 20,
-        matrahTutari: (map['matrahTutari'] as num?)?.toDouble() ?? 0.0,
-        kdvTutari: (map['kdvTutari'] as num?)?.toDouble() ?? 0.0,
-        tevkifatTutari: (map['tevkifatTutari'] as num?)?.toDouble() ?? 0.0,
-        birimAdi: map['birimAdi'] as String?,
-        faturaNo: map['faturaNo'] as String?,
-        faturaTarihi: map['faturaTarihi'] as String?,
-      );
+  factory TevkifatFirmaKaydi.fromMap(Map<String, dynamic> map) {
+    final matrah = (map['matrahTutari'] as num?)?.toDouble() ?? 0.0;
+    final kdv = (map['kdvTutari'] as num?)?.toDouble() ?? 0.0;
+    int kdvOrani = (map['kdvOrani'] as num?)?.toInt() ?? 20;
+    if (matrah > 0 && kdv > 0) {
+      final yuzde = (kdv / matrah) * 100.0;
+      if ((yuzde - 10.0).abs() <= 1.8) {
+        kdvOrani = 10;
+      } else if ((yuzde - 1.0).abs() <= 0.4) {
+        kdvOrani = 1;
+      } else if ((yuzde - 8.0).abs() <= 1.0) {
+        kdvOrani = 8;
+      } else if ((yuzde - 18.0).abs() <= 1.2) {
+        kdvOrani = 18;
+      } else if ((yuzde - 20.0).abs() <= 2.2) {
+        kdvOrani = 20;
+      }
+    }
+    return TevkifatFirmaKaydi(
+      id: map['id'] as String? ?? '',
+      firmaAdi: map['firmaAdi'] as String? ?? '',
+      vergiTcNo: map['vergiTcNo'] as String? ?? '',
+      tevkifatTuru: TevkifatTuru.fromString(map['tevkifatTuru'] as String? ?? '9/10'),
+      tevkifatEtiketi: map['tevkifatEtiketi'] as String?,
+      kdvOrani: kdvOrani,
+      matrahTutari: matrah,
+      kdvTutari: kdv,
+      tevkifatTutari: (map['tevkifatTutari'] as num?)?.toDouble() ?? 0.0,
+      birimAdi: map['birimAdi'] as String?,
+      faturaNo: map['faturaNo'] as String?,
+      faturaTarihi: map['faturaTarihi'] as String?,
+    );
+  }
 }
 
 /// Muhtasar Personel Satırı (Birim Bazında veya Kişi Bazında)
@@ -505,6 +524,9 @@ class BeyannameDonemModel {
   final DateTime guncellenmeTarihi;
 
   final double oncekiAydanDevredenKdv;
+  final double disSozlesmeDamga;
+  final double disKararPuluDamga;
+  final Map<String, double> mizanKdv2Map;
   final List<Kdv1BirimSatiri> kdv1Satirlari;
   final List<TevkifatFirmaKaydi> tevkifatKayitlari;
   final List<MuhtasarSatiri> muhtasarSatirlari;
@@ -518,6 +540,9 @@ class BeyannameDonemModel {
     required this.baslik,
     required this.guncellenmeTarihi,
     this.oncekiAydanDevredenKdv = 0.0,
+    this.disSozlesmeDamga = 0.0,
+    this.disKararPuluDamga = 0.0,
+    this.mizanKdv2Map = const {},
     this.kdv1Satirlari = const [],
     this.tevkifatKayitlari = const [],
     this.muhtasarSatirlari = const [],
@@ -532,6 +557,9 @@ class BeyannameDonemModel {
         'baslik': baslik,
         'guncellenmeTarihi': guncellenmeTarihi.toIso8601String(),
         'oncekiAydanDevredenKdv': oncekiAydanDevredenKdv,
+        'disSozlesmeDamga': disSozlesmeDamga,
+        'disKararPuluDamga': disKararPuluDamga,
+        'mizanKdv2Map': mizanKdv2Map,
         'kdv1Satirlari': kdv1Satirlari.map((e) => e.toMap()).toList(),
         'tevkifatKayitlari': tevkifatKayitlari.map((e) => e.toMap()).toList(),
         'muhtasarSatirlari': muhtasarSatirlari.map((e) => e.toMap()).toList(),
@@ -550,6 +578,14 @@ class BeyannameDonemModel {
             : DateTime.now(),
         oncekiAydanDevredenKdv:
             (map['oncekiAydanDevredenKdv'] as num?)?.toDouble() ?? 0.0,
+        disSozlesmeDamga:
+            (map['disSozlesmeDamga'] as num?)?.toDouble() ?? 0.0,
+        disKararPuluDamga:
+            (map['disKararPuluDamga'] as num?)?.toDouble() ?? 0.0,
+        mizanKdv2Map: (map['mizanKdv2Map'] as Map<String, dynamic>?)?.map(
+              (k, v) => MapEntry(k, (v as num?)?.toDouble() ?? 0.0),
+            ) ??
+            const {},
         kdv1Satirlari: (map['kdv1Satirlari'] as List<dynamic>?)
                 ?.map((e) => Kdv1BirimSatiri.fromMap(e as Map<String, dynamic>))
                 .toList() ??

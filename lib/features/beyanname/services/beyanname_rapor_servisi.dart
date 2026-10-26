@@ -514,13 +514,14 @@ class BeyannameRaporServisi {
     final icmaller = provider.birimIcmalListesi;
     final ayAd = _ayAdlari[provider.seciliAy - 1];
 
+    final disIhaleToplam = provider.disSozlesmeDamga + provider.disKararPuluDamga;
     final topKdv1 = icmaller.fold(0.0, (s, x) => s + x.kdv1Tutari);
-    final topDamgaVb = icmaller.fold(0.0, (s, x) => s + x.damgaVb);
+    final topDamgaVb = icmaller.fold(0.0, (s, x) => s + x.damgaVb) + disIhaleToplam;
     final topMuhtasarGelir = icmaller.fold(0.0, (s, x) => s + x.muhtasarGelir);
     final topMuhtasarDamga = icmaller.fold(0.0, (s, x) => s + x.muhtasarDamga);
     final topMuhtasarKesilen = icmaller.fold(0.0, (s, x) => s + x.muhtasarKesilenDamga);
     final topKdv2 = icmaller.fold(0.0, (s, x) => s + x.kdv2Toplam);
-    final genelToplam = icmaller.fold(0.0, (s, x) => s + x.genelToplamOdenecek);
+    final genelToplam = icmaller.fold(0.0, (s, x) => s + x.genelToplamOdenecek) + disIhaleToplam;
 
     pdf.addPage(
       pw.MultiPage(
@@ -606,6 +607,32 @@ class BeyannameRaporServisi {
                     ],
                   );
                 }),
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfColors.green50),
+                  children: [
+                    _td('DİŞ SÖZLEŞMEYE DAİR (360.03.03)', isBold: true, align: pw.TextAlign.left),
+                    _td(TurkceFormat.para(0)),
+                    _td(TurkceFormat.para(provider.disSozlesmeDamga), isBold: true),
+                    _td(TurkceFormat.para(0)),
+                    _td(TurkceFormat.para(0)),
+                    _td(TurkceFormat.para(0)),
+                    _td(TurkceFormat.para(0)),
+                    _td(TurkceFormat.para(provider.disSozlesmeDamga), isBold: true, renk: PdfColors.blue900),
+                  ],
+                ),
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfColors.green50),
+                  children: [
+                    _td('DİŞ DAMGA-KARAR PULU (360.03.02)', isBold: true, align: pw.TextAlign.left),
+                    _td(TurkceFormat.para(0)),
+                    _td(TurkceFormat.para(provider.disKararPuluDamga), isBold: true),
+                    _td(TurkceFormat.para(0)),
+                    _td(TurkceFormat.para(0)),
+                    _td(TurkceFormat.para(0)),
+                    _td(TurkceFormat.para(0)),
+                    _td(TurkceFormat.para(provider.disKararPuluDamga), isBold: true, renk: PdfColors.blue900),
+                  ],
+                ),
                 pw.TableRow(
                   decoration: const pw.BoxDecoration(color: PdfColors.green50),
                   children: [

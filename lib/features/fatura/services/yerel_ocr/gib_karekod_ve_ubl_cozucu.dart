@@ -43,15 +43,29 @@ class GibKarekodFaturaVerisi {
   bool get tevkifatliMi =>
       tevkifatTutari > 0.01 || faturaTipi.toUpperCase().contains('TEVKIFAT');
 
+  /// Karekod yalnızca genel toplamları içerdiğinde ve faturada birden fazla farklı
+  /// tevkifat oranı (örn. 9/10 + 7/10 + 5/10) bulunduğunda, toplam tevkifat / toplam KDV
+  /// oranı tek bir X/10 tam katına (0.2, 0.3, 0.4, 0.5, 0.7, 0.9, 1.0) oturmaz
+  /// (Örn: 180.430,25 / 249.722,50 = 0.7225 -> 7.225/10).
+  /// Bu durumda belge üzerindeki çoklu tevkifat tablosunun OCR / AI ile ayrıştırılması gerekir.
+  bool get cokluOranKarisikMi {
+    if (kdvTutari <= 0 || tevkifatTutari <= 0) return false;
+    final exactPay = (tevkifatTutari / kdvTutari) * 10.0;
+    final enYakinPay = exactPay.round().clamp(1, 10);
+    final beklenenTevkifat = kdvTutari * (enYakinPay / 10.0);
+    return (exactPay - enYakinPay).abs() > 0.04 &&
+        (tevkifatTutari - beklenenTevkifat).abs() > 2.5;
+  }
+
   /// Beyanname KDV-2 tevkifat listesi formatına dönüştürür.
   Map<String, dynamic> toBeyannameTevkifatMap({String? yedekFirmaAdi}) {
-    final EtkinFirma = saticiUnvan.trim().isNotEmpty
+    final etkinFirma = saticiUnvan.trim().isNotEmpty
         ? saticiUnvan.trim()
         : ((yedekFirmaAdi != null && yedekFirmaAdi.trim().isNotEmpty)
             ? yedekFirmaAdi.trim()
             : 'VKN: $saticiVknTckn');
     return {
-      'firmaAdi': EtkinFirma,
+      'firmaAdi': etkinFirma,
       'vergiTcNo': saticiVknTckn,
       'faturaNo': faturaNo,
       'faturaTarihi': faturaTarihi,
@@ -104,18 +118,26 @@ Vergiler Dahil Toplam Tutar: $trVergiDahil TL
 class GibKarekodVeUblCozucu {
   const GibKarekodVeUblCozucu._();
 
-  /// Karekod içinden çıkan JSON metnini çözümler.
+  /// Karekod içinden çıkan JSON metnini çözümler (tekil çağrılar için ilk kırılımı döndürür).
   static GibKarekodFaturaVerisi? cozGibKarekodJson(String rawQr) {
+    final liste = cozGibKarekodJsonListesi(rawQr);
+    return liste.isNotEmpty ? liste.first : null;
+  }
+
+  /// Karekod içinden çıkan JSON metnini çözümler.
+  /// Eğer karekod JSON'unda birden fazla tevkifat oranı (örn. hesaplanankdvtevkifat(90), hesaplanankdvtevkifat(70))
+  /// veya birden fazla KDV oranı (%10, %20) kırılımı varsa her birini ayrı satır olarak döndürür.
+  static List<GibKarekodFaturaVerisi> cozGibKarekodJsonListesi(String rawQr) {
     final trimmed = rawQr.trim();
-    if (!trimmed.contains('{') || !trimmed.contains('}')) return null;
+    if (!trimmed.contains('{') || !trimmed.contains('}')) return const [];
 
     try {
       final start = trimmed.indexOf('{');
       final end = trimmed.lastIndexOf('}');
-      if (start < 0 || end <= start) return null;
+      if (start < 0 || end <= start) return const [];
       final jsonSlice = trimmed.substring(start, end + 1);
       final decoded = jsonDecode(jsonSlice);
-      if (decoded is! Map) return null;
+      if (decoded is! Map) return const [];
 
       // Anahtarları küçük harfe normalize et
       final norm = <String, dynamic>{};
@@ -126,7 +148,7 @@ class GibKarekodVeUblCozucu {
       final saticiVkn = _sadeceRakam(
         norm['vkntckn'] ?? norm['saticivkntckn'] ?? norm['vkn'] ?? norm['tckn'],
       );
-      if (saticiVkn.length != 10 && saticiVkn.length != 11) return null;
+      if (saticiVkn.length != 10 && saticiVkn.length != 11) return const [];
 
       final aliciVkn = _sadeceRakam(norm['avkntckn'] ?? norm['alicivkntckn']);
       final faturaNo = (norm['no'] ?? norm['faturano'] ?? '').toString().trim();
@@ -141,23 +163,48 @@ class GibKarekodVeUblCozucu {
       double kdvTutari = 0.0;
       int kdvOrani = 20;
 
-      // kdvmatrah(20), hesaplanankdv(20) gibi dinamik alanları tara
+      // kdvmatrah(10), kdvmatrah(20), hesaplanankdv(10), hesaplanankdv(20) ve tevkifat kırılımlarını tara
       double kdvMatrahToplam = 0.0;
+      final kdvMatrahByRate = <int, double>{};
+      final kdvTutariByRate = <int, double>{};
+      final tevkifatByPay = <int, double>{};
+      double tevkifatParametresizToplam = 0.0;
+
       for (final entry in norm.entries) {
         final k = entry.key;
         if (k.startsWith('kdvmatrah')) {
           final m = _parseQrSayi(entry.value);
-          if (m > 0) kdvMatrahToplam += m;
-          final oranMatch = RegExp(r'\((\d+)\)').firstMatch(k);
-          if (oranMatch != null && m > 0) {
-            kdvOrani = int.tryParse(oranMatch.group(1)!) ?? kdvOrani;
+          if (m > 0) {
+            kdvMatrahToplam += m;
+            final oranMatch = RegExp(r'\((\d+)\)').firstMatch(k);
+            final r = oranMatch != null ? (int.tryParse(oranMatch.group(1)!) ?? 20) : 20;
+            kdvMatrahByRate[r] = (kdvMatrahByRate[r] ?? 0.0) + m;
+            kdvOrani = r;
           }
         } else if (k.startsWith('hesaplanankdv') && !k.contains('tevkifat')) {
           final kv = _parseQrSayi(entry.value);
-          if (kv > 0) kdvTutari += kv;
-          final oranMatch = RegExp(r'\((\d+)\)').firstMatch(k);
-          if (oranMatch != null && kv > 0) {
-            kdvOrani = int.tryParse(oranMatch.group(1)!) ?? kdvOrani;
+          if (kv > 0) {
+            kdvTutari += kv;
+            final oranMatch = RegExp(r'\((\d+)\)').firstMatch(k);
+            final r = oranMatch != null ? (int.tryParse(oranMatch.group(1)!) ?? 20) : 20;
+            kdvTutariByRate[r] = (kdvTutariByRate[r] ?? 0.0) + kv;
+            kdvOrani = r;
+          }
+        } else if (k.contains('tevkifat') && !k.contains('oran') && !k.contains('kod')) {
+          final tv = _parseQrSayi(entry.value);
+          if (tv > 0) {
+            final parantezMatch = RegExp(r'\((\d+)(?:/10)?\)').firstMatch(k);
+            if (parantezMatch != null) {
+              final rawNum = int.tryParse(parantezMatch.group(1)!) ?? 0;
+              final pay = rawNum > 10 ? (rawNum ~/ 10) : rawNum;
+              if (pay >= 1 && pay <= 10) {
+                tevkifatByPay[pay] = (tevkifatByPay[pay] ?? 0.0) + tv;
+              } else {
+                tevkifatParametresizToplam += tv;
+              }
+            } else {
+              tevkifatParametresizToplam += tv;
+            }
           }
         }
       }
@@ -165,7 +212,23 @@ class GibKarekodVeUblCozucu {
       if (matrah <= 0 && kdvMatrahToplam > 0) {
         matrah = kdvMatrahToplam;
       }
-      if (matrah <= 0) return null;
+      if (matrah <= 0) return const [];
+
+      // Matrah ve KDV tutarı üzerinden matematiksel KDV oranını (%1, %8, %10, %20) kesinleştir
+      if (matrah > 0 && kdvTutari > 0) {
+        final R = (kdvTutari / matrah) * 100.0;
+        if ((R - 10.0).abs() <= 2.0) {
+          kdvOrani = 10;
+        } else if ((R - 1.0).abs() <= 0.4) {
+          kdvOrani = 1;
+        } else if ((R - 8.0).abs() <= 1.2) {
+          kdvOrani = 8;
+        } else if ((R - 18.0).abs() <= 1.2) {
+          kdvOrani = 18;
+        } else if ((R - 20.0).abs() <= 2.5) {
+          kdvOrani = 20;
+        }
+      }
 
       double vergiDahil = _parseQrSayi(
         norm['vergidahil'] ?? norm['vergilerdahil'] ?? norm['toplam'],
@@ -181,9 +244,41 @@ class GibKarekodVeUblCozucu {
         odenecek = vergiDahil;
       }
 
-      double tevkifatTutari = _parseQrSayi(
-        norm['tevkifattutari'] ?? norm['hesaplanankdvtevkifat'],
-      );
+      // Eğer karekod içinde birden fazla tevkifat oranı kırılımı varsa (örn: 9/10, 7/10, 5/10) her birini ayrı üret
+      if (tevkifatByPay.length > 1 && kdvOrani > 0) {
+        final cokluSonuc = <GibKarekodFaturaVerisi>[];
+        for (final entry in tevkifatByPay.entries) {
+          final pay = entry.key;
+          final tvTutar = entry.value;
+          final katsayi = pay / 10.0;
+          final satirKdv = double.parse((tvTutar / katsayi).toStringAsFixed(2));
+          final satirMatrah = double.parse((satirKdv / (kdvOrani / 100.0)).toStringAsFixed(2));
+          cokluSonuc.add(
+            GibKarekodFaturaVerisi(
+              saticiVknTckn: saticiVkn,
+              aliciVknTckn: aliciVkn,
+              saticiUnvan: saticiUnvan,
+              faturaNo: faturaNo,
+              faturaTarihi: faturaTarihi,
+              faturaTipi: tip,
+              senaryo: senaryo,
+              ettn: ettn,
+              matrah: satirMatrah,
+              kdvOrani: kdvOrani,
+              kdvTutari: satirKdv,
+              vergiDahilToplam: double.parse((satirMatrah + satirKdv).toStringAsFixed(2)),
+              odenecekTutar: double.parse((satirMatrah + satirKdv - tvTutar).toStringAsFixed(2)),
+              tevkifatTutari: tvTutar,
+              tevkifatOrani: '$pay/10',
+            ),
+          );
+        }
+        return cokluSonuc;
+      }
+
+      double tevkifatTutari = tevkifatParametresizToplam > 0
+          ? tevkifatParametresizToplam
+          : (tevkifatByPay.values.isNotEmpty ? tevkifatByPay.values.first : 0.0);
       // GİB karekodunda vergidahil ile odenecek arasındaki fark doğrudan KDV Tevkifat tutarıdır!
       if (tevkifatTutari <= 0 && vergiDahil > odenecek + 0.05 && kdvTutari > 0) {
         final fark = double.parse((vergiDahil - odenecek).toStringAsFixed(2));
@@ -193,30 +288,34 @@ class GibKarekodVeUblCozucu {
       }
 
       String tevkifatOrani = (norm['tevkifatorani'] ?? '').toString().trim();
-      if (tevkifatOrani.isEmpty && tevkifatTutari > 0 && kdvTutari > 0) {
+      if (tevkifatOrani.isEmpty && tevkifatByPay.length == 1) {
+        tevkifatOrani = '${tevkifatByPay.keys.first}/10';
+      } else if (tevkifatOrani.isEmpty && tevkifatTutari > 0 && kdvTutari > 0) {
         final pay = ((tevkifatTutari / kdvTutari) * 10).round().clamp(1, 10);
         tevkifatOrani = '$pay/10';
       }
 
-      return GibKarekodFaturaVerisi(
-        saticiVknTckn: saticiVkn,
-        aliciVknTckn: aliciVkn,
-        saticiUnvan: saticiUnvan,
-        faturaNo: faturaNo,
-        faturaTarihi: faturaTarihi,
-        faturaTipi: tip,
-        senaryo: senaryo,
-        ettn: ettn,
-        matrah: matrah,
-        kdvOrani: kdvOrani,
-        kdvTutari: kdvTutari,
-        vergiDahilToplam: vergiDahil,
-        odenecekTutar: odenecek,
-        tevkifatTutari: tevkifatTutari,
-        tevkifatOrani: tevkifatOrani,
-      );
+      return [
+        GibKarekodFaturaVerisi(
+          saticiVknTckn: saticiVkn,
+          aliciVknTckn: aliciVkn,
+          saticiUnvan: saticiUnvan,
+          faturaNo: faturaNo,
+          faturaTarihi: faturaTarihi,
+          faturaTipi: tip,
+          senaryo: senaryo,
+          ettn: ettn,
+          matrah: matrah,
+          kdvOrani: kdvOrani,
+          kdvTutari: kdvTutari,
+          vergiDahilToplam: vergiDahil,
+          odenecekTutar: odenecek,
+          tevkifatTutari: tevkifatTutari,
+          tevkifatOrani: tevkifatOrani,
+        ),
+      ];
     } catch (_) {
-      return null;
+      return const [];
     }
   }
 
@@ -238,9 +337,11 @@ class GibKarekodVeUblCozucu {
       caseSensitive: false,
     );
     for (final m in qrJsonRegex.allMatches(rawText)) {
-      final veri = cozGibKarekodJson(m.group(0)!);
-      if (veri != null && !_mukerrerMi(sonuclar, veri)) {
-        sonuclar.add(veri);
+      final veriler = cozGibKarekodJsonListesi(m.group(0)!);
+      for (final veri in veriler) {
+        if (!_mukerrerMi(sonuclar, veri)) {
+          sonuclar.add(veri);
+        }
       }
     }
 
@@ -252,9 +353,11 @@ class GibKarekodVeUblCozucu {
       } catch (_) {
         utf8Text = rawText;
       }
-      final ublVerisi = _cozUblTrXml(utf8Text);
-      if (ublVerisi != null && !_mukerrerMi(sonuclar, ublVerisi)) {
-        sonuclar.add(ublVerisi);
+      final ublListesi = _cozUblTrXmlListesi(utf8Text);
+      for (final ublVerisi in ublListesi) {
+        if (!_mukerrerMi(sonuclar, ublVerisi)) {
+          sonuclar.add(ublVerisi);
+        }
       }
     }
 
@@ -262,7 +365,9 @@ class GibKarekodVeUblCozucu {
   }
 
   /// UBL-TR 1.2 e-Fatura XML içeriğinden resmi alanları çıkarır.
-  static GibKarekodFaturaVerisi? _cozUblTrXml(String xml) {
+  /// Eğer tek bir faturada birden fazla tevkifat oranı (<cac:WithholdingTaxTotal> altında çoklu <cac:TaxSubtotal>)
+  /// varsa her bir tevkifat kırılımını ayrı bir `GibKarekodFaturaVerisi` olarak döndürür.
+  static List<GibKarekodFaturaVerisi> _cozUblTrXmlListesi(String xml) {
     try {
       // Satıcı bilgileri
       final supplierBlock = RegExp(
@@ -271,7 +376,7 @@ class GibKarekodVeUblCozucu {
       final saticiVkn = RegExp(
         r'<cbc:ID[^>]*schemeID="(?:VKN|TCKN)"[^>]*>(\d{10,11})</cbc:ID>',
       ).firstMatch(supplierBlock)?.group(1) ?? '';
-      if (saticiVkn.isEmpty) return null;
+      if (saticiVkn.isEmpty) return const [];
 
       final unvan = RegExp(r'<cac:PartyName>\s*<cbc:Name>([^<]+)</cbc:Name>')
               .firstMatch(supplierBlock)
@@ -315,7 +420,7 @@ class GibKarekodVeUblCozucu {
             .firstMatch(monetaryBlock)
             ?.group(1),
       );
-      if (matrah <= 0) return null;
+      if (matrah <= 0) return const [];
 
       final vergiDahil = _parseQrSayi(
         RegExp(r'<cbc:TaxInclusiveAmount[^>]*>([^<]+)</cbc:TaxInclusiveAmount>')
@@ -348,6 +453,67 @@ class GibKarekodVeUblCozucu {
       final withholdingBlock = RegExp(
         r'<cac:WithholdingTaxTotal>([\s\S]*?)</cac:WithholdingTaxTotal>',
       ).firstMatch(xml)?.group(1) ?? '';
+
+      // Çoklu <cac:TaxSubtotal> kontrolü (bir faturada birden fazla tevkifat oranı varsa)
+      final withholdingSubtotals = RegExp(
+        r'<cac:TaxSubtotal>([\s\S]*?)</cac:TaxSubtotal>',
+      ).allMatches(withholdingBlock).toList();
+
+      if (withholdingSubtotals.length > 1) {
+        final cokluList = <GibKarekodFaturaVerisi>[];
+        for (final sub in withholdingSubtotals) {
+          final subXml = sub.group(1) ?? '';
+          final subKdvBaz = _parseQrSayi(
+            RegExp(r'<cbc:TaxableAmount[^>]*>([^<]+)</cbc:TaxableAmount>')
+                .firstMatch(subXml)
+                ?.group(1),
+          );
+          final subTvk = _parseQrSayi(
+            RegExp(r'<cbc:TaxAmount[^>]*>([^<]+)</cbc:TaxAmount>')
+                .firstMatch(subXml)
+                ?.group(1),
+          );
+          final subPercent = int.tryParse(
+            RegExp(r'<cbc:Percent>(\d+)</cbc:Percent>')
+                    .firstMatch(subXml)
+                    ?.group(1) ??
+                '',
+          );
+          if (subTvk <= 0) continue;
+
+          String subOran = '9/10';
+          if (subPercent != null && subPercent > 0) {
+            subOran = '${(subPercent / 10).round().clamp(1, 10)}/10';
+          } else if (subKdvBaz > 0) {
+            subOran = '${((subTvk / subKdvBaz) * 10).round().clamp(1, 10)}/10';
+          }
+          final subKdv = subKdvBaz > 0 ? subKdvBaz : kdvTutari;
+          final subMatrah = subKdv > 0 && kdvOrani > 0
+              ? double.parse((subKdv / (kdvOrani / 100.0)).toStringAsFixed(2))
+              : matrah;
+
+          cokluList.add(
+            GibKarekodFaturaVerisi(
+              saticiVknTckn: saticiVkn,
+              aliciVknTckn: aliciVkn,
+              saticiUnvan: unvan,
+              faturaNo: faturaNo,
+              faturaTarihi: tarih,
+              faturaTipi: tip,
+              ettn: ettn,
+              matrah: subMatrah,
+              kdvOrani: kdvOrani,
+              kdvTutari: subKdv,
+              vergiDahilToplam: subMatrah + subKdv,
+              odenecekTutar: subMatrah + subKdv - subTvk,
+              tevkifatTutari: subTvk,
+              tevkifatOrani: subOran,
+            ),
+          );
+        }
+        if (cokluList.isNotEmpty) return cokluList;
+      }
+
       double tevkifatTutari = _parseQrSayi(
         RegExp(r'<cbc:TaxAmount[^>]*>([^<]+)</cbc:TaxAmount>')
             .firstMatch(withholdingBlock)
@@ -371,31 +537,39 @@ class GibKarekodVeUblCozucu {
         tevkifatOrani = '$pay/10';
       }
 
-      return GibKarekodFaturaVerisi(
-        saticiVknTckn: saticiVkn,
-        aliciVknTckn: aliciVkn,
-        saticiUnvan: unvan,
-        faturaNo: faturaNo,
-        faturaTarihi: tarih,
-        faturaTipi: tip,
-        ettn: ettn,
-        matrah: matrah,
-        kdvOrani: kdvOrani,
-        kdvTutari: kdvTutari,
-        vergiDahilToplam: vergiDahil > 0 ? vergiDahil : matrah + kdvTutari,
-        odenecekTutar: odenecek > 0 ? odenecek : vergiDahil,
-        tevkifatTutari: tevkifatTutari,
-        tevkifatOrani: tevkifatOrani,
-      );
+      return [
+        GibKarekodFaturaVerisi(
+          saticiVknTckn: saticiVkn,
+          aliciVknTckn: aliciVkn,
+          saticiUnvan: unvan,
+          faturaNo: faturaNo,
+          faturaTarihi: tarih,
+          faturaTipi: tip,
+          ettn: ettn,
+          matrah: matrah,
+          kdvOrani: kdvOrani,
+          kdvTutari: kdvTutari,
+          vergiDahilToplam: vergiDahil > 0 ? vergiDahil : matrah + kdvTutari,
+          odenecekTutar: odenecek > 0 ? odenecek : vergiDahil,
+          tevkifatTutari: tevkifatTutari,
+          tevkifatOrani: tevkifatOrani,
+        ),
+      ];
     } catch (_) {
-      return null;
+      return const [];
     }
   }
 
   static bool _mukerrerMi(List<GibKarekodFaturaVerisi> liste, GibKarekodFaturaVerisi yeni) {
-    return liste.any((x) =>
-        (x.faturaNo.isNotEmpty && x.faturaNo == yeni.faturaNo) ||
-        (x.saticiVknTckn == yeni.saticiVknTckn && (x.matrah - yeni.matrah).abs() < 0.05));
+    return liste.any((x) {
+      if (x.tevkifatOrani != yeni.tevkifatOrani || x.kdvOrani != yeni.kdvOrani) {
+        return false;
+      }
+      if (x.faturaNo.isNotEmpty && yeni.faturaNo.isNotEmpty) {
+        return x.faturaNo == yeni.faturaNo && (x.matrah - yeni.matrah).abs() < 0.05;
+      }
+      return x.saticiVknTckn == yeni.saticiVknTckn && (x.matrah - yeni.matrah).abs() < 0.05;
+    });
   }
 
   static String _sadeceRakam(dynamic val) {

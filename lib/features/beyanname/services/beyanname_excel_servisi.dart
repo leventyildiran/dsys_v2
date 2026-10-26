@@ -118,31 +118,43 @@ class BeyannameExcelServisi {
       row1++;
     }
 
-    // Diş Damga - Karar Pulu Satırı
-    sheet1.getRangeByIndex(row1, 1).setText('DİŞ DAMGA-KARAR PULU');
-    sheet1.getRangeByIndex(row1, 1).cellStyle.bold = true;
-    for (int c = 2; c <= 8; c++) {
-      final cell = sheet1.getRangeByIndex(row1, c);
-      cell.setNumber(0.0);
-      cell.numberFormat = '#,##0.00';
-      cell.cellStyle.hAlign = xlsio.HAlignType.right;
+    // Diş Sözleşmeye Dair & Diş Damga-Karar Pulu Satırları (İhale Damga Vergisi)
+    final disIhaleSatirlari = [
+      ('DİŞ SÖZLEŞMEYE DAİR', provider.disSozlesmeDamga),
+      ('DİŞ DAMGA-KARAR PULU', provider.disKararPuluDamga),
+    ];
+    for (final (baslik, tutar) in disIhaleSatirlari) {
+      sheet1.getRangeByIndex(row1, 1).setText(baslik);
+      sheet1.getRangeByIndex(row1, 1).cellStyle.bold = true;
+      final rowVals = [0.0, tutar, 0.0, 0.0, 0.0, 0.0, tutar];
+      for (int c = 0; c < rowVals.length; c++) {
+        final cell = sheet1.getRangeByIndex(row1, c + 2);
+        cell.setNumber(rowVals[c]);
+        cell.numberFormat = '#,##0.00';
+        cell.cellStyle.hAlign = xlsio.HAlignType.right;
+        if (c == rowVals.length - 1) {
+          cell.cellStyle.bold = true;
+          cell.cellStyle.fontColor = '#15803D';
+        }
+      }
+      for (int c = 1; c <= 8; c++) {
+        final cell = sheet1.getRangeByIndex(row1, c);
+        cell.cellStyle.backColor = '#F0FDF4';
+        cell.cellStyle.borders.all.lineStyle = xlsio.LineStyle.thin;
+        cell.cellStyle.borders.all.color = '#E2E8F0';
+      }
+      row1++;
     }
-    for (int c = 1; c <= 8; c++) {
-      final cell = sheet1.getRangeByIndex(row1, c);
-      cell.cellStyle.backColor = '#F0FDF4';
-      cell.cellStyle.borders.all.lineStyle = xlsio.LineStyle.thin;
-      cell.cellStyle.borders.all.color = '#E2E8F0';
-    }
-    row1++;
 
     // Tablo 1 TOPLAMLAR
+    final disIhaleToplam = provider.disSozlesmeDamga + provider.disKararPuluDamga;
     final topKdv1 = icmaller.fold(0.0, (s, x) => s + x.kdv1Tutari);
-    final topDamgaVb = icmaller.fold(0.0, (s, x) => s + x.damgaVb);
+    final topDamgaVb = icmaller.fold(0.0, (s, x) => s + x.damgaVb) + disIhaleToplam;
     final topMuhtasarGelir = icmaller.fold(0.0, (s, x) => s + x.muhtasarGelir);
     final topMuhtasarDamga = icmaller.fold(0.0, (s, x) => s + x.muhtasarDamga);
     final topMuhtasarKesilen = icmaller.fold(0.0, (s, x) => s + x.muhtasarKesilenDamga);
     final topMuhtasarToplam = icmaller.fold(0.0, (s, x) => s + x.muhtasarToplam);
-    final topGenelOdenecek = icmaller.fold(0.0, (s, x) => s + x.genelToplamOdenecek);
+    final topGenelOdenecek = icmaller.fold(0.0, (s, x) => s + x.genelToplamOdenecek) + disIhaleToplam;
 
     sheet1.getRangeByIndex(row1, 1).setText('TOPLAMLAR');
     sheet1.getRangeByIndex(row1, 1).cellStyle.bold = true;

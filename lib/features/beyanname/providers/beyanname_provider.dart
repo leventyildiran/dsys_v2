@@ -111,6 +111,60 @@ class BeyannameProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Diş Hekimliği İhaleye Ait Damga Vergisi (360.03.03 Sözleşmeye Dair Binde 9,48 & 360.03.02 İhale Karar Pulu Binde 5,69)
+  double _disSozlesmeDamga = 0.0;
+  double get disSozlesmeDamga => _disSozlesmeDamga;
+  double get disSozlesmeDamgaMatrah => _disSozlesmeDamga > 0
+      ? BeyannameHesaplamaMotoru.round(_disSozlesmeDamga / 0.00948)
+      : 0.0;
+
+  double _disKararPuluDamga = 0.0;
+  double get disKararPuluDamga => _disKararPuluDamga;
+  double get disKararPuluDamgaMatrah => _disKararPuluDamga > 0
+      ? BeyannameHesaplamaMotoru.round(_disKararPuluDamga / 0.00569)
+      : 0.0;
+
+  void setDisSozlesmeDamga(double val) {
+    _disSozlesmeDamga = val >= 0 ? BeyannameHesaplamaMotoru.round(val) : 0.0;
+    _tetikleYerelTaslakKaydi();
+    notifyListeners();
+  }
+
+  void setDisKararPuluDamga(double val) {
+    _disKararPuluDamga = val >= 0 ? BeyannameHesaplamaMotoru.round(val) : 0.0;
+    _tetikleYerelTaslakKaydi();
+    notifyListeners();
+  }
+
+  // Birim Mizanlarından (360.04) Okunan KDV 2 Tevkifat Tutarları (canonicalKey -> tutar)
+  Map<String, double> _mizanKdv2Map = {};
+  Map<String, double> get mizanKdv2Map => _mizanKdv2Map;
+
+  double getMizanKdv2(String birimAdi) {
+    final key = BirimAdlandirma.canonicalKey(birimAdi);
+    if (_mizanKdv2Map.containsKey(key)) {
+      return _mizanKdv2Map[key] ?? 0.0;
+    }
+    // Yedek: Birim analiz sonucunda varsa onu döndür
+    for (final entry in _birimAnalizSonuclari.entries) {
+      if (BirimAdlandirma.canonicalKey(entry.key) == key) {
+        return entry.value.kdv2Tevkifat360;
+      }
+    }
+    return 0.0;
+  }
+
+  void updateMizanKdv2(String birimAdi, double val) {
+    final key = BirimAdlandirma.canonicalKey(birimAdi);
+    if (key.isEmpty) return;
+    _mizanKdv2Map[key] = val >= 0 ? BeyannameHesaplamaMotoru.round(val) : 0.0;
+    _tetikleYerelTaslakKaydi();
+    notifyListeners();
+  }
+
+  double get toplamMizanKdv2 =>
+      _mizanKdv2Map.values.fold(0.0, (s, x) => s + x);
+
   // --- Kayıtlı Dönem ve Düzenleme Kilidi (Resmi Kayıt Koruma Mekanizması) ---
   bool _isDonemKayitli = false;
   bool get isDonemKayitli => _isDonemKayitli;
@@ -156,6 +210,9 @@ class BeyannameProvider with ChangeNotifier {
         baslik: '$_seciliYil / ${_seciliAy.toString().padLeft(2, '0')} Beyannamesi',
         guncellenmeTarihi: DateTime.now(),
         oncekiAydanDevredenKdv: _oncekiAydanDevredenKdv,
+        disSozlesmeDamga: _disSozlesmeDamga,
+        disKararPuluDamga: _disKararPuluDamga,
+        mizanKdv2Map: _mizanKdv2Map,
         kdv1Satirlari: _kdv1Satirlari,
         tevkifatKayitlari: _tevkifatKayitlari,
         muhtasarSatirlari: _muhtasarSatirlari,
@@ -182,6 +239,8 @@ class BeyannameProvider with ChangeNotifier {
       await prefs.remove('beyanname_draft_${_docId(_seciliYil, _seciliAy)}');
       _sonTaslakZamani = null;
       _oncekiAydanDevredenKdv = 0.0;
+      _disSozlesmeDamga = 0.0;
+      _disKararPuluDamga = 0.0;
       _tevkifatKayitlari.clear();
       _muhtasarSatirlari.clear();
       _yuklenenBelgeler.clear();
@@ -437,6 +496,15 @@ class BeyannameProvider with ChangeNotifier {
 
   void _applyModel(BeyannameDonemModel model) {
     _oncekiAydanDevredenKdv = model.oncekiAydanDevredenKdv;
+    _disSozlesmeDamga = model.disSozlesmeDamga;
+    _disKararPuluDamga = model.disKararPuluDamga;
+    _mizanKdv2Map = {};
+    for (final entry in model.mizanKdv2Map.entries) {
+      final cKey = BirimAdlandirma.canonicalKey(entry.key);
+      if (cKey.isNotEmpty) {
+        _mizanKdv2Map[cKey] = entry.value;
+      }
+    }
 
     // KDV 1 Satırlarını kanonik tekilleştir
     final Map<String, Kdv1BirimSatiri> kdv1Map = {};
@@ -539,6 +607,9 @@ class BeyannameProvider with ChangeNotifier {
 
     _tevkifatKayitlari = [];
     _muhtasarSatirlari = [];
+    _mizanKdv2Map = {};
+    _disSozlesmeDamga = 0.0;
+    _disKararPuluDamga = 0.0;
 
     _damgaSatirlari = varsayilanBirimler
         .map((b) => DamgaVergisiBirimSatiri(birimAdi: b, damgaVergisi: 0, matrah: 0))
@@ -752,6 +823,9 @@ class BeyannameProvider with ChangeNotifier {
         baslik: '$_seciliYil / ${_seciliAy.toString().padLeft(2, '0')} Beyannamesi',
         guncellenmeTarihi: DateTime.now(),
         oncekiAydanDevredenKdv: _oncekiAydanDevredenKdv,
+        disSozlesmeDamga: _disSozlesmeDamga,
+        disKararPuluDamga: _disKararPuluDamga,
+        mizanKdv2Map: _mizanKdv2Map,
         kdv1Satirlari: _kdv1Satirlari,
         tevkifatKayitlari: _tevkifatKayitlari,
         muhtasarSatirlari: _muhtasarSatirlari,
@@ -1483,25 +1557,27 @@ class BeyannameProvider with ChangeNotifier {
     final kdv = TurkceFormat.parseSayi(faturaMap['kdvTutari']);
     final tvk = TurkceFormat.parseSayi(faturaMap['tevkifatTutari']);
     final oran = (faturaMap['tevkifatOrani'] as String? ?? '9/10').trim();
-    final kdvOrani = (faturaMap['kdvOrani'] as num?)?.toInt() ?? 20;
+    final kdvOrani = BirimMizanAnalizSonucu.cozumleKdvOrani(
+      hamKdvOrani: faturaMap['kdvOrani'],
+      matrah: mtr,
+      kdv: kdv,
+    );
+    final guncelFaturaMap = <String, dynamic>{
+      ...faturaMap,
+      'kdvOrani': kdvOrani,
+    };
 
     // 1. Birimin analiz sonucundaki tevkifat listesini güncelle
     final mevcutSonuc = getBirimAnalizSonucu(birimAdi);
     if (mevcutSonuc != null) {
       final yeniTevkifatlar = List<Map<String, dynamic>>.from(mevcutSonuc.tevkifatFaturalari);
-      final idx = yeniTevkifatlar.indexWhere((t) {
-        if (fNo.isNotEmpty && t['faturaNo'] != null && t['faturaNo'].toString().trim() == fNo) {
-          return true;
-        }
-        final ayniFirma = (vNo.isNotEmpty && t['vergiTcNo'] == vNo) ||
-            t['firmaAdi']?.toString().toLowerCase().trim() == fAdi.toLowerCase();
-        final ayniMatrah = (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0;
-        return ayniFirma && ayniMatrah;
-      });
+      final idx = yeniTevkifatlar.indexWhere(
+        (t) => BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(t, guncelFaturaMap),
+      );
       if (idx >= 0) {
-        yeniTevkifatlar[idx] = Map<String, dynamic>.from(faturaMap);
+        yeniTevkifatlar[idx] = guncelFaturaMap;
       } else {
-        yeniTevkifatlar.add(Map<String, dynamic>.from(faturaMap));
+        yeniTevkifatlar.add(guncelFaturaMap);
       }
       _birimAnalizSonuclari[birimAdi] = BirimMizanAnalizSonucu(
         birimAdi: birimAdi,
@@ -1509,16 +1585,22 @@ class BeyannameProvider with ChangeNotifier {
         hasilat600Aylik: mevcutSonuc.hasilat600Aylik,
         hasilat600Kumulatif: mevcutSonuc.hasilat600Kumulatif,
         krediKarti123: mevcutSonuc.krediKarti123,
+        hesaplananKdvMatrah1: mevcutSonuc.hesaplananKdvMatrah1,
+        hesaplananKdv1: mevcutSonuc.hesaplananKdv1,
         hesaplananKdvMatrah10: mevcutSonuc.hesaplananKdvMatrah10,
         hesaplananKdv10: mevcutSonuc.hesaplananKdv10,
         hesaplananKdvMatrah20: mevcutSonuc.hesaplananKdvMatrah20,
         hesaplananKdv20: mevcutSonuc.hesaplananKdv20,
+        indirilecekKdvMatrah1: mevcutSonuc.indirilecekKdvMatrah1,
+        indirilecekKdv1: mevcutSonuc.indirilecekKdv1,
         indirilecekKdvMatrah10: mevcutSonuc.indirilecekKdvMatrah10,
         indirilecekKdv10: mevcutSonuc.indirilecekKdv10,
         indirilecekKdvMatrah20: mevcutSonuc.indirilecekKdvMatrah20,
         indirilecekKdv20: mevcutSonuc.indirilecekKdv20,
         damgaVergisi360: mevcutSonuc.damgaVergisi360,
         damgaMatrah: mevcutSonuc.damgaMatrah,
+        ihaleSozlesmeDamga360: mevcutSonuc.ihaleSozlesmeDamga360,
+        ihaleKararPuluDamga360: mevcutSonuc.ihaleKararPuluDamga360,
         muhtasarGelir360: mevcutSonuc.muhtasarGelir360,
         muhtasarDamga360: mevcutSonuc.muhtasarDamga360,
         devredenKdv190: mevcutSonuc.devredenKdv190,
@@ -1531,14 +1613,19 @@ class BeyannameProvider with ChangeNotifier {
       );
     }
 
-    // 2. KDV 2 Masasına Ekle/Güncelle (Mükerrerlik doğru biçimde engellenir, farklı faturalar korunur)
+    // 2. KDV 2 Masasına Ekle/Güncelle (Aynı faturadaki farklı tevkifat oranları ve farklı KDV oranları korunur!)
     if (masayaAktar && mtr > 0) {
       final existingIndex = _tevkifatKayitlari.indexWhere((x) {
         if (BirimAdlandirma.canonicalKey(x.birimAdi ?? '') != BirimAdlandirma.canonicalKey(birimAdi)) {
           return false;
         }
-        if (fNo.isNotEmpty && x.faturaNo != null && x.faturaNo!.trim().isNotEmpty && x.faturaNo!.trim() == fNo) {
-          return true;
+        // Farklı tevkifat oranı (9/10 vs 7/10 vs 5/10) veya farklı KDV oranı (%10 vs %20) ise asla üzerine yazma!
+        if (x.etiket != oran || x.kdvOrani != kdvOrani) {
+          return false;
+        }
+        if (fNo.isNotEmpty && x.faturaNo != null && x.faturaNo!.trim().isNotEmpty) {
+          if (x.faturaNo!.trim() != fNo) return false;
+          return (x.matrahTutari - mtr).abs() < 1.0;
         }
         final ayniFirma = (vNo.isNotEmpty && x.vergiTcNo == vNo) ||
             (x.firmaAdi.toLowerCase().trim() == fAdi.toLowerCase());
@@ -2262,7 +2349,28 @@ class BeyannameProvider with ChangeNotifier {
         ));
       }
 
-      // 2. Damga Vergisi Masasını Güncelle veya Ekle
+      // 2. Damga Vergisi Masasını Güncelle veya Ekle (Diş İhale Sözleşme & Karar Pulu + Mizan 360.04 KDV 2 dahil)
+      final bCanonical = BirimAdlandirma.canonicalKey(birimAdi);
+      if (sonuc.kdv2Tevkifat360 > 0 || mizanVerisiVar) {
+        if (uzerineEkle && sonuc.kdv2Tevkifat360 > 0) {
+          _mizanKdv2Map[bCanonical] = BeyannameHesaplamaMotoru.round(
+            (_mizanKdv2Map[bCanonical] ?? 0.0) + sonuc.kdv2Tevkifat360,
+          );
+        } else if (sonuc.kdv2Tevkifat360 > 0 || mizanVerisiVar) {
+          _mizanKdv2Map[bCanonical] = BeyannameHesaplamaMotoru.round(sonuc.kdv2Tevkifat360);
+        }
+      }
+      if (sonuc.ihaleSozlesmeDamga360 > 0) {
+        _disSozlesmeDamga = uzerineEkle
+            ? BeyannameHesaplamaMotoru.round(_disSozlesmeDamga + sonuc.ihaleSozlesmeDamga360)
+            : BeyannameHesaplamaMotoru.round(sonuc.ihaleSozlesmeDamga360);
+      }
+      if (sonuc.ihaleKararPuluDamga360 > 0) {
+        _disKararPuluDamga = uzerineEkle
+            ? BeyannameHesaplamaMotoru.round(_disKararPuluDamga + sonuc.ihaleKararPuluDamga360)
+            : BeyannameHesaplamaMotoru.round(sonuc.ihaleKararPuluDamga360);
+      }
+
       final damgaIndex = _damgaSatirlari.indexWhere(
         (x) => BirimAdlandirma.canonicalKey(x.birimAdi) == BirimAdlandirma.canonicalKey(birimAdi),
       );
@@ -2366,21 +2474,24 @@ class BeyannameProvider with ChangeNotifier {
         final tvk = TurkceFormat.parseSayi(tf['tevkifatTutari']);
         final oran = (tf['tevkifatOrani'] as String? ?? '9/10').trim();
 
-        int tespitEdilenKdvOrani = 20;
-        if (mtr > 0 && kdv > 0) {
-          final oranHesap = (kdv / mtr * 100).round();
-          if (const [1, 8, 10, 18, 20].contains(oranHesap)) {
-            tespitEdilenKdvOrani = oranHesap;
-          }
-        }
+        final int tespitEdilenKdvOrani = BirimMizanAnalizSonucu.cozumleKdvOrani(
+          hamKdvOrani: tf['kdvOrani'],
+          matrah: mtr,
+          kdv: kdv,
+        );
 
         if (mtr > 0) {
           final existingIndex = _tevkifatKayitlari.indexWhere((x) {
             if (BirimAdlandirma.canonicalKey(x.birimAdi ?? '') != BirimAdlandirma.canonicalKey(birimAdi)) {
               return false;
             }
-            if (fNo.isNotEmpty && x.faturaNo != null && x.faturaNo!.trim().isNotEmpty && x.faturaNo!.trim() == fNo) {
-              return true;
+            // Aynı faturada farklı tevkifat oranları (9/10, 7/10, 5/10) veya farklı KDV oranları (%10, %20) varsa ayrı satır olarak koru!
+            if (x.etiket != oran || x.kdvOrani != tespitEdilenKdvOrani) {
+              return false;
+            }
+            if (fNo.isNotEmpty && x.faturaNo != null && x.faturaNo!.trim().isNotEmpty) {
+              if (x.faturaNo!.trim() != fNo) return false;
+              return (x.matrahTutari - mtr).abs() < 1.0;
             }
             final ayniFirma = (vNo.isNotEmpty && x.vergiTcNo == vNo) ||
                 (x.firmaAdi.toLowerCase().trim() == fAdi.toLowerCase().trim());
@@ -2453,6 +2564,7 @@ class BeyannameProvider with ChangeNotifier {
       }
     }
 
+    _dengeleDosimKonsolideDamga();
     _guncelleDamga301();
     _sonAjanRaporu = rapor.copyWith(
       uygulandiMi: true,
@@ -2460,6 +2572,49 @@ class BeyannameProvider with ChangeNotifier {
     );
     _tetikleYerelTaslakKaydi();
     notifyListeners();
+  }
+
+  /// DÖSİM mizanı konsolide olup diğer birimlerden gelen beyanname ödemelerini / damga vergilerini
+  /// içerdiğinde, birimler tek tek okutulsa dahi DÖSİM'deki konsolide damga vergisinden diğer birimlerin
+  /// damga vergilerini otomatik düşerek mükerrer (çift) vergi çıkmasını engeller.
+  void _dengeleDosimKonsolideDamga() {
+    final dosimIdx = _damgaSatirlari.indexWhere(
+      (x) => BirimAdlandirma.canonicalKey(x.birimAdi) == 'dosim',
+    );
+    if (dosimIdx < 0) return;
+
+    // DÖSİM'in mizandan okunan ham analiz sonucunu bul
+    BirimMizanAnalizSonucu? dosimAnaliz;
+    for (final entry in _birimAnalizSonuclari.entries) {
+      if (BirimAdlandirma.canonicalKey(entry.key) == 'dosim') {
+        dosimAnaliz = entry.value;
+        break;
+      }
+    }
+    final hamDosimDamga = dosimAnaliz?.damgaVergisi360 ?? _damgaSatirlari[dosimIdx].damgaVergisi;
+    if (hamDosimDamga <= 0) return;
+
+    double digerBirimlerDamgaToplami = 0.0;
+    for (int i = 0; i < _damgaSatirlari.length; i++) {
+      if (i == dosimIdx) continue;
+      digerBirimlerDamgaToplami += _damgaSatirlari[i].damgaVergisi;
+    }
+
+    if (digerBirimlerDamgaToplami > 0 && hamDosimDamga >= digerBirimlerDamgaToplami * 0.80) {
+      var netDosimDamga = hamDosimDamga - digerBirimlerDamgaToplami;
+      if (netDosimDamga < 5.0 || hamDosimDamga <= digerBirimlerDamgaToplami * 1.15) {
+        netDosimDamga = 0.0;
+      } else {
+        netDosimDamga = BeyannameHesaplamaMotoru.round(netDosimDamga);
+      }
+      final netMatrah = netDosimDamga > 0
+          ? BeyannameHesaplamaMotoru.matrahFromDamga(netDosimDamga)
+          : 0.0;
+      _damgaSatirlari[dosimIdx] = _damgaSatirlari[dosimIdx].copyWith(
+        damgaVergisi: netDosimDamga,
+        matrah: netMatrah,
+      );
+    }
   }
 
   @override

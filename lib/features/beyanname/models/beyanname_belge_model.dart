@@ -111,6 +111,14 @@ class BirimMizanAnalizSonucu {
   final double damgaVergisi360;
   final double damgaMatrah;
 
+  // 360.03.02 & 360.03.03 İhale / Sözleşme & Karar Pulu Damga Vergileri (Diş Hekimliği vb.)
+  final double ihaleSozlesmeDamga360;
+  final double ihaleKararPuluDamga360;
+
+  // 360.04 Mizan KDV 2 Tevkifatı (Sorumlu Sıfatıyla Ödenecek KDV)
+  final double kdv2Tevkifat360;
+  final String kdv2HesapDetayi;
+
   // 360 Muhtasar
   final double muhtasarGelir360;
   final double muhtasarDamga360;
@@ -151,6 +159,10 @@ class BirimMizanAnalizSonucu {
     this.indirilecekKdv20 = 0.0,
     this.damgaVergisi360 = 0.0,
     this.damgaMatrah = 0.0,
+    this.ihaleSozlesmeDamga360 = 0.0,
+    this.ihaleKararPuluDamga360 = 0.0,
+    this.kdv2Tevkifat360 = 0.0,
+    this.kdv2HesapDetayi = '',
     this.muhtasarGelir360 = 0.0,
     this.muhtasarDamga360 = 0.0,
     this.devredenKdv190 = 0.0,
@@ -188,6 +200,10 @@ class BirimMizanAnalizSonucu {
         'indirilecekKdv20': indirilecekKdv20,
         'damgaVergisi360': damgaVergisi360,
         'damgaMatrah': damgaMatrah,
+        'ihaleSozlesmeDamga360': ihaleSozlesmeDamga360,
+        'ihaleKararPuluDamga360': ihaleKararPuluDamga360,
+        'kdv2Tevkifat360': kdv2Tevkifat360,
+        'kdv2HesapDetayi': kdv2HesapDetayi,
         'muhtasarGelir360': muhtasarGelir360,
         'muhtasarDamga360': muhtasarDamga360,
         'devredenKdv190': devredenKdv190,
@@ -205,6 +221,87 @@ class BirimMizanAnalizSonucu {
     if (val is num) return val != 0;
     final s = val.toString().trim().toLowerCase();
     return s == 'true' || s == '1' || s == 'evet' || s == 'yes';
+  }
+
+  /// Ham KDV oranı alanı (%10, 10, "10" vb.) ve Matrah/KDV tutarlarından
+  /// kesin KDV oranını (1, 8, 10, 18, 20) çözümler.
+  static int cozumleKdvOrani({
+    dynamic hamKdvOrani,
+    required double matrah,
+    required double kdv,
+  }) {
+    // 1. Önce açıkça verilen kdvOrani değerini kontrol et
+    int? acikOran;
+    if (hamKdvOrani is num) {
+      final v = hamKdvOrani.toInt();
+      if (const [1, 8, 10, 18, 20].contains(v)) {
+        acikOran = v;
+      }
+    } else if (hamKdvOrani != null) {
+      final rakamStr = hamKdvOrani.toString().replaceAll(RegExp(r'[^\d]'), '');
+      final v = int.tryParse(rakamStr);
+      if (v != null && const [1, 8, 10, 18, 20].contains(v)) {
+        acikOran = v;
+      }
+    }
+
+    // 2. Matrah ve KDV tutarı biliniyorsa matematiksel oranı hesapla
+    if (matrah > 0 && kdv > 0) {
+      final yuzde = (kdv / matrah) * 100.0;
+      if ((yuzde - 10.0).abs() <= 1.5) return 10;
+      if ((yuzde - 20.0).abs() <= 1.8) return 20;
+      if ((yuzde - 1.0).abs() <= 0.4) return 1;
+      if ((yuzde - 8.0).abs() <= 1.0) return 8;
+      if ((yuzde - 18.0).abs() <= 1.2) return 18;
+    }
+
+    return acikOran ?? 20;
+  }
+
+  /// Aynı faturada birden fazla tevkifat oranı (örn. 9/10, 7/10, 5/10) veya
+  /// farklı KDV oranları (%10 ve %20) olduğunda bunların birbirini ezmesini önleyen
+  /// akıllı mükerrerlik kontrolü.
+  static bool tevkifatSatiriMukerrerMi(
+    Map<String, dynamic> mevcut,
+    Map<String, dynamic> yeni,
+  ) {
+    final mFNo = (mevcut['faturaNo'] ?? '').toString().trim();
+    final yFNo = (yeni['faturaNo'] ?? '').toString().trim();
+    final mOran = (mevcut['tevkifatOrani'] ?? '9/10').toString().trim();
+    final yOran = (yeni['tevkifatOrani'] ?? '9/10').toString().trim();
+    final mMtr = TurkceFormat.parseSayi(mevcut['matrahTutari']);
+    final yMtr = TurkceFormat.parseSayi(yeni['matrahTutari']);
+    final mKdv = TurkceFormat.parseSayi(mevcut['kdvTutari']);
+    final yKdv = TurkceFormat.parseSayi(yeni['kdvTutari']);
+    final mKdvOrani = cozumleKdvOrani(
+      hamKdvOrani: mevcut['kdvOrani'],
+      matrah: mMtr,
+      kdv: mKdv,
+    );
+    final yKdvOrani = cozumleKdvOrani(
+      hamKdvOrani: yeni['kdvOrani'],
+      matrah: yMtr,
+      kdv: yKdv,
+    );
+
+    // Eğer tevkifat oranı veya KDV oranı farklıysa kesinlikle mükerrer değildir (aynı faturanın farklı kırılımıdır)!
+    if (mOran != yOran || mKdvOrani != yKdvOrani) {
+      return false;
+    }
+
+    // Aynı fatura numarası varsa: Yalnızca hem tevkifat oranı hem KDV oranı hem de matrahı aynıysa mükerrerdir!
+    if (mFNo.isNotEmpty && yFNo.isNotEmpty) {
+      if (mFNo != yFNo) return false;
+      return (mMtr - yMtr).abs() < 1.0;
+    }
+
+    final mVkn = (mevcut['vergiTcNo'] ?? '').toString().trim();
+    final yVkn = (yeni['vergiTcNo'] ?? '').toString().trim();
+    final ayniFirma = (mVkn.isNotEmpty && mVkn == yVkn) ||
+        (mevcut['firmaAdi']?.toString().toLowerCase().trim() ==
+            yeni['firmaAdi']?.toString().toLowerCase().trim());
+    final ayniMatrah = (mMtr - yMtr).abs() < 1.0;
+    return ayniFirma && ayniMatrah;
   }
 
   factory BirimMizanAnalizSonucu.fromMap(Map<String, dynamic> map) {
@@ -230,6 +327,10 @@ class BirimMizanAnalizSonucu {
       indirilecekKdv20: TurkceFormat.parseSayi(map['indirilecekKdv20']),
       damgaVergisi360: TurkceFormat.parseSayi(map['damgaVergisi360']),
       damgaMatrah: TurkceFormat.parseSayi(map['damgaMatrah']),
+      ihaleSozlesmeDamga360: TurkceFormat.parseSayi(map['ihaleSozlesmeDamga360']),
+      ihaleKararPuluDamga360: TurkceFormat.parseSayi(map['ihaleKararPuluDamga360']),
+      kdv2Tevkifat360: TurkceFormat.parseSayi(map['kdv2Tevkifat360']),
+      kdv2HesapDetayi: map['kdv2HesapDetayi']?.toString() ?? '',
       muhtasarGelir360: TurkceFormat.parseSayi(map['muhtasarGelir360']),
       muhtasarDamga360: TurkceFormat.parseSayi(map['muhtasarDamga360']),
       devredenKdv190: TurkceFormat.parseSayi(map['devredenKdv190']),
@@ -237,12 +338,19 @@ class BirimMizanAnalizSonucu {
               ?.whereType<Map>()
               .map((e) {
                 final m = Map<String, dynamic>.from(e);
-                m['matrahTutari'] = TurkceFormat.parseSayi(m['matrahTutari']);
-                m['kdvTutari'] = TurkceFormat.parseSayi(m['kdvTutari']);
+                final mtr = TurkceFormat.parseSayi(m['matrahTutari']);
+                final kdv = TurkceFormat.parseSayi(m['kdvTutari']);
+                m['matrahTutari'] = mtr;
+                m['kdvTutari'] = kdv;
                 m['tevkifatTutari'] = TurkceFormat.parseSayi(m['tevkifatTutari']);
                 m['firmaAdi'] = m['firmaAdi']?.toString() ?? 'Firma';
                 m['vergiTcNo'] = m['vergiTcNo']?.toString().trim() ?? '';
                 m['tevkifatOrani'] = m['tevkifatOrani']?.toString() ?? '9/10';
+                m['kdvOrani'] = cozumleKdvOrani(
+                  hamKdvOrani: m['kdvOrani'],
+                  matrah: mtr,
+                  kdv: kdv,
+                );
                 return m;
               })
               .toList() ??

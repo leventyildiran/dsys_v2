@@ -3,6 +3,7 @@ import '../../../core/turkce_format.dart';
 import '../../birim/models/birim_model.dart';
 import '../models/beyanname_belge_model.dart';
 import 'beyanname_denetim_servisi.dart';
+import 'mizan_360_capraz_cozumleyici.dart';
 
 /// Tekil bir Mizan Hesap Kartı
 class MizanHesapSatiri {
@@ -696,17 +697,37 @@ class MizanDeterministikParser {
       faturaTarihi = tarihMatch.group(1)!;
     }
 
-    // 4. Tevkifat Oranı Tespiti (9/10, 7/10, 5/10, 4/10, 3/10, 2/10)
+    // 4. Çoklu Tevkifat Oranı Kırılımı Kontrolü (Aynı faturada 3 farklı tevkifat oranı / KDV oranı varsa)
+    if (firmaAdi.isNotEmpty || vkn.isNotEmpty) {
+      final cokluKirilimlar = _ayristirFaturaIciCokluTevkifatSatirlari(
+        blok,
+        lines: lines,
+        firmaAdi: firmaAdi.isNotEmpty ? firmaAdi : 'Düzenleyen Firma',
+        vkn: vkn,
+        faturaNo: faturaNo,
+        faturaTarihi: faturaTarihi,
+      );
+      if (cokluKirilimlar.length > 1) {
+        return {
+          ...cokluKirilimlar.first,
+          '_altTevkifatKirilimlari': cokluKirilimlar,
+        };
+      } else if (cokluKirilimlar.length == 1) {
+        return cokluKirilimlar.first;
+      }
+    }
+
+    // 5. Tekil Tevkifat Oranı Tespiti (10/10, 9/10, 7/10, 5/10, 4/10, 3/10, 2/10)
     String tevkifatOrani = '9/10';
     double tevkifatKatsayi = 0.9;
-    final oranMatch = RegExp(r'\b([234579])\s*/\s*10\b').firstMatch(blok);
+    final oranMatch = RegExp(r'\b(10|[234579])\s*/\s*10\b').firstMatch(blok);
     if (oranMatch != null) {
       final pay = int.parse(oranMatch.group(1)!);
       tevkifatOrani = '$pay/10';
       tevkifatKatsayi = pay / 10.0;
     } else {
       final yuzdeTevkifat = RegExp(
-        r'tevkifat[^\n\r\d]*(?:%\s*)?(90|70|50|40|30|20)\b',
+        r'tevkifat[^\n\r\d]*(?:%\s*)?(100|90|70|50|40|30|20)\b',
         caseSensitive: false,
       ).firstMatch(blok);
       if (yuzdeTevkifat != null) {
@@ -717,7 +738,22 @@ class MizanDeterministikParser {
       }
     }
 
-    // 5. Matrah, KDV ve Tevkifat Tutarı Tespiti
+    // 6. Açık KDV Oranı (%10, %20, %1, %8) Tespiti
+    int? acikKdvOrani;
+    final kdvEtiketOranMatch = RegExp(
+      r'(?:hesaplanan\s*kdv|toplam\s*kdv|kdv\s*(?:oran[ıi]|tutar[ıi])?)\s*\(?%?\s*(1|8|10|18|20)\)?\b',
+      caseSensitive: false,
+    ).firstMatch(blok);
+    if (kdvEtiketOranMatch != null) {
+      acikKdvOrani = int.tryParse(kdvEtiketOranMatch.group(1)!);
+    } else {
+      final genelYuzdeMatch = RegExp(r'%\s*(10|20|1|8|18)\b').firstMatch(blok);
+      if (genelYuzdeMatch != null) {
+        acikKdvOrani = int.tryParse(genelYuzdeMatch.group(1)!);
+      }
+    }
+
+    // 7. Matrah, KDV ve Tevkifat Tutarı Tespiti
     final matrahMatch = RegExp(
       r'(?:mal\s*hizmet\s*toplam\s*tutar[ıi]?|vergi\s*matrah[ıi]|matrah(?:\s*tutar[ıi])?)\s*[:.\-]?\s*([\d.,]+)',
       caseSensitive: false,
@@ -727,7 +763,7 @@ class MizanDeterministikParser {
       caseSensitive: false,
     ).firstMatch(blok);
     final tevkifatMatch = RegExp(
-      r'(?:hesaplanan\s*kdv\s*tevkifat|tevkifat\s*tutar[ıi]|tevkif\s*edilen\s*kdv)\s*(?:\(\d+/10\))?\s*[:.\-]?\s*([\d.,]+)',
+      r'(?:hesaplanan\s*kdv\s*tevkifat|tevkifat\s*tutar[ıi]|tevkif\s*edilen\s*kdv|kdv\s*tevkifat)\s*(?:\(\d+/10\))?\s*[:.\-]?\s*([\d.,]+)',
       caseSensitive: false,
     ).firstMatch(blok);
 
@@ -746,8 +782,7 @@ class MizanDeterministikParser {
     }
 
     if (matrah > 0 && kdv == 0) {
-      final kdvOranMatch = RegExp(r'kdv\s*(?:oran[ıi])?\s*%?\s*(10|20)\b', caseSensitive: false).firstMatch(blok);
-      final oran = kdvOranMatch != null ? int.parse(kdvOranMatch.group(1)!) : 20;
+      final oran = acikKdvOrani ?? 20;
       kdv = double.parse((matrah * (oran / 100.0)).toStringAsFixed(2));
     }
     if (kdv > 0 && tevkifat == 0) {
@@ -755,10 +790,16 @@ class MizanDeterministikParser {
     }
     if (matrah > 0 && kdv > 0 && tevkifat > 0 && oranMatch == null) {
       final r = ((tevkifat / kdv) * 10).round();
-      if (const [2, 3, 4, 5, 7, 9].contains(r)) {
+      if (const [2, 3, 4, 5, 7, 9, 10].contains(r)) {
         tevkifatOrani = '$r/10';
       }
     }
+
+    final int kdvOrani = BirimMizanAnalizSonucu.cozumleKdvOrani(
+      hamKdvOrani: acikKdvOrani,
+      matrah: matrah,
+      kdv: kdv,
+    );
 
     if (matrah > 0 && (firmaAdi.isNotEmpty || vkn.isNotEmpty)) {
       return {
@@ -767,6 +808,7 @@ class MizanDeterministikParser {
         'faturaNo': faturaNo,
         'faturaTarihi': faturaTarihi,
         'matrahTutari': matrah,
+        'kdvOrani': kdvOrani,
         'kdvTutari': kdv,
         'tevkifatTutari': tevkifat,
         'tevkifatOrani': tevkifatOrani,
@@ -775,8 +817,241 @@ class MizanDeterministikParser {
     return null;
   }
 
+  /// Tek bir fatura içinde birden fazla tevkifat oranı (örn: 9/10, 7/10, 5/10) veya
+  /// farklı KDV oranları (%10, %20) satırları bulunduğunda her bir kırılımı ayrı ayrı çıkarır.
+  static List<Map<String, dynamic>> _ayristirFaturaIciCokluTevkifatSatirlari(
+    String blok, {
+    required List<String> lines,
+    required String firmaAdi,
+    required String vkn,
+    required String faturaNo,
+    required String faturaTarihi,
+  }) {
+    final bulunanSatirlar = <Map<String, dynamic>>[];
+
+    // Yöntem A: Satır bazlı tablo veya özet kırılımları (satırda "X/10" ve en az 2 para tutarı geçen satırlar)
+    final oranSatirRegex = RegExp(r'\b(10|[234579])\s*/\s*10\b');
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final oMatch = oranSatirRegex.firstMatch(line);
+      if (oMatch == null) continue;
+
+      final pay = int.parse(oMatch.group(1)!);
+      final oranStr = '$pay/10';
+      final katsayi = pay / 10.0;
+
+      // Oran ifadesini ve KDV yüzdesini temizleyip kalan gerçek para tutarlarını çıkar
+      int? satirKdvOrani;
+      final kdvYuzdeM = RegExp(r'%\s*(10|20|1|8|18)\b|\b(10|20)\s*%').firstMatch(line);
+      if (kdvYuzdeM != null) {
+        satirKdvOrani = int.tryParse(kdvYuzdeM.group(1) ?? kdvYuzdeM.group(2) ?? '');
+      }
+
+      var temizSatir = line.replaceAll(oranSatirRegex, ' ');
+      temizSatir = temizSatir.replaceAll(RegExp(r'%\s*\d+|\d+\s*%'), ' ');
+      // Tarih ve VKN/FaturaNo ifadelerini temizle
+      temizSatir = temizSatir.replaceAll(RegExp(r'\b\d{1,2}[./]\d{1,2}[./]\d{2,4}\b'), ' ');
+      temizSatir = temizSatir.replaceAll(RegExp(r'\b[A-Z]{3}\d{13}\b'), ' ');
+      temizSatir = temizSatir.replaceAll(RegExp(r'\b\d{10,11}\b'), ' ');
+
+      final adaySayilar = <double>[];
+      for (final m in RegExp(r'\b\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?\b|\b\d+(?:[.,]\d{2})\b').allMatches(temizSatir)) {
+        final s = TurkceFormat.parseSayi(m.group(0));
+        if (s > 1.0) adaySayilar.add(s);
+      }
+
+      if (adaySayilar.length >= 2) {
+        // Aday sayılar içinde (matrah, kdv, tevkifat) üçlüsünü veya ikilisini bul
+        double? bulunanMatrah;
+        double? bulunanKdv;
+        double? bulunanTevkifat;
+        int bulunanOran = satirKdvOrani ?? 20;
+
+        for (final mAday in adaySayilar) {
+          for (final testKdvOrani in (satirKdvOrani != null ? [satirKdvOrani] : const [20, 10, 1, 8, 18])) {
+            final beklenenKdv = mAday * (testKdvOrani / 100.0);
+            final beklenenTvk = beklenenKdv * katsayi;
+            final kdvVar = adaySayilar.any((x) => (x - mAday).abs() > 0.01 && (x - beklenenKdv).abs() <= max(1.5, beklenenKdv * 0.02));
+            final tvkVar = adaySayilar.any((x) => (x - mAday).abs() > 0.01 && (x - beklenenTvk).abs() <= max(1.5, beklenenTvk * 0.02));
+            if (kdvVar || tvkVar) {
+              bulunanMatrah = mAday;
+              bulunanOran = testKdvOrani;
+              final gercekKdv = adaySayilar.where((x) => (x - beklenenKdv).abs() <= max(1.5, beklenenKdv * 0.02)).firstOrNull;
+              final gercekTvk = adaySayilar.where((x) => (x - beklenenTvk).abs() <= max(1.5, beklenenTvk * 0.02)).firstOrNull;
+              bulunanKdv = gercekKdv ?? double.parse(beklenenKdv.toStringAsFixed(2));
+              bulunanTevkifat = gercekTvk ?? double.parse((bulunanKdv * katsayi).toStringAsFixed(2));
+              break;
+            }
+          }
+          if (bulunanMatrah != null) break;
+        }
+
+        if (bulunanMatrah != null && bulunanMatrah > 0) {
+          final yeniMap = <String, dynamic>{
+            'firmaAdi': firmaAdi,
+            'vergiTcNo': vkn,
+            'faturaNo': faturaNo,
+            'faturaTarihi': faturaTarihi,
+            'matrahTutari': bulunanMatrah,
+            'kdvOrani': bulunanOran,
+            'kdvTutari': bulunanKdv!,
+            'tevkifatTutari': bulunanTevkifat!,
+            'tevkifatOrani': oranStr,
+          };
+          final mukerrer = bulunanSatirlar.any((m) => BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(m, yeniMap));
+          if (!mukerrer) {
+            bulunanSatirlar.add(yeniMap);
+          }
+        }
+      }
+    }
+
+    if (bulunanSatirlar.length > 1) {
+      return bulunanSatirlar;
+    }
+
+    // Yöntem B: Alt alta yazılmış çoklu etiketli bloklar
+    // Örn: Matrah: 50.000,00 / Hesaplanan KDV (%10): 5.000,00 / Tevkifat (9/10): 4.500,00
+    //      Matrah: 30.000,00 / Hesaplanan KDV (%20): 6.000,00 / Tevkifat (7/10): 4.200,00
+    final tumMatrahlar = RegExp(
+      r'(?:mal\s*hizmet\s*toplam\s*tutar[ıi]?|vergi\s*matrah[ıi]|matrah(?:\s*tutar[ıi])?)\s*(?:\(%\s*(1|8|10|18|20)\))?\s*[:.\-]?\s*([\d.,]+)',
+      caseSensitive: false,
+    ).allMatches(blok).toList();
+    final tumKdvler = RegExp(
+      r'(?:hesaplanan\s*kdv|toplam\s*kdv|kdv\s*tutar[ıi])\s*(?:\(%\s*(1|8|10|18|20)\))?\s*[:.\-]?\s*([\d.,]+)',
+      caseSensitive: false,
+    ).allMatches(blok).toList();
+    final tumTevkifatlar = RegExp(
+      r'(?:hesaplanan\s*kdv\s*tevkifat|tevkifat\s*tutar[ıi]|tevkif\s*edilen\s*kdv|kdv\s*tevkifat)\s*(?:\(\s*(10|[234579])\s*/\s*10\s*\))?\s*[:.\-]?\s*([\d.,]+)',
+      caseSensitive: false,
+    ).allMatches(blok).toList();
+
+    if (tumTevkifatlar.length > 1 && tumMatrahlar.length >= tumTevkifatlar.length) {
+      final etiketliSatirlar = <Map<String, dynamic>>[];
+      for (int idx = 0; idx < tumTevkifatlar.length; idx++) {
+        final mMatch = tumMatrahlar[idx];
+        final kMatch = idx < tumKdvler.length ? tumKdvler[idx] : null;
+        final tMatch = tumTevkifatlar[idx];
+
+        final mtr = TurkceFormat.parseSayi(mMatch.group(2));
+        if (mtr <= 0) continue;
+
+        final tvk = TurkceFormat.parseSayi(tMatch.group(2));
+        final acikPay = tMatch.group(1);
+        final acikKdvOranStr = kMatch?.group(1) ?? mMatch.group(1);
+        double kdv = kMatch != null ? TurkceFormat.parseSayi(kMatch.group(2)) : 0.0;
+
+        final kdvOran = BirimMizanAnalizSonucu.cozumleKdvOrani(
+          hamKdvOrani: acikKdvOranStr,
+          matrah: mtr,
+          kdv: kdv,
+        );
+        if (kdv <= 0) {
+          kdv = double.parse((mtr * (kdvOran / 100.0)).toStringAsFixed(2));
+        }
+
+        String oranStr = acikPay != null ? '$acikPay/10' : '9/10';
+        if (acikPay == null && kdv > 0 && tvk > 0) {
+          final r = ((tvk / kdv) * 10).round();
+          if (const [2, 3, 4, 5, 7, 9, 10].contains(r)) {
+            oranStr = '$r/10';
+          }
+        }
+
+        final yeniMap = <String, dynamic>{
+          'firmaAdi': firmaAdi,
+          'vergiTcNo': vkn,
+          'faturaNo': faturaNo,
+          'faturaTarihi': faturaTarihi,
+          'matrahTutari': mtr,
+          'kdvOrani': kdvOran,
+          'kdvTutari': kdv,
+          'tevkifatTutari': tvk,
+          'tevkifatOrani': oranStr,
+        };
+        final mukerrer = etiketliSatirlar.any((m) => BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(m, yeniMap));
+        if (!mukerrer) {
+          etiketliSatirlar.add(yeniMap);
+        }
+      }
+      if (etiketliSatirlar.length > 1) {
+        return etiketliSatirlar;
+      }
+    }
+
+    return const [];
+  }
+
+  /// Ek belge metninden İhaleye Ait Damga Vergisi (Karar Pulu Binde 5,69 & Sözleşme Damga Binde 9,48) tutarlarını çıkarır.
+  static ({double ihaleKararPulu, double ihaleSozlesme}) parseIhaleDamgaBelgesi(String rawText) {
+    if (rawText.trim().isEmpty) {
+      return (ihaleKararPulu: 0.0, ihaleSozlesme: 0.0);
+    }
+    double kararPulu = 0.0;
+    double sozlesmeDamga = 0.0;
+
+    final lines = rawText.split(RegExp(r'\r?\n'));
+    for (final rawLine in lines) {
+      final line = rawLine.replaceAll('|', ' ').trim();
+      if (line.isEmpty) continue;
+      final u = line.toUpperCase();
+
+      // 360.03.02 / 360.03.03 mizan satırlarını zaten mizan parser okur; burada ek belge / makbuz / yazı satırlarını yakala
+      if (RegExp(r'^\d{3}\.').hasMatch(line)) continue;
+
+      final isKararPulu = u.contains('KARAR PULU') ||
+          u.contains('İHALE KARAR') ||
+          u.contains('IHALE KARAR') ||
+          u.contains('5,69') ||
+          u.contains('5.69');
+      final isSozlesme = u.contains('SÖZLEŞME DAMGA') ||
+          u.contains('SOZLESME DAMGA') ||
+          u.contains('SÖZLEŞMEYE DAİR') ||
+          u.contains('SOZLESMEYE DAIR') ||
+          u.contains('İHALE SÖZLEŞME') ||
+          u.contains('IHALE SOZLESME') ||
+          (u.contains('İHALE') && u.contains('DAMGA') && !isKararPulu);
+
+      if (!isKararPulu && !isSozlesme) continue;
+
+      // Satırdaki para tutarlarını bul (oran rakamları 5,69 ve 9,48 hariç)
+      final temiz = line
+          .replaceAll(RegExp(r'0[.,]00569|5[.,]69|0[.,]00948|9[.,]48'), ' ')
+          .replaceAll(RegExp(r'\b\d{1,2}[./]\d{1,2}[./]\d{2,4}\b'), ' ')
+          .replaceAll(RegExp(r'\b\d{10,11}\b'), ' ');
+
+      final sayilar = <double>[];
+      for (final m in RegExp(r'\b\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?\b|\b\d+(?:[.,]\d{2})\b').allMatches(temiz)) {
+        final val = TurkceFormat.parseSayi(m.group(0));
+        if (val > 1.0) sayilar.add(val);
+      }
+      if (sayilar.isEmpty) continue;
+
+      // Eğer satırda hem ihale bedeli (matrah) hem damga vergisi varsa küçük olan vergi tutarıdır
+      double secilenVergi = sayilar.last;
+      if (sayilar.length >= 2) {
+        final enBuyuk = sayilar.reduce(max);
+        final enKucuk = sayilar.reduce(min);
+        if (enKucuk < enBuyuk * 0.05) {
+          secilenVergi = enKucuk;
+        }
+      }
+
+      if (isKararPulu && secilenVergi > 0) {
+        kararPulu += secilenVergi;
+      } else if (isSozlesme && secilenVergi > 0) {
+        sozlesmeDamga += secilenVergi;
+      }
+    }
+
+    return (
+      ihaleKararPulu: double.parse(kararPulu.toStringAsFixed(2)),
+      ihaleSozlesme: double.parse(sozlesmeDamga.toStringAsFixed(2)),
+    );
+  }
+
   /// Ek belge / fatura metninden GİB KDV 2 Tevkifat faturalarını kural tabanlı çıkarır.
-  /// Arka arkaya taranmış çok sayfalı veya tek parçada birleştirilmiş çoklu faturaların TÜMÜNÜ eksiksiz yakalar.
+  /// Arka arkaya taranmış çok sayfalı veya tek faturada 3 farklı tevkifat oranı içeren faturaların TÜMÜNÜ eksiksiz yakalar.
   static List<Map<String, dynamic>> parseTevkifatFaturalari(String rawText) {
     if (rawText.trim().isEmpty) return [];
     final sonuclar = <Map<String, dynamic>>[];
@@ -833,27 +1108,20 @@ class MizanDeterministikParser {
       }
     }
 
-    // 3. Her bloğu tek tek ayrıştır ve mükerrer olmayanları ekle
+    // 3. Her bloğu tek tek ayrıştır (aynı faturadaki çoklu tevkifat oranları dahil) ve mükerrer olmayanları ekle
     for (final blok in nihaiBloklar) {
       final f = _parseTekilTevkifatBlok(blok);
       if (f != null) {
-        final mtr = TurkceFormat.parseSayi(f['matrahTutari']);
-        final mukerrer = sonuclar.any((mevcut) {
-          final ayniFaturaNo = mevcut['faturaNo'] != null &&
-              mevcut['faturaNo'].toString().trim().isNotEmpty &&
-              f['faturaNo'] != null &&
-              f['faturaNo'].toString().trim().isNotEmpty &&
-              mevcut['faturaNo'].toString().trim() == f['faturaNo'].toString().trim();
-          if (ayniFaturaNo) return true;
-          final ayniFirma = (mevcut['vergiTcNo']?.toString().isNotEmpty == true &&
-                  mevcut['vergiTcNo'] == f['vergiTcNo']) ||
-              (mevcut['firmaAdi']?.toString().toLowerCase().trim() ==
-                  f['firmaAdi']?.toString().toLowerCase().trim());
-          final ayniMatrah = (TurkceFormat.parseSayi(mevcut['matrahTutari']) - mtr).abs() < 1.0;
-          return ayniFirma && ayniMatrah;
-        });
-        if (!mukerrer) {
-          sonuclar.add(f);
+        final altKirilimlar = f['_altTevkifatKirilimlari'] as List<Map<String, dynamic>>?;
+        final eklenecekListe = altKirilimlar ?? [f];
+        for (final item in eklenecekListe) {
+          final temizItem = Map<String, dynamic>.from(item)..remove('_altTevkifatKirilimlari');
+          final mukerrer = sonuclar.any(
+            (mevcut) => BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(mevcut, temizItem),
+          );
+          if (!mukerrer) {
+            sonuclar.add(temizItem);
+          }
         }
       }
     }
@@ -870,6 +1138,8 @@ class MizanDeterministikParser {
     String yardimciMizanMetni = '',
     double oncekiAylarHasilat = 0.0,
     List<Map<String, dynamic>> ekTevkifatFaturalari = const [],
+    double ekIhaleSozlesmeDamga = 0.0,
+    double ekIhaleKararPuluDamga = 0.0,
   }) {
     var aylikHesaplar = parseHesaplar(aylikMizanMetni);
     var yillikHesaplar = parseHesaplar(yillikMizanMetni);
@@ -881,6 +1151,7 @@ class MizanDeterministikParser {
     final aylikMeta = extractMetaVeri(aylikMizanMetni);
     final yillikMeta = extractMetaVeri(yillikMizanMetni);
     final bKey = BirimAdlandirma.canonicalKey(birimAdi);
+    final isDosim = bKey == 'dosim';
     final isSaglikPosBirimi = bKey.contains('dis') || bKey.contains('hastane') || bKey.contains('saglik') || bKey.contains('tip');
 
     bool isAylikKonsolideMizan = false;
@@ -913,6 +1184,7 @@ class MizanDeterministikParser {
     final bool hasAylik = aylikHesaplar.isNotEmpty;
     final bool hasYillik = yillikHesaplar.isNotEmpty;
     final bool hasYardimci = yardimciHesaplar.isNotEmpty;
+    final bool isAylikKutuKumulatif = aylikMeta.isYillikKumulatif;
 
     // --- 1. 600 Hasılat (600 Yurtiçi + 601 Yurtdışı) & 123 POS Hesabı ---
     // Net Satışlar: 600 Yurtiçi + 601 Yurtdışı Satışlar (Alacak) - 610 Satıştan İadeler (Borç) - 611 Satış İskontoları (Borç)
@@ -1092,196 +1364,143 @@ class MizanDeterministikParser {
       devreden190 = yillikHesaplar['190']!.borcKalan;
     }
 
-    // --- 5. 360 Damga Vergisi (Ödemelerden / Hakedişlerden Kesilen) ---
-    // Kurumsal Kural: Toplu/Yıllık mizanda alacak kalanı (veya alacak), aylık mizanda alacak tutarı.
-    // 360.03.05 (Ödemelerden Kesilen Damga) veya 360.03 altındaki ücret (360.03.01) harici damgalar.
-    double bulDamga360(Map<String, MizanHesapSatiri> hesapMap, {required bool isYillik}) {
-      if (hesapMap.isEmpty) return 0.0;
+    // --- 5. 360 Damga Vergisi (Ödemelerden / Hakedişlerden Kesilen & İhale Damga) ---
+    // Aylık Mizan + Yıllık Mizan + Yardımcı Defter (Muavin) 3'lü Çapraz Çözümleme Motoru:
+    bool isDigerBirimAltHesabi(String hesapAdi) =>
+        Mizan360CaprazCozumleyici.isDigerBirimMetni(hesapAdi, isDosim: isDosim);
 
-      // A) 360.03 alt hesapları taraması: Ücret damgası (.01) hariç tüm damgaları topla
-      // Örn: 360.03.02 (İhale), 360.03.03 (Sözleşme), 360.03.05 (Diğer ödemeler), 360.03.09 (Diğer)
-      double altToplam = 0.0;
-      bool altHesapBulundu = false;
-      for (final entry in hesapMap.entries) {
-        final kod = entry.key;
-        final norm = kod.replaceAll(RegExp(r'\.0+'), '.');
-        if ((kod.startsWith('360.03.') || norm.startsWith('360.3.')) &&
-            norm != '360.3.1' &&
-            kod != '360.03.01') {
-          altHesapBulundu = true;
-          final s = entry.value;
-          final val = (!isYillik)
-              ? (s.alacak > 0 ? s.alacak : s.alacakKalan)
-              : (s.alacakKalan > 0 ? s.alacakKalan : s.alacak);
-          altToplam += val;
-        }
-      }
-      if (altHesapBulundu && altToplam > 0) {
-        return double.parse(altToplam.toStringAsFixed(2));
-      }
+    double oku360NetBakiye(MizanHesapSatiri s, {required bool isYillik}) =>
+        Mizan360CaprazCozumleyici.oku360NetBakiye(s, isYillik: isYillik, isDosim: isDosim);
 
-      // C) Ana 360.03 hesabı: Ücret damgası (360.03.01) düşülerek
-      String? ana36003Key;
-      for (final k in hesapMap.keys) {
-        final norm = k.replaceAll(RegExp(r'\.0+'), '.');
-        if (k == '360.03' || norm == '360.3') {
-          ana36003Key = k;
-          break;
-        }
-      }
-      if (ana36003Key != null) {
-        final anaSatir = hesapMap[ana36003Key]!;
-        final anaTutar = (!isYillik)
-            ? (anaSatir.alacak > 0 ? anaSatir.alacak : anaSatir.alacakKalan)
-            : (anaSatir.alacakKalan > 0 ? anaSatir.alacakKalan : anaSatir.alacak);
+    final damgaDetay = Mizan360CaprazCozumleyici.cozumleCaprazDamga360(
+      aylikHesaplar: aylikHesaplar,
+      yillikHesaplar: yillikHesaplar,
+      yardimciHesaplar: yardimciHesaplar,
+      yardimciMizanMetni: yardimciMizanMetni,
+      isAylikKutuKumulatif: isAylikKutuKumulatif,
+      isDosim: isDosim,
+    );
 
-        // Ücret damgasını bulup düş
-        double ucretDamga = 0.0;
-        for (final k in hesapMap.keys) {
-          final norm = k.replaceAll(RegExp(r'\.0+'), '.');
-          if (k == '360.03.01' || norm == '360.3.1') {
-            final s = hesapMap[k]!;
-            ucretDamga = (!isYillik)
-                ? (s.alacak > 0 ? s.alacak : s.alacakKalan)
-                : (s.alacakKalan > 0 ? s.alacakKalan : s.alacak);
-            break;
-          }
-        }
-        if (anaTutar > ucretDamga) {
-          return double.parse((anaTutar - ucretDamga).toStringAsFixed(2));
-        } else if (ucretDamga == 0 && anaTutar > 0) {
-          return double.parse(anaTutar.toStringAsFixed(2));
-        }
-      }
+    double damga360 = damgaDetay.toplamDamga;
+    double ihaleKararPulu360 = damgaDetay.ihaleKararPulu;
+    double ihaleSozlesme360 = damgaDetay.ihaleSozlesme;
 
-      // D) Hesap adı ile tarama: 360 altındaki adı "DAMGA" içeren ve "ÜCRET/MAAŞ/BORDRO" içermeyen hesaplar
-      double adlaBulunan = 0.0;
-      for (final entry in hesapMap.entries) {
-        final k = entry.key;
-        if (k.startsWith('360') && k != '360') {
-          final ad = entry.value.hesapAdi.toUpperCase();
-          if (ad.contains('DAMGA') &&
-              !ad.contains('ÜCRET') &&
-              !ad.contains('UCRET') &&
-              !ad.contains('MAAŞ') &&
-              !ad.contains('MAAS') &&
-              !ad.contains('BORDRO')) {
-            final s = entry.value;
-            final val = (!isYillik)
-                ? (s.alacak > 0 ? s.alacak : s.alacakKalan)
-                : (s.alacakKalan > 0 ? s.alacakKalan : s.alacak);
-            adlaBulunan += val;
-          }
-        }
-      }
-      if (adlaBulunan > 0) {
-        return double.parse(adlaBulunan.toStringAsFixed(2));
-      }
-
-      return 0.0;
+    // Ek evraktan gelen ihale damga vergisi varsa ve henüz mizanda yoksa ilgili ihale damga alanına ata (hakediş damga360 ile çift toplanmaz)
+    if (ekIhaleKararPuluDamga > 0 && ihaleKararPulu360 == 0.0) {
+      ihaleKararPulu360 = ekIhaleKararPuluDamga;
+    }
+    if (ekIhaleSozlesmeDamga > 0 && ihaleSozlesme360 == 0.0) {
+      ihaleSozlesme360 = ekIhaleSozlesmeDamga;
     }
 
-    double damga360 = 0.0;
-    if (hasAylik) {
-      damga360 = bulDamga360(aylikHesaplar, isYillik: false);
-    }
-    if (damga360 == 0.0 && hasYardimci) {
-      damga360 = bulDamga360(yardimciHesaplar, isYillik: false);
-    }
-    if (damga360 == 0.0 && hasYillik) {
-      damga360 = bulDamga360(yillikHesaplar, isYillik: true);
-    }
     final damgaMatrah = damga360 > 0 ? double.parse((damga360 / 0.00948).toStringAsFixed(2)) : 0.0;
 
-    // --- 6. 360 Muhtasar (Gelir Vergisi Stopajı & Ücret Damga Vergisi Stopajı) ---
-    double bulMuhtasarGelir(Map<String, MizanHesapSatiri> hesapMap, {required bool isYillik}) {
-      if (hesapMap.isEmpty) return 0.0;
-
-      // A) 360.01.01 veya 360.1.1 (Ücret Gelir Vergisi Stopajı)
-      for (final key in hesapMap.keys) {
-        final norm = key.replaceAll(RegExp(r'\.0+'), '.');
-        if (norm == '360.1.1' || key == '360.01.01') {
-          final s = hesapMap[key]!;
-          final v = (!isYillik)
-              ? (s.alacak > 0 ? s.alacak : s.alacakKalan)
-              : (s.alacakKalan > 0 ? s.alacakKalan : s.alacak);
-          if (v > 0) return v;
-        }
+    // --- 5b. 360.04 Mizan KDV 2 Tevkifatı (Sorumlu Sıfatıyla Ödenecek KDV) ---
+    ({double toplamKdv2, String hesapDetayi, bool hesapBulundu, bool borcHareketiVar}) bulKdv2Tevkifat360(
+      Map<String, MizanHesapSatiri> hesapMap, {
+      required bool isYillik,
+    }) {
+      if (hesapMap.isEmpty) {
+        return (toplamKdv2: 0.0, hesapDetayi: '', hesapBulundu: false, borcHareketiVar: false);
       }
 
-      // B) 360.01 alt hesapları veya adı "GELİR VERGİSİ" / "GV" içeren 360 hesapları
       double toplam = 0.0;
+      final detayList = <String>[];
+      bool bulundu = false;
+      bool borcVar = false;
+
       for (final entry in hesapMap.entries) {
         final k = entry.key;
         final norm = k.replaceAll(RegExp(r'\.0+'), '.');
+        if (!k.startsWith('360') || k == '360') continue;
+
+        final altVar = hesapMap.keys.any((other) => other != k && other.startsWith('$k.'));
+        if (altVar) continue;
+
         final ad = entry.value.hesapAdi.toUpperCase();
-        if ((k.startsWith('360.01') || norm.startsWith('360.1') || ad.contains('GELİR VERGİSİ') || ad.contains('G.V.')) &&
-            !ad.contains('DAMGA')) {
-          final altVar = hesapMap.keys.any((other) => other != k && other.startsWith('$k.'));
-          if (!altVar) {
-            final s = entry.value;
-            final v = (!isYillik)
-                ? (s.alacak > 0 ? s.alacak : s.alacakKalan)
-                : (s.alacakKalan > 0 ? s.alacakKalan : s.alacak);
+        final is36004 = k == '360.04' ||
+            norm == '360.4' ||
+            k.startsWith('360.04.') ||
+            norm.startsWith('360.4.');
+        final isAdKdvTevkifat = (ad.contains('KDV') &&
+                (ad.contains('TEVKİFAT') ||
+                    ad.contains('TEVKIFAT') ||
+                    ad.contains('SORUMLU') ||
+                    ad.contains('2 NOLU') ||
+                    ad.contains('2 NO.LU') ||
+                    ad.contains('İKİ NOLU'))) ||
+            ad.contains('SORUMLU SIFATIYLA');
+
+        if (is36004 || isAdKdvTevkifat) {
+          bulundu = true;
+          if (entry.value.borc > 0) borcVar = true;
+          if (isDigerBirimAltHesabi(entry.value.hesapAdi)) continue;
+          final v = oku360NetBakiye(entry.value, isYillik: isYillik);
+          if (v > 0) {
             toplam += v;
+            detayList.add('$k ${entry.value.hesapAdi}');
           }
         }
       }
-      return double.parse(toplam.toStringAsFixed(2));
+
+      return (
+        toplamKdv2: double.parse(toplam.toStringAsFixed(2)),
+        hesapDetayi: detayList.join(', '),
+        hesapBulundu: bulundu,
+        borcHareketiVar: borcVar,
+      );
     }
 
-    double bulMuhtasarDamga(Map<String, MizanHesapSatiri> hesapMap, {required bool isYillik}) {
-      if (hesapMap.isEmpty) return 0.0;
-
-      // A) 360.03.01 veya 360.3.1 (Ücret ve Ücret Sayılan Ödemelerden Kesilen Damga)
-      for (final key in hesapMap.keys) {
-        final norm = key.replaceAll(RegExp(r'\.0+'), '.');
-        if (norm == '360.3.1' || key == '360.03.01') {
-          final s = hesapMap[key]!;
-          final v = (!isYillik)
-              ? (s.alacak > 0 ? s.alacak : s.alacakKalan)
-              : (s.alacakKalan > 0 ? s.alacakKalan : s.alacak);
-          if (v > 0) return v;
-        }
+    final muavin360 = Mizan360CaprazCozumleyici.cozumleYardimciDefterMuavinHareketleri(
+      yardimciMizanMetni,
+      isDosim: isDosim,
+    );
+    var kdv2MizanDetay = (toplamKdv2: 0.0, hesapDetayi: '', hesapBulundu: false, borcHareketiVar: false);
+    if (muavin360.kdv2HareketBulundu && isDosim) {
+      kdv2MizanDetay = (
+        toplamKdv2: muavin360.kdv2Tevkifat,
+        hesapDetayi: 'Yardımcı Defter (Muavin) 360.04',
+        hesapBulundu: true,
+        borcHareketiVar: false,
+      );
+    } else if (hasYardimci && isDosim) {
+      final yKdv2 = bulKdv2Tevkifat360(yardimciHesaplar, isYillik: false);
+      if (yKdv2.hesapBulundu) kdv2MizanDetay = yKdv2;
+    }
+    if (!kdv2MizanDetay.hesapBulundu && hasAylik) {
+      kdv2MizanDetay = bulKdv2Tevkifat360(aylikHesaplar, isYillik: isAylikKutuKumulatif);
+    }
+    if (kdv2MizanDetay.toplamKdv2 == 0.0 && hasYardimci && !kdv2MizanDetay.hesapBulundu) {
+      kdv2MizanDetay = bulKdv2Tevkifat360(yardimciHesaplar, isYillik: false);
+    }
+    if (hasYillik) {
+      final yillikKdv2 = bulKdv2Tevkifat360(yillikHesaplar, isYillik: true);
+      if (!kdv2MizanDetay.hesapBulundu ||
+          (kdv2MizanDetay.toplamKdv2 == 0.0 && kdv2MizanDetay.borcHareketiVar && yillikKdv2.toplamKdv2 > 0) ||
+          (yillikKdv2.hesapBulundu && yillikKdv2.borcHareketiVar && yillikKdv2.toplamKdv2 < kdv2MizanDetay.toplamKdv2)) {
+        kdv2MizanDetay = yillikKdv2;
       }
+    }
+    final double kdv2Tevkifat360 = kdv2MizanDetay.toplamKdv2;
+    final String kdv2HesapDetayi = kdv2MizanDetay.hesapDetayi;
 
-      // B) Adında Ücret / Maaş / Bordro geçen damga hesabı
-      for (final entry in hesapMap.entries) {
-        final k = entry.key;
-        if (k.startsWith('360') && k != '360') {
-          final ad = entry.value.hesapAdi.toUpperCase();
-          if (ad.contains('DAMGA') &&
-              (ad.contains('ÜCRET') || ad.contains('UCRET') || ad.contains('MAAŞ') || ad.contains('MAAS') || ad.contains('BORDRO'))) {
-            final s = entry.value;
-            final v = (!isYillik)
-                ? (s.alacak > 0 ? s.alacak : s.alacakKalan)
-                : (s.alacakKalan > 0 ? s.alacakKalan : s.alacak);
-            if (v > 0) return v;
-          }
-        }
-      }
-      return 0.0;
-    }
+    // --- 6. 360 Muhtasar (Gelir Vergisi Stopajı & Ücret Damga Vergisi Stopajı) ---
+    final muhtasarDetay = Mizan360CaprazCozumleyici.cozumleCaprazMuhtasar(
+      aylikHesaplar: aylikHesaplar,
+      yillikHesaplar: yillikHesaplar,
+      yardimciHesaplar: yardimciHesaplar,
+      yardimciMizanMetni: yardimciMizanMetni,
+      isAylikKutuKumulatif: isAylikKutuKumulatif,
+      isDosim: isDosim,
+      filtreAy: aylikMeta.bitisTarihi != null
+          ? int.tryParse(aylikMeta.bitisTarihi!.split(RegExp(r'[./]')).length > 1
+              ? aylikMeta.bitisTarihi!.split(RegExp(r'[./]'))[1]
+              : '')
+          : null,
+    );
 
-    double muhtasarGelir360 = 0.0;
-    double muhtasarDamga360 = 0.0;
-
-    if (hasAylik) {
-      muhtasarGelir360 = bulMuhtasarGelir(aylikHesaplar, isYillik: false);
-      muhtasarDamga360 = bulMuhtasarDamga(aylikHesaplar, isYillik: false);
-    }
-    if (muhtasarGelir360 == 0.0 && hasYardimci) {
-      muhtasarGelir360 = bulMuhtasarGelir(yardimciHesaplar, isYillik: false);
-    }
-    if (muhtasarDamga360 == 0.0 && hasYardimci) {
-      muhtasarDamga360 = bulMuhtasarDamga(yardimciHesaplar, isYillik: false);
-    }
-    if (muhtasarGelir360 == 0.0 && hasYillik) {
-      muhtasarGelir360 = bulMuhtasarGelir(yillikHesaplar, isYillik: true);
-    }
-    if (muhtasarDamga360 == 0.0 && hasYillik) {
-      muhtasarDamga360 = bulMuhtasarDamga(yillikHesaplar, isYillik: true);
-    }
+    final double muhtasarGelir360 = muhtasarDetay.muhtasarGelir;
+    final double muhtasarDamga360 = muhtasarDetay.muhtasarDamga;
 
     // --- 7. Ters Bakiye Denetimleri ---
     final is191TersBakiye = (aktifHesaplar['191']?.alacakKalan ?? 0.0) > 0.01;
@@ -1320,6 +1539,10 @@ class MizanDeterministikParser {
       'indirilecekKdv20': ind20,
       'damgaVergisi360': damga360,
       'damgaMatrah': damgaMatrah,
+      'ihaleSozlesmeDamga360': ihaleSozlesme360,
+      'ihaleKararPuluDamga360': ihaleKararPulu360,
+      'kdv2Tevkifat360': kdv2Tevkifat360,
+      'kdv2HesapDetayi': kdv2HesapDetayi,
       'muhtasarGelir360': muhtasarGelir360,
       'muhtasarDamga360': muhtasarDamga360,
       'devredenKdv190': devreden190,
@@ -1354,6 +1577,10 @@ class MizanDeterministikParser {
       indirilecekKdv20: ind20,
       damgaVergisi360: damga360,
       damgaMatrah: damgaMatrah,
+      ihaleSozlesmeDamga360: ihaleSozlesme360,
+      ihaleKararPuluDamga360: ihaleKararPulu360,
+      kdv2Tevkifat360: kdv2Tevkifat360,
+      kdv2HesapDetayi: kdv2HesapDetayi,
       muhtasarGelir360: muhtasarGelir360,
       muhtasarDamga360: muhtasarDamga360,
       devredenKdv190: devreden190,

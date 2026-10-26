@@ -285,7 +285,10 @@ class _OkunanVerilerOnizlemeKartiState extends State<OkunanVerilerOnizlemeKarti>
                       final vkn = (f['vergiTcNo'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
                       final oran = (f['tevkifatOrani'] ?? '9/10').toString();
                       final matrah = (f['matrahTutari'] as num?)?.toDouble() ?? 0.0;
+                      final kdv = (f['kdvTutari'] as num?)?.toDouble() ?? 0.0;
                       final tevkifat = (f['tevkifatTutari'] as num?)?.toDouble() ?? 0.0;
+                      final kdvOrani = (f['kdvOrani'] as num?)?.toInt() ??
+                          ((matrah > 0 && kdv > 0 && ((kdv / matrah) * 100 - 10).abs() <= 2.5) ? 10 : 20);
                       final vknGecerli = (vkn.length == 10 && BeyannameDenetimServisi.dogrulaVkn(vkn)) ||
                           (vkn.length == 11 && BeyannameDenetimServisi.dogrulaTckn(vkn));
 
@@ -328,7 +331,7 @@ class _OkunanVerilerOnizlemeKartiState extends State<OkunanVerilerOnizlemeKarti>
                                     ),
                                   ),
                                   Text(
-                                    'VKN: ${vkn.isEmpty ? "EKSİK (Tıkla Gir)" : vkn} · Oran: $oran · Matrah: ${TurkceFormat.para(matrah)} ₺ · Tevkifat: ${TurkceFormat.para(tevkifat)} ₺',
+                                    'VKN: ${vkn.isEmpty ? "EKSİK (Tıkla Gir)" : vkn} · KDV: %$kdvOrani · Oran: $oran · Matrah: ${TurkceFormat.para(matrah)} ₺ · Tevkifat: ${TurkceFormat.para(tevkifat)} ₺',
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: vknGecerli ? FontWeight.normal : FontWeight.bold,
@@ -381,10 +384,13 @@ class _OkunanVerilerOnizlemeKartiState extends State<OkunanVerilerOnizlemeKarti>
     final mevcutMatrah = (fatura['matrahTutari'] as num?)?.toDouble() ?? 0.0;
     final mevcutKdv = (fatura['kdvTutari'] as num?)?.toDouble() ?? 0.0;
     final mevcutTevkifat = (fatura['tevkifatTutari'] as num?)?.toDouble() ?? 0.0;
+    final mevcutKdvOrani = (fatura['kdvOrani'] as num?)?.toInt() ??
+        ((mevcutMatrah > 0 && mevcutKdv > 0 && ((mevcutKdv / mevcutMatrah) * 100 - 10).abs() <= 2.5) ? 10 : 20);
 
     final unvanCtrl = TextEditingController(text: mevcutUnvan);
     final vknCtrl = TextEditingController(text: mevcutVkn);
     final oranCtrl = TextEditingController(text: mevcutOran);
+    final kdvOranCtrl = TextEditingController(text: mevcutKdvOrani.toString());
     final matrahCtrl = TextEditingController(text: mevcutMatrah.toStringAsFixed(2));
     final kdvCtrl = TextEditingController(text: mevcutKdv.toStringAsFixed(2));
     final tevkifatCtrl = TextEditingController(text: mevcutTevkifat.toStringAsFixed(2));
@@ -448,6 +454,17 @@ class _OkunanVerilerOnizlemeKartiState extends State<OkunanVerilerOnizlemeKarti>
                         const SizedBox(width: 8),
                         Expanded(
                           child: TextField(
+                            controller: kdvOranCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'KDV Oranı (%10 / %20)',
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
                             controller: matrahCtrl,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             decoration: const InputDecoration(
@@ -497,6 +514,7 @@ class _OkunanVerilerOnizlemeKartiState extends State<OkunanVerilerOnizlemeKarti>
                     final yeniMatrah = double.tryParse(matrahCtrl.text.replaceAll(',', '.')) ?? mevcutMatrah;
                     final yeniKdv = double.tryParse(kdvCtrl.text.replaceAll(',', '.')) ?? mevcutKdv;
                     final yeniTevkifat = double.tryParse(tevkifatCtrl.text.replaceAll(',', '.')) ?? mevcutTevkifat;
+                    final yeniKdvOrani = int.tryParse(kdvOranCtrl.text.replaceAll(RegExp(r'\D'), '')) ?? mevcutKdvOrani;
                     widget.provider.raporTevkifatFaturasiGuncelle(
                       birimAdi: birimAdi,
                       faturaIndex: faturaIndex,
@@ -505,6 +523,7 @@ class _OkunanVerilerOnizlemeKartiState extends State<OkunanVerilerOnizlemeKarti>
                         'firmaAdi': unvanCtrl.text.trim(),
                         'vergiTcNo': vknCtrl.text.replaceAll(RegExp(r'\D'), ''),
                         'tevkifatOrani': oranCtrl.text.trim(),
+                        'kdvOrani': yeniKdvOrani,
                         'matrahTutari': yeniMatrah,
                         'kdvTutari': yeniKdv,
                         'tevkifatTutari': yeniTevkifat,

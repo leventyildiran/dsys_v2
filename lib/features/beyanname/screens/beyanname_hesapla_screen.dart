@@ -1692,16 +1692,29 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
   }
 
   // =========================================================================
-  // 3. KDV 2 TEVKİFAT MASASI
+  // 3. KDV 2 TEVKİFAT MASASI (ÜSTTE GERÇEK FATURALAR, ALTTA MİZANLARDAN OKUNAN 360.04 KDV 2)
   // =========================================================================
   Widget _buildKdv2TevkifatMasasi(BeyannameProvider provider) {
+    final topFaturaMatrah = provider.tevkifatKayitlari.fold(0.0, (s, x) => s + x.matrahTutari);
+    final topFaturaKdv = provider.tevkifatKayitlari.fold(0.0, (s, x) => s + x.kdvTutari);
+    final topFaturaTevkifat = provider.tevkifatKayitlari.fold(0.0, (s, x) => s + x.tevkifatTutari);
+
+    final icmalList = provider.birimIcmalListesi;
+    final topMizanKdv2 = icmalList.fold(0.0, (s, b) => s + provider.getMizanKdv2(b.birimAdi));
+    final topBirimFaturaKdv2 = icmalList.fold(0.0, (s, b) => s + b.kdv2Toplam);
+    final topFark = topBirimFaturaKdv2 - topMizanKdv2;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // ==================== 1. ÜST TABLO: GERÇEK FATURALARDAN OKUNAN KDV 2 ====================
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildSheetTitle('KDV 2 Tevkifatlı Fatura & Firma Masası', accentColor: const Color(0xFFD97706)),
+            _buildSheetTitle(
+              '1. Gerçek Faturalardan Okunan KDV 2 Tevkifat Listesi (Fatura & Firma Masası)',
+              accentColor: const Color(0xFFD97706),
+            ),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1737,7 +1750,12 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                   _cellText(f.firmaAdi, isBold: true, align: TextAlign.left),
                   _cellText(f.vergiTcNo, align: TextAlign.center),
                   _buildBirimCell(f.birimAdi ?? '—'),
-                  _cellText('${f.etiket} (%${f.kdvOrani})', align: TextAlign.center),
+                  _cellText(
+                    '${f.etiket} (%${f.kdvOrani})',
+                    align: TextAlign.center,
+                    isBold: f.kdvOrani == 10,
+                    color: f.kdvOrani == 10 ? const Color(0xFF0284C7) : null,
+                  ),
                   _cellText(TurkceFormat.para(f.matrahTutari)),
                   _cellText(TurkceFormat.para(f.kdvTutari)),
                   _cellText(TurkceFormat.para(f.tevkifatTutari), isBold: true, color: const Color(0xFFD97706)),
@@ -1773,6 +1791,24 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 ],
               );
             }),
+            TableRow(
+              decoration: const BoxDecoration(color: Color(0xFFFEF3C7)),
+              children: [
+                _cellText(
+                  'GERÇEK FATURALAR TOPLAMI (${provider.tevkifatKayitlari.length} Kayıt)',
+                  isBold: true,
+                  align: TextAlign.left,
+                  color: const Color(0xFF92400E),
+                ),
+                _cellText('—', align: TextAlign.center),
+                _cellText('—', align: TextAlign.center),
+                _cellText('—', align: TextAlign.center),
+                _cellText(TurkceFormat.para(topFaturaMatrah), isBold: true, color: const Color(0xFF92400E)),
+                _cellText(TurkceFormat.para(topFaturaKdv), isBold: true, color: const Color(0xFF92400E)),
+                _cellText(TurkceFormat.para(topFaturaTevkifat), isBold: true, color: const Color(0xFFB45309)),
+                _cellText(''),
+              ],
+            ),
           ],
           borderColor: const Color(0xFFFDE68A),
           gridColor: const Color(0xFFFFFBEB),
@@ -1786,6 +1822,127 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             5: FlexColumnWidth(1.1),
             6: FlexColumnWidth(1.2),
             7: FixedColumnWidth(65),
+          },
+        ),
+        const SizedBox(height: 18),
+        // ==================== 2. ALT TABLO: MİZANLARDAN OKUNAN KDV 2 (360.04) & MUTABAKAT ====================
+        _buildSheetTitle(
+          '2. Mizanlardan Okunan KDV 2 (360.04) & Gerçek Fatura Karşılaştırma Tablosu (Birim Bazlı)',
+          accentColor: const Color(0xFF0284C7),
+        ),
+        const SizedBox(height: 6),
+        _buildTableContainer(
+          [
+            _headerRow(
+              [
+                'BİRİM ADI',
+                'MİZANDAN OKUNAN KDV 2 (360.04)',
+                'GERÇEK FATURALARDAN OKUNAN KDV 2',
+                'ORAN DAĞILIMI (9/10 · 7/10 · 5/10)',
+                'FARK (FATURA - MİZAN)',
+                'MUTABAKAT DURUMU',
+              ],
+              bg: const Color(0xFFE0F2FE),
+              textColor: const Color(0xFF0369A1),
+            ),
+            ...icmalList.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final b = entry.value;
+              final mizanKdv2 = provider.getMizanKdv2(b.birimAdi);
+              final faturaKdv2 = b.kdv2Toplam;
+              final fark = faturaKdv2 - mizanKdv2;
+
+              String durumMetni;
+              Color durumRenk;
+              if (mizanKdv2 < 0.01 && faturaKdv2 < 0.01) {
+                durumMetni = '—';
+                durumRenk = const Color(0xFF94A3B8);
+              } else if (fark.abs() <= 1.0) {
+                durumMetni = '✓ Tam Mutabık';
+                durumRenk = const Color(0xFF15803D);
+              } else if (mizanKdv2 > 0 && faturaKdv2 < 0.01) {
+                durumMetni = '⏳ Fatura Bekleniyor';
+                durumRenk = const Color(0xFFD97706);
+              } else if (fark < -1.0) {
+                durumMetni = '⚠ Eksik Fatura (${TurkceFormat.para(fark.abs())})';
+                durumRenk = const Color(0xFFDC2626);
+              } else {
+                durumMetni = 'ℹ Fatura Fazla (+${TurkceFormat.para(fark)})';
+                durumRenk = const Color(0xFF0284C7);
+              }
+
+              final oranParcalari = <String>[];
+              if (b.kdv2DokuzBoluOn > 0) oranParcalari.add('9/10: ${TurkceFormat.para(b.kdv2DokuzBoluOn)}');
+              if (b.kdv2YediBoluOn > 0) oranParcalari.add('7/10: ${TurkceFormat.para(b.kdv2YediBoluOn)}');
+              if (b.kdv2BesBoluOn > 0) oranParcalari.add('5/10: ${TurkceFormat.para(b.kdv2BesBoluOn)}');
+              final oranDetayStr = oranParcalari.isEmpty ? '—' : oranParcalari.join(' · ');
+
+              return TableRow(
+                decoration: BoxDecoration(color: idx.isEven ? Colors.white : const Color(0xFFFAFAFA)),
+                children: [
+                  _buildBirimCell(b.birimAdi),
+                  EditableCell(
+                    value: mizanKdv2,
+                    textColor: const Color(0xFF0369A1),
+                    onSubmitted: (v) => provider.updateMizanKdv2(b.birimAdi, v),
+                  ),
+                  _cellText(
+                    TurkceFormat.para(faturaKdv2),
+                    isBold: faturaKdv2 > 0,
+                    color: faturaKdv2 > 0 ? const Color(0xFFD97706) : null,
+                  ),
+                  _cellText(oranDetayStr, align: TextAlign.center),
+                  _cellText(
+                    fark.abs() < 0.01 ? '₺0,00' : (fark > 0 ? '+${TurkceFormat.para(fark)}' : '(-) ${TurkceFormat.para(fark.abs())}'),
+                    isBold: fark.abs() > 1.0,
+                    color: fark.abs() <= 1.0
+                        ? const Color(0xFF15803D)
+                        : (fark < 0 ? const Color(0xFFDC2626) : const Color(0xFF0284C7)),
+                  ),
+                  _cellText(durumMetni, isBold: true, align: TextAlign.center, color: durumRenk),
+                ],
+              );
+            }),
+            TableRow(
+              decoration: const BoxDecoration(color: Color(0xFFE0F2FE)),
+              children: [
+                _cellText('TOPLAMLAR (MİZAN vs FATURA)', isBold: true, align: TextAlign.left, color: const Color(0xFF0369A1)),
+                _cellText(TurkceFormat.para(topMizanKdv2), isBold: true, color: const Color(0xFF0369A1)),
+                _cellText(TurkceFormat.para(topBirimFaturaKdv2), isBold: true, color: const Color(0xFFB45309)),
+                _cellText(
+                  '9/10: ${TurkceFormat.para(icmalList.fold(0.0, (s, x) => s + x.kdv2DokuzBoluOn))} · '
+                  '7/10: ${TurkceFormat.para(icmalList.fold(0.0, (s, x) => s + x.kdv2YediBoluOn))} · '
+                  '5/10: ${TurkceFormat.para(icmalList.fold(0.0, (s, x) => s + x.kdv2BesBoluOn))}',
+                  isBold: true,
+                  align: TextAlign.center,
+                  color: const Color(0xFF0369A1),
+                ),
+                _cellText(
+                  topFark.abs() < 0.01 ? '₺0,00' : (topFark > 0 ? '+${TurkceFormat.para(topFark)}' : '(-) ${TurkceFormat.para(topFark.abs())}'),
+                  isBold: true,
+                  color: topFark.abs() <= 1.0 ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                ),
+                _cellText(
+                  (topMizanKdv2 < 0.01 && topBirimFaturaKdv2 < 0.01)
+                      ? '—'
+                      : (topFark.abs() <= 1.0 ? '✓ Mutabık' : '⚠ Fark Var'),
+                  isBold: true,
+                  align: TextAlign.center,
+                  color: topFark.abs() <= 1.0 ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                ),
+              ],
+            ),
+          ],
+          borderColor: const Color(0xFFBAE6FD),
+          gridColor: const Color(0xFFF0F9FF),
+          minWidth: 1020,
+          columnWidths: const {
+            0: FlexColumnWidth(2.1),
+            1: FlexColumnWidth(1.3),
+            2: FlexColumnWidth(1.3),
+            3: FlexColumnWidth(2.1),
+            4: FlexColumnWidth(1.2),
+            5: FlexColumnWidth(1.4),
           },
         ),
       ],
@@ -2038,6 +2195,53 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
             2: FlexColumnWidth(1.5),
           },
         ),
+        const SizedBox(height: 16),
+        _buildSheetTitle('Diş Hekimliği İhaleye Ait Damga Vergisi (360.03.03 Sözleşme Binde 9,48 & 360.03.02 Karar Pulu Binde 5,69)', accentColor: const Color(0xFF15803D)),
+        const SizedBox(height: 6),
+        _buildTableContainer(
+          [
+            _headerRow(
+              ['İHALE DAMGA TÜRÜ (360.03)', 'DAMGA VERGİSİ TUTARI (TL)', 'HESAPLANAN İHALE MATRAHI'],
+              bg: const Color(0xFFDCFCE7),
+              textColor: const Color(0xFF14532D),
+            ),
+            TableRow(
+              decoration: const BoxDecoration(color: Colors.white),
+              children: [
+                _buildBirimCell('DİŞ SÖZLEŞMEYE DAİR (360.03.03 — Binde 9,48)'),
+                EditableCell(
+                  value: provider.disSozlesmeDamga,
+                  onSubmitted: (v) => provider.setDisSozlesmeDamga(v),
+                ),
+                _cellText(TurkceFormat.para(provider.disSozlesmeDamgaMatrah), isBold: true, color: const Color(0xFF15803D)),
+              ],
+            ),
+            TableRow(
+              decoration: const BoxDecoration(color: Color(0xFFFAFAFA)),
+              children: [
+                _buildBirimCell('DİŞ DAMGA-KARAR PULU (360.03.02 — Binde 5,69)'),
+                EditableCell(
+                  value: provider.disKararPuluDamga,
+                  onSubmitted: (v) => provider.setDisKararPuluDamga(v),
+                ),
+                _cellText(TurkceFormat.para(provider.disKararPuluDamgaMatrah), isBold: true, color: const Color(0xFF15803D)),
+              ],
+            ),
+            _highlightRow(
+              'TOPLAM DİŞ İHALE DAMGA VERGİSİ',
+              TurkceFormat.para(provider.disSozlesmeDamga + provider.disKararPuluDamga),
+              const Color(0xFF15803D),
+              colSpan: 3,
+            ),
+          ],
+          borderColor: const Color(0xFF86EFAC),
+          gridColor: const Color(0xFFBBF7D0),
+          columnWidths: const {
+            0: FlexColumnWidth(2.8),
+            1: FlexColumnWidth(1.4),
+            2: FlexColumnWidth(1.5),
+          },
+        ),
       ],
     );
   }
@@ -2274,7 +2478,7 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
 
     // Tablo 1 Toplamları
     final topKdv1 = list.fold(0.0, (s, x) => s + x.kdv1Tutari);
-    final topDamgaVb = list.fold(0.0, (s, x) => s + x.damgaVb);
+    final topDamgaVb = list.fold(0.0, (s, x) => s + x.damgaVb) + provider.disSozlesmeDamga + provider.disKararPuluDamga;
     final topMuhtasarGelir = list.fold(0.0, (s, x) => s + x.muhtasarGelir);
     final topMuhtasarDamga = list.fold(0.0, (s, x) => s + x.muhtasarDamga);
     final topMuhtasarKesilen = list.fold(0.0, (s, x) => s + x.muhtasarKesilenDamga);
@@ -2333,17 +2537,20 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
                 ],
               );
             }),
-            // Diş Sözleşme & Karar Pulu Ek Satırları (Excel yapısı)
+            // Diş Sözleşme & Karar Pulu Ek Satırları (Excel yapısı — İhale Damga Vergisi 360.03.03 & 360.03.02)
             TableRow(
               decoration: const BoxDecoration(color: Color(0xFFF0FDF4)),
               children: [
                 _buildBirimCell('DİŞ SÖZLEŞMEYE DAİR'),
                 _cellText('₺0,00'),
+                EditableCell(
+                  value: provider.disSozlesmeDamga,
+                  onSubmitted: (v) => provider.setDisSozlesmeDamga(v),
+                ),
                 _cellText('₺0,00'),
                 _cellText('₺0,00'),
                 _cellText('₺0,00'),
-                _cellText('₺0,00'),
-                _cellText('₺0,00', isBold: true),
+                _cellText(TurkceFormat.para(provider.disSozlesmeDamga), isBold: true, color: const Color(0xFF15803D)),
               ],
             ),
             TableRow(
@@ -2351,11 +2558,14 @@ class _BeyannameHesaplaScreenState extends State<BeyannameHesaplaScreen> {
               children: [
                 _buildBirimCell('DİŞ DAMGA-KARAR PULU'),
                 _cellText('₺0,00'),
+                EditableCell(
+                  value: provider.disKararPuluDamga,
+                  onSubmitted: (v) => provider.setDisKararPuluDamga(v),
+                ),
                 _cellText('₺0,00'),
                 _cellText('₺0,00'),
                 _cellText('₺0,00'),
-                _cellText('₺0,00'),
-                _cellText('₺0,00', isBold: true),
+                _cellText(TurkceFormat.para(provider.disKararPuluDamga), isBold: true, color: const Color(0xFF15803D)),
               ],
             ),
             // Tablo 1 Toplam Satırı

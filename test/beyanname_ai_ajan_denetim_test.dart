@@ -3,6 +3,7 @@ import 'package:dsys_v2/features/beyanname/models/beyanname_belge_model.dart';
 import 'package:dsys_v2/features/beyanname/models/beyanname_denetim_rapor_model.dart';
 import 'package:dsys_v2/features/beyanname/services/beyanname_denetim_servisi.dart';
 import 'package:dsys_v2/features/beyanname/services/mizan_deterministik_parser.dart';
+import 'package:dsys_v2/features/fatura/services/yerel_ocr/gib_karekod_ve_ubl_cozucu.dart';
 
 void main() {
   group('BeyannameDenetimServisi VKN & TCKN Doğrulama Testleri', () {
@@ -416,6 +417,179 @@ KDV Tevkifat (7/10): 1.400,00 TL
         oncekiAylarHasilat: 0.0,
       );
       expect(disSonuc.krediKarti123, equals(3325718.15));
+    });
+
+    test('Tek Faturada 3 Farklı Tevkifat Oranı (9/10, 7/10, 5/10) ve %10 KDV Okuma', () {
+      const cokluOranFaturaText = '''
+e-Fatura
+Fatura No: GİB2026000001234
+SATICI:
+GRAND DENTAL MEDİKAL SAN. VE TİC. LTD. ŞTİ.
+Vergi No: 4110649065
+ALICI:
+TRAKYA ÜNİVERSİTESİ AĞIZ VE DİŞ SAĞLIĞI UYGULAMA VE ARAŞTIRMA MERKEZİ
+VKN: 8960855757
+KDV Tevkifat Özeti:
+1) Temizlik Hizmeti %20 KDV 9/10 10.000,00 2.000,00 1.800,00
+2) Bakım Onarım %20 KDV 7/10 5.000,00 1.000,00 700,00
+3) Tıbbi Sarf Malzeme %10 KDV 5/10 20.000,00 2.000,00 1.000,00
+''';
+
+      final faturalar = MizanDeterministikParser.parseTevkifatFaturalari(cokluOranFaturaText);
+      expect(faturalar.length, equals(3));
+
+      final f910 = faturalar.firstWhere((f) => f['tevkifatOrani'] == '9/10');
+      expect(f910['vergiTcNo'], equals('4110649065'));
+      expect(f910['matrahTutari'], closeTo(10000.0, 0.01));
+      expect(f910['kdvTutari'], closeTo(2000.0, 0.01));
+      expect(f910['tevkifatTutari'], closeTo(1800.0, 0.01));
+      expect(f910['kdvOrani'], equals(20));
+
+      final f710 = faturalar.firstWhere((f) => f['tevkifatOrani'] == '7/10');
+      expect(f710['matrahTutari'], closeTo(5000.0, 0.01));
+      expect(f710['kdvTutari'], closeTo(1000.0, 0.01));
+      expect(f710['tevkifatTutari'], closeTo(700.0, 0.01));
+      expect(f710['kdvOrani'], equals(20));
+
+      final f510 = faturalar.firstWhere((f) => f['tevkifatOrani'] == '5/10');
+      expect(f510['matrahTutari'], closeTo(20000.0, 0.01));
+      expect(f510['kdvTutari'], closeTo(2000.0, 0.01));
+      expect(f510['tevkifatTutari'], closeTo(1000.0, 0.01));
+      expect(f510['kdvOrani'], equals(10));
+
+      // Aynı faturaNo'ya sahip farklı oranlı satırlar mükerrer sayılmamalı
+      expect(BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(f910, f710), isFalse);
+      expect(BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(f710, f510), isFalse);
+      expect(BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(f510, Map<String, dynamic>.from(f510)), isTrue);
+    });
+
+    test('Diş Hekimliği İhale Damga Vergisi (360.03.02 Karar Pulu & 360.03.03 Sözleşme) Okuma', () {
+      const disMizanText = '''
+HESAP KODU | HESAP ADI | BORÇ | ALACAK | BORÇ BAKİYESİ | ALACAK BAKİYESİ
+360.03 | ÖDENECEK DAMGA VERGİSİ | 0,00 | 18.670,00 | 0,00 | 18.670,00
+360.03.02 | İHALE KARAR PULU (BİNDE 5,69) | 0,00 | 5.690,00 | 0,00 | 5.690,00
+360.03.03 | SÖZLEŞME DAMGA VERGİSİ (BİNDE 9,48) | 0,00 | 9.480,00 | 0,00 | 9.480,00
+360.03.05 | ÖDEMELERDEN KESİLEN DAMGA VERGİSİ | 0,00 | 3.500,00 | 0,00 | 3.500,00
+''';
+
+      final disSonuc = MizanDeterministikParser.analizEt(
+        birimAdi: 'DİŞ HEKİMLİĞİ',
+        aylikMizanMetni: disMizanText,
+        yillikMizanMetni: '',
+      );
+
+      // Ebeveyn 360.03 ile alt hesaplar çift toplanmamalı;
+      // 360.03.05 birim hakediş damgası olarak (3.500 TL),
+      // 360.03.02 ve 360.03.03 ise ihale damga vergisi alanlarına ayrışmalı!
+      expect(disSonuc.damgaVergisi360, closeTo(3500.0, 0.01));
+      expect(disSonuc.ihaleKararPuluDamga360, closeTo(5690.0, 0.01));
+      expect(disSonuc.ihaleSozlesmeDamga360, closeTo(9480.0, 0.01));
+    });
+
+    test('DÖSİM Mizanında Beyanname Ödeme Hareketleri (Borç > 0) ve Ebeveyn-Alt Hesap Çift Sayım Koruması', () {
+      // DÖSİM mizanında önceki ayların beyanname ödemeleri Borç (50.000 TL) olarak yansımış,
+      // toplam Alacak 52.500 TL, net Alacak Bakiyesi (bu ay ödenecek) ise 2.500 TL.
+      // Ayrıca hem 360.03 hem 360.03.05 satırı mevcut (ebeveyn + alt hesap).
+      const dosimMizanText = '''
+HESAP KODU | HESAP ADI | BORÇ | ALACAK | BORÇ BAKİYESİ | ALACAK BAKİYESİ
+360 | ÖDENECEK VERGİ VE FONLAR | 50.000,00 | 52.500,00 | 0,00 | 2.500,00
+360.03 | ÖDENECEK DAMGA VERGİSİ | 50.000,00 | 52.500,00 | 0,00 | 2.500,00
+360.03.05 | HAKEDİŞ DAMGA VERGİSİ | 50.000,00 | 52.500,00 | 0,00 | 2.500,00
+360.03.09 | DİĞER BİRİMLER (UBATAM) DAMGA VERGİSİ | 0,00 | 4.000,00 | 0,00 | 4.000,00
+''';
+
+      final dosimSonuc = MizanDeterministikParser.analizEt(
+        birimAdi: 'DÖSİM',
+        aylikMizanMetni: dosimMizanText,
+        yillikMizanMetni: '',
+      );
+
+      // Brüt 52.500 TL veya 2x katlanmış 105.000 TL DEĞİL, sadece DÖSİM'in net kalan 2.500 TL'si alınmalı;
+      // UBATAM alt hesabı (4.000 TL) DÖSİM'e dahil edilmemeli.
+      expect(dosimSonuc.damgaVergisi360, closeTo(2500.0, 0.01));
+    });
+
+    test('DÖSİM Aylık + Yıllık + Yardımcı Defter (Muavin) 3lü Çapraz Çözümleme Testi', () {
+      // Aylık mizanda diğer birimlerin tahakkukları (12.000 Diş + 4.500 UBATAM) ve geçen ayın
+      // beyanname ödemesi (15.000 Borç) birleştiği için Alacak Kalan 2.448 TL görünüyor.
+      const dosimAylikText = '''
+HESAP KODU | HESAP ADI | BORÇ | ALACAK | BORÇ BAKİYESİ | ALACAK BAKİYESİ
+360.03 | ÖDENECEK DAMGA VERGİSİ | 15.000,00 | 17.448,00 | 0,00 | 2.448,00
+360.03.05 | ÖDEMELERDEN KESİLEN DAMGA VERGİSİ | 15.000,00 | 17.448,00 | 0,00 | 2.448,00
+''';
+      const dosimYillikText = '''
+HESAP KODU | HESAP ADI | BORÇ | ALACAK | BORÇ BAKİYESİ | ALACAK BAKİYESİ
+360.03.05 | ÖDEMELERDEN KESİLEN DAMGA VERGİSİ | 150.000,00 | 167.448,00 | 0,00 | 17.448,00
+''';
+      // Yardımcı Defter (Muavin) ise her fişin hangi birime ait olduğunu açıkça gösteriyor:
+      const dosimYardimciMuavinText = '''
+HESAP: 360.03.05 ÖDEMELERDEN KESİLEN DAMGA VERGİSİ
+05.10.2026 | Yev: 101 | DİŞ HEKİMLİĞİ HAKEDİŞ DAMGA VERGİSİ TAHAKKUKU | 0,00 | 12.000,00 | 0,00 | 12.000,00
+10.10.2026 | Yev: 115 | UBATAM MALZEME ALIMI DAMGA VERGİSİ | 0,00 | 4.500,00 | 0,00 | 16.500,00
+15.10.2026 | Yev: 140 | DÖSİM MERKEZ KIRTASİYE ALIMI DAMGA VERGİSİ | 0,00 | 948,00 | 0,00 | 17.448,00
+26.10.2026 | Yev: 190 | EYLÜL AYI DAMGA VERGİSİ BEYANNAME ÖDEMESİ | 15.000,00 | 0,00 | 0,00 | 2.448,00
+TOPLAM | 15.000,00 | 17.448,00 | 0,00 | 2.448,00
+''';
+
+      final dosimMuavinSonuc = MizanDeterministikParser.analizEt(
+        birimAdi: 'DÖSİM',
+        aylikMizanMetni: dosimAylikText,
+        yillikMizanMetni: dosimYillikText,
+        yardimciMizanMetni: dosimYardimciMuavinText,
+      );
+
+      // Yardımcı Defter (Muavin) üzerinden Diş (12.000), UBATAM (4.500) ve Beyanname Ödemesi (15.000 Borç)
+      // ayıklanmalı; sadece DÖSİM'in öz damga vergisi olan 948,00 TL kalmalı!
+      expect(dosimMuavinSonuc.damgaVergisi360, closeTo(948.0, 0.01));
+      expect(dosimMuavinSonuc.damgaMatrah, closeTo(100000.0, 0.5));
+
+      // Senaryo B: Aylık mizanda geçen ayın yüksek beyanname ödemesi (Borç: 40.000 TL) yüzünden
+      // Aylık Alacak Kalan 0 görünürken, Yıllık Mizan'da geçmiş ay Alacak + bu ay Borç mahsuplaşıp
+      // dönem sonu net 1.896,00 TL Alacak Bakiyesi bırakmışsa Yıllık Mizan ile kurtarılmalı:
+      const aylikBorcAgirlikli = '''
+HESAP KODU | HESAP ADI | BORÇ | ALACAK | BORÇ BAKİYESİ | ALACAK BAKİYESİ
+360.03.05 | ÖDEMELERDEN KESİLEN DAMGA VERGİSİ | 40.000,00 | 1.896,00 | 38.104,00 | 0,00
+''';
+      const yillikNetBakiyeli = '''
+HESAP KODU | HESAP ADI | BORÇ | ALACAK | BORÇ BAKİYESİ | ALACAK BAKİYESİ
+360.03.05 | ÖDEMELERDEN KESİLEN DAMGA VERGİSİ | 140.000,00 | 141.896,00 | 0,00 | 1.896,00
+''';
+      final caprazSonuc = MizanDeterministikParser.analizEt(
+        birimAdi: 'DÖSİM',
+        aylikMizanMetni: aylikBorcAgirlikli,
+        yillikMizanMetni: yillikNetBakiyeli,
+      );
+      expect(caprazSonuc.damgaVergisi360, closeTo(1896.0, 0.01));
+    });
+
+    test('Mizan 360.04 KDV 2 Tevkifat Okuma ve GİB Karekod %10 KDV & Çoklu Oran Tespiti', () {
+      const mizan36004Text = '''
+HESAP KODU | HESAP ADI | BORÇ | ALACAK | BORÇ BAKİYESİ | ALACAK BAKİYESİ
+360.04 | KDV TEVKİFATI | 0,00 | 274.976,45 | 0,00 | 274.976,45
+360.04.01 | SORUMLU SIFATIYLA ÖDENECEK KDV | 0,00 | 274.976,45 | 0,00 | 274.976,45
+''';
+      final disSonuc = MizanDeterministikParser.analizEt(
+        birimAdi: 'DİŞ HEKİMLİĞİ',
+        aylikMizanMetni: mizan36004Text,
+        yillikMizanMetni: '',
+      );
+      expect(disSonuc.kdv2Tevkifat360, closeTo(274976.45, 0.01));
+
+      // GİB Karekod: Matrah 720.000, KDV 72.000, Tevkifat 64.800 -> %10 KDV ve 9/10 Tevkifat olmalı!
+      const qrYuzde10 =
+          '{"vkntckn":"4110649065","malhizmettoplam":720000,"kdvmatrah(10)":720000,"kdvmatrah(20)":0,"hesaplanankdv(10)":72000,"hesaplanankdv(20)":0,"vergidahil":792000,"odenecek":727200}';
+      final qr10Sonuc = GibKarekodVeUblCozucu.cozGibKarekodJson(qrYuzde10);
+      expect(qr10Sonuc, isNotNull);
+      expect(qr10Sonuc!.kdvOrani, equals(10));
+      expect(qr10Sonuc.tevkifatOrani, equals('9/10'));
+      expect(qr10Sonuc.cokluOranKarisikMi, isFalse);
+
+      // GİB Karekod: 1.248.612,48 Matrah, 249.722,50 KDV, 180.430,25 Tevkifat (7.225/10 -> Çoklu oran karışımı!)
+      const qrKarisikOran =
+          '{"vkntckn":"8610478535","malhizmettoplam":1248612.48,"hesaplanankdv(20)":249722.50,"vergidahil":1498334.98,"odenecek":1317904.73}';
+      final qrKarisikSonuc = GibKarekodVeUblCozucu.cozGibKarekodJson(qrKarisikOran);
+      expect(qrKarisikSonuc, isNotNull);
+      expect(qrKarisikSonuc!.cokluOranKarisikMi, isTrue);
     });
   });
 }

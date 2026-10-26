@@ -76,12 +76,16 @@ class FaturaYerelOcr {
               .toList() ??
           const <String>[];
       for (final qr in qrStrings) {
-        final cozulmus = GibKarekodVeUblCozucu.cozGibKarekodJson(qr);
-        if (cozulmus != null) {
+        final cozulmusListe = GibKarekodVeUblCozucu.cozGibKarekodJsonListesi(qr);
+        for (final cozulmus in cozulmusListe) {
           final mukerrer = gibListesi.any((x) =>
-              (x.faturaNo.isNotEmpty && x.faturaNo == cozulmus.faturaNo) ||
-              (x.saticiVknTckn == cozulmus.saticiVknTckn &&
-                  (x.matrah - cozulmus.matrah).abs() < 0.05));
+              x.tevkifatOrani == cozulmus.tevkifatOrani &&
+              x.kdvOrani == cozulmus.kdvOrani &&
+              ((x.faturaNo.isNotEmpty &&
+                      x.faturaNo == cozulmus.faturaNo &&
+                      (x.matrah - cozulmus.matrah).abs() < 0.05) ||
+                  (x.saticiVknTckn == cozulmus.saticiVknTckn &&
+                      (x.matrah - cozulmus.matrah).abs() < 0.05)));
           if (!mukerrer) {
             gibListesi.add(cozulmus);
           }

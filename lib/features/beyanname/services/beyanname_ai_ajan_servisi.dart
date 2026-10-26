@@ -8,9 +8,11 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 import '../../../core/models/sistem_ayarlari_model.dart';
 import '../../../core/services/sistem_ayarlari_service.dart';
 import '../../../core/turkce_format.dart';
+import '../../birim/models/birim_model.dart';
 import '../../fatura/services/excel_universal_parser.dart';
 import '../../fatura/services/fatura_offline_parser.dart';
 import '../../fatura/services/yerel_ocr/fatura_yerel_ocr.dart';
+import '../../fatura/services/yerel_ocr/gib_karekod_ve_ubl_cozucu.dart';
 import '../models/beyanname_belge_model.dart';
 import '../models/beyanname_denetim_rapor_model.dart';
 import 'beyanname_denetim_servisi.dart';
@@ -295,14 +297,16 @@ class BeyannameAiAjanServisi {
         yillikMizanMetni = await belgeMetniniCikar(yillikMizanBelgesi);
       }
 
-      // 4. Diğer Belgeler (Tüm Tevkifat Faturaları, Ödeme Emirleri ve Ek Evraklar)
+      // 4. Diğer Belgeler (Tüm Tevkifat Faturaları, İhale Damga Evrakları, Ödeme Emirleri ve Ek Evraklar)
       final tevkifatFaturaListesi = <Map<String, dynamic>>[];
       final metindekiGecerliVknler = <String>[];
+      double ekIhaleKararPulu = 0.0;
+      double ekIhaleSozlesme = 0.0;
 
       if (ekBelgeler.isNotEmpty) {
         yield AjanLogMesaji(
           zaman: DateTime.now(),
-          mesaj: '📁 [$birimAdi] Toplam ${ekBelgeler.length} adet ek evrak (ödeme emirleri ve faturalar) tek tek taranıyor...',
+          mesaj: '📁 [$birimAdi] Toplam ${ekBelgeler.length} adet ek evrak (ödeme emirleri, ihale damga ve faturalar) tek tek taranıyor...',
           birimAdi: birimAdi,
           ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.18 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
         );
@@ -316,6 +320,14 @@ class BeyannameAiAjanServisi {
                 ? digerBelgeMetni.substring(0, 500000)
                 : digerBelgeMetni;
 
+            // 0. İhaleye Ait Damga Vergisi / Karar Pulu / Sözleşme Damga Vergisi Evrakı Tespiti
+            final ihaleDamga = MizanDeterministikParser.parseIhaleDamgaBelgesi(textForFatura);
+            if (ihaleDamga.ihaleKararPulu > 0 || ihaleDamga.ihaleSozlesme > 0) {
+              ekIhaleKararPulu += ihaleDamga.ihaleKararPulu;
+              ekIhaleSozlesme += ihaleDamga.ihaleSozlesme;
+              buBelgedenYerelBulunan++;
+            }
+
             // Belgedeki tüm resmi doğrulanmış VKN/TCKN adaylarını çıkar
             for (final match in RegExp(r'\b\d{10,11}\b').allMatches(textForFatura)) {
               final raw = match.group(0)!;
@@ -327,26 +339,14 @@ class BeyannameAiAjanServisi {
               }
             }
 
-            // 1. Öncelik: Tevkifat faturasına özel deterministik ayrıştırıcı (Çoklu / arka arkaya taranmış faturalar dahil)
+            // 1. Öncelik: Tevkifat faturasına özel deterministik ayrıştırıcı (Çoklu / aynı faturada 3 farklı tevkifat oranı dahil)
             final ozelTevkifatlar = MizanDeterministikParser.parseTevkifatFaturalari(textForFatura);
             if (ozelTevkifatlar.isNotEmpty) {
               buBelgedenYerelBulunan += ozelTevkifatlar.length;
               for (final ot in ozelTevkifatlar) {
-                final mtr = TurkceFormat.parseSayi(ot['matrahTutari']);
-                final mukerrer = tevkifatFaturaListesi.any((t) {
-                  final ayniFaturaNo = t['faturaNo'] != null &&
-                      t['faturaNo'].toString().trim().isNotEmpty &&
-                      ot['faturaNo'] != null &&
-                      ot['faturaNo'].toString().trim().isNotEmpty &&
-                      t['faturaNo'].toString().trim() == ot['faturaNo'].toString().trim();
-                  if (ayniFaturaNo) return true;
-                  final ayniFirma = (t['vergiTcNo']?.toString().isNotEmpty == true &&
-                          t['vergiTcNo'] == ot['vergiTcNo']) ||
-                      (t['firmaAdi']?.toString().toLowerCase().trim() ==
-                          ot['firmaAdi']?.toString().toLowerCase().trim());
-                  final ayniMatrah = (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0;
-                  return ayniFirma && ayniMatrah;
-                });
+                final mukerrer = tevkifatFaturaListesi.any(
+                  (t) => BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(t, ot),
+                );
                 if (!mukerrer) tevkifatFaturaListesi.add(ot);
               }
             } else {
@@ -390,29 +390,31 @@ class BeyannameAiAjanServisi {
                   // Tevkifat oranını metinden algıla
                   String oranStr = '9/10';
                   double katsayi = 0.9;
-                  final oranMatch = RegExp(r'\b([234579])\s*/\s*10\b').firstMatch(textForFatura);
+                  final oranMatch = RegExp(r'\b(10|[234579])\s*/\s*10\b').firstMatch(textForFatura);
                   if (oranMatch != null) {
                     final pay = int.parse(oranMatch.group(1)!);
                     oranStr = '$pay/10';
                     katsayi = pay / 10.0;
                   }
 
-                  final mtr = f.matrah;
-                  final mukerrer = tevkifatFaturaListesi.any((t) {
-                    final ayniFirma = (t['vergiTcNo']?.toString().isNotEmpty == true && t['vergiTcNo'] == vkn) ||
-                        (t['firmaAdi']?.toString().toLowerCase().trim() == firma.toLowerCase().trim());
-                    final ayniMatrah = (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0;
-                    return ayniFirma && ayniMatrah;
-                  });
+                  final kdvOrani = BirimMizanAnalizSonucu.cozumleKdvOrani(
+                    matrah: f.matrah,
+                    kdv: f.kdvTutari,
+                  );
+                  final adayMap = <String, dynamic>{
+                    'firmaAdi': firma.isNotEmpty ? firma : 'Düzenleyen Firma',
+                    'vergiTcNo': vkn,
+                    'matrahTutari': f.matrah,
+                    'kdvOrani': kdvOrani,
+                    'kdvTutari': f.kdvTutari,
+                    'tevkifatTutari': double.parse((f.kdvTutari * katsayi).toStringAsFixed(2)),
+                    'tevkifatOrani': oranStr,
+                  };
+                  final mukerrer = tevkifatFaturaListesi.any(
+                    (t) => BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(t, adayMap),
+                  );
                   if (!mukerrer) {
-                    tevkifatFaturaListesi.add({
-                      'firmaAdi': firma.isNotEmpty ? firma : 'Düzenleyen Firma',
-                      'vergiTcNo': vkn,
-                      'matrahTutari': f.matrah,
-                      'kdvTutari': f.kdvTutari,
-                      'tevkifatTutari': double.parse((f.kdvTutari * katsayi).toStringAsFixed(2)),
-                      'tevkifatOrani': oranStr,
-                    });
+                    tevkifatFaturaListesi.add(adayMap);
                   }
                 }
               }
@@ -435,34 +437,91 @@ class BeyannameAiAjanServisi {
               );
               ekYerelOcrMetni = yerelTarama.birlesikMetin;
 
-              // 1) GİB Resmi e-Fatura Karekodu / UBL yakalandıysa %100 kesinlikle ekle!
+              // 1) GİB Resmi e-Fatura Karekodu / UBL yakalandıysa kontrol et:
+              //    Eğer karekod yalnızca genel toplamları içeriyor ve faturada birden fazla farklı
+              //    tevkifat oranı (cokluOranKarisikMi == true, örn: 180.430,25 / 249.722,50 = 7.225/10) varsa,
+              //    önce yerel OCR metninde çoklu oran kırılımı ara; yoksa AI Vision'a yönlendir!
+              final karisikOranliGibler = <GibKarekodFaturaVerisi>[];
               if (yerelTarama.gibFaturalari.isNotEmpty) {
-                for (final gib in yerelTarama.gibFaturalari) {
-                  if (gib.matrah <= 0) continue;
+                final temizGibler = yerelTarama.gibFaturalari
+                    .where((g) => g.matrah > 0 && !g.cokluOranKarisikMi)
+                    .toList();
+                karisikOranliGibler.addAll(
+                  yerelTarama.gibFaturalari.where((g) => g.matrah > 0 && g.cokluOranKarisikMi),
+                );
+
+                for (final gib in temizGibler) {
                   final map = gib.toBeyannameTevkifatMap();
-                  final mukerrer = tevkifatFaturaListesi.any((t) =>
-                      (t['faturaNo']?.toString().isNotEmpty == true &&
-                          t['faturaNo'] == map['faturaNo']) ||
-                      (t['vergiTcNo'] == map['vergiTcNo'] &&
-                          (TurkceFormat.parseSayi(t['matrahTutari']) - gib.matrah).abs() < 1.0));
+                  final mukerrer = tevkifatFaturaListesi.any(
+                    (t) => BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(t, map),
+                  );
                   if (!mukerrer) {
                     tevkifatFaturaListesi.add(map);
                     buBelgedenYerelBulunan++;
                   }
                 }
-                yield AjanLogMesaji(
-                  zaman: DateTime.now(),
-                  mesaj: '🎯 [$birimAdi] "${digerBelge.dosyaAdi}" GİB e-Fatura Karekodu / UBL ile API\'ye gitmeden %100 kesinlikle yerelde çözüldü (${yerelTarama.gibFaturalari.length} fatura, 0,00 TL)!',
-                  birimAdi: birimAdi,
-                );
+                if (temizGibler.isNotEmpty) {
+                  yield AjanLogMesaji(
+                    zaman: DateTime.now(),
+                    mesaj: '🎯 [$birimAdi] "${digerBelge.dosyaAdi}" GİB e-Fatura Karekodu / UBL ile API\'ye gitmeden %100 kesinlikle yerelde çözüldü (${temizGibler.length} fatura/kırılım, 0,00 TL)!',
+                    birimAdi: birimAdi,
+                  );
+                }
+
+                // Çoklu oran karışımı içeren karekodlu faturalar için önce yerel OCR metnini dene
+                if (karisikOranliGibler.isNotEmpty) {
+                  final yerelCoklu = MizanDeterministikParser.parseTevkifatFaturalari(
+                    [digerBelgeMetni, yerelTarama.ocrMetni].where((s) => s.trim().isNotEmpty).join('\n'),
+                  );
+                  if (yerelCoklu.length > 1) {
+                    final dogrulanmisVkn = karisikOranliGibler.first.saticiVknTckn;
+                    for (final ot in yerelCoklu) {
+                      if ((ot['vergiTcNo']?.toString().trim().isEmpty ?? true) && dogrulanmisVkn.isNotEmpty) {
+                        ot['vergiTcNo'] = dogrulanmisVkn;
+                      }
+                      final mukerrer = tevkifatFaturaListesi.any(
+                        (t) => BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(t, ot),
+                      );
+                      if (!mukerrer) {
+                        tevkifatFaturaListesi.add(ot);
+                        buBelgedenYerelBulunan++;
+                      }
+                    }
+                    karisikOranliGibler.clear();
+                  } else if (hasGemini || hasOpenRouter) {
+                    yield AjanLogMesaji(
+                      zaman: DateTime.now(),
+                      mesaj: '🔍 [$birimAdi] "${digerBelge.dosyaAdi}" karekodunda birden fazla farklı tevkifat oranı (karışık oran: ${TurkceFormat.para(karisikOranliGibler.first.tevkifatTutari)} / ${TurkceFormat.para(karisikOranliGibler.first.kdvTutari)}) tespit edildi; alt oran kırılımları için AI derin okumaya yönlendiriliyor...',
+                      birimAdi: birimAdi,
+                    );
+                  } else {
+                    // AI yoksa veri kaybı olmaması için karekod toplamını ekle
+                    for (final gib in karisikOranliGibler) {
+                      final map = gib.toBeyannameTevkifatMap();
+                      final mukerrer = tevkifatFaturaListesi.any(
+                        (t) => BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(t, map),
+                      );
+                      if (!mukerrer) {
+                        tevkifatFaturaListesi.add(map);
+                        buBelgedenYerelBulunan++;
+                      }
+                    }
+                    karisikOranliGibler.clear();
+                  }
+                }
               } else if (ekYerelOcrMetni.isNotEmpty) {
+                final ihaleOcr = MizanDeterministikParser.parseIhaleDamgaBelgesi(ekYerelOcrMetni);
+                if (ihaleOcr.ihaleKararPulu > 0 || ihaleOcr.ihaleSozlesme > 0) {
+                  ekIhaleKararPulu += ihaleOcr.ihaleKararPulu;
+                  ekIhaleSozlesme += ihaleOcr.ihaleSozlesme;
+                  buBelgedenYerelBulunan++;
+                }
                 // 2) Yerel PDF.js + Tesseract.js metnini deterministik motora ver
                 final yerelOcrTevkifat = MizanDeterministikParser.parseTevkifatFaturalari(ekYerelOcrMetni);
                 for (final ot in yerelOcrTevkifat) {
-                  final mtr = TurkceFormat.parseSayi(ot['matrahTutari']);
-                  final mukerrer = tevkifatFaturaListesi.any((t) =>
-                      (t['vergiTcNo'] == ot['vergiTcNo'] &&
-                          (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0));
+                  final mukerrer = tevkifatFaturaListesi.any(
+                    (t) => BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(t, ot),
+                  );
                   if (!mukerrer) {
                     tevkifatFaturaListesi.add(ot);
                     buBelgedenYerelBulunan++;
@@ -511,26 +570,14 @@ class BeyannameAiAjanServisi {
                 );
               }
               for (final f in ocrFaturalar) {
-                final mtr = TurkceFormat.parseSayi(f['matrahTutari']);
-                final mukerrer = tevkifatFaturaListesi.any((t) {
-                  final ayniFaturaNo = t['faturaNo'] != null &&
-                      t['faturaNo'].toString().trim().isNotEmpty &&
-                      f['faturaNo'] != null &&
-                      f['faturaNo'].toString().trim().isNotEmpty &&
-                      t['faturaNo'].toString().trim() == f['faturaNo'].toString().trim();
-                  if (ayniFaturaNo) return true;
-                  final ayniFirma = (t['vergiTcNo']?.toString().isNotEmpty == true &&
-                          t['vergiTcNo'] == f['vergiTcNo']) ||
-                      (t['firmaAdi']?.toString().toLowerCase().trim() ==
-                          f['firmaAdi']?.toString().toLowerCase().trim());
-                  final ayniMatrah = (TurkceFormat.parseSayi(t['matrahTutari']) - mtr).abs() < 1.0;
-                  return ayniFirma && ayniMatrah;
-                });
+                final mukerrer = tevkifatFaturaListesi.any(
+                  (t) => BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(t, f),
+                );
                 if (!mukerrer) tevkifatFaturaListesi.add(f);
               }
               yield AjanLogMesaji(
                 zaman: DateTime.now(),
-                mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" AI ile okundu ve listeye eklendi (${ocrFaturalar.length} fatura).',
+                mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" AI ile okundu ve listeye eklendi (${ocrFaturalar.length} fatura/kırılım).',
                 birimAdi: birimAdi,
               );
             } catch (e) {
@@ -552,7 +599,7 @@ class BeyannameAiAjanServisi {
           if (ekBelgeler.length > 5 && ((k + 1) % 10 == 0 || k == ekBelgeler.length - 1)) {
             yield AjanLogMesaji(
               zaman: DateTime.now(),
-              mesaj: '📄 [$birimAdi] ${k + 1}/${ekBelgeler.length} evrak incelendi (${tevkifatFaturaListesi.length} tevkifat faturası tespit edildi).',
+              mesaj: '📄 [$birimAdi] ${k + 1}/${ekBelgeler.length} evrak incelendi (${tevkifatFaturaListesi.length} tevkifat faturası/kırılımı tespit edildi).',
               birimAdi: birimAdi,
             );
           }
@@ -569,6 +616,8 @@ class BeyannameAiAjanServisi {
         yardimciMizanMetni: yardimciMizanMetni,
         oncekiAylarHasilat: birimOncekiAylarHasilat[birimAdi] ?? 0.0,
         ekTevkifatFaturalari: tevkifatFaturaListesi,
+        ekIhaleKararPuluDamga: ekIhaleKararPulu,
+        ekIhaleSozlesmeDamga: ekIhaleSozlesme,
       );
 
       final hasDeterministikVeri = deterministikSonuc.hasilat600Aylik > 0 ||
@@ -693,11 +742,9 @@ class BeyannameAiAjanServisi {
                 // Offline bulunan tevkifat faturalarını mükerrer kayıt oluşturmadan birleştir
                 for (final tf in tevkifatFaturaListesi) {
                   final vNo = (tf['vergiTcNo']?.toString() ?? '').replaceAll(RegExp(r'[^\d]'), '');
-                  final mtr = TurkceFormat.parseSayi(tf['matrahTutari']);
-                  final existingIdx = aiTevkifat.indexWhere((a) {
-                    final aMtr = TurkceFormat.parseSayi(a['matrahTutari']);
-                    return mtr > 0 && (aMtr - mtr).abs() < 1.0;
-                  });
+                  final existingIdx = aiTevkifat.indexWhere(
+                    (a) => BirimMizanAnalizSonucu.tevkifatSatiriMukerrerMi(a, tf),
+                  );
                   if (existingIdx == -1) {
                     aiTevkifat.add(tf);
                   } else {
@@ -738,6 +785,22 @@ class BeyannameAiAjanServisi {
                   koruSayi('indirilecekKdvMatrah20', deterministikSonuc.indirilecekKdvMatrah20);
                   koruSayi('damgaVergisi360', deterministikSonuc.damgaVergisi360);
                   koruSayi('damgaMatrah', deterministikSonuc.damgaMatrah);
+                  koruSayi('ihaleSozlesmeDamga360', deterministikSonuc.ihaleSozlesmeDamga360);
+                  koruSayi('ihaleKararPuluDamga360', deterministikSonuc.ihaleKararPuluDamga360);
+                  koruSayi('kdv2Tevkifat360', deterministikSonuc.kdv2Tevkifat360);
+                  // DÖSİM veya İhale Damga ayrıştırmasında Deterministik 3'lü Çapraz Motorun (Aylık + Yıllık + Yardımcı Defter)
+                  // arındırdığı net vergi tutarı, AI'ın brüt/konsolide toplamını her zaman ezer!
+                  if (BirimAdlandirma.canonicalKey(birimAdi) == 'dosim' ||
+                      deterministikSonuc.ihaleSozlesmeDamga360 > 0 ||
+                      deterministikSonuc.ihaleKararPuluDamga360 > 0) {
+                    parsedJson['damgaVergisi360'] = deterministikSonuc.damgaVergisi360;
+                    parsedJson['damgaMatrah'] = deterministikSonuc.damgaMatrah;
+                    parsedJson['ihaleSozlesmeDamga360'] = deterministikSonuc.ihaleSozlesmeDamga360;
+                    parsedJson['ihaleKararPuluDamga360'] = deterministikSonuc.ihaleKararPuluDamga360;
+                    if (deterministikSonuc.kdv2Tevkifat360 > 0 || BirimAdlandirma.canonicalKey(birimAdi) == 'dosim') {
+                      parsedJson['kdv2Tevkifat360'] = deterministikSonuc.kdv2Tevkifat360;
+                    }
+                  }
                   koruSayi('muhtasarGelir360', deterministikSonuc.muhtasarGelir360);
                   koruSayi('muhtasarDamga360', deterministikSonuc.muhtasarDamga360);
                   koruSayi('devredenKdv190', deterministikSonuc.devredenKdv190);
@@ -809,6 +872,76 @@ class BeyannameAiAjanServisi {
     }
 
     // =========================================================================
+    // DÖSİM KONSOLİDE DAMGA VERGİSİ VE BEYANNAME ÖDEMESİ ARINDIRMASI
+    // =========================================================================
+    String? dosimKey;
+    double digerBirimlerDamgaToplami = 0.0;
+    for (final entry in analizSonuclari.entries) {
+      if (BirimAdlandirma.canonicalKey(entry.key) == 'dosim') {
+        dosimKey = entry.key;
+      } else {
+        digerBirimlerDamgaToplami += entry.value.damgaVergisi360;
+      }
+    }
+    if (dosimKey != null && digerBirimlerDamgaToplami > 0) {
+      final dosimSonuc = analizSonuclari[dosimKey]!;
+      if (dosimSonuc.damgaVergisi360 >= digerBirimlerDamgaToplami * 0.80) {
+        final hamDosimDamga = dosimSonuc.damgaVergisi360;
+        var netDosimDamga = hamDosimDamga - digerBirimlerDamgaToplami;
+        if (netDosimDamga < 5.0 || hamDosimDamga <= digerBirimlerDamgaToplami * 1.15) {
+          netDosimDamga = 0.0;
+        } else {
+          netDosimDamga = double.parse(netDosimDamga.toStringAsFixed(2));
+        }
+        final netDosimMatrah = netDosimDamga > 0
+            ? double.parse((netDosimDamga / 0.00948).toStringAsFixed(2))
+            : 0.0;
+
+        analizSonuclari[dosimKey] = BirimMizanAnalizSonucu(
+          birimAdi: dosimSonuc.birimAdi,
+          analizTarihi: dosimSonuc.analizTarihi,
+          hasilat600Aylik: dosimSonuc.hasilat600Aylik,
+          hasilat600Kumulatif: dosimSonuc.hasilat600Kumulatif,
+          krediKarti123: dosimSonuc.krediKarti123,
+          hesaplananKdvMatrah1: dosimSonuc.hesaplananKdvMatrah1,
+          hesaplananKdv1: dosimSonuc.hesaplananKdv1,
+          hesaplananKdvMatrah10: dosimSonuc.hesaplananKdvMatrah10,
+          hesaplananKdv10: dosimSonuc.hesaplananKdv10,
+          hesaplananKdvMatrah20: dosimSonuc.hesaplananKdvMatrah20,
+          hesaplananKdv20: dosimSonuc.hesaplananKdv20,
+          indirilecekKdvMatrah1: dosimSonuc.indirilecekKdvMatrah1,
+          indirilecekKdv1: dosimSonuc.indirilecekKdv1,
+          indirilecekKdvMatrah10: dosimSonuc.indirilecekKdvMatrah10,
+          indirilecekKdv10: dosimSonuc.indirilecekKdv10,
+          indirilecekKdvMatrah20: dosimSonuc.indirilecekKdvMatrah20,
+          indirilecekKdv20: dosimSonuc.indirilecekKdv20,
+          damgaVergisi360: netDosimDamga,
+          damgaMatrah: netDosimMatrah,
+          ihaleSozlesmeDamga360: dosimSonuc.ihaleSozlesmeDamga360,
+          ihaleKararPuluDamga360: dosimSonuc.ihaleKararPuluDamga360,
+          kdv2Tevkifat360: dosimSonuc.kdv2Tevkifat360,
+          kdv2HesapDetayi: dosimSonuc.kdv2HesapDetayi,
+          muhtasarGelir360: dosimSonuc.muhtasarGelir360,
+          muhtasarDamga360: dosimSonuc.muhtasarDamga360,
+          devredenKdv190: dosimSonuc.devredenKdv190,
+          tevkifatFaturalari: dosimSonuc.tevkifatFaturalari,
+          yardimciMizanKullanildi: dosimSonuc.yardimciMizanKullanildi,
+          yardimciMizan391Toplam: dosimSonuc.yardimciMizan391Toplam,
+          yardimciMizan191Toplam: dosimSonuc.yardimciMizan191Toplam,
+          yardimciMizan600Toplam: dosimSonuc.yardimciMizan600Toplam,
+          aciklama: '${dosimSonuc.aciklama ?? ''} (Diğer birimlerin ${TurkceFormat.para(digerBirimlerDamgaToplami)} damga vergisi DÖSİM konsolide mizanından arındırıldı).',
+          hamJson: dosimSonuc.hamJson,
+        );
+
+        yield AjanLogMesaji(
+          zaman: DateTime.now(),
+          mesaj: '🛡️ [$dosimKey] Diğer birimlerden gelen beyanname ödemeleri / konsolide damga vergisi (${TurkceFormat.para(digerBirimlerDamgaToplami)}) DÖSİM mizanından arındırıldı; mükerrer vergi tahakkuku önlendi (Net DÖSİM Damga: ${TurkceFormat.para(netDosimDamga)}).',
+          birimAdi: dosimKey,
+        );
+      }
+    }
+
+    // =========================================================================
     // TÜM BİRİMLER BİTTİĞİNDE 9 SENARYOLU KAPSAMLI DENETİM VE RAPORLAMA
     // =========================================================================
     yield AjanLogMesaji(
@@ -875,8 +1008,14 @@ class BeyannameAiAjanServisi {
       m['vergiTcNo'] = gecerli ? vkn : '';
       final matrah = TurkceFormat.parseSayi(m['matrahTutari']);
       if (matrah <= 0) continue;
+      final kdv = TurkceFormat.parseSayi(m['kdvTutari']);
       m['matrahTutari'] = matrah;
-      m['kdvTutari'] = TurkceFormat.parseSayi(m['kdvTutari']);
+      m['kdvTutari'] = kdv;
+      m['kdvOrani'] = BirimMizanAnalizSonucu.cozumleKdvOrani(
+        hamKdvOrani: m['kdvOrani'],
+        matrah: matrah,
+        kdv: kdv,
+      );
       m['tevkifatTutari'] = TurkceFormat.parseSayi(m['tevkifatTutari']);
       m['tevkifatOrani'] = m['tevkifatOrani']?.toString() ?? '9/10';
       m['firmaAdi'] = (m['firmaAdi']?.toString().trim().isNotEmpty ?? false)
@@ -913,10 +1052,15 @@ class BeyannameAiAjanServisi {
           ocrCalistir: true,
         );
         if (yerelTarama.gibFaturalari.isNotEmpty) {
-          return yerelTarama.gibFaturalari
-              .where((g) => g.matrah > 0)
-              .map((g) => g.toBeyannameTevkifatMap())
+          final temizGibler = yerelTarama.gibFaturalari
+              .where((g) => g.matrah > 0 && !g.cokluOranKarisikMi)
               .toList();
+          if (temizGibler.isNotEmpty &&
+              yerelTarama.gibFaturalari.every((g) => !g.cokluOranKarisikMi)) {
+            return temizGibler
+                .map((g) => g.toBeyannameTevkifatMap())
+                .toList();
+          }
         }
         yerelOcrMetni = yerelTarama.birlesikMetin;
         if (yerelOcrMetni.isNotEmpty) {
@@ -990,10 +1134,15 @@ class BeyannameAiAjanServisi {
           final mtr = f.matrah > 0 ? f.matrah : f.genelToplam;
           final kdv = f.kdvTutari;
           final tvk = kdv * 0.9;
+          final kdvOran = BirimMizanAnalizSonucu.cozumleKdvOrani(
+            matrah: mtr,
+            kdv: kdv,
+          );
           offlineSonuc = {
             'firmaAdi': f.firmaAdi.isNotEmpty ? f.firmaAdi : 'Firma',
             'vergiTcNo': f.vergiNo.isNotEmpty ? f.vergiNo : '',
             'matrahTutari': mtr,
+            'kdvOrani': kdvOran,
             'kdvTutari': kdv,
             'tevkifatTutari': tvk,
             'tevkifatOrani': '9/10',
@@ -1028,7 +1177,7 @@ Görevin bu belgedeki bilgileri okuyup KDV 2 Tevkifat masasına girilecek alanla
 3. "faturaNo": Belgedeki Fatura Numarası (örn. GIB2024000000123). Yoksa boş bırak.
 4. "faturaTarihi": Fatura Tarihi (GG.AA.YYYY).
 5. "matrahTutari": Tevkifata konu KDV HARIÇ matrah tutarı (double, örn: 15000.00).
-6. "kdvOrani": KDV Oranı (tam sayı: 20, 10, 8, 1 vb.).
+6. "kdvOrani": KDV Oranı (tam sayı: 20, 10, 8, 1 vb. - %10 KDV ise mutlaka 10 yaz!).
 7. "kdvTutari": Faturadaki toplam KDV tutarı (double).
 8. "tevkifatOrani": Tevkifat oranı (örn: "9/10", "7/10", "5/10", "2/10", "3/10", "4/10" vb.).
 9. "tevkifatTutari": Tevkif edilen / kesilen KDV tutarı (double).
@@ -1075,8 +1224,15 @@ ${textForFatura.isNotEmpty ? "\nBELGE METNİ:\n$textForFatura" : ""}
             final gecerli = (vkn.length == 10 && BeyannameDenetimServisi.dogrulaVkn(vkn)) ||
                 (vkn.length == 11 && BeyannameDenetimServisi.dogrulaTckn(vkn));
             m['vergiTcNo'] = gecerli ? vkn : (offlineSonuc?['vergiTcNo'] ?? vkn);
-            m['matrahTutari'] = TurkceFormat.parseSayi(m['matrahTutari']);
-            m['kdvTutari'] = TurkceFormat.parseSayi(m['kdvTutari']);
+            final mtr = TurkceFormat.parseSayi(m['matrahTutari']);
+            final kdv = TurkceFormat.parseSayi(m['kdvTutari']);
+            m['matrahTutari'] = mtr;
+            m['kdvTutari'] = kdv;
+            m['kdvOrani'] = BirimMizanAnalizSonucu.cozumleKdvOrani(
+              hamKdvOrani: m['kdvOrani'],
+              matrah: mtr,
+              kdv: kdv,
+            );
             m['tevkifatTutari'] = TurkceFormat.parseSayi(m['tevkifatTutari']);
             m['tevkifatOrani'] = m['tevkifatOrani']?.toString() ?? '9/10';
             if (m['firmaAdi'] == null || m['firmaAdi'].toString().trim().isEmpty) {
@@ -1084,6 +1240,7 @@ ${textForFatura.isNotEmpty ? "\nBELGE METNİ:\n$textForFatura" : ""}
             }
             if (TurkceFormat.parseSayi(m['matrahTutari']) == 0 && offlineSonuc != null) {
               m['matrahTutari'] = offlineSonuc['matrahTutari'];
+              m['kdvOrani'] = offlineSonuc['kdvOrani'];
               m['kdvTutari'] = offlineSonuc['kdvTutari'];
               m['tevkifatTutari'] = offlineSonuc['tevkifatTutari'];
             }
@@ -1103,12 +1260,13 @@ ${textForFatura.isNotEmpty ? "\nBELGE METNİ:\n$textForFatura" : ""}
 Sen Türkiye Vergi Mevzuatında (KDVK, KDV 2 Genel Tebliği) uzman bir mali müşavirsin.
 Ekteki belge bir kamu kurumuna (örneğin Diş Hekimliği Fakültesi veya diğer döner sermaye birimlerine) kesilmiş TARANMIŞ FATURALARDIR.
 
-KRİTİK UYARI VE ÇOKLU FATURA KURALI:
+KRİTİK UYARI, ÇOKLU FATURA VE ÇOKLU TEVKİFAT ORANI KURALI:
 1. Bu PDF veya görsel çok sayfalı olabilir ve ARKA ARKAYA TARANMIŞ BİRDEN ÇOK FATURA içerebilir (ör. 2, 3, 5, 10 adet fatura).
 2. Belgedeki TÜM sayfaları baştan sona incele. Her bir tevkifatlı faturayı 'tevkifatFaturalari' listesine AYRI BİR ELEMAN olarak ekle.
-3. KESİNLİKLE SADECE İLK FATURAYI OKUYUP BIRAKMA! Belgede kaç adet fatura varsa HEPSİNİ tek tek diziye yaz.
-4. Rakam uydurma. Okuyamadığın alanı boş bırak. VKN 10, TCKN 11 hanedir.
-5. Tutarları sayı olarak ver (ör. 12345.67). Tevkifat oranı "9/10", "7/10", "5/10", "4/10", "3/10", "2/10" biçimindedir.
+3. TEK FATURADA BİRDEN FAZLA TEVKİFAT ORANI KURALI: Eğer TEK BİR FATURA içinde birden fazla farklı tevkifat oranı (örneğin aynı faturada hem 9/10, hem 7/10, hem 5/10) veya farklı KDV oranları (%10 ve %20) varsa, her bir tevkifat oran kırılımını 'tevkifatFaturalari' listesine AYRI BİR ELEMAN olarak (aynı firmaAdi, vergiTcNo ve faturaNo ile, fakat kendi matrahTutari, kdvOrani, kdvTutari, tevkifatOrani ve tevkifatTutari değerleriyle) ekle! Asla diğer oranları atlama veya tek satıra indirme!
+4. %10 VE %20 KDV ORANI KURALI: Faturanın veya ilgili satırın KDV oranı %10 ise "kdvOrani" alanına kesinlikle 10 yaz; %20 ise 20, %1 ise 1 yaz.
+5. Rakam uydurma. Okuyamadığın alanı boş bırak. VKN 10, TCKN 11 hanedir.
+6. Tutarları sayı olarak ver (ör. 12345.67). Tevkifat oranı "9/10", "7/10", "5/10", "4/10", "3/10", "2/10", "10/10" biçimindedir.
 
 SADECE geçerli bir JSON döndür, başka hiçbir metin veya markdown ekleme:
 {
@@ -1119,6 +1277,7 @@ SADECE geçerli bir JSON döndür, başka hiçbir metin veya markdown ekleme:
       "faturaNo": "GIB2024000000001",
       "faturaTarihi": "01.01.2025",
       "matrahTutari": 10000.0,
+      "kdvOrani": 20,
       "kdvTutari": 2000.0,
       "tevkifatTutari": 1800.0,
       "tevkifatOrani": "9/10"
@@ -1538,8 +1697,13 @@ ARANACAK HESAP KODLARI VE KURALLAR:
    - Mal ve hizmet alımlarında ödenen indirilecek KDV:
    - "indirilecekKdvMatrah20", "indirilecekKdv20"
    - "indirilecekKdvMatrah10", "indirilecekKdv10"
-5. 360 HESABI (DAMGA VERGİSİ VE MUHTASAR STOPAJLARI):
-   - 360.03.05 (veya 360.03 altındaki hakediş/ödeme/mal alımı damga vergisi alacak tutarı) -> "damgaVergisi360"
+5. 360 HESABI (DAMGA VERGİSİ, İHALE DAMGA, KDV 2 VE MUHTASAR STOPAJLARI — AYLIK + YILLIK + YARDIMCI DEFTER ÇAPRAZ KURALI):
+   - 360.03.05 (veya 360.03 altındaki hakediş/ödeme/mal alımı damga vergisi) -> "damgaVergisi360"
+   - 360.03.02 (İhale Karar Pulu - binde 5,69) -> "ihaleKararPuluDamga360", 360.03.03 (Sözleşme Damga Vergisi) -> "ihaleSozlesmeDamga360"
+   - 360.04 (Sorumlu Sıfatıyla Ödenen KDV 2 Tevkifatı) -> "kdv2Tevkifat360"
+   - KRİTİK DÖSİM VE BEYANNAME ÖDEMESİ KURALI:
+     a) Yardımcı Defter (Muavin) yüklenmişse; 360.03 ve 360.04 altındaki fiş/yevmiye açıklamalarını ve alt hesapları satır satır incele. Diğer birimlerden (Diş Hekimliği, UBATAM, TÖMER, USEM, DTS, TADAUM) gelen tahakkuk/aktarımları ve Vergi Dairesine yapılan Beyanname Ödemelerini (Borç > 0) hariç tut; sadece bu birimin öz kesintilerini al.
+     b) Aylık Mizan ve Yıllık Mizan birlikte mevcutsa; 360 hesabında Borç > 0 (beyanname ödemesi) varsa brüt Alacak yerine net Alacak Bakiyesini (Alacak Kalan) ve Yıllık Mizan dönem sonu net Alacak Kalan tavanını esas al.
    - Damga Matrahı (Damga / 0.00948) -> "damgaMatrah"
    - 360.01 / 360.01.01 (Ücret / maaş / ek ders stopaj Gelir Vergisi alacak tutarı) -> "muhtasarGelir360"
    - 360.03.01 (Ücret bordrosu Damga Vergisi stopajı alacak tutarı) -> "muhtasarDamga360"
