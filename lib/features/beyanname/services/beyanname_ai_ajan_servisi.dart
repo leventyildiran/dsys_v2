@@ -143,7 +143,9 @@ class BeyannameAiAjanServisi {
     required void Function(String hataMesaji) onHata,
   }) async* {
     final ayarlar = await _ayarlarService.getAyarlar();
-    final hasGemini = ayarlar.geminiApiKey.trim().isNotEmpty;
+    final hasGeminiPrimary = ayarlar.geminiApiKey.trim().isNotEmpty;
+    final hasGeminiYedek = ayarlar.geminiYedekApiKey.trim().isNotEmpty;
+    final hasGemini = hasGeminiPrimary || hasGeminiYedek;
     final hasOpenRouter = ayarlar.deepseekApiKey.trim().isNotEmpty;
     final bool isOfflineMod = hizliDeterministikMod || (!hasGemini && !hasOpenRouter);
 
@@ -215,7 +217,7 @@ class BeyannameAiAjanServisi {
     final motorBilgisi = isOfflineMod
         ? '⚡ Kural Tabanlı Deterministik Motor'
         : (hasGemini
-            ? '🤖 Google Gemini (${ayarlar.geminiModel})${hasOpenRouter ? " [OpenRouter Yedekli]" : ""}'
+            ? '🤖 Google Gemini (${ayarlar.geminiModel})${hasGeminiYedek ? " [Ücretli Yedek Aktif]" : ""}${hasOpenRouter ? " [OpenRouter Yedekli]" : ""}'
             : '🌐 OpenRouter (${ayarlar.deepseekModel.isNotEmpty ? ayarlar.deepseekModel : "Varsayılan Model"})');
 
     yield AjanLogMesaji(
@@ -307,6 +309,7 @@ class BeyannameAiAjanServisi {
         for (int k = 0; k < ekBelgeler.length; k++) {
           final digerBelge = ekBelgeler[k];
           final digerBelgeMetni = await belgeMetniniCikar(digerBelge);
+          int buBelgedenYerelBulunan = 0;
           try {
             final textForFatura = digerBelgeMetni.length > 500000
                 ? digerBelgeMetni.substring(0, 500000)
@@ -326,6 +329,7 @@ class BeyannameAiAjanServisi {
             // 1. Öncelik: Tevkifat faturasına özel deterministik ayrıştırıcı (Çoklu / arka arkaya taranmış faturalar dahil)
             final ozelTevkifatlar = MizanDeterministikParser.parseTevkifatFaturalari(textForFatura);
             if (ozelTevkifatlar.isNotEmpty) {
+              buBelgedenYerelBulunan += ozelTevkifatlar.length;
               for (final ot in ozelTevkifatlar) {
                 final mtr = TurkceFormat.parseSayi(ot['matrahTutari']);
                 final mukerrer = tevkifatFaturaListesi.any((t) {
@@ -349,6 +353,7 @@ class BeyannameAiAjanServisi {
               final faturalar = FaturaOfflineParser.parse(textForFatura);
               for (final f in faturalar) {
                 if (f.kalemler.isNotEmpty) {
+                  buBelgedenYerelBulunan++;
                   var firma = f.firmaAdi.trim();
                   var vkn = f.vergiNo.trim();
 
@@ -414,16 +419,32 @@ class BeyannameAiAjanServisi {
           } catch (_) {}
 
           final taranmisBelge = digerBelgeMetni.trim().length < 50;
-          if (taranmisBelge && isOfflineMod && hasGemini) {
-            // Akıllı Hibrit OCR: mizanlar yerelde okundu; SADECE taranmış evrak Gemini Vision'a gider.
+          final yerelBasarisiz = taranmisBelge || buBelgedenYerelBulunan == 0;
+          if (yerelBasarisiz && (hasGemini || hasOpenRouter)) {
+            // Yerel okuma başarısız olduysa veya taranmış görselse: Önce Ücretsiz API (8 deneme), olmazsa Ücretli API!
             yield AjanLogMesaji(
               zaman: DateTime.now(),
-              mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" taranmış resim; Gemini Vision OCR\'a gönderiliyor...',
+              mesaj: taranmisBelge
+                  ? '📷 [$birimAdi] "${digerBelge.dosyaAdi}" taranmış evrak; Gemini Vision OCR\'a gönderiliyor...'
+                  : '🤖 [$birimAdi] "${digerBelge.dosyaAdi}" yerelde tam çözülemedi; AI derin okumaya gönderiliyor...',
               birimAdi: birimAdi,
               ilerlemeYuzdesi: birimIlerlemeBaslangic + (0.18 + (k / ekBelgeler.length) * 0.06) * (birimIlerlemeBitis - birimIlerlemeBaslangic),
             );
             try {
-              final ocrFaturalar = await _taranmisFaturaOcr(ayarlar: ayarlar, belge: digerBelge);
+              final araLoglar = <String>[];
+              final ocrFaturalar = await _taranmisFaturaOcr(
+                ayarlar: ayarlar,
+                belge: digerBelge,
+                ekMetin: digerBelgeMetni,
+                onLog: (m) => araLoglar.add(m),
+              );
+              for (final logMsg in araLoglar) {
+                yield AjanLogMesaji(
+                  zaman: DateTime.now(),
+                  mesaj: '   ↳ [$birimAdi] $logMsg',
+                  birimAdi: birimAdi,
+                );
+              }
               for (final f in ocrFaturalar) {
                 final mtr = TurkceFormat.parseSayi(f['matrahTutari']);
                 final mukerrer = tevkifatFaturaListesi.any((t) {
@@ -444,20 +465,20 @@ class BeyannameAiAjanServisi {
               }
               yield AjanLogMesaji(
                 zaman: DateTime.now(),
-                mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" Gemini Vision ile okundu ve listeye eklendi (${ocrFaturalar.length} fatura).',
+                mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" AI ile okundu ve listeye eklendi (${ocrFaturalar.length} fatura).',
                 birimAdi: birimAdi,
               );
             } catch (e) {
               yield AjanLogMesaji(
                 zaman: DateTime.now(),
-                mesaj: '⚠️ [$birimAdi] Taranmış evrak OCR başarısız: $e',
+                mesaj: '⚠️ [$birimAdi] Evrak AI okuması başarısız: $e',
                 birimAdi: birimAdi,
               );
             }
-          } else if (taranmisBelge && isOfflineMod) {
+          } else if (taranmisBelge) {
             yield AjanLogMesaji(
               zaman: DateTime.now(),
-              mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" taranmış resim (dijital metin yok). Gemini API anahtarı tanımlı olmadığı için OCR yapılamadı.',
+              mesaj: '📷 [$birimAdi] "${digerBelge.dosyaAdi}" taranmış resim (dijital metin yok). API anahtarı tanımlı olmadığı için OCR yapılamadı.',
               birimAdi: birimAdi,
             );
           }
@@ -502,12 +523,11 @@ class BeyannameAiAjanServisi {
 
       BirimMizanAnalizSonucu? sonuc;
 
-      // Çevrimdışı/Hızlı moddaysa VEYA ek fatura görseli olmayıp mizan kural tabanlı tam okunduysa doğrudan deterministik sonucu kullan!
-      final bool mizanTamOkunduVeEkBelgeYok = hasDeterministikVeri && ekBelgeler.isEmpty;
-      if (isOfflineMod || mizanTamOkunduVeEkBelgeYok) {
+      // Çevrimdışı/Hızlı moddaysa VEYA mizan kural tabanlı tam okunduysa (ek faturalar zaten üstteki döngüde yerelde/AI ile tek tek çözüldü) doğrudan deterministik sonucu kullan!
+      if (isOfflineMod || hasDeterministikVeri) {
         sonuc = deterministikSonuc;
       } else {
-        // AI İstemi Hazırlama
+        // Mizan yerelde okunamadıysa (örn. taranmış mizan görüntüsü ise) AI ile mizanı çözümle:
         final prompt = _buildMizanPrompt(
           birimAdi: birimAdi,
           yil: yil,
@@ -527,10 +547,8 @@ class BeyannameAiAjanServisi {
           } else if (ext == 'jpg' || ext == 'jpeg') {
             contentParts.add(DataPart('image/jpeg', doc.dosyaBytes!));
           } else if (ext == 'pdf') {
-            if (doc.slotTuru == BirimBelgeSlotTuru.diger || extractedText.trim().length < 50) {
-              if (doc.dosyaBytes!.length < 15 * 1024 * 1024) {
-                contentParts.add(DataPart('application/pdf', doc.dosyaBytes!));
-              }
+            if (extractedText.trim().length < 50 && doc.dosyaBytes!.length < 15 * 1024 * 1024) {
+              contentParts.add(DataPart('application/pdf', doc.dosyaBytes!));
             }
           }
         }
@@ -538,31 +556,37 @@ class BeyannameAiAjanServisi {
         addMediaPartIfApplicable(aylikMizanBelgesi, aylikMizanMetni);
         addMediaPartIfApplicable(yardimciMizanBelgesi, yardimciMizanMetni);
         addMediaPartIfApplicable(yillikMizanBelgesi, yillikMizanMetni);
-        for (final eb in ekBelgeler) {
-          addMediaPartIfApplicable(eb, '');
-        }
         contentParts.add(TextPart(prompt));
 
         yield AjanLogMesaji(
           zaman: DateTime.now(),
           mesaj: hasGemini
-              ? '🤖 [$birimAdi] Google Gemini AI ile derin belge ve tevkifat analizi yapılıyor...'
-              : '🌐 [$birimAdi] OpenRouter üzerinden derin belge ve tevkifat analizi yapılıyor...',
+              ? '🤖 [$birimAdi] Mizan yerelde çözülemedi; Google Gemini AI ile derin mizan analizi yapılıyor...'
+              : '🌐 [$birimAdi] Mizan yerelde çözülemedi; OpenRouter üzerinden derin mizan analizi yapılıyor...',
           birimAdi: birimAdi,
           ilerlemeYuzdesi: birimIlerlemeBaslangic + 0.35 * (birimIlerlemeBitis - birimIlerlemeBaslangic),
         );
 
         int denemeSayisi = 0;
-        const maxDeneme = 3;
+        const maxDeneme = 2;
 
         while (denemeSayisi < maxDeneme) {
           denemeSayisi++;
           try {
+            final araLoglar = <String>[];
             final aiResponseText = await _calistirAiModel(
               ayarlar: ayarlar,
               prompt: prompt,
               geminiParts: contentParts,
+              onLog: (m) => araLoglar.add(m),
             );
+            for (final logMsg in araLoglar) {
+              yield AjanLogMesaji(
+                zaman: DateTime.now(),
+                mesaj: '   ↳ [$birimAdi] $logMsg',
+                birimAdi: birimAdi,
+              );
+            }
 
             if (aiResponseText != null && aiResponseText.isNotEmpty) {
               final parsedJson = _parseCleanJson(aiResponseText);
@@ -747,11 +771,13 @@ class BeyannameAiAjanServisi {
     onTamamlandi(rapor);
   }
 
-  /// Hibrit mod: yalnızca taranmış (metinsiz) ek evrakı Gemini Vision ile okur.
+  /// Hibrit mod: taranmış (metinsiz) veya yerelde çözülemeyen ek evrakı Gemini Vision / AI ile okur.
   /// Mizanlar gönderilmez; token maliyeti minimumdur.
   Future<List<Map<String, dynamic>>> _taranmisFaturaOcr({
     required SistemAyarlariModel ayarlar,
     required BirimYuklenenBelge belge,
+    String? ekMetin,
+    void Function(String mesaj)? onLog,
   }) async {
     final bytes = belge.dosyaBytes;
     if (bytes == null || bytes.isEmpty || bytes.length > 15 * 1024 * 1024) return [];
@@ -759,11 +785,16 @@ class BeyannameAiAjanServisi {
     final mime = ext == 'png'
         ? 'image/png'
         : (ext == 'jpg' || ext == 'jpeg' ? 'image/jpeg' : 'application/pdf');
-    final prompt = _buildSadeceFaturaOcrPrompt();
+    final basePrompt = _buildSadeceFaturaOcrPrompt();
+    final cleanEkMetin = (ekMetin ?? '').trim();
+    final prompt = cleanEkMetin.length >= 20
+        ? '$basePrompt\n\nBELGEDEN ÇIKARILAN METİN KATMANI (Yardımcı Bağlam):\n${cleanEkMetin.length > 25000 ? cleanEkMetin.substring(0, 25000) : cleanEkMetin}'
+        : basePrompt;
     final text = await _calistirAiModel(
       ayarlar: ayarlar,
       prompt: prompt,
       geminiParts: [DataPart(mime, bytes), TextPart(prompt)],
+      onLog: onLog,
     );
     if (text == null || text.trim().isEmpty) return [];
     final json = _parseCleanJson(text);
@@ -807,13 +838,19 @@ class BeyannameAiAjanServisi {
     }
 
     final ayarlar = await _ayarlarService.getAyarlar();
-    final hasAi = ayarlar.geminiApiKey.trim().isNotEmpty || ayarlar.deepseekApiKey.trim().isNotEmpty;
+    final hasAi = ayarlar.geminiApiKey.trim().isNotEmpty ||
+        ayarlar.geminiYedekApiKey.trim().isNotEmpty ||
+        ayarlar.deepseekApiKey.trim().isNotEmpty;
 
-    // 2. Taranmış PDF veya imaj ise Gemini Vision ile çoklu OCR analizi yap
+    // 2. Taranmış PDF veya imaj ise (veya yerelde çözülemediyse) Gemini Vision ile çoklu OCR analizi yap
     if (hasAi) {
       if (belge.dosyaBytes != null && belge.dosyaBytes!.isNotEmpty) {
         try {
-          final ocrSonuc = await _taranmisFaturaOcr(ayarlar: ayarlar, belge: belge);
+          final ocrSonuc = await _taranmisFaturaOcr(
+            ayarlar: ayarlar,
+            belge: belge,
+            ekMetin: metin,
+          );
           if (ocrSonuc.isNotEmpty) {
             return ocrSonuc;
           }
@@ -836,7 +873,9 @@ class BeyannameAiAjanServisi {
   /// Firma adı, VKN/TCKN, Matrah, KDV, Tevkifat Oranı ve Tevkifat Tutarını kuruşu kuruşuna çıkarır.
   Future<Map<String, dynamic>?> tekilFaturaAiCozumle(BirimYuklenenBelge belge) async {
     final ayarlar = await _ayarlarService.getAyarlar();
-    final hasAi = ayarlar.geminiApiKey.trim().isNotEmpty || ayarlar.deepseekApiKey.trim().isNotEmpty;
+    final hasAi = ayarlar.geminiApiKey.trim().isNotEmpty ||
+        ayarlar.geminiYedekApiKey.trim().isNotEmpty ||
+        ayarlar.deepseekApiKey.trim().isNotEmpty;
 
     // 1. Belgeden metin çıkar
     final metin = await belgeMetniniCikar(belge);
@@ -868,7 +907,18 @@ class BeyannameAiAjanServisi {
       }
     }
 
-    // 3. AI anahtarı varsa veya offline sonuç yetersizse AI ile derin analiz yap
+    // Yerel sonuç eksiksizse (matrah > 0 ve geçerli VKN/TCKN varsa) API kotası harcamadan doğrudan dön!
+    if (offlineSonuc != null) {
+      final offMtr = TurkceFormat.parseSayi(offlineSonuc['matrahTutari']);
+      final offVkn = (offlineSonuc['vergiTcNo']?.toString() ?? '').replaceAll(RegExp(r'[^\d]'), '');
+      final offVknGecerli = (offVkn.length == 10 && BeyannameDenetimServisi.dogrulaVkn(offVkn)) ||
+          (offVkn.length == 11 && BeyannameDenetimServisi.dogrulaTckn(offVkn));
+      if (offMtr > 0 && offVknGecerli) {
+        return offlineSonuc;
+      }
+    }
+
+    // 3. Yerel okuma başarısız veya eksikse: AI ile derin analiz yap (Önce Ücretsiz 8 deneme -> Sonra Ücretli Yedek API)
     if (hasAi) {
       try {
         final prompt = '''
@@ -992,7 +1042,9 @@ SADECE geçerli bir JSON döndür, başka hiçbir metin veya markdown ekleme:
     double? fark,
   }) async {
     final ayarlar = await _ayarlarService.getAyarlar();
-    if (ayarlar.geminiApiKey.trim().isEmpty && ayarlar.deepseekApiKey.trim().isEmpty) {
+    if (ayarlar.geminiApiKey.trim().isEmpty &&
+        ayarlar.geminiYedekApiKey.trim().isEmpty &&
+        ayarlar.deepseekApiKey.trim().isEmpty) {
       throw Exception('Sistem Ayarlarında tanımlı bir AI API anahtarı yok.');
     }
     final prompt = '''
@@ -1017,7 +1069,9 @@ Görev: Bu farkın olası nedenlerini, ilgili mevzuatı (KDVK, DVK, GVK) ve beya
     required BeyannameAjanRaporu? rapor,
   }) async {
     final ayarlar = await _ayarlarService.getAyarlar();
-    if (ayarlar.geminiApiKey.trim().isEmpty && ayarlar.deepseekApiKey.trim().isEmpty) {
+    if (ayarlar.geminiApiKey.trim().isEmpty &&
+        ayarlar.geminiYedekApiKey.trim().isEmpty &&
+        ayarlar.deepseekApiKey.trim().isEmpty) {
       throw Exception(
         'Sistem Ayarlarında geçerli bir Google Gemini veya DeepSeek/OpenRouter API anahtarı tanımlı değil. Lütfen Sistem Ayarları sayfasından API anahtarınızı giriniz.',
       );
@@ -1170,35 +1224,67 @@ $logMetni
     return null;
   }
 
-  /// Birincil olarak Google Gemini (tanımlıysa), yoksa veya hata verirse OpenRouter çalıştırır
+  /// 1) Önce Ücretsiz Google Gemini (8 deneme),
+  /// 2) Yanıt vermezse / süre aşarsa Ücretli Yedek Google Gemini (`geminiYedekApiKey`),
+  /// 3) O da yoksa OpenRouter / DeepSeek çalıştırır.
   Future<String?> _calistirAiModel({
     required SistemAyarlariModel ayarlar,
     required String prompt,
     List<Part>? geminiParts,
+    void Function(String mesaj)? onLog,
   }) async {
     Object? sonHata;
+    final parts = geminiParts ?? [TextPart(prompt)];
+    final hasMedia = parts.any((p) => p is DataPart);
 
-    // 1. İLK TERCİH: Google Gemini Tanımlıysa Önce Onu Çağır (Fatura modülüyle aynı kurumsal standart)
+    // 1. İLK TERCİH: Google Gemini Birincil (Ücretsiz) Anahtar — En fazla 8 deneme (503 artımlı bekleme ile)
     if (ayarlar.geminiApiKey.trim().isNotEmpty) {
       try {
-        final parts = geminiParts ?? [TextPart(prompt)];
         final text = await _runGeminiWithFallback(
           apiKey: ayarlar.geminiApiKey,
           preferredModel: ayarlar.geminiModel,
           parts: parts,
+          maxAttemptsPerModel: 4, // 2 model x 4 = 8 deneme
+          timeoutSeconds: hasMedia ? 45 : 25,
+          onLog: onLog,
+          etiket: 'Ücretsiz API',
         );
         if (text != null && text.trim().isNotEmpty) return text;
       } catch (e) {
         sonHata = e;
-        debugPrint('[Beyanname AI] Gemini çağrısı hata verdi: $e');
+        debugPrint('[Beyanname AI] Ücretsiz Gemini 8 denemede yanıt veremedi: $e');
+        if (ayarlar.geminiYedekApiKey.trim().isEmpty && ayarlar.deepseekApiKey.trim().isEmpty) rethrow;
+      }
+    }
+
+    // 2. YEDEK HAT: Ücretsiz API 8 denemede yanıt veremediyse Ücretli Yedek Gemini (`geminiYedekApiKey`) devreye girer!
+    if (ayarlar.geminiYedekApiKey.trim().isNotEmpty) {
+      try {
+        const gecisMesaji = '🟡 Ücretsiz API 8 denemede yanıt veremedi (yoğunluk/kota). Evrakın eksiksiz okunması için Ücretli Yedek API devreye alındı...';
+        debugPrint('[Beyanname AI] $gecisMesaji');
+        onLog?.call(gecisMesaji);
+        final text = await _runGeminiWithFallback(
+          apiKey: ayarlar.geminiYedekApiKey,
+          preferredModel: ayarlar.geminiModel,
+          parts: parts,
+          maxAttemptsPerModel: 3,
+          timeoutSeconds: hasMedia ? 75 : 40,
+          onLog: onLog,
+          etiket: 'Ücretli Yedek API',
+        );
+        if (text != null && text.trim().isNotEmpty) return text;
+      } catch (e) {
+        sonHata = e;
+        debugPrint('[Beyanname AI] Ücretli Yedek Gemini çağrısı da hata verdi: $e');
         if (ayarlar.deepseekApiKey.trim().isEmpty) rethrow;
       }
     }
 
-    // 2. YEDEK HAT: Gemini başarısız olduysa veya anahtarı yoksa OpenRouter devreye girer
+    // 3. ALTERNATİF YEDEK: OpenRouter / DeepSeek Tanımlıysa
     if (ayarlar.deepseekApiKey.trim().isNotEmpty) {
       try {
-        debugPrint('[Beyanname AI] Gemini yanıt vermedi, OpenRouter yedeğine geçiliyor...');
+        debugPrint('[Beyanname AI] Gemini hatları yanıt vermedi, OpenRouter yedeğine geçiliyor...');
+        onLog?.call('🌐 OpenRouter / DeepSeek yedek motoruna aktarılıyor...');
         final text = await _runOpenRouter(
           apiUrl: ayarlar.deepseekApiUrl,
           apiKey: ayarlar.deepseekApiKey,
@@ -1222,6 +1308,10 @@ $logMetni
     required String apiKey,
     required List<Part> parts,
     String? preferredModel,
+    int maxAttemptsPerModel = 4,
+    int? timeoutSeconds,
+    void Function(String mesaj)? onLog,
+    String etiket = 'API',
   }) async {
     final modelOrder = <String>[];
     String? cleanPreferred = preferredModel?.trim();
@@ -1238,11 +1328,15 @@ $logMetni
     }
 
     final hasMedia = parts.any((p) => p is DataPart);
-    final modelTimeout = Duration(seconds: hasMedia ? 180 : 60);
+    final modelTimeout = Duration(seconds: timeoutSeconds ?? (hasMedia ? 45 : 25));
 
     Object? sonHata;
+    int toplamDeneme = 0;
+    final int maxToplam = modelOrder.length * maxAttemptsPerModel;
+
     for (final modelName in modelOrder) {
-      for (int attempt = 0; attempt < 2; attempt++) {
+      for (int attempt = 0; attempt < maxAttemptsPerModel; attempt++) {
+        toplamDeneme++;
         try {
           final model = GenerativeModel(model: modelName, apiKey: apiKey);
           final response = await model
@@ -1254,12 +1348,17 @@ $logMetni
         } catch (e) {
           sonHata = e;
           final err = e.toString();
-          final is503 = err.contains('503') ||
+          final is503OrRateLimit = err.contains('503') ||
+              err.contains('429') ||
               err.contains('UNAVAILABLE') ||
+              err.contains('RESOURCE_EXHAUSTED') ||
               err.contains('high demand') ||
-              err.contains('overloaded');
-          if (is503 && attempt == 0) {
-            await Future.delayed(const Duration(seconds: 3));
+              err.contains('overloaded') ||
+              err.contains('TimeoutException');
+          if (is503OrRateLimit && attempt < maxAttemptsPerModel - 1) {
+            final beklemeSn = (attempt + 1) * 2; // 2sn, 4sn, 6sn
+            onLog?.call('⏳ $etiket ($modelName) yoğun, $beklemeSn sn sonra tekrar deneniyor (Deneme $toplamDeneme/$maxToplam)...');
+            await Future.delayed(Duration(seconds: beklemeSn));
             continue;
           }
           break;
