@@ -220,9 +220,21 @@ class _OkunanVerilerOnizlemeKartiState extends State<OkunanVerilerOnizlemeKarti>
                       return DataRow(
                         cells: [
                           DataCell(
-                            Text(
-                              b.birimAdi,
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  b.birimAdi,
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                ),
+                                if (b.yardimciMizanKullanildi) ...[
+                                  const SizedBox(width: 4),
+                                  Tooltip(
+                                    message: b.aciklama ?? 'Yardımcı Defter (Muavin) incelendi ve arındırıldı',
+                                    child: const Icon(Icons.verified_rounded, size: 14, color: AppColors.success),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                           DataCell(_tutarText(b.hasilat600Aylik, highlight: true)),

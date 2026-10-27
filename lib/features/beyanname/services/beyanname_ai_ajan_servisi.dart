@@ -93,10 +93,10 @@ class BeyannameAiAjanServisi {
         // Slot türüne ve sayfa sayısına göre güvenli sınır:
         // - Otomatik sınıflandırma / hızlı tarama için maxPagesOverride (örn. 2 sayfa)
         // - Geçici mizanlar normalde 2-25 sayfadır (max 35 sayfa yeterlidir)
-        // - Yardımcı defterler yüzlerce sayfa olabilir (özet için ilk 15 sayfa yeterlidir)
-        // - Diğer ek evraklar (max 20 sayfa yeterlidir)
+        // - Yardımcı defterler (Muavin) 300+ sayfa olabilir; vergiler (360, 303, 391, 600) 170-250. sayfalardadır!
+        // - Yardımcı defterin 350 sayfaya kadar eksiksiz okunması yerel deterministik çözümleme için elzemdir!
         final defaultMax = belge.slotTuru == BirimBelgeSlotTuru.yardimciMizan
-            ? 50
+            ? 350
             : 100;
         final maxPages = maxPagesOverride ?? defaultMax;
         final pagesToExtract = min(totalPages, maxPages);
@@ -107,8 +107,10 @@ class BeyannameAiAjanServisi {
           final pageText = extractor.extractText(startPageIndex: p, endPageIndex: p);
           if (p > 0) sb.writeln('\n\f\n--- SAYFA ${p + 1} ---\n');
           sb.writeln(pageText);
-          // Her sayfada browser event loop'a nefes aldır (Web donmasını ve "Sayfa Yanıt Vermiyor" uyarısını engelle!)
-          await Future.delayed(const Duration(milliseconds: 10));
+          // Her 10 sayfada bir browser event loop'a nefes aldır (Web donmasını engeller, hızı maksimize eder)
+          if (p % 10 == 0) {
+            await Future.delayed(const Duration(milliseconds: 5));
+          }
         }
         final text = sb.toString().trim();
         debugPrint(
@@ -642,12 +644,32 @@ class BeyannameAiAjanServisi {
         sonuc = deterministikSonuc;
       } else {
         // Mizan yerelde okunamadıysa (örn. taranmış mizan görüntüsü ise) AI ile mizanı çözümle:
+        final yardimciMetniFiltreli = yardimciMizanMetni.length > 25000
+            ? yardimciMizanMetni
+                .split('\n')
+                .where((l) {
+                  final u = l.toUpperCase();
+                  return u.contains('360') ||
+                      u.contains('391') ||
+                      u.contains('600') ||
+                      u.contains('120') ||
+                      u.contains('123') ||
+                      u.contains('303') ||
+                      u.contains('HESAP KODU:') ||
+                      u.contains('TOPLAMI') ||
+                      u.contains('KALANI') ||
+                      u.contains('AÇIKLAMA:');
+                })
+                .take(400)
+                .join('\n')
+            : yardimciMizanMetni;
+
         final prompt = _buildMizanPrompt(
           birimAdi: birimAdi,
           yil: yil,
           ay: ay,
           aylikMizanMetni: aylikMizanMetni,
-          yardimciMizanMetni: yardimciMizanMetni,
+          yardimciMizanMetni: yardimciMetniFiltreli,
           yillikMizanMetni: yillikMizanMetni,
           digerBelgeMetni: ekBelgeler.isNotEmpty ? '(${ekBelgeler.length} adet ek evrak incelendi)' : '',
         );

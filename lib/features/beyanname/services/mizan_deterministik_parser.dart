@@ -1557,6 +1557,12 @@ class MizanDeterministikParser {
       'kaynak': 'MizanDeterministikParser',
     };
 
+    final String analizAciklamasi = isDosim && hasYardimci
+        ? 'Yardımcı Defter (Muavin) tam çözümlendi: Diğer birim vergi aktarımları ve geçmiş beyanname ödemeleri arındırıldı, DÖSİM öz bordro vergisi netleştirildi.'
+        : (hasYardimci
+            ? 'Aylık Mizan ve Yardımcı Defter (Muavin) çapraz doğrulanarak yerelde çözümlendi.'
+            : 'Muhasebat Geçici Mizan kural tabanlı deterministik olarak başarıyla okundu.');
+
     return BirimMizanAnalizSonucu(
       birimAdi: birimAdi,
       analizTarihi: DateTime.now(),
@@ -1589,7 +1595,7 @@ class MizanDeterministikParser {
       yardimciMizan391Toplam: yardimci391,
       yardimciMizan191Toplam: yardimci191,
       yardimciMizan600Toplam: yardimci600,
-      aciklama: 'Muhasebat Geçici Mizan kural tabanlı deterministik olarak başarıyla okundu.',
+      aciklama: analizAciklamasi,
       hamJson: hamJson,
     );
   }
